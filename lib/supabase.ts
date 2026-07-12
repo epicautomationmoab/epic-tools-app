@@ -9,5 +9,3 @@ export type ReadinessRow = {
   epic_document_count_color: "green" | "yellow" | "red" | "gray" | string;
   mpwr_confirmation_number: string | null;
   amount_due_cents: number | null;
-  is_paid: boolean | null;
-  ohv
