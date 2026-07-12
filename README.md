@@ -29,3 +29,5 @@ The app reads:
 npm install
 npm run dev
 ```
+
+Deployment trigger refreshed for Vercel.
