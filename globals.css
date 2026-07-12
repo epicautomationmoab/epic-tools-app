@@ -33,7 +33,7 @@ a {
 }
 
 .topbar {
-  align-items: end;
+  align-items: flex-end;
   border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
@@ -283,7 +283,7 @@ th {
 }
 
 .arrivalTopbar {
-  align-items: end;
+  align-items: flex-end;
   border-bottom: 2px solid var(--line);
   display: flex;
   justify-content: space-between;
