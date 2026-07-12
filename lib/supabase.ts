@@ -34,31 +34,43 @@ export type ArrivalBoardRow = {
 };
 
 function getSupabaseConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
-  if (!url || !key) {
-    return null;
+  if (!rawUrl || !key) {
+    throw new Error("Supabase environment variables are missing in Vercel.");
   }
 
-  return { url: url.replace(/\/$/, ""), key };
+  const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+  const url = normalizedUrl.replace(/\/+$/, "");
+
+  return { url, key };
 }
 
 async function fetchView<T>(viewName: string, searchParams: URLSearchParams): Promise<T[]> {
   const config = getSupabaseConfig();
-  if (!config) return [];
-
   const endpoint = `${config.url}/rest/v1/${viewName}?${searchParams.toString()}`;
-  const response = await fetch(endpoint, {
-    headers: {
-      apikey: config.key,
-      Authorization: `Bearer ${config.key}`,
-    },
-    next: { revalidate: 30 },
-  });
+
+  let response: Response;
+
+  try {
+    response = await fetch(endpoint, {
+      headers: {
+        apikey: config.key,
+        Authorization: `Bearer ${config.key}`,
+      },
+      cache: "no-store",
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Supabase network request failed for ${config.url}: ${detail}`);
+  }
 
   if (!response.ok) {
-    throw new Error(`Supabase ${viewName} request failed: ${response.status}`);
+    const body = await response.text();
+    throw new Error(
+      `Supabase ${viewName} request failed (${response.status}) at ${config.url}: ${body.slice(0, 300)}`,
+    );
   }
 
   return response.json() as Promise<T[]>;
