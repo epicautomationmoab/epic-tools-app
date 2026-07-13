@@ -79,19 +79,36 @@ async function fetchView<T>(viewName: string, searchParams: URLSearchParams): Pr
 export async function getReadinessRows() {
   const params = new URLSearchParams({
     select: "*",
-    order: "visit_start_time.asc,customer_name.asc",
     limit: "500",
   });
 
-  return fetchView<ReadinessRow>("guest_readiness_dashboard_scan_document_links_v3", params);
+  const rows = await fetchView<ReadinessRow>(
+    "guest_readiness_dashboard_scan_document_links_v3",
+    params,
+  );
+
+  return rows.sort((a, b) => {
+    const timeCompare = a.visit_start_time.localeCompare(b.visit_start_time);
+    if (timeCompare !== 0) return timeCompare;
+    return a.customer_name.localeCompare(b.customer_name);
+  });
 }
 
 export async function getArrivalBoardRows() {
   const params = new URLSearchParams({
     select: "*",
-    order: "visit_start_time.asc,business_line.asc,customer_name.asc",
     limit: "500",
   });
 
-  return fetchView<ArrivalBoardRow>("guest_arrival_board_v", params);
+  const rows = await fetchView<ArrivalBoardRow>("guest_arrival_board_v", params);
+
+  return rows.sort((a, b) => {
+    const timeCompare = a.visit_start_time.localeCompare(b.visit_start_time);
+    if (timeCompare !== 0) return timeCompare;
+
+    const lineCompare = a.business_line.localeCompare(b.business_line);
+    if (lineCompare !== 0) return lineCompare;
+
+    return a.customer_name.localeCompare(b.customer_name);
+  });
 }
