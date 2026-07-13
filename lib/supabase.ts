@@ -83,7 +83,7 @@ export async function getReadinessRows() {
   });
 
   const rows = await fetchView<ReadinessRow>(
-    "guest_readiness_dashboard_scan_document_links_v3",
+    "guest_readiness_app_v",
     params,
   );
 
