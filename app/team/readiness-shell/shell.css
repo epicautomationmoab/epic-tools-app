@@ -1,0 +1,172 @@
+:root {
+  --ink: #10213d;
+  --muted: #6f7d92;
+  --line: #e7ebf1;
+  --surface: #ffffff;
+  --panel: #f6f8fb;
+  --navy: #071a33;
+  --orange: #ff5a12;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; background: #eef2f6; color: var(--ink); }
+button, input { font: inherit; }
+
+.epicAppShell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  background: #f4f7fb;
+}
+
+.epicSidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(180deg, #081c36 0%, #06172e 58%, #07172c 100%);
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+
+.brandBlock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 112px;
+  padding: 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 2px solid #ef4d21;
+  border-radius: 16px;
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: -.06em;
+}
+.brandBlock strong { display: block; font-size: 25px; letter-spacing: .02em; }
+.brandBlock span { display: block; margin-top: 2px; color: #ff6a2a; font-size: 13px; font-weight: 800; letter-spacing: .18em; }
+
+.sidebarNav { display: grid; gap: 8px; padding: 18px 12px; }
+.sidebarNav a {
+  color: #d9e2ef;
+  text-decoration: none;
+  font-weight: 750;
+  border-radius: 10px;
+  padding: 13px 14px;
+}
+.sidebarNav a.active { background: rgba(255,255,255,.11); color: #fff; box-shadow: inset 3px 0 0 var(--orange); }
+
+.sidebarPhoto {
+  margin-top: auto;
+  min-height: 230px;
+  background:
+    linear-gradient(180deg, rgba(7,23,44,0) 0%, rgba(7,23,44,.28) 45%, rgba(7,23,44,.94) 100%),
+    linear-gradient(135deg, #6b3a22 0%, #c8753f 42%, #71402f 70%, #17283e 100%);
+}
+
+.agentCard {
+  margin: -62px 12px 16px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 14px;
+  background: rgba(5,20,39,.88);
+  box-shadow: 0 12px 30px rgba(0,0,0,.28);
+  backdrop-filter: blur(10px);
+}
+.agentCardTitle { margin-bottom: 9px; font-size: 12px; color: #a9b9ce; text-transform: uppercase; letter-spacing: .12em; font-weight: 900; }
+.agentRow { display: grid; grid-template-columns: 9px 1fr auto; align-items: center; gap: 8px; padding: 7px 0; font-size: 12px; }
+.agentRow small { color: #87d69a; }
+.statusDot { width: 8px; height: 8px; border-radius: 50%; background: #29c85c; box-shadow: 0 0 0 3px rgba(41,200,92,.13); }
+
+.epicWorkspace { min-width: 0; padding: 24px 28px 36px; }
+.workspaceHeader { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 20px; }
+.workspaceHeader h1 { margin: 0; font-size: 38px; line-height: 1; letter-spacing: -.04em; }
+.workspaceHeader p { margin: 7px 0 0; color: var(--muted); font-weight: 650; }
+.headerActions { display: flex; align-items: center; gap: 12px; }
+.syncText { display: flex; align-items: center; gap: 8px; color: #77839a; font-size: 12px; text-align: right; }
+.syncText strong { color: #46546a; }
+.secondaryButton, .primaryButton {
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.secondaryButton { background: #fff; color: var(--ink); border: 1px solid #dfe5ec; box-shadow: 0 4px 12px rgba(16,33,61,.06); }
+.primaryButton { background: linear-gradient(180deg, #ff681e, #f04c09); color: #fff; border: 0; box-shadow: 0 8px 18px rgba(240,76,9,.25); }
+
+.metricGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.metricCard { display: flex; align-items: center; gap: 18px; min-height: 132px; padding: 22px; background: #fff; border: 1px solid #e8edf3; border-radius: 16px; box-shadow: 0 8px 24px rgba(16,33,61,.05); }
+.metricIcon { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 20px; font-size: 34px; font-weight: 900; }
+.metricCard strong { display: block; font-size: 46px; line-height: .95; letter-spacing: -.04em; }
+.metricCard span { display: block; margin-top: 8px; font-weight: 850; }
+.metricCard small { display: block; margin-top: 5px; color: var(--muted); font-weight: 650; }
+.metricCard.blue .metricIcon { background: #edf4ff; color: #1b67dd; }
+.metricCard.orange .metricIcon { background: #fff0e8; color: #f45818; }
+.metricCard.red .metricIcon { background: #ffecec; color: #e33a36; }
+.metricCard.purple .metricIcon { background: #f2ecff; color: #703ad7; }
+.metricCard.blue span { color: #2e64c7; }
+.metricCard.orange span { color: #e94b20; }
+.metricCard.red span { color: #df3535; }
+.metricCard.purple span { color: #7043c6; }
+
+.toolbar { display: flex; justify-content: space-between; gap: 16px; margin: 20px 0 14px; }
+.filterGroup { display: flex; flex-wrap: wrap; gap: 10px; }
+.filter { min-height: 42px; padding: 0 16px; border: 1px solid #e0e5eb; border-radius: 10px; background: #fff; color: #2d384b; font-weight: 800; }
+.filter.active { border-color: #ff7036; color: #e64c16; box-shadow: inset 0 0 0 1px #ffb18c; }
+.filter span { margin-left: 8px; padding: 2px 7px; border-radius: 999px; background: #ffe8e7; color: #e43d35; }
+.filter span.greenBadge { background: #e3f7e9; color: #20934d; }
+.searchBox { width: 340px; min-height: 42px; padding: 0 16px; border: 1px solid #e0e5eb; border-radius: 10px; background: #fff; outline: none; }
+
+.readinessPanel { position: relative; overflow: visible; background: #fff; border: 1px solid #e6ebf1; border-radius: 16px; box-shadow: 0 10px 28px rgba(16,33,61,.055); }
+.readinessGrid { display: grid; grid-template-columns: 110px 160px minmax(190px,1.4fr) 140px 120px 120px 120px 90px 150px; align-items: center; gap: 14px; }
+.readinessHeader { padding: 15px 20px; border-bottom: 1px solid #e6ebf1; color: #506078; font-size: 11px; text-transform: uppercase; font-weight: 900; letter-spacing: .04em; }
+.readinessRow { position: relative; min-height: 82px; padding: 13px 20px; border-bottom: 1px solid #edf0f4; }
+.readinessRow:last-child { border-bottom: 0; }
+.readinessRow::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #ed3d34; }
+.readinessRow.ready::before { background: #25b957; }
+.readinessRow.warning::before { background: #f2a51d; }
+.visitCell, .countCell { display: grid; gap: 4px; }
+.visitCell strong, .guestLink, .activityCell, .countCell strong { font-weight: 850; }
+.visitCell small, .countCell small { color: #7c889b; }
+.guestLink { padding: 0; border: 0; background: transparent; text-align: left; color: var(--ink); cursor: pointer; }
+.activityCell { line-height: 1.28; }
+.readinessPill, .ohv { display: inline-flex; align-items: center; width: max-content; min-height: 30px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 850; }
+.readinessPill.ready { background: #e6f7eb; color: #21964d; }
+.readinessPill.danger { background: #ffebeb; color: #e23f39; }
+.readinessPill.warning { background: #fff1dc; color: #d88a16; }
+.countCell strong { display: flex; align-items: center; gap: 7px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot.red { background: #ed212b; }
+.dot.green { background: #1fb05d; }
+.balance { font-weight: 850; }
+.balance.good { color: #24a45a; }
+.balance.due { color: #e63a35; }
+.ohv { background: #f2f4f7; color: #66758b; }
+.ohv.missing { background: #ffebeb; color: #dc3f39; }
+.kioskCell { position: relative; }
+.phoneButton { display: inline-flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 98px; min-height: 38px; padding: 0 12px; border: 1px solid #dfe4ea; border-radius: 9px; background: #fff; color: #1d2a3f; font-weight: 850; cursor: pointer; }
+.kioskMenu { position: absolute; z-index: 20; right: 0; top: 46px; width: 236px; padding: 12px; border: 1px solid #e1e6ec; border-radius: 14px; background: #fff; box-shadow: 0 16px 38px rgba(16,33,61,.16); }
+.kioskMenu strong { display: block; padding: 4px 6px 9px; }
+.kioskMenu button { width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 7px; border: 0; border-radius: 8px; background: transparent; text-align: left; color: #26334a; cursor: pointer; }
+.kioskMenu button:hover { background: #f5f7fa; }
+.kioskDot { width: 10px; height: 10px; border-radius: 50%; }
+.kioskDot.available { background: #25b957; }
+.kioskDot.busy { background: #e53935; }
+.kioskDot.idle { background: #f5bf1d; }
+
+@media (max-width: 1280px) {
+  .epicAppShell { grid-template-columns: 176px minmax(0,1fr); }
+  .epicWorkspace { padding: 20px; }
+  .readinessPanel { overflow-x: auto; }
+  .readinessGrid { min-width: 1180px; }
+  .metricGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
