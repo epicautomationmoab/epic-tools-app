@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import "./drawer.css";
+import "./modern.css";
 
 export const metadata: Metadata = {
   title: "EpicTools",
@@ -14,8 +15,4 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
-}
+    <html lang
