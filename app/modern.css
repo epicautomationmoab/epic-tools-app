@@ -1,0 +1,142 @@
+:root {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --ink: #1f2328;
+  --muted: #68707a;
+  --line: #e2e5e9;
+}
+
+body {
+  background: linear-gradient(180deg, #f7f8fa 0%, #f2f3f5 100%);
+}
+
+.shell {
+  margin: 0 auto;
+  max-width: 1680px;
+  padding: 30px;
+}
+
+.topbar {
+  align-items: center;
+  border-bottom: 0;
+  padding-bottom: 8px;
+}
+
+.topbar h1 {
+  font-size: 38px;
+  letter-spacing: -0.035em;
+}
+
+.navLinks a {
+  border-color: #dde1e6;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(18, 24, 32, 0.03);
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.navLinks a:hover {
+  border-color: #c9ced5;
+  box-shadow: 0 5px 16px rgba(18, 24, 32, 0.07);
+  transform: translateY(-1px);
+}
+
+.metrics {
+  background: transparent;
+  gap: 12px;
+  margin-top: 20px;
+  overflow: visible;
+}
+
+.metric {
+  border: 1px solid #e0e3e7;
+  border-radius: 14px;
+  box-shadow: 0 5px 18px rgba(18, 24, 32, 0.045);
+  padding: 18px;
+}
+
+.metric:first-child,
+.metric:last-child {
+  border-left: 1px solid #e0e3e7;
+  border-right: 1px solid #e0e3e7;
+}
+
+.metricValue {
+  letter-spacing: -0.04em;
+}
+
+.tableWrap {
+  border: 1px solid #dfe3e7;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(18, 24, 32, 0.055);
+  margin-top: 20px;
+  overflow: auto;
+}
+
+table {
+  background: var(--panel);
+}
+
+th {
+  background: #f1f3f5;
+  border-bottom-color: #dde1e6;
+  color: #6a717b;
+  font-size: 11px;
+  letter-spacing: .04em;
+  padding-bottom: 11px;
+  padding-top: 11px;
+}
+
+td {
+  border-bottom-color: #eceef1;
+  padding-bottom: 14px;
+  padding-top: 14px;
+}
+
+tbody tr {
+  transition: background .14s ease;
+}
+
+tbody tr:hover {
+  background: #fafbfc;
+}
+
+.mainLine {
+  letter-spacing: -0.01em;
+}
+
+.inlineLink {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.reviewButton,
+.reviewButton.clear {
+  background: #ffffff;
+  border: 1px solid #d7dce1;
+  border-radius: 9px;
+  color: #40464f;
+  cursor: pointer;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 7px 12px;
+  transition: background .14s ease, border-color .14s ease, box-shadow .14s ease;
+}
+
+.reviewButton:hover,
+.reviewButton.clear:hover {
+  background: #f5f6f7;
+  border-color: #bfc5cc;
+  box-shadow: 0 3px 10px rgba(18, 24, 32, 0.06);
+}
+
+.money,
+.ohvStatus {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.025);
+}
+
+@media (max-width: 900px) {
+  .shell {
+    padding: 18px;
+  }
+}
