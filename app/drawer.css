@@ -3,7 +3,8 @@
 }
 
 .drawerBackdrop {
-  background: rgba(20, 20, 20, 0.42);
+  background: rgba(18, 24, 32, 0.34);
+  backdrop-filter: blur(4px);
   display: flex;
   inset: 0;
   justify-content: flex-end;
@@ -12,79 +13,95 @@
 }
 
 .readinessDrawer {
-  background: var(--panel);
-  box-shadow: -12px 0 30px rgba(0, 0, 0, 0.18);
+  background: #fbfbfa;
+  box-shadow: -24px 0 60px rgba(18, 24, 32, 0.18);
   height: 100%;
-  max-width: 620px;
+  max-width: 640px;
   overflow-y: auto;
-  padding: 28px;
-  width: min(620px, 92vw);
+  padding: 32px;
+  width: min(640px, 94vw);
 }
 
 .drawerHeader {
   align-items: flex-start;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid #e7e5e2;
   display: flex;
   gap: 20px;
   justify-content: space-between;
-  padding-bottom: 20px;
+  padding-bottom: 24px;
 }
 
 .drawerHeader h2 {
-  font-size: 34px;
-  line-height: 1.05;
+  font-size: 38px;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
 }
 
 .drawerSubhead {
   color: var(--muted);
-  margin: 8px 0 0;
+  font-size: 15px;
+  margin: 10px 0 0;
 }
 
 .drawerClose {
-  background: transparent;
+  align-items: center;
+  background: #f0efed;
   border: 0;
-  color: var(--muted);
+  border-radius: 999px;
+  color: #555;
   cursor: pointer;
-  font-size: 34px;
+  display: inline-flex;
+  font-size: 26px;
+  height: 40px;
+  justify-content: center;
   line-height: 1;
   padding: 0;
+  width: 40px;
+}
+
+.drawerClose:hover {
+  background: #e7e5e2;
 }
 
 .drawerFacts {
   display: grid;
-  gap: 1px;
+  gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 20px;
-  overflow: hidden;
+  margin-top: 24px;
 }
 
 .drawerFacts > div {
-  background: #f2f2f1;
-  padding: 14px;
+  background: #f2f1ef;
+  border: 1px solid #ebe9e6;
+  border-radius: 14px;
+  padding: 16px;
 }
 
 .drawerFacts span,
 .signerIdentity small {
   color: var(--muted);
   display: block;
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: .04em;
   text-transform: uppercase;
 }
 
 .drawerFacts strong {
   display: block;
-  margin-top: 4px;
+  font-size: 20px;
+  margin-top: 5px;
 }
 
 .drawerSection {
-  border-top: 1px solid var(--line);
-  margin-top: 24px;
-  padding-top: 20px;
+  border-top: 1px solid #e7e5e2;
+  margin-top: 28px;
+  padding-top: 24px;
 }
 
 .drawerSection h3 {
-  font-size: 18px;
-  margin-bottom: 12px;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  margin-bottom: 14px;
 }
 
 .signerList {
@@ -94,37 +111,47 @@
 
 .signerRow {
   align-items: center;
-  background: #f7f7f6;
-  border: 1px solid var(--line);
+  background: #ffffff;
+  border: 1px solid #e5e2de;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(18, 24, 32, 0.03);
   display: flex;
   gap: 14px;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 14px 16px;
 }
 
 .signerIdentity {
   align-items: center;
-  display: grid;
-  gap: 2px 10px;
-  grid-template-columns: auto 1fr;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
 }
 
-.childMark {
+.signerIdentity strong {
+  display: block;
+  font-size: 16px;
+}
+
+.minorMark {
   font-size: 20px;
-  grid-row: 1 / span 2;
+  flex: 0 0 auto;
 }
 
-.waiverLink,
-.drawerLinks a {
-  background: #fff0e9;
-  border: 1px solid #efc0ad;
-  border-radius: 6px;
+.waiverLink {
+  background: #fff5ef;
+  border: 1px solid #f0bca5;
+  border-radius: 10px;
   color: #9f3418;
   font-size: 13px;
   font-weight: 900;
-  padding: 9px 11px;
+  padding: 9px 12px;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.waiverLink:hover {
+  background: #ffede3;
 }
 
 .missingLink,
@@ -136,7 +163,50 @@
 .drawerLinks {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
+}
+
+.systemLink {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e1dfdc;
+  border-radius: 12px;
+  color: #252525;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 850;
+  gap: 9px;
+  padding: 10px 13px;
+  text-decoration: none;
+}
+
+.systemLink:hover {
+  border-color: #cbc7c2;
+  box-shadow: 0 4px 14px rgba(18, 24, 32, 0.07);
+  transform: translateY(-1px);
+}
+
+.logoBadge {
+  align-items: center;
+  border-radius: 8px;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 950;
+  height: 28px;
+  justify-content: center;
+  letter-spacing: -0.02em;
+  min-width: 28px;
+  padding: 0 6px;
+}
+
+.tripworksLink .logoBadge {
+  background: #f15a2a;
+  color: #fff;
+}
+
+.mpwrLink .logoBadge {
+  background: #1f2937;
+  color: #fff;
 }
 
 .flagList {
@@ -146,7 +216,7 @@
 }
 
 .flagList span {
-  background: #f9e6e4;
+  background: #f8ebe8;
   border-radius: 999px;
   color: var(--red);
   font-size: 12px;
@@ -157,7 +227,7 @@
 
 @media (max-width: 640px) {
   .readinessDrawer {
-    padding: 20px;
+    padding: 22px;
     width: 100vw;
   }
 
