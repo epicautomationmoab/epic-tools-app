@@ -9,3 +9,4 @@ function formatWallTime(value: string) {
   let hour = Number(match[1]);
   const minute = match[2];
   const suffix = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12
