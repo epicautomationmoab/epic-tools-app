@@ -25,10 +25,6 @@ function mpwrLabel(row: ReadinessRow) {
   return `0/${expected}`;
 }
 
-function hasAttention(row: ReadinessRow) {
-  return (row.attention_flags ?? []).some((flag) => flag !== "mpwr_check");
-}
-
 function OhvCell({ row }: { row: ReadinessRow }) {
   if (row.business_line !== "rental") return <span className="ohvStatus ohvGood">N/A</span>;
   if (row.ohv_certificate_uploaded) return <span className="ohvStatus ohvGood">✓</span>;
@@ -75,7 +71,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                   </td>
                   <td>{due > 0 ? <i className="money moneyDue">$</i> : <i className="money moneyPaid">$0</i>}</td>
                   <td><OhvCell row={row} /></td>
-                  <td><button type="button" className={`reviewButton ${hasAttention(row) ? "" : "clear"}`} onClick={() => setSelected(row)}>{hasAttention(row) ? "Review" : "Open"}</button></td>
+                  <td><button type="button" className="reviewButton clear" onClick={() => setSelected(row)}>Review</button></td>
                 </tr>
               );
             })}
@@ -105,8 +101,14 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                 <div className="signerList">
                   {(selected.epic_document_signers ?? []).map((signer, index) => (
                     <div className="signerRow" key={`${signer.name}-${index}`}>
-                      <div className="signerIdentity"><span className="childMark">{signer.is_minor_or_child ? "👶🏻" : "✓"}</span><strong>{signer.name}</strong><small>{signer.is_minor_or_child ? "Child — cannot drive" : signer.is_waiver_adult ? "Adult signer" : "Signer"}</small></div>
-                      {signer.document_url ? <a className="waiverLink" href={signer.document_url} target="_blank" rel="noreferrer">Open Waiver</a> : <span className="missingLink">No link</span>}
+                      <div className={`signerIdentity ${signer.is_minor_or_child ? "minor" : "adult"}`}>
+                        {signer.is_minor_or_child ? <span className="minorMark">👶🏻</span> : null}
+                        <div>
+                          <strong>{signer.name}</strong>
+                          <small>{signer.is_minor_or_child ? "Minor" : signer.is_waiver_adult ? "Adult signer" : "Signer"}</small>
+                        </div>
+                      </div>
+                      {signer.document_url ? <a className="waiverLink" href={signer.document_url} target="_blank" rel="noreferrer">View Waiver</a> : <span className="missingLink">No link</span>}
                     </div>
                   ))}
                 </div>
@@ -116,8 +118,8 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
             <section className="drawerSection">
               <h3>Reservation Links</h3>
               <div className="drawerLinks">
-                {selected.tripworks_booking_url ? <a href={selected.tripworks_booking_url} target="_blank" rel="noreferrer">Open TripWorks</a> : null}
-                {selected.mpwr_reservation_url ? <a href={selected.mpwr_reservation_url} target="_blank" rel="noreferrer">Open MPWR</a> : null}
+                {selected.tripworks_booking_url ? <a className="systemLink tripworksLink" href={selected.tripworks_booking_url} target="_blank" rel="noreferrer" aria-label="Open reservation in TripWorks"><span className="logoBadge">TW</span><span>TripWorks</span></a> : null}
+                {selected.mpwr_reservation_url ? <a className="systemLink mpwrLink" href={selected.mpwr_reservation_url} target="_blank" rel="noreferrer" aria-label="Open reservation in MPWR"><span className="logoBadge">M</span><span>MPWR</span></a> : null}
               </div>
             </section>
 
