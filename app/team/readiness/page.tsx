@@ -1,6 +1,18 @@
 import Link from "next/link";
 import ReadinessTable from "./ReadinessTable";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
+import styles from "./ReadinessShell.module.css";
+
+const navItems = [
+  ["Guest Readiness", "/team/readiness"],
+  ["Reservations", "#"],
+  ["Activities", "#"],
+  ["Documents", "#"],
+  ["Waivers", "#"],
+  ["MPWR", "#"],
+  ["Reports", "#"],
+  ["Settings", "#"],
+] as const;
 
 export default async function TeamReadinessPage() {
   let rows: ReadinessRow[] = [];
@@ -12,53 +24,56 @@ export default async function TeamReadinessPage() {
     error = err instanceof Error ? err.message : "Unable to load readiness rows.";
   }
 
-  const docsAttention = rows.filter((row) => row.epic_document_count_color !== "green").length;
-  const balancesDue = rows.filter((row) => (row.amount_due_cents ?? 0) > 0).length;
-  const ohvNeeded = rows.filter(
-    (row) => row.business_line === "rental" && !row.ohv_certificate_uploaded,
-  ).length;
-
   return (
-    <main className="shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">EpicTools</p>
-          <h1>Guest Readiness</h1>
+    <div className={styles.page}>
+      <aside className={styles.sidebar}>
+        <div className={styles.brand}>
+          <img src="/epic-logo.png" alt="Epic Tools" />
         </div>
-        <nav className="navLinks">
-          <Link href="/team/arrival-board">Arrival Board</Link>
-          <Link href="/kiosk">Kiosk</Link>
+
+        <nav className={styles.nav} aria-label="EpicTools navigation">
+          {navItems.map(([label, href]) => (
+            <Link
+              key={label}
+              href={href}
+              className={label === "Guest Readiness" ? styles.active : undefined}
+            >
+              <span aria-hidden="true">◇</span>
+              {label}
+            </Link>
+          ))}
         </nav>
-      </header>
 
-      <section className="metrics" aria-label="Readiness facts">
-        <div className="metric">
-          <span className="metricValue">{rows.length}</span>
-          <span className="metricLabel">visits loaded</span>
+        <div className={styles.sidebarPhoto}>
+          <div className={styles.agentCard}>
+            <div className={styles.agentTitle}>Rhett Status</div>
+            <div className={styles.agentStatus}>
+              <span className={styles.onlineDot} />Online
+            </div>
+            <div className={styles.agentStatus}>Guest readiness automation</div>
+          </div>
         </div>
-        <div className="metric">
-          <span className="metricValue">{docsAttention}</span>
-          <span className="metricLabel">Epic docs attention</span>
-        </div>
-        <div className="metric">
-          <span className="metricValue">{balancesDue}</span>
-          <span className="metricLabel">balance due</span>
-        </div>
-        <div className="metric">
-          <span className="metricValue">{ohvNeeded}</span>
-          <span className="metricLabel">OHV upload needed</span>
-        </div>
-      </section>
+      </aside>
 
-      {!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? (
-        <section className="setupNote">
-          Supabase is not connected yet. Add environment variables to load live rows.
+      <main className={styles.main}>
+        <header className={styles.topbar}>
+          <div className={styles.titleBlock}>
+            <h1>Guest Readiness</h1>
+            <p>One view. Every guest. Fully ready.</p>
+          </div>
+
+          <div className={styles.headerActions}>
+            <div className={styles.sync}>Last synced<br />just now</div>
+            <Link className={styles.actionButton} href="/team/arrival-board">Arrival Board</Link>
+            <Link className={`${styles.actionButton} ${styles.kioskButton}`} href="/kiosk">Kiosk</Link>
+          </div>
+        </header>
+
+        <section className={styles.content}>
+          {error ? <div className={styles.error}>{error}</div> : null}
+          <ReadinessTable rows={rows} />
         </section>
-      ) : null}
-
-      {error ? <section className="setupNote">{error}</section> : null}
-
-      <ReadinessTable rows={rows} />
-    </main>
+      </main>
+    </div>
   );
 }
