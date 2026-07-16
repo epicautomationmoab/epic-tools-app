@@ -171,7 +171,7 @@
   overflow:auto;
   box-shadow:0 8px 26px rgba(23,35,52,.055);
 }
-.table { border-collapse:collapse; width:100%; min-width:1220px; table-layout:fixed; }
+.table { border-collapse:collapse; width:100%; min-width:1340px; table-layout:fixed; }
 .table th {
   background:#f7f8fa;
   color:#697381;
@@ -188,6 +188,7 @@
   vertical-align:middle;
   font-size:13px;
 }
+.table tbody tr { cursor:pointer; }
 .table tbody tr:hover { background:#fbfcfd; }
 .table tbody tr:last-child td { border-bottom:0; }
 .mainLine { font-weight:800; color:#202733; line-height:1.25; }
@@ -201,19 +202,56 @@
 .bad { background:#e1493f; }
 .muted { background:#a6adb6; }
 .link { color:#d4511e; font-weight:800; text-decoration:none; }
-.moneyGood, .moneyBad, .ohvGood, .ohvBad, .ohvNA {
+.moneyGood, .moneyBad, .ohvGood, .ohvBad, .ohvNA, .assureBadge {
   display:inline-flex; align-items:center; justify-content:center;
   min-height:26px; padding:0 9px; border-radius:999px; font-weight:900;
 }
 .moneyGood, .ohvGood { color:#188a4b; background:#e8f6ee; }
 .moneyBad, .ohvBad { color:#c83f35; background:#fdecea; }
 .ohvNA { color:#7e8792; background:#f0f2f4; }
+.assureTour { color:#596574; background:#eef1f4; }
+.assureStandard { color:#1b6e99; background:#e8f3f9; }
+.assurePremier { color:#7a4b08; background:#fff2d8; }
 .kioskCell { display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:900; }
 .chevron { color:#8d96a2; font-size:18px; }
 .noteButton { border:0; background:transparent; font-size:18px; cursor:pointer; color:#5d6876; }
 .empty { padding:34px; text-align:center; color:#7f8995; }
 
-.colVisit{width:92px}.colGuest{width:170px}.colActivity{width:230px}.colVehicles{width:72px}.colDocs{width:112px}.colMpwr{width:112px}.colBalance{width:92px}.colOhv{width:76px}.colKiosk{width:135px}.colNotes{width:64px}
+.colVisit{width:92px}.colGuest{width:170px}.colActivity{width:230px}.colVehicles{width:72px}.colDocs{width:112px}.colMpwr{width:112px}.colAssure{width:132px}.colBalance{width:92px}.colOhv{width:76px}.colKiosk{width:135px}.colNotes{width:64px}
+
+.drawerBackdrop {
+  position:fixed;
+  inset:0;
+  background:rgba(11,18,28,.38);
+  z-index:40;
+  display:flex;
+  justify-content:flex-end;
+}
+.drawer {
+  width:min(520px, 92vw);
+  height:100%;
+  overflow:auto;
+  background:#fff;
+  box-shadow:-18px 0 40px rgba(8,16,28,.2);
+  padding:26px;
+}
+.drawerHeader { display:flex; justify-content:space-between; gap:20px; padding-bottom:20px; border-bottom:1px solid #e7eaee; }
+.drawerHeader h2 { margin:4px 0 5px; font-size:27px; }
+.drawerHeader p { margin:0; color:#788290; }
+.drawerEyebrow { color:#e45b22 !important; font-size:11px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.drawerClose { border:0; background:#f0f2f4; width:36px; height:36px; border-radius:50%; font-size:24px; cursor:pointer; }
+.drawerFacts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:20px; }
+.drawerFacts div { background:#f7f8fa; border:1px solid #e8ebef; border-radius:9px; padding:12px; }
+.drawerFacts span { display:block; color:#7b8491; font-size:11px; text-transform:uppercase; }
+.drawerFacts strong { display:block; margin-top:5px; }
+.drawerSection { margin-top:24px; }
+.drawerSection h3 { margin:0 0 11px; }
+.signerList { display:grid; gap:9px; }
+.signerRow { display:flex; align-items:center; justify-content:space-between; gap:14px; border:1px solid #e4e8ed; border-radius:9px; padding:12px; }
+.signerRow small { display:block; margin-top:3px; color:#7e8792; }
+.signerRow a, .drawerLinks a { color:#d5521d; font-weight:800; text-decoration:none; }
+.drawerLinks { display:flex; flex-wrap:wrap; gap:10px; }
+.drawerEmpty { color:#7e8792; }
 
 @media (max-width: 980px) {
   .sidebar { width:180px; }
