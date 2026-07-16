@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -51,6 +51,16 @@ function OhvCell({ row }: { row: ReadinessRow }) {
 export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<ReadinessRow | null>(null);
+
+  useEffect(() => {
+    if (!selected) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelected(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selected]);
 
   const visibleRows = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -123,58 +133,17 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               const kioskLabel = row.customer_phone_last_four ? `••••${row.customer_phone_last_four}` : "Select";
 
               return (
-                <tr key={`${row.confirmation_code}-${row.visit_start_time}-${row.product_display_name}`}>
-                  <td>
-                    <div className={styles.mainLine}>{formatDate(row.visit_start_time)}</div>
-                    <div className={styles.subLine}>{formatWallTime(row.visit_start_time)}</div>
-                  </td>
-                  <td>
-                    <div className={styles.mainLine}>{row.customer_name}</div>
-                    <div className={styles.subLine}>{row.customer_phone || row.confirmation_code}</div>
-                  </td>
+                <tr key={`${row.confirmation_code}-${row.visit_start_time}-${row.product_display_name}`} onClick={() => setSelected(row)}>
+                  <td><div className={styles.mainLine}>{formatDate(row.visit_start_time)}</div><div className={styles.subLine}>{formatWallTime(row.visit_start_time)}</div></td>
+                  <td><div className={styles.mainLine}>{row.customer_name}</div><div className={styles.subLine}>{row.customer_phone || row.confirmation_code}</div></td>
                   <td><div className={styles.mainLine}>{row.product_display_name}</div></td>
                   <td className={styles.center}><span className={styles.count}>{vehicles}</span></td>
-                  <td>
-                    <div className={styles.statusLine}>
-                      <span className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`} />
-                      {docs.received}/{docs.expected}
-                    </div>
-                    <div className={styles.subLine}>
-                      {row.tripworks_booking_url ? (
-                        <a className={styles.link} href={row.tripworks_booking_url} target="_blank" rel="noreferrer">
-                          {row.confirmation_code}
-                        </a>
-                      ) : row.confirmation_code}
-                    </div>
-                  </td>
-                  <td>
-                    <div className={styles.statusLine}>
-                      <span className={`${styles.dot} ${statusClass(mpwr.received, mpwr.expected)}`} />
-                      {mpwr.received}/{mpwr.expected || "?"}
-                    </div>
-                    <div className={styles.subLine}>
-                      {row.mpwr_reservation_url && row.mpwr_confirmation_number ? (
-                        <a className={styles.link} href={row.mpwr_reservation_url} target="_blank" rel="noreferrer">
-                          {row.mpwr_confirmation_number}
-                        </a>
-                      ) : row.requires_mpwr === false ? "N/A" : "Missing"}
-                    </div>
-                  </td>
-                  <td>
-                    <span className={due > 0 ? styles.moneyBad : styles.moneyGood}>
-                      {due > 0 ? `$${(due / 100).toFixed(2)}` : "$0"}
-                    </span>
-                  </td>
+                  <td><div className={styles.statusLine}><span className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`} />{docs.received}/{docs.expected}</div><div className={styles.subLine}>{row.confirmation_code}</div></td>
+                  <td><div className={styles.statusLine}><span className={`${styles.dot} ${statusClass(mpwr.received, mpwr.expected)}`} />{mpwr.received}/{mpwr.expected || "?"}</div><div className={styles.subLine}>{row.mpwr_confirmation_number || (row.requires_mpwr === false ? "N/A" : "Missing")}</div></td>
+                  <td><span className={due > 0 ? styles.moneyBad : styles.moneyGood}>{due > 0 ? `$${(due / 100).toFixed(2)}` : "$0"}</span></td>
                   <td><OhvCell row={row} /></td>
-                  <td>
-                    <div className={styles.kioskCell}>
-                      <span>{kioskLabel}</span>
-                      <span className={styles.chevron}>⌄</span>
-                    </div>
-                  </td>
-                  <td className={styles.center}>
-                    {row.notes ? <button className={styles.noteButton} type="button" aria-label="Open note">▤</button> : null}
-                  </td>
+                  <td><div className={styles.kioskCell}><span>{kioskLabel}</span><span className={styles.chevron}>⌄</span></div></td>
+                  <td className={styles.center}>{row.notes ? <button className={styles.noteButton} type="button" aria-label="Open note" onClick={(event) => { event.stopPropagation(); setSelected(row); }}>▤</button> : null}</td>
                 </tr>
               );
             })}
@@ -182,6 +151,54 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
         </table>
         {!visibleRows.length ? <div className={styles.empty}>No matching reservations.</div> : null}
       </section>
+
+      {selected ? (
+        <div className={styles.drawerBackdrop} role="presentation" onMouseDown={() => setSelected(null)}>
+          <aside className={styles.drawer} role="dialog" aria-modal="true" aria-label={`${selected.customer_name} reservation details`} onMouseDown={(event) => event.stopPropagation()}>
+            <header className={styles.drawerHeader}>
+              <div>
+                <p className={styles.drawerEyebrow}>Reservation Details</p>
+                <h2>{selected.customer_name}</h2>
+                <p>{formatDate(selected.visit_start_time)} · {formatWallTime(selected.visit_start_time)} · {selected.product_display_name}</p>
+              </div>
+              <button className={styles.drawerClose} type="button" onClick={() => setSelected(null)} aria-label="Close drawer">×</button>
+            </header>
+
+            <section className={styles.drawerFacts}>
+              <div><span>Confirmation</span><strong>{selected.confirmation_code}</strong></div>
+              <div><span>Vehicles</span><strong>{selected.total_vehicle_count ?? 0}</strong></div>
+              <div><span>Epic Docs</span><strong>{docsCounts(selected).received}/{docsCounts(selected).expected}</strong></div>
+              <div><span>MPWR</span><strong>{selected.mpwr_confirmation_number || "Missing"}</strong></div>
+              <div><span>Balance</span><strong>{(selected.amount_due_cents ?? 0) > 0 ? `$${((selected.amount_due_cents ?? 0) / 100).toFixed(2)}` : "$0"}</strong></div>
+              <div><span>Phone</span><strong>{selected.customer_phone || "Not available"}</strong></div>
+            </section>
+
+            {selected.notes ? <section className={styles.drawerSection}><h3>Notes</h3><p>{selected.notes}</p></section> : null}
+
+            <section className={styles.drawerSection}>
+              <h3>Epic Waivers</h3>
+              {(selected.epic_document_signers ?? []).length ? (
+                <div className={styles.signerList}>
+                  {(selected.epic_document_signers ?? []).map((signer, index) => (
+                    <div className={styles.signerRow} key={`${signer.name}-${index}`}>
+                      <div><strong>{signer.name}</strong><small>{signer.is_minor_or_child ? "Child — cannot drive" : signer.is_waiver_adult ? "Adult signer" : "Signer"}</small></div>
+                      {signer.document_url ? <a href={signer.document_url} target="_blank" rel="noreferrer">Open Waiver</a> : <span>No link</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : <p className={styles.drawerEmpty}>No Epic waiver records are attached yet.</p>}
+            </section>
+
+            <section className={styles.drawerSection}>
+              <h3>Reservation Links</h3>
+              <div className={styles.drawerLinks}>
+                {selected.tripworks_booking_url ? <a href={selected.tripworks_booking_url} target="_blank" rel="noreferrer">Open TripWorks</a> : null}
+                {selected.mpwr_reservation_url ? <a href={selected.mpwr_reservation_url} target="_blank" rel="noreferrer">Open MPWR</a> : null}
+              </div>
+            </section>
+          </aside>
+        </div>
+      ) : null}
     </>
   );
 }
