@@ -1,0 +1,30 @@
+.compactPage table {
+  min-width: 1280px;
+}
+
+.compactPage table th,
+.compactPage table td {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.compactPage table th:nth-child(4),
+.compactPage table td:nth-child(4) {
+  width: 150px;
+}
+
+.compactPage table th:nth-child(10),
+.compactPage table td:nth-child(10) {
+  width: 108px;
+}
+
+.compactPage table th:nth-child(11),
+.compactPage table td:nth-child(11) {
+  width: 58px;
+}
+
+.compactPage table select {
+  min-width: 76px !important;
+  padding-left: 8px !important;
+  padding-right: 6px !important;
+}
