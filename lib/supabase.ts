@@ -20,6 +20,8 @@ export type ReadinessRow = {
   amount_due_cents: number | null;
   is_paid: boolean | null;
   requires_mpwr?: boolean | null;
+  premier_adventure_assure?: boolean | null;
+  adventure_assure_level?: string | null;
   ohv_required: boolean | null;
   ohv_certificate_uploaded: boolean | null;
   attention_flags: string[] | null;
