@@ -4,15 +4,12 @@ import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
 const navItems = [
-  ["Guest Readiness", "/team/readiness"],
-  ["Reservations", "#"],
-  ["Activities", "#"],
-  ["Documents", "#"],
-  ["Waivers", "#"],
-  ["MPWR", "#"],
-  ["Reports", "#"],
-  ["Settings", "#"],
+  { label: "Guest Readiness", href: "/team/readiness", external: false },
+  { label: "Reservations", href: "https://epic4x4.tripworks.com", external: true },
+  { label: "MPWR", href: "https://mpwr-hq.poladv.com/orders", external: true },
 ] as const;
+
+const agents = ["MPWR Agent", "Waiver Agent", "Portal Agent"] as const;
 
 export default async function TeamReadinessPage() {
   let rows: ReadinessRow[] = [];
@@ -32,25 +29,37 @@ export default async function TeamReadinessPage() {
         </div>
 
         <nav className={styles.nav} aria-label="EpicTools navigation">
-          {navItems.map(([label, href]) => (
-            <Link
-              key={label}
-              href={href}
-              className={label === "Guest Readiness" ? styles.active : undefined}
-            >
-              <span aria-hidden="true">◇</span>
-              {label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const className = item.label === "Guest Readiness" ? styles.active : undefined;
+            const content = (
+              <>
+                <span aria-hidden="true">◇</span>
+                {item.label}
+              </>
+            );
+
+            return item.external ? (
+              <a key={item.label} href={item.href} className={className} target="_blank" rel="noreferrer">
+                {content}
+              </a>
+            ) : (
+              <Link key={item.label} href={item.href} className={className}>
+                {content}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className={styles.sidebarPhoto}>
-          <div className={styles.agentCard}>
-            <div className={styles.agentTitle}>Rhett Status</div>
-            <div className={styles.agentStatus}>
-              <span className={styles.onlineDot} />Online
-            </div>
-            <div className={styles.agentStatus}>Guest readiness automation</div>
+          <div className={styles.agentStack}>
+            {agents.map((agent) => (
+              <div className={styles.agentCard} key={agent}>
+                <div className={styles.agentTitle}>{agent}</div>
+                <div className={styles.agentStatus}>
+                  <span className={styles.onlineDot} />Online
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </aside>
