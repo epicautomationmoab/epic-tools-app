@@ -100,6 +100,38 @@ function VehicleCell({ row }: { row: ReadinessRow }) {
   );
 }
 
+function KioskSelect({ row }: { row: ReadinessRow }) {
+  const label = row.customer_phone_last_four || "Select";
+
+  return (
+    <select
+      aria-label={`Send ${row.customer_name} to kiosk`}
+      defaultValue=""
+      onClick={(event) => event.stopPropagation()}
+      onChange={(event) => {
+        event.stopPropagation();
+      }}
+      style={{
+        width: "100%",
+        minWidth: 92,
+        height: 34,
+        border: "1px solid #dfe4e9",
+        borderRadius: 8,
+        background: "#fff",
+        color: "#202733",
+        fontWeight: 800,
+        padding: "0 10px",
+        cursor: "pointer",
+      }}
+    >
+      <option value="" disabled>{label}</option>
+      {Array.from({ length: 7 }, (_, index) => index + 1).map((kiosk) => (
+        <option key={kiosk} value={String(kiosk)}>Kiosk {kiosk}</option>
+      ))}
+    </select>
+  );
+}
+
 export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -184,7 +216,6 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               const docs = docsCounts(row);
               const mpwr = mpwrCounts(row);
               const due = row.amount_due_cents ?? 0;
-              const kioskLabel = row.customer_phone_last_four ? `••••${row.customer_phone_last_four}` : "Select";
               const assure = adventureAssureLabel(row);
 
               return (
@@ -198,7 +229,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                   <td><span className={`${styles.assureBadge} ${adventureAssureClass(assure)}`}>{assure}</span></td>
                   <td><span className={due > 0 ? styles.moneyBad : styles.moneyGood}>{due > 0 ? `$${(due / 100).toFixed(2)}` : "$0"}</span></td>
                   <td><OhvCell row={row} /></td>
-                  <td><div className={styles.kioskCell}><span>{kioskLabel}</span><span className={styles.chevron}>⌄</span></div></td>
+                  <td><KioskSelect row={row} /></td>
                   <td className={styles.center}>{row.notes ? <button className={styles.noteButton} type="button" aria-label="Open note" onClick={(event) => { event.stopPropagation(); setSelected(row); }}>▤</button> : null}</td>
                 </tr>
               );
@@ -258,14 +289,6 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                   ))}
                 </div>
               ) : <p className={styles.drawerEmpty}>No Epic waiver records are attached yet.</p>}
-            </section>
-
-            <section className={styles.drawerSection}>
-              <h3>Reservation Links</h3>
-              <div className={styles.drawerLinks}>
-                {selected.tripworks_booking_url ? <a href={selected.tripworks_booking_url} target="_blank" rel="noreferrer">Open TripWorks</a> : null}
-                {selected.mpwr_reservation_url ? <a href={selected.mpwr_reservation_url} target="_blank" rel="noreferrer">Open MPWR</a> : null}
-              </div>
             </section>
           </aside>
         </div>
