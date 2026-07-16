@@ -220,6 +220,26 @@
 .bad { background:#e1493f; }
 .muted { background:#a6adb6; }
 .link { color:#202733; font-weight:800; text-decoration:none; }
+.table td:nth-child(5) .link,
+.table td:nth-child(6) .link {
+  display:inline-flex;
+  align-items:center;
+  min-height:22px;
+  padding:1px 6px;
+  border-radius:5px;
+  background:#fff;
+  font-size:10px;
+  line-height:1;
+  letter-spacing:.01em;
+}
+.table td:nth-child(5) .link {
+  color:#b42318;
+  border:1px solid #e66b63;
+}
+.table td:nth-child(6) .link {
+  color:#175cd3;
+  border:1px solid #6ea8ff;
+}
 .moneyGood, .moneyBad, .ohvGood, .ohvBad, .ohvNA, .assureBadge {
   display:inline-flex; align-items:center; justify-content:center;
   min-height:26px; padding:0 9px; border-radius:999px; font-weight:900;
@@ -232,7 +252,18 @@
 .assurePremier { color:#7a4b08; background:#fff2d8; }
 .kioskCell { display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:900; }
 .chevron { color:#8d96a2; font-size:18px; }
-.noteButton { border:0; background:transparent; font-size:18px; cursor:pointer; color:#5d6876; }
+.noteButton {
+  border:0;
+  background:transparent;
+  font-size:0;
+  line-height:1;
+  cursor:pointer;
+  color:#5d6876;
+}
+.noteButton::before {
+  content:"📝";
+  font-size:18px;
+}
 .empty { padding:34px; text-align:center; color:#7f8995; }
 
 .vehicleCell { display:grid; gap:3px; line-height:1.2; }
