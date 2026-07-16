@@ -214,10 +214,8 @@
 .center { text-align:center; }
 .count { font-weight:900; font-size:15px; }
 .statusLine { display:flex; align-items:center; gap:0; font-weight:900; }
-.table th:nth-child(5),
-.table th:nth-child(6),
-.table td:nth-child(5),
-.table td:nth-child(6) {
+.table th:nth-child(n+4),
+.table td:nth-child(n+4) {
   text-align:center;
 }
 .table td:nth-child(5) .statusLine,
@@ -263,7 +261,7 @@
 .moneyGood, .ohvGood { color:#188a4b; background:#e8f6ee; }
 .moneyBad, .ohvBad { color:#c83f35; background:#fdecea; }
 .ohvNA { visibility:hidden; }
-.assureTour { color:#596574; background:#eef1f4; }
+.assureTour { display:none; }
 .assureStandard { color:#1b6e99; background:#e8f3f9; }
 .assurePremier { color:#7a4b08; background:#fff2d8; }
 .kioskCell { display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:900; }
