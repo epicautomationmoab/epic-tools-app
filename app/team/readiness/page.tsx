@@ -28,7 +28,7 @@ export default async function TeamReadinessPage() {
     <div className={styles.page}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
-          <img src="/epic-tools-logo.svg" alt="Epic Tools" />
+          <img src="/epic-logo.png" alt="Epic 4X4 Adventures" />
         </div>
 
         <nav className={styles.nav} aria-label="EpicTools navigation">
