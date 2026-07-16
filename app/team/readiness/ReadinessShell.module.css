@@ -214,6 +214,22 @@
 .center { text-align:center; }
 .count { font-weight:900; font-size:15px; }
 .statusLine { display:flex; align-items:center; gap:0; font-weight:900; }
+.table th:nth-child(5),
+.table th:nth-child(6),
+.table td:nth-child(5),
+.table td:nth-child(6) {
+  text-align:center;
+}
+.table td:nth-child(5) .statusLine,
+.table td:nth-child(6) .statusLine,
+.table td:nth-child(5) .subLine,
+.table td:nth-child(6) .subLine {
+  justify-content:center;
+}
+.table td:nth-child(5) .subLine,
+.table td:nth-child(6) .subLine {
+  display:flex;
+}
 .dot { display:none; }
 .good { background:#22a75a; }
 .warn { background:#e5a31c; }
