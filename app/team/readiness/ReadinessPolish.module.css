@@ -1,5 +1,5 @@
-.polish :global(.ReadinessShell_table__*) td:nth-child(5) a,
-.polish :global(.ReadinessShell_table__*) td:nth-child(6) a {
+.polish table td:nth-child(5) a,
+.polish table td:nth-child(6) a {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
@@ -11,22 +11,22 @@
   letter-spacing: .01em;
 }
 
-.polish :global(.ReadinessShell_table__*) td:nth-child(5) a {
+.polish table td:nth-child(5) a {
   color: #b42318;
   border: 1px solid #e66b63;
 }
 
-.polish :global(.ReadinessShell_table__*) td:nth-child(6) a {
+.polish table td:nth-child(6) a {
   color: #175cd3;
   border: 1px solid #6ea8ff;
 }
 
-.polish :global(.ReadinessShell_noteButton__*) {
+.polish button[aria-label="Open note"] {
   font-size: 0 !important;
   line-height: 1;
 }
 
-.polish :global(.ReadinessShell_noteButton__*)::before {
+.polish button[aria-label="Open note"]::before {
   content: "📝";
   font-size: 18px;
 }
