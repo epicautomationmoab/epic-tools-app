@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ReadinessRow } from "@/lib/supabase";
+import type { ReadinessRow, VehicleBreakdownItem } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
 type Filter = "all" | "rental" | "tour";
@@ -65,6 +65,41 @@ function linkedValue(value: string, url: string | null | undefined) {
   return url ? <a className={styles.link} href={url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>{value}</a> : value;
 }
 
+function shortVehicleModel(model: string) {
+  return model
+    .replace(/^2026\s+/i, "")
+    .replace(/Polaris\s+RZR\s+/i, "")
+    .replace(/RZR\s+/i, "")
+    .replace(/\s+1000\s+Ultimate$/i, "")
+    .replace(/Turbo\s+Pro\s+S/i, "Pro S")
+    .replace(/XP\s+S/i, "XP S")
+    .trim();
+}
+
+function validVehicleBreakdown(row: ReadinessRow): VehicleBreakdownItem[] {
+  return (row.vehicle_breakdown ?? []).filter((item) => item.quantity > 0 && item.model?.trim());
+}
+
+function VehicleCell({ row }: { row: ReadinessRow }) {
+  const total = row.total_vehicle_count ?? 0;
+  const breakdown = validVehicleBreakdown(row);
+
+  if (row.business_line !== "rental" || breakdown.length === 0) {
+    return <span className={styles.count}>{total}</span>;
+  }
+
+  return (
+    <div className={styles.vehicleCell}>
+      <div className={styles.vehicleTotal}>{total} vehicle{total === 1 ? "" : "s"}</div>
+      {breakdown.map((item) => (
+        <div className={styles.vehicleLine} key={item.model}>
+          {item.quantity} × {shortVehicleModel(item.model)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -92,6 +127,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
         row.customer_phone_last_four,
         row.mpwr_confirmation_number,
         row.adventure_assure_level,
+        ...(row.vehicle_breakdown ?? []).map((item) => item.model),
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalized));
@@ -148,7 +184,6 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               const docs = docsCounts(row);
               const mpwr = mpwrCounts(row);
               const due = row.amount_due_cents ?? 0;
-              const vehicles = row.total_vehicle_count ?? 0;
               const kioskLabel = row.customer_phone_last_four ? `••••${row.customer_phone_last_four}` : "Select";
               const assure = adventureAssureLabel(row);
 
@@ -157,7 +192,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                   <td><div className={styles.mainLine}>{formatDate(row.visit_start_time)}</div><div className={styles.subLine}>{formatWallTime(row.visit_start_time)}</div></td>
                   <td><div className={styles.mainLine}>{row.customer_name}</div><div className={styles.subLine}>{row.customer_phone || row.confirmation_code}</div></td>
                   <td><div className={styles.mainLine}>{row.product_display_name}</div></td>
-                  <td className={styles.center}><span className={styles.count}>{vehicles}</span></td>
+                  <td><VehicleCell row={row} /></td>
                   <td><div className={styles.statusLine}><span className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`} />{docs.received}/{docs.expected}</div><div className={styles.subLine}>{linkedValue(row.confirmation_code, row.tripworks_booking_url)}</div></td>
                   <td><div className={styles.statusLine}><span className={`${styles.dot} ${statusClass(mpwr.received, mpwr.expected)}`} />{mpwr.received}/{mpwr.expected || "?"}</div><div className={styles.subLine}>{row.mpwr_confirmation_number ? linkedValue(row.mpwr_confirmation_number, row.mpwr_reservation_url) : row.requires_mpwr === false ? "N/A" : "Missing"}</div></td>
                   <td><span className={`${styles.assureBadge} ${adventureAssureClass(assure)}`}>{assure}</span></td>
@@ -194,6 +229,20 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               <div><span>Balance</span><strong>{(selected.amount_due_cents ?? 0) > 0 ? `$${((selected.amount_due_cents ?? 0) / 100).toFixed(2)}` : "$0"}</strong></div>
               <div><span>Phone</span><strong>{selected.customer_phone || "Not available"}</strong></div>
             </section>
+
+            {selected.business_line === "rental" && validVehicleBreakdown(selected).length ? (
+              <section className={styles.drawerSection}>
+                <h3>Vehicle Breakdown</h3>
+                <div className={styles.drawerVehicleList}>
+                  {validVehicleBreakdown(selected).map((item) => (
+                    <div className={styles.drawerVehicleRow} key={item.model}>
+                      <strong>{item.quantity} ×</strong>
+                      <span>{item.model}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             {selected.notes ? <section className={styles.drawerSection}><h3>Notes</h3><p>{selected.notes}</p></section> : null}
 
