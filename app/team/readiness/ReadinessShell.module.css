@@ -182,7 +182,7 @@
   overflow:auto;
   box-shadow:0 8px 26px rgba(23,35,52,.055);
 }
-.table { border-collapse:collapse; width:100%; min-width:1110px; table-layout:fixed; }
+.table { border-collapse:collapse; width:100%; min-width:1085px; table-layout:fixed; }
 .table th {
   background:#f7f8fa;
   color:#697381;
@@ -200,9 +200,11 @@
   font-size:13px;
 }
 .table td select {
-  min-width: 70px !important;
-  padding-left: 6px !important;
-  padding-right: 6px !important;
+  width: 74px !important;
+  min-width: 74px !important;
+  max-width: 74px !important;
+  padding-left: 8px !important;
+  padding-right: 22px !important;
 }
 .table tbody tr { cursor:pointer; }
 .table tbody tr:hover { background:#fbfcfd; }
@@ -211,20 +213,20 @@
 .subLine { margin-top:3px; color:#8a94a1; font-size:11px; }
 .center { text-align:center; }
 .count { font-weight:900; font-size:15px; }
-.statusLine { display:flex; align-items:center; gap:7px; font-weight:900; }
-.dot { width:9px; height:9px; border-radius:50%; display:inline-block; flex:0 0 auto; }
+.statusLine { display:flex; align-items:center; gap:0; font-weight:900; }
+.dot { display:none; }
 .good { background:#22a75a; }
 .warn { background:#e5a31c; }
 .bad { background:#e1493f; }
 .muted { background:#a6adb6; }
-.link { color:#d4511e; font-weight:800; text-decoration:none; }
+.link { color:#202733; font-weight:800; text-decoration:none; }
 .moneyGood, .moneyBad, .ohvGood, .ohvBad, .ohvNA, .assureBadge {
   display:inline-flex; align-items:center; justify-content:center;
   min-height:26px; padding:0 9px; border-radius:999px; font-weight:900;
 }
 .moneyGood, .ohvGood { color:#188a4b; background:#e8f6ee; }
 .moneyBad, .ohvBad { color:#c83f35; background:#fdecea; }
-.ohvNA { color:#7e8792; background:#f0f2f4; }
+.ohvNA { visibility:hidden; }
 .assureTour { color:#596574; background:#eef1f4; }
 .assureStandard { color:#1b6e99; background:#e8f3f9; }
 .assurePremier { color:#7a4b08; background:#fff2d8; }
@@ -237,7 +239,7 @@
 .vehicleTotal { font-weight:900; color:#202733; }
 .vehicleLine { font-size:11px; color:#6f7885; white-space:normal; }
 
-.colVisit{width:80px}.colGuest{width:145px}.colActivity{width:190px}.colVehicles{width:125px}.colDocs{width:90px}.colMpwr{width:90px}.colAssure{width:110px}.colBalance{width:80px}.colOhv{width:65px}.colKiosk{width:90px}.colNotes{width:45px}
+.colVisit{width:80px}.colGuest{width:145px}.colActivity{width:190px}.colVehicles{width:125px}.colDocs{width:90px}.colMpwr{width:90px}.colAssure{width:110px}.colBalance{width:80px}.colOhv{width:65px}.colKiosk{width:78px}.colNotes{width:45px}
 
 .drawerBackdrop {
   position:fixed;
