@@ -3,18 +3,23 @@
 import { useEffect, useState } from "react";
 import styles from "./ReadinessShell.module.css";
 
+const EPIC_TIME_ZONE = "America/Denver";
+
 function formatNow(date: Date) {
   return {
     dayDate: new Intl.DateTimeFormat("en-US", {
+      timeZone: EPIC_TIME_ZONE,
       weekday: "long",
       month: "long",
       day: "numeric",
       year: "numeric",
     }).format(date),
     time: new Intl.DateTimeFormat("en-US", {
+      timeZone: EPIC_TIME_ZONE,
       hour: "numeric",
       minute: "2-digit",
       second: "2-digit",
+      timeZoneName: "short",
     }).format(date),
   };
 }
