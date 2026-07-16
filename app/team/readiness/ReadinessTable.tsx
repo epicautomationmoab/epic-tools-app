@@ -266,7 +266,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               </div>
             </section>
 
-            <section className={styles.drawerSection}><h3>Epic Waivers</h3>{(selected.epic_document_signers ?? []).length ? <div className={styles.signerList}>{(selected.epic_document_signers ?? []).map((signer, index) => <div className={styles.signerRow} key={`${signer.name}-${index}`}><div><strong>{signer.name}</strong><small>{signer.is_minor_or_child ? "Child — cannot drive" : signer.is_waiver_adult ? "Adult signer" : "Signer"}</small></div>{signer.document_url ? <a href={signer.document_url} target="_blank" rel="noreferrer">Open Waiver</a> : <span>No link</span>}</div>)}</div> : <p className={styles.drawerEmpty}>No Epic waiver records are attached yet.</p>}</section>
+            <section className={styles.drawerSection}><h3>TripWorks Waiver Records</h3>{(selected.epic_document_signers ?? []).length ? <div className={styles.signerList}>{(selected.epic_document_signers ?? []).map((signer, index) => <div className={styles.signerRow} key={`${signer.name}-${index}`}><div><strong>{signer.name}</strong><small>{signer.is_minor_or_child ? "Child — cannot drive" : signer.is_waiver_adult ? "Adult signer" : "Signer"}</small></div>{signer.document_url ? <a href={signer.document_url} target="_blank" rel="noreferrer">Open Waiver</a> : <span>No link</span>}</div>)}</div> : <p className={styles.drawerEmpty}>No TripWorks waiver records were received.</p>}</section>
           </aside>
         </div>
       ) : null}
