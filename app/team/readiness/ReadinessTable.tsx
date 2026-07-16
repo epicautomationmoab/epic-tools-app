@@ -23,6 +23,19 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
 }
 
+function formatPhone(value: string | null | undefined) {
+  if (!value) return null;
+
+  const digits = value.replace(/\D/g, "");
+  const national = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+
+  if (national.length === 10) {
+    return `(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}`;
+  }
+
+  return value.trim();
+}
+
 function docsCounts(row: ReadinessRow) {
   const received = row.epic_document_received_count ?? 0;
   const expected = row.epic_document_expected_count ?? row.expected_guest_count ?? 0;
@@ -217,11 +230,12 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               const mpwr = mpwrCounts(row);
               const due = row.amount_due_cents ?? 0;
               const assure = adventureAssureLabel(row);
+              const phone = formatPhone(row.customer_phone);
 
               return (
                 <tr key={`${row.confirmation_code}-${row.visit_start_time}-${row.product_display_name}`} onClick={() => setSelected(row)}>
                   <td><div className={styles.mainLine}>{formatDate(row.visit_start_time)}</div><div className={styles.subLine}>{formatWallTime(row.visit_start_time)}</div></td>
-                  <td><div className={styles.mainLine}>{row.customer_name}</div><div className={styles.subLine}>{row.customer_phone || row.confirmation_code}</div></td>
+                  <td><div className={styles.mainLine}>{row.customer_name}</div><div className={styles.subLine}>{phone || row.confirmation_code}</div></td>
                   <td><div className={styles.mainLine}>{row.product_display_name}</div></td>
                   <td><VehicleCell row={row} /></td>
                   <td><div className={styles.statusLine}><span className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`} />{docs.received}/{docs.expected}</div><div className={styles.subLine}>{linkedValue(row.confirmation_code, row.tripworks_booking_url)}</div></td>
@@ -258,7 +272,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               <div><span>MPWR</span><strong>{selected.mpwr_confirmation_number ? linkedValue(selected.mpwr_confirmation_number, selected.mpwr_reservation_url) : "Missing"}</strong></div>
               <div><span>Adventure Assure</span><strong>{adventureAssureLabel(selected)}</strong></div>
               <div><span>Balance</span><strong>{(selected.amount_due_cents ?? 0) > 0 ? `$${((selected.amount_due_cents ?? 0) / 100).toFixed(2)}` : "$0"}</strong></div>
-              <div><span>Phone</span><strong>{selected.customer_phone || "Not available"}</strong></div>
+              <div><span>Phone</span><strong>{formatPhone(selected.customer_phone) || "Not available"}</strong></div>
             </section>
 
             {selected.business_line === "rental" && validVehicleBreakdown(selected).length ? (
