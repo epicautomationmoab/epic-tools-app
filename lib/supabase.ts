@@ -1,20 +1,31 @@
 export type ReadinessRow = {
+  readiness_id?: string;
   visit_start_time: string;
   confirmation_code: string;
   customer_name: string;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  customer_phone_last_four?: string | null;
   business_line: "tour" | "rental" | string;
   product_display_name: string;
   expected_guest_count: number | null;
+  total_vehicle_count?: number | null;
   epic_document_count_label: string;
   epic_document_count_color: "green" | "yellow" | "red" | "gray" | string;
+  epic_document_received_count?: number | null;
+  epic_document_expected_count?: number | null;
+  mpwr_document_received_count?: number | null;
+  mpwr_document_expected_count?: number | null;
   mpwr_confirmation_number: string | null;
   amount_due_cents: number | null;
   is_paid: boolean | null;
+  requires_mpwr?: boolean | null;
   ohv_required: boolean | null;
   ohv_certificate_uploaded: boolean | null;
   attention_flags: string[] | null;
   tripworks_booking_url: string | null;
   mpwr_reservation_url: string | null;
+  notes?: string | null;
   epic_document_signers: Array<{
     name: string;
     document_url?: string | null;
