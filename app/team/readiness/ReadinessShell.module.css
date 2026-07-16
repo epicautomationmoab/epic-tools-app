@@ -214,6 +214,7 @@
 .center { text-align:center; }
 .count { font-weight:900; font-size:15px; }
 .statusLine { display:flex; align-items:center; gap:0; font-weight:900; }
+.waiversComplete { color:#188a4b; }
 .table th:nth-child(n+4),
 .table td:nth-child(n+4) {
   text-align:center;
