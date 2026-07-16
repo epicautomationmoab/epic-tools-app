@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ReadinessTable from "./ReadinessTable";
+import HeaderClock from "./HeaderClock";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -68,7 +69,7 @@ export default async function TeamReadinessPage() {
         <header className={styles.topbar}>
           <div className={styles.titleBlock}>
             <h1>Guest Readiness</h1>
-            <p>One view. Every guest. Fully ready.</p>
+            <HeaderClock />
           </div>
 
           <div className={styles.headerActions}>
