@@ -42,6 +42,19 @@ function statusClass(received: number, expected: number) {
   return styles.bad;
 }
 
+function adventureAssureLabel(row: ReadinessRow) {
+  if (row.business_line === "tour") return "Tour";
+  if (row.premier_adventure_assure === true) return "Premier";
+  if (row.adventure_assure_level?.trim().toLowerCase() === "premier") return "Premier";
+  return "Standard";
+}
+
+function adventureAssureClass(label: string) {
+  if (label === "Premier") return styles.assurePremier;
+  if (label === "Tour") return styles.assureTour;
+  return styles.assureStandard;
+}
+
 function OhvCell({ row }: { row: ReadinessRow }) {
   if (row.business_line !== "rental") return <span className={styles.ohvNA}>N/A</span>;
   if (row.ohv_certificate_uploaded) return <span className={styles.ohvGood}>Ready</span>;
@@ -74,6 +87,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
         row.customer_phone,
         row.customer_phone_last_four,
         row.mpwr_confirmation_number,
+        row.adventure_assure_level,
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalized));
@@ -118,6 +132,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               <th className={styles.colVehicles}>Vehicles</th>
               <th className={styles.colDocs}>Epic Docs</th>
               <th className={styles.colMpwr}>MPWR</th>
+              <th className={styles.colAssure}>Adventure Assure</th>
               <th className={styles.colBalance}>Balance</th>
               <th className={styles.colOhv}>OHV</th>
               <th className={styles.colKiosk}>Send to Kiosk</th>
@@ -131,6 +146,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               const due = row.amount_due_cents ?? 0;
               const vehicles = row.total_vehicle_count ?? 0;
               const kioskLabel = row.customer_phone_last_four ? `••••${row.customer_phone_last_four}` : "Select";
+              const assure = adventureAssureLabel(row);
 
               return (
                 <tr key={`${row.confirmation_code}-${row.visit_start_time}-${row.product_display_name}`} onClick={() => setSelected(row)}>
@@ -140,6 +156,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                   <td className={styles.center}><span className={styles.count}>{vehicles}</span></td>
                   <td><div className={styles.statusLine}><span className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`} />{docs.received}/{docs.expected}</div><div className={styles.subLine}>{row.confirmation_code}</div></td>
                   <td><div className={styles.statusLine}><span className={`${styles.dot} ${statusClass(mpwr.received, mpwr.expected)}`} />{mpwr.received}/{mpwr.expected || "?"}</div><div className={styles.subLine}>{row.mpwr_confirmation_number || (row.requires_mpwr === false ? "N/A" : "Missing")}</div></td>
+                  <td><span className={`${styles.assureBadge} ${adventureAssureClass(assure)}`}>{assure}</span></td>
                   <td><span className={due > 0 ? styles.moneyBad : styles.moneyGood}>{due > 0 ? `$${(due / 100).toFixed(2)}` : "$0"}</span></td>
                   <td><OhvCell row={row} /></td>
                   <td><div className={styles.kioskCell}><span>{kioskLabel}</span><span className={styles.chevron}>⌄</span></div></td>
@@ -169,6 +186,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               <div><span>Vehicles</span><strong>{selected.total_vehicle_count ?? 0}</strong></div>
               <div><span>Epic Docs</span><strong>{docsCounts(selected).received}/{docsCounts(selected).expected}</strong></div>
               <div><span>MPWR</span><strong>{selected.mpwr_confirmation_number || "Missing"}</strong></div>
+              <div><span>Adventure Assure</span><strong>{adventureAssureLabel(selected)}</strong></div>
               <div><span>Balance</span><strong>{(selected.amount_due_cents ?? 0) > 0 ? `$${((selected.amount_due_cents ?? 0) / 100).toFixed(2)}` : "$0"}</strong></div>
               <div><span>Phone</span><strong>{selected.customer_phone || "Not available"}</strong></div>
             </section>
