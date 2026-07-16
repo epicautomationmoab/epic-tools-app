@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import styles from "./ReadinessShell.module.css";
 
 const EPIC_TIME_ZONE = "America/Denver";
 
@@ -36,9 +35,9 @@ export default function HeaderClock() {
   const display = now ? formatNow(now) : { dayDate: "", time: "" };
 
   return (
-    <div className={styles.liveDateTime} aria-live="polite">
+    <div aria-live="polite" style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 7, color: "#6f7885", fontSize: 14 }}>
       <span>{display.dayDate}</span>
-      <strong>{display.time}</strong>
+      <strong style={{ color: "#384252", fontVariantNumeric: "tabular-nums" }}>{display.time}</strong>
     </div>
   );
 }
