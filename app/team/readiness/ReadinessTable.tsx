@@ -143,6 +143,42 @@ async function persistNote(readinessId: string, notes: string) {
   return notes.trim() || null;
 }
 
+async function persistHandoff(
+  readinessId: string,
+  handoffStatus: "checked_in" | "rental_out" | "rental_returned",
+) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !key) {
+    throw new Error("Supabase configuration is missing.");
+  }
+
+  const response = await fetch(
+    `${url}/rest/v1/rpc/set_epic_operational_handoff`,
+    {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        p_readiness_id: readinessId,
+        p_handoff_status: handoffStatus,
+        p_recorded_by: "EpicTools",
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || "Unable to update reservation status.");
+  }
+
+  return handoffStatus;
+}
+
 export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -151,6 +187,8 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [noteDraft, setNoteDraft] = useState("");
   const [noteStatus, setNoteStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [noteError, setNoteError] = useState("");
+const [handoffSaving, setHandoffSaving] = useState(false);
+const [handoffError, setHandoffError] = useState("");
 
   useEffect(() => setLocalRows(rows), [rows]);
 
@@ -178,25 +216,80 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   }, [filter, query, localRows]);
 
   async function saveNote() {
-    if (!selected?.readiness_id) {
-      setNoteStatus("error");
-      setNoteError("This reservation is missing its readiness ID.");
-      return;
-    }
-
-    setNoteStatus("saving");
-    setNoteError("");
-    try {
-      const saved = await persistNote(selected.readiness_id, noteDraft);
-      setLocalRows((current) => current.map((row) => row.readiness_id === selected.readiness_id ? { ...row, notes: saved } : row));
-      setSelected((current) => current ? { ...current, notes: saved } : current);
-      setNoteDraft(saved ?? "");
-      setNoteStatus("saved");
-    } catch (error) {
-      setNoteStatus("error");
-      setNoteError(error instanceof Error ? error.message : "Unable to save note.");
-    }
+  if (!selected?.readiness_id) {
+    setNoteStatus("error");
+    setNoteError("This reservation is missing its readiness ID.");
+    return;
   }
+
+  setNoteStatus("saving");
+  setNoteError("");
+
+  try {
+    const saved = await persistNote(selected.readiness_id, noteDraft);
+
+    setLocalRows((current) =>
+      current.map((row) =>
+        row.readiness_id === selected.readiness_id
+          ? { ...row, notes: saved }
+          : row,
+      ),
+    );
+
+    setSelected((current) =>
+      current ? { ...current, notes: saved } : current,
+    );
+
+    setNoteDraft(saved ?? "");
+    setNoteStatus("saved");
+  } catch (error) {
+    setNoteStatus("error");
+    setNoteError(
+      error instanceof Error ? error.message : "Unable to save note.",
+    );
+  }
+}
+
+async function saveHandoff() {
+  if (!selected?.readiness_id) {
+    setHandoffError("This reservation is missing its readiness ID.");
+    return;
+  }
+
+  const nextStatus =
+    selected.business_line === "tour"
+      ? "checked_in"
+      : selected.handoff_status === "rental_out"
+        ? "rental_returned"
+        : "rental_out";
+
+  setHandoffSaving(true);
+  setHandoffError("");
+
+  try {
+    await persistHandoff(selected.readiness_id, nextStatus);
+
+    setLocalRows((current) =>
+      current.map((row) =>
+        row.readiness_id === selected.readiness_id
+          ? { ...row, handoff_status: nextStatus }
+          : row,
+      ),
+    );
+
+    setSelected((current) =>
+      current ? { ...current, handoff_status: nextStatus } : current,
+    );
+  } catch (error) {
+    setHandoffError(
+      error instanceof Error
+        ? error.message
+        : "Unable to update reservation status.",
+    );
+  } finally {
+    setHandoffSaving(false);
+  }
+}
 
   return (
     <>
@@ -225,7 +318,18 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               const assure = adventureAssureLabel(row);
               const phone = formatPhone(row.customer_phone);
               return (
-                <tr key={`${row.confirmation_code}-${row.visit_start_time}-${row.product_display_name}`} onClick={() => setSelected(row)}>
+<tr
+  key={`${row.confirmation_code}-${row.visit_start_time}-${row.product_display_name}`}
+  className={
+    row.handoff_status === "rental_out"
+      ? styles.rentalOutRow
+      : row.handoff_status === "checked_in" ||
+          row.handoff_status === "rental_returned"
+        ? styles.completedRow
+        : undefined
+  }
+  onClick={() => setSelected(row)}
+>
                   <td><div className={styles.mainLine}>{formatDate(row.visit_start_time)}</div><div className={styles.subLine}>{formatWallTime(row.visit_start_time)}</div></td>
                   <td><div className={styles.mainLine}>{row.customer_name}</div><div className={styles.subLine}>{phone || row.confirmation_code}</div></td>
                   <td><div className={styles.mainLine}>{row.product_display_name}</div></td>
@@ -253,15 +357,92 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
             <section className={styles.drawerFacts}>
               <div><span>Vehicles</span><strong>{selected.total_vehicle_count ?? 0}</strong></div>
               <div><span>Adventure Assure</span><strong>{adventureAssureLabel(selected)}</strong></div>
-              <div><span>Booking Confirmation</span><strong>{linkedValue(selected.confirmation_code, selected.tripworks_booking_url)}</strong></div>
-              <div><span>Epic Docs</span><strong>{docsCounts(selected).received}/{docsCounts(selected).expected}</strong></div>
-              <div><span>MPWR Confirmation</span><strong>{selected.mpwr_confirmation_number ? linkedValue(selected.mpwr_confirmation_number, selected.mpwr_reservation_url) : "Missing"}</strong></div>
-              <div><span>MPWR Waivers</span><strong>{mpwrCounts(selected).received}/{mpwrCounts(selected).expected || "?"}</strong></div>
+              <div>
+  <span>Booking Confirmation</span>
+  <strong>
+    {linkedValue(
+      selected.confirmation_code,
+      selected.tripworks_booking_url
+    )}
+  </strong>
+</div>
+
+<div>
+  <span>MPWR Confirmation</span>
+  <strong>
+    {selected.mpwr_confirmation_number
+      ? linkedValue(
+          selected.mpwr_confirmation_number,
+          selected.mpwr_reservation_url
+        )
+      : "Missing"}
+  </strong>
+</div>
+
+<div>
+  <span>Epic Docs</span>
+  <strong
+    className={
+      docsCounts(selected).expected > 0 &&
+      docsCounts(selected).received >= docsCounts(selected).expected
+        ? styles.drawerCompleteValue
+        : undefined
+    }
+  >
+    {docsCounts(selected).received}/{docsCounts(selected).expected}
+  </strong>
+</div>
+
+<div>
+  <span>MPWR Waivers</span>
+  <strong
+    className={
+      mpwrCounts(selected).expected > 0 &&
+      mpwrCounts(selected).received >= mpwrCounts(selected).expected
+        ? styles.drawerCompleteValue
+        : undefined
+    }
+  >
+    {mpwrCounts(selected).received}/{mpwrCounts(selected).expected || "?"}
+  </strong>
+</div>
               <div><span>Balance</span><strong>{(selected.amount_due_cents ?? 0) > 0 ? `$${((selected.amount_due_cents ?? 0) / 100).toFixed(2)}` : "$0"}</strong></div>
               <div><span>Phone</span><strong>{formatPhone(selected.customer_phone) || "Not available"}</strong></div>
             </section>
 
-            {selected.business_line === "rental" && validVehicleBreakdown(selected).length ? <section className={styles.drawerSection}><h3>Vehicle Breakdown</h3><div className={styles.drawerVehicleList}>{validVehicleBreakdown(selected).map((item) => <div className={styles.drawerVehicleRow} key={item.model}><strong>{item.quantity} ×</strong><span>{item.model}</span></div>)}</div></section> : null}
+<section className={styles.handoffAction}>
+  <button
+  type="button"
+  className={styles.handoffButton}
+  disabled={
+    handoffSaving ||
+    (selected.amount_due_cents ?? 0) > 0 ||
+    selected.handoff_status === "checked_in" ||
+    selected.handoff_status === "rental_returned"
+  }
+  onClick={saveHandoff}
+>
+  {handoffSaving
+    ? "Saving..."
+    : selected.business_line === "tour"
+      ? selected.handoff_status === "checked_in"
+        ? "Checked In"
+        : "Mark Checked In"
+      : selected.handoff_status === "rental_out"
+        ? "Mark Rental Returned"
+        : selected.handoff_status === "rental_returned"
+          ? "Rental Returned"
+          : "Mark Rental Out"}
+</button>
+
+  {(selected.amount_due_cents ?? 0) > 0 ? (
+    <p className={styles.handoffBlocked}>
+      Balance must be paid first.
+    </p>
+  ) : null}
+</section>
+
+            {selected.business_line === "rental" && validVehicleBreakdown(selected).length ? <section className={styles.drawerSection}><h3>Vehicle(s):</h3><div className={styles.drawerVehicleList}>{validVehicleBreakdown(selected).map((item) => <div className={styles.drawerVehicleRow} key={item.model}><strong>{item.quantity} ×</strong><span>{item.model}</span></div>)}</div></section> : null}
 
             <section className={styles.drawerSection}>
               <h3>Important Notes</h3>

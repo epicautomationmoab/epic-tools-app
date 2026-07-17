@@ -33,6 +33,7 @@ export type ReadinessRow = {
   attention_flags: string[] | null;
   tripworks_booking_url: string | null;
   mpwr_reservation_url: string | null;
+  handoff_status?: "checked_in" | "rental_out" | "rental_returned" | null;
   notes?: string | null;
   epic_document_signers: Array<{
     name: string;
@@ -50,6 +51,7 @@ export type ArrivalBoardRow = {
   board_activity_label: string;
   board_action_label: "Proceed to Kiosk" | "See Agent" | string;
   board_action_type: "kiosk" | "agent" | string;
+  handoff_status?: "checked_in" | "rental_out" | "rental_returned" | null;
 };
 
 function getSupabaseConfig() {
@@ -102,7 +104,7 @@ export async function getReadinessRows() {
   });
 
   const rows = await fetchView<ReadinessRow>(
-    "guest_readiness_app_v",
+    "guest_readiness_with_handoff_v",
     params,
   );
 
@@ -119,7 +121,10 @@ export async function getArrivalBoardRows() {
     limit: "500",
   });
 
-  const rows = await fetchView<ArrivalBoardRow>("guest_arrival_board_v", params);
+const rows = await fetchView<ArrivalBoardRow>(
+  "guest_arrival_board_with_handoff_v",
+  params,
+);
 
   return rows.sort((a, b) => {
     const timeCompare = a.visit_start_time.localeCompare(b.visit_start_time);

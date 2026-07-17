@@ -332,3 +332,40 @@
   .toolbar { align-items:stretch; flex-direction:column; }
   .searchWrap { min-width:0; width:100%; }
 }
+
+.drawerCompleteValue {
+  color: #16834a;
+}
+
+.handoffAction {
+  margin-top: 18px;
+}
+
+.handoffButton {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: #d5521d;
+  color: #fff;
+  font: inherit;
+  font-weight: 900;
+  padding: 14px 18px;
+}
+
+.handoffButton:disabled {
+  background: #d7dbe0;
+  color: #7a828c;
+}
+
+.handoffBlocked {
+  margin: 8px 0 0;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 700;
+}.rentalOutRow td {
+  background-color: rgba(213, 82, 29, 0.12);
+}
+
+.completedRow td {
+  background-color: rgba(22, 131, 74, 0.12);
+}
