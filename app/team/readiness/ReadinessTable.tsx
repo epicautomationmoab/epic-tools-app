@@ -427,12 +427,12 @@ async function saveHandoff() {
     : selected.business_line === "tour"
       ? selected.handoff_status === "checked_in"
         ? "Checked In"
-        : "Mark Checked In"
+        : "Checked In"
       : selected.handoff_status === "rental_out"
-        ? "Mark Rental Returned"
+        ? "Rental Returned"
         : selected.handoff_status === "rental_returned"
           ? "Rental Returned"
-          : "Mark Rental Out"}
+          : "Rental Out"}
 </button>
 
   {(selected.amount_due_cents ?? 0) > 0 ? (
