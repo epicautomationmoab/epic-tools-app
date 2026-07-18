@@ -13,6 +13,7 @@ export type ReadinessRow = {
   customer_phone_last_four?: string | null;
   business_line: "tour" | "rental" | string;
   product_display_name: string;
+  rental_duration?: string | null;
   expected_guest_count: number | null;
   total_vehicle_count?: number | null;
   vehicle_breakdown?: VehicleBreakdownItem[] | null;
@@ -34,6 +35,7 @@ export type ReadinessRow = {
   tripworks_booking_url: string | null;
   mpwr_reservation_url: string | null;
   handoff_status?: "checked_in" | "rental_out" | "rental_returned" | null;
+  courtesy_call_completed?: boolean;
   notes?: string | null;
   epic_document_signers: Array<{
     name: string;

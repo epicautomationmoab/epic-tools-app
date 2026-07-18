@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReadinessRow, VehicleBreakdownItem } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
+type TimeFilter = "all" | "today" | "tomorrow";
 type Filter = "all" | "rental" | "tour";
 
 function formatWallTime(value: string) {
@@ -21,6 +22,18 @@ function formatDate(value: string) {
   if (!match) return value;
   const date = new Date(`${match[2]}/${match[3]}/${match[1]}`);
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function visitDateKey(value: string) {
+  return value.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? "";
 }
 
 function formatPhone(value: string | null | undefined) {
@@ -181,6 +194,7 @@ async function persistHandoff(
 
 export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
   const [query, setQuery] = useState("");
   const [localRows, setLocalRows] = useState(rows);
   const [selected, setSelected] = useState<ReadinessRow | null>(null);
@@ -190,30 +204,109 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
 const [handoffSaving, setHandoffSaving] = useState(false);
 const [handoffError, setHandoffError] = useState("");
 
+const COURTESY_CALL_STAFF = [
+  "Alex",
+  "Cody",
+  "Jenna",
+  "Kim",
+  "Lonnie",
+  "Maggie",
+  "Price",
+  "Randy",
+  "Taylin",
+] as const;
+
+const [courtesyStaff, setCourtesyStaff] = useState("");
+const [arrivalConfirmed, setArrivalConfirmed] = useState(false);
+const [locationDiscussed, setLocationDiscussed] = useState(false);
+const [callOutcome, setCallOutcome] = useState("");
+const [courtesyNotes, setCourtesyNotes] = useState("");
+
+const [courtesySaving, setCourtesySaving] = useState(false);
+const [courtesyError, setCourtesyError] = useState("");
+
+const [courtesyCompletion, setCourtesyCompletion] = useState<{
+  completedBy: string;
+  outcome: string;
+  completedAt: Date;
+} | null>(null);
+
   useEffect(() => setLocalRows(rows), [rows]);
 
   useEffect(() => {
-    if (!selected) return;
-    setNoteDraft(selected.notes ?? "");
-    setNoteStatus("idle");
-    setNoteError("");
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelected(null);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [selected]);
+  if (!selected) return;
 
-  const visibleRows = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return localRows.filter((row) => {
-      if (filter !== "all" && row.business_line !== filter) return false;
-      if (!normalized) return true;
-      return [row.customer_name, row.product_display_name, row.confirmation_code, row.customer_phone, row.customer_phone_last_four, row.mpwr_confirmation_number, row.adventure_assure_level, row.notes, ...(row.vehicle_breakdown ?? []).map((item) => item.model)]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(normalized));
-    });
-  }, [filter, query, localRows]);
+  setNoteDraft(selected.notes ?? "");
+  setNoteStatus("idle");
+  setNoteError("");
+
+  setCourtesyStaff("");
+  setArrivalConfirmed(false);
+  setLocationDiscussed(false);
+  setCallOutcome("");
+  setCourtesyNotes("");
+  setCourtesyError("");
+  setCourtesyCompletion(null);
+
+  const closeOnEscape = (event: KeyboardEvent) => {
+    if (event.key === "Escape") setSelected(null);
+  };
+
+  window.addEventListener("keydown", closeOnEscape);
+
+  return () => window.removeEventListener("keydown", closeOnEscape);
+}, [selected?.readiness_id]);
+
+const visibleRows = useMemo(() => {
+  const normalized = query.trim().toLowerCase();
+
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  const todayKey = localDateKey(today);
+  const tomorrowKey = localDateKey(tomorrow);
+
+  return localRows.filter((row) => {
+    const rowDate = visitDateKey(row.visit_start_time);
+
+    if (timeFilter === "today" && rowDate !== todayKey) return false;
+    if (timeFilter === "tomorrow" && rowDate !== tomorrowKey) return false;
+
+    if (filter !== "all" && row.business_line !== filter) return false;
+
+    if (!normalized) return true;
+
+    return [
+      row.customer_name,
+      row.product_display_name,
+      row.rental_duration,
+      row.confirmation_code,
+      row.customer_phone,
+      row.customer_phone_last_four,
+      row.mpwr_confirmation_number,
+      row.adventure_assure_level,
+      row.notes,
+      ...(row.vehicle_breakdown ?? []).map((item) => item.model),
+    ]
+      .filter(Boolean)
+      .some((value) =>
+        String(value).toLowerCase().includes(normalized),
+      );
+  });
+}, [timeFilter, filter, query, localRows]);
+const outstandingCourtesyCalls = useMemo(() => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const tomorrowKey = localDateKey(tomorrow);
+
+  return localRows.filter(
+    (row) =>
+      visitDateKey(row.visit_start_time) === tomorrowKey &&
+      !row.courtesy_call_completed,
+  ).length;
+}, [localRows]);
 
   async function saveNote() {
   if (!selected?.readiness_id) {
@@ -290,18 +383,144 @@ async function saveHandoff() {
     setHandoffSaving(false);
   }
 }
+async function saveCourtesyCall() {
+  if (!selected?.readiness_id) return;
+
+  setCourtesySaving(true);
+  setCourtesyError("");
+
+  try {
+  await completeCourtesyCall(
+    selected.readiness_id,
+    courtesyStaff,
+    courtesyNotes,
+    arrivalConfirmed,
+    locationDiscussed,
+    callOutcome,
+  );
+
+  setLocalRows((current) =>
+    current.map((row) =>
+      row.readiness_id === selected.readiness_id
+        ? { ...row, courtesy_call_completed: true }
+        : row,
+    ),
+  );
+
+  setSelected((current) =>
+    current
+      ? { ...current, courtesy_call_completed: true }
+      : current,
+  );
+  setCourtesyCompletion({
+  completedBy: courtesyStaff,
+  outcome: callOutcome,
+  completedAt: new Date(),
+});
+} catch (error) {
+    setCourtesyError(
+      error instanceof Error
+        ? error.message
+        : "Unable to save courtesy call.",
+    );
+  } finally {
+    setCourtesySaving(false);
+  }
+}
+async function completeCourtesyCall(
+  readinessId: string,
+  completedBy: string,
+  notes: string,
+  arrival: boolean,
+  location: boolean,
+callOutcome: string,
+) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !key) {
+    throw new Error("Supabase configuration is missing.");
+  }
+
+  const response = await fetch(
+    `${url}/rest/v1/rpc/complete_courtesy_call`,
+    {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        p_readiness_id: readinessId,
+        p_completed_by: completedBy,
+        p_notes: notes,
+        p_arrival_confirmed: arrival,
+        p_location_discussed: location,
+        p_call_outcome: callOutcome,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+}
+const selectedDateKey = selected
+  ? visitDateKey(selected.visit_start_time)
+  : "";
+
+const currentDate = new Date();
+const nextDate = new Date(currentDate);
+nextDate.setDate(currentDate.getDate() + 1);
+
+const selectedIsToday =
+  selectedDateKey === localDateKey(currentDate);
+
+const selectedIsTomorrow =
+  selectedDateKey === localDateKey(nextDate);
 
   return (
-    <>
+  <>
       <div className={styles.toolbar}>
-        <div className={styles.filters} aria-label="Reservation type filters">
-          {(["all", "rental", "tour"] as const).map((value) => (
-            <button key={value} type="button" className={`${styles.filterButton} ${filter === value ? styles.filterButtonActive : ""}`} onClick={() => setFilter(value)}>
-              {value === "all" ? "All" : value === "rental" ? "Rentals" : "Tours"}
-            </button>
-          ))}
-        </div>
-        <label className={styles.searchWrap}>
+    <div className={styles.courtesyCallSummary}>
+  Courtesy Calls Due For Tomorrow: {outstandingCourtesyCalls}
+  {outstandingCourtesyCalls === 0 ? " 🎉" : ""}
+</div>
+
+      <div className={styles.filterStack}>
+    <div className={styles.filters} aria-label="Time filters">
+      {(["all", "today", "tomorrow"] as const).map((value) => (
+        <button
+          key={value}
+          type="button"
+          className={`${styles.filterButton} ${
+            timeFilter === value ? styles.filterButtonActive : ""
+          }`}
+          onClick={() => setTimeFilter(value)}
+        >
+          {value === "all" ? "All" : value === "today" ? "Today" : "Tomorrow"}
+        </button>
+      ))}
+    </div>
+
+    <div className={styles.filters} aria-label="Reservation type filters">
+      {(["all", "rental", "tour"] as const).map((value) => (
+        <button
+          key={value}
+          type="button"
+          className={`${styles.filterButton} ${
+            filter === value ? styles.filterButtonActive : ""
+          }`}
+          onClick={() => setFilter(value)}
+        >
+          {value === "all" ? "All" : value === "rental" ? "Rentals" : "Tours"}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <label className={styles.searchWrap}>
           <span className={styles.searchIcon} aria-hidden="true">⌕</span>
           <input className={styles.search} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search guests or activities..." aria-label="Search guests or activities" />
         </label>
@@ -321,18 +540,25 @@ async function saveHandoff() {
 <tr
   key={`${row.confirmation_code}-${row.visit_start_time}-${row.product_display_name}`}
   className={
-    row.handoff_status === "rental_out"
-      ? styles.rentalOutRow
-      : row.handoff_status === "checked_in" ||
-          row.handoff_status === "rental_returned"
-        ? styles.completedRow
+  row.handoff_status === "rental_out"
+    ? styles.rentalOutRow
+    : row.handoff_status === "checked_in" ||
+        row.handoff_status === "rental_returned"
+      ? styles.completedRow
+      : row.courtesy_call_completed
+        ? styles.courtesyCallCompleteRow
         : undefined
-  }
+}
   onClick={() => setSelected(row)}
 >
                   <td><div className={styles.mainLine}>{formatDate(row.visit_start_time)}</div><div className={styles.subLine}>{formatWallTime(row.visit_start_time)}</div></td>
                   <td><div className={styles.mainLine}>{row.customer_name}</div><div className={styles.subLine}>{phone || row.confirmation_code}</div></td>
-                  <td><div className={styles.mainLine}>{row.product_display_name}</div></td>
+                  <td>
+  <div className={styles.mainLine}>{row.product_display_name}</div>
+  {row.business_line === "rental" && row.rental_duration ? (
+    <div className={styles.subLine}>{row.rental_duration}</div>
+  ) : null}
+</td>
                   <td><VehicleCell row={row} /></td>
                   <td><div className={`${styles.statusLine} ${docs.expected > 0 && docs.received >= docs.expected ? styles.waiversComplete : ""}`}><span className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`} />{docs.received}/{docs.expected}</div><div className={styles.subLine}>{linkedValue(row.confirmation_code, row.tripworks_booking_url)}</div></td>
                   <td><div className={`${styles.statusLine} ${mpwr.expected > 0 && mpwr.received >= mpwr.expected ? styles.waiversComplete : ""}`}><span className={`${styles.dot} ${statusClass(mpwr.received, mpwr.expected)}`} />{mpwr.received}/{mpwr.expected || "?"}</div><div className={styles.subLine}>{row.mpwr_confirmation_number ? linkedValue(row.mpwr_confirmation_number, row.mpwr_reservation_url) : row.requires_mpwr === false ? "N/A" : "Missing"}</div></td>
@@ -352,7 +578,15 @@ async function saveHandoff() {
       {selected ? (
         <div className={styles.drawerBackdrop} role="presentation" onMouseDown={() => setSelected(null)}>
           <aside className={styles.drawer} role="dialog" aria-modal="true" aria-label={`${selected.customer_name} reservation details`} onMouseDown={(event) => event.stopPropagation()}>
-            <header className={styles.drawerHeader}><div><p className={styles.drawerEyebrow}>Reservation Details</p><h2>{selected.customer_name}</h2><p>{formatDate(selected.visit_start_time)} · {formatWallTime(selected.visit_start_time)} · {selected.product_display_name}</p></div><button className={styles.drawerClose} type="button" onClick={() => setSelected(null)} aria-label="Close drawer">×</button></header>
+            <header className={styles.drawerHeader}><div><p className={styles.drawerEyebrow}>Reservation Details</p><h2>{selected.customer_name}</h2><p><p>
+  {formatDate(selected.visit_start_time)} · {formatWallTime(selected.visit_start_time)} · {selected.product_display_name}
+  {selected.business_line === "rental" && selected.rental_duration && (
+    <>
+      {" · "}
+      <strong>{selected.rental_duration}</strong>
+    </>
+  )}
+</p></p></div><button className={styles.drawerClose} type="button" onClick={() => setSelected(null)} aria-label="Close drawer">×</button></header>
 
             <section className={styles.drawerFacts}>
               <div><span>Vehicles</span><strong>{selected.total_vehicle_count ?? 0}</strong></div>
@@ -410,37 +644,204 @@ async function saveHandoff() {
               <div><span>Phone</span><strong>{formatPhone(selected.customer_phone) || "Not available"}</strong></div>
             </section>
 
-<section className={styles.handoffAction}>
-  <button
-  type="button"
-  className={styles.handoffButton}
-  disabled={
-    handoffSaving ||
-    (selected.amount_due_cents ?? 0) > 0 ||
-    selected.handoff_status === "checked_in" ||
-    selected.handoff_status === "rental_returned"
-  }
-  onClick={saveHandoff}
->
-  {handoffSaving
-    ? "Saving..."
-    : selected.business_line === "tour"
-      ? selected.handoff_status === "checked_in"
-        ? "Checked In"
-        : "Checked In"
-      : selected.handoff_status === "rental_out"
-        ? "Rental Returned"
-        : selected.handoff_status === "rental_returned"
-          ? "Rental Returned"
-          : "Rental Out"}
-</button>
+{selectedIsToday ? (
+  <section className={styles.handoffAction}>
+    <button
+      type="button"
+      className={styles.handoffButton}
+      disabled={
+        handoffSaving ||
+        (selected.amount_due_cents ?? 0) > 0 ||
+        selected.handoff_status === "checked_in" ||
+        selected.handoff_status === "rental_returned"
+      }
+      onClick={saveHandoff}
+    >
+      {handoffSaving
+        ? "Saving..."
+        : selected.business_line === "tour"
+          ? selected.handoff_status === "checked_in"
+            ? "Checked In"
+            : "Checked In"
+          : selected.handoff_status === "rental_out"
+            ? "Rental Returned"
+            : selected.handoff_status === "rental_returned"
+              ? "Rental Returned"
+              : "Rental Out"}
+    </button>
 
-  {(selected.amount_due_cents ?? 0) > 0 ? (
-    <p className={styles.handoffBlocked}>
-      Balance must be paid first.
-    </p>
-  ) : null}
-</section>
+    {(selected.amount_due_cents ?? 0) > 0 ? (
+      <p className={styles.handoffBlocked}>
+        Balance must be paid first.
+      </p>
+    ) : null}
+
+    {handoffError ? (
+      <p className={styles.handoffBlocked}>
+        {handoffError}
+      </p>
+    ) : null}
+  </section>
+) : selectedIsTomorrow ? (
+  <section className={styles.handoffAction}>
+    {courtesyCompletion ? (
+      <div className={styles.courtesyComplete}>
+        <div className={styles.courtesyCompleteTitle}>
+          ✅ Courtesy Call Complete
+        </div>
+
+        <div className={styles.courtesyCompleteOutcome}>
+          {courtesyCompletion.outcome === "live_call"
+            ? "Live Call Completed"
+            : courtesyCompletion.outcome === "voicemail_left"
+              ? "Voicemail Left"
+              : courtesyCompletion.outcome ===
+                  "unable_to_leave_voicemail"
+                ? "Unable to Leave Voicemail"
+                : courtesyCompletion.outcome ===
+                    "international_no_call"
+                  ? "International Number — No Call"
+                  : courtesyCompletion.outcome}
+        </div>
+
+        <div className={styles.courtesyCompleteDetail}>
+          {courtesyCompletion.completedBy}
+        </div>
+
+        <div className={styles.courtesyCompleteDetail}>
+          {courtesyCompletion.completedAt.toLocaleString("en-US", {
+            month: "2-digit",
+            day: "2-digit",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </div>
+      </div>
+    ) : (
+      <>
+        <div className={styles.courtesyHeader}>
+          <strong>Courtesy Call</strong>
+
+          <p className={styles.subLine}>
+            Prepare this guest for tomorrow.
+          </p>
+        </div>
+
+        <div className={styles.courtesyForm}>
+          <label className={styles.courtesyField}>
+            <span>Completed by</span>
+
+            <select
+              value={courtesyStaff}
+              onChange={(event) =>
+                setCourtesyStaff(event.target.value)
+              }
+            >
+              <option value="">Select team member...</option>
+
+              {COURTESY_CALL_STAFF.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className={styles.courtesyField}>
+            <span>Call outcome</span>
+
+            <select
+              value={callOutcome}
+              onChange={(event) =>
+                setCallOutcome(event.target.value)
+              }
+            >
+              <option value="">Select call outcome...</option>
+              <option value="live_call">
+                Live call completed
+              </option>
+              <option value="voicemail_left">
+                Voicemail left
+              </option>
+              <option value="unable_to_leave_voicemail">
+                Unable to leave voicemail
+              </option>
+              <option value="international_no_call">
+                International number — no call
+              </option>
+            </select>
+          </label>
+
+          {callOutcome === "live_call" ||
+          callOutcome === "voicemail_left" ? (
+            <>
+              <label className={styles.courtesyCheck}>
+                <input
+                  type="checkbox"
+                  checked={arrivalConfirmed}
+                  onChange={(event) =>
+                    setArrivalConfirmed(event.target.checked)
+                  }
+                />
+
+                <span>Arrival time confirmed</span>
+              </label>
+
+              <label className={styles.courtesyCheck}>
+                <input
+                  type="checkbox"
+                  checked={locationDiscussed}
+                  onChange={(event) =>
+                    setLocationDiscussed(event.target.checked)
+                  }
+                />
+
+                <span>Location Confirmed</span>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.courtesyField}>
+            <span>Notes</span>
+
+            <textarea
+              value={courtesyNotes}
+              onChange={(event) =>
+                setCourtesyNotes(event.target.value)
+              }
+              placeholder="Optional notes..."
+              rows={4}
+            />
+          </label>
+
+          <button
+            type="button"
+            className={styles.handoffButton}
+            onClick={saveCourtesyCall}
+            disabled={
+              courtesySaving ||
+              !courtesyStaff ||
+              !callOutcome ||
+              (callOutcome === "live_call" &&
+                (!arrivalConfirmed || !locationDiscussed))
+            }
+          >
+            {courtesySaving
+              ? "Saving..."
+              : "Complete Courtesy Call"}
+          </button>
+
+          {courtesyError ? (
+            <p className={styles.handoffBlocked}>
+              {courtesyError}
+            </p>
+          ) : null}
+        </div>
+      </>
+    )}
+  </section>
+) : null}
 
             {selected.business_line === "rental" && validVehicleBreakdown(selected).length ? <section className={styles.drawerSection}><h3>Vehicle(s):</h3><div className={styles.drawerVehicleList}>{validVehicleBreakdown(selected).map((item) => <div className={styles.drawerVehicleRow} key={item.model}><strong>{item.quantity} ×</strong><span>{item.model}</span></div>)}</div></section> : null}
 

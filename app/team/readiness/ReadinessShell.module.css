@@ -147,7 +147,15 @@
   gap:18px;
   margin-bottom:12px;
 }
+
+.filterStack {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
 .filters { display:flex; gap:8px; }
+
 .filterButton {
   border:1px solid #dfe4e9;
   background:#fff;
@@ -362,10 +370,147 @@
   color: #b42318;
   font-size: 13px;
   font-weight: 700;
-}.rentalOutRow td {
+}
+.courtesyHeader {
+  margin-bottom: 14px;
+}
+
+.courtesyForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.courtesyField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #48515c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.courtesyField select,
+.courtesyField textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d2d7de;
+  border-radius: 8px;
+  background: #fff;
+  color: #20262d;
+  font: inherit;
+  font-weight: 500;
+}
+
+.courtesyField select {
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.courtesyField textarea {
+  min-height: 92px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.courtesyCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #303740;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.courtesyCheck input {
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+  flex: 0 0 auto;
+  accent-color: #d5521d;
+}
+
+.handoffButton:disabled {
+  background: #d5d9df;
+  color: #7f8994;
+  cursor: not-allowed;
+}
+
+.rentalOutRow td {
   background-color: rgba(213, 82, 29, 0.12);
 }
 
 .completedRow td {
   background-color: rgba(22, 131, 74, 0.12);
+}
+
+.courtesyCallSummary {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 24px;
+  width: 100%;
+}
+
+.filterStack {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.courtesyCallSummary {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.toolbar > :last-child {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+}
+
+.courtesyComplete {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid #cfe3d4;
+  border-radius: 12px;
+  background: #f2faf4;
+}
+
+.courtesyCompleteTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: #176b3a;
+}
+
+.courtesyCompleteOutcome {
+  font-size: 16px;
+  font-weight: 800;
+  color: #202733;
+}
+
+.courtesyCompleteDetail {
+  font-size: 14px;
+  font-weight: 700;
+  color: #596273;
+}
+
+.courtesyCallCompleteRow {
+  background: rgba(71, 139, 201, 0.1);
+}
+
+.courtesyCallCompleteRow:hover {
+  background: rgba(71, 139, 201, 0.16);
 }
