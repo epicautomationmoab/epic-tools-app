@@ -1157,9 +1157,19 @@ const selectedIsTomorrow =
           key={`${waiver.name}-${index}`}
         >
           <div>
-            <strong>{waiver.name}</strong>
-            <small>{waiver.email || "MPWR waiver"}</small>
-          </div>
+  <strong>{waiver.name}</strong>
+  <small>
+    {waiver.is_minor
+      ? waiver.is_passenger
+        ? "Minor Passenger"
+        : "Minor"
+      : waiver.is_passenger
+        ? waiver.email
+          ? `Passenger · ${waiver.email}`
+          : "Passenger"
+        : waiver.email || "MPWR waiver"}
+  </small>
+</div>
 
           {waiver.document_url ? (
             <a
