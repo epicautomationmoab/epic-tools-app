@@ -1147,7 +1147,7 @@ const selectedIsTomorrow =
   </div>
 </section>
 
-            <section className={styles.drawerSection}><h3>Epic Documents</h3>{(selected.epic_document_signers ?? []).length ? <div className={styles.signerList}>{(selected.epic_document_signers ?? []).map((signer, index) => <div className={styles.signerRow} key={`${signer.name}-${index}`}><div><strong>{signer.name}</strong><small>{signer.is_minor_or_child ? "Child — cannot drive" : signer.is_waiver_adult ? "Adult signer" : "Signer"}</small></div>{signer.document_url ? <a href={signer.document_url} target="_blank" rel="noreferrer">Open Waiver</a> : <span>No link</span>}</div>)}</div> : <p className={styles.drawerEmpty}>No Epic document records were received.</p>}</section>
+            <section className={styles.drawerSection}><h3>Epic Documents</h3>{(selected.epic_document_signers ?? []).length ? <div className={styles.signerList}>{(selected.epic_document_signers ?? []).map((signer, index) => <div className={styles.signerRow} key={`${signer.name}-${index}`}><div><strong>{signer.name}</strong><small>{signer.is_minor_or_child ? "Minor" : signer.is_waiver_adult ? "Adult Signer" : "Signer"}</small></div>{signer.document_url ? <a href={signer.document_url} target="_blank" rel="noreferrer">Open Waiver</a> : <span>No link</span>}</div>)}</div> : <p className={styles.drawerEmpty}>No Epic document records were received.</p>}</section>
           <section className={styles.drawerSection}>
   <h3>MPWR Waivers</h3>{(selected.mpwr_waivers ?? []).length ? (
 <div className={styles.signerList}>
@@ -1159,16 +1159,12 @@ const selectedIsTomorrow =
           <div>
   <strong>{waiver.name}</strong>
   <small>
-    {waiver.is_minor
-      ? waiver.is_passenger
-        ? "Minor Passenger"
-        : "Minor"
-      : waiver.is_passenger
-        ? waiver.email
-          ? `Passenger · ${waiver.email}`
-          : "Passenger"
-        : waiver.email || "MPWR waiver"}
-  </small>
+  {waiver.is_minor
+    ? "Minor"
+    : waiver.is_passenger
+      ? "Passenger"
+      : "Driver"}
+</small>
 </div>
 
           {waiver.document_url ? (
