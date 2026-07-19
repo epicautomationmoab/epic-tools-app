@@ -46,6 +46,14 @@ courtesy_call_completed_at?: string | null;
     is_minor_or_child?: boolean | null;
     is_waiver_adult?: boolean | null;
   }> | null;
+ 
+  mpwr_waivers: Array<{
+  name: string;
+  email?: string | null;
+  document_url?: string | null;
+  is_minor?: boolean | null;
+  is_passenger?: boolean | null;
+}> | null;
 };
 
 export type ArrivalBoardRow = {
