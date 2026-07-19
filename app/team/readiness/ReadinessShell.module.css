@@ -177,11 +177,35 @@
   border:1px solid #dfe4e9;
   border-radius:8px;
   background:#fff;
-  padding:0 14px 0 38px;
+  padding:0 42px 0 38px;
   font-size:14px;
   outline:none;
 }
 .searchIcon { position:absolute; left:13px; top:10px; color:#8a94a1; }
+
+.searchClear {
+  position:absolute;
+  right:8px;
+  top:50%;
+  transform:translateY(-50%);
+  width:28px;
+  height:28px;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  color:#7b8491;
+  font-size:22px;
+  line-height:1;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.searchClear:hover {
+  background:#eef1f4;
+  color:#202733;
+}
 
 .tableCard {
   background:#fff;
@@ -513,4 +537,98 @@
 
 .courtesyCallCompleteRow:hover {
   background: rgba(71, 139, 201, 0.16);
+}
+.drawerFactWide {
+  grid-column: 1 / -1;
+}
+
+.drawerFactWide strong {
+  overflow-wrap: anywhere;
+}
+.contactDisplayRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.contactEditButton {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: #7b8491;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.contactEditButton:hover {
+  color: #202733;
+}
+
+.contactEditRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.contactEditInput {
+  min-width: 220px;
+  flex: 1;
+  height: 36px;
+  border: 1px solid #cfd5dc;
+  border-radius: 8px;
+  padding: 0 10px;
+  font: inherit;
+}
+
+.contactSaveButton,
+.contactCancelButton {
+  height: 34px;
+  border-radius: 8px;
+  padding: 0 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.contactSaveButton {
+  border: 0;
+  background: #202733;
+  color: white;
+}
+
+.contactCancelButton {
+  border: 1px solid #cfd5dc;
+  background: white;
+  color: #202733;
+}
+.drawerFacts .contactLabelInline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: auto;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.drawerFacts .contactLabelInline > span {
+  display: inline;
+  width: auto;
+  margin: 0;
+}
+
+.drawerFacts .contactLabelInline .contactEditButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  flex: 0 0 auto;
 }

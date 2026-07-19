@@ -35,7 +35,10 @@ export type ReadinessRow = {
   tripworks_booking_url: string | null;
   mpwr_reservation_url: string | null;
   handoff_status?: "checked_in" | "rental_out" | "rental_returned" | null;
-  courtesy_call_completed?: boolean;
+courtesy_call_completed?: boolean;
+courtesy_call_completed_by?: string | null;
+courtesy_call_outcome?: string | null;
+courtesy_call_completed_at?: string | null;
   notes?: string | null;
   epic_document_signers: Array<{
     name: string;

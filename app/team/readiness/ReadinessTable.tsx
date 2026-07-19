@@ -203,6 +203,9 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [noteError, setNoteError] = useState("");
 const [handoffSaving, setHandoffSaving] = useState(false);
 const [handoffError, setHandoffError] = useState("");
+const [editingField, setEditingField] = useState<"phone" | "email" | null>(null);
+const [editValue, setEditValue] = useState("");
+const [savingContact, setSavingContact] = useState(false);
 
 const COURTESY_CALL_STAFF = [
   "Alex",
@@ -246,7 +249,20 @@ const [courtesyCompletion, setCourtesyCompletion] = useState<{
   setCallOutcome("");
   setCourtesyNotes("");
   setCourtesyError("");
+  if (
+  selected.courtesy_call_completed &&
+  selected.courtesy_call_completed_by &&
+  selected.courtesy_call_outcome &&
+  selected.courtesy_call_completed_at
+) {
+  setCourtesyCompletion({
+    completedBy: selected.courtesy_call_completed_by,
+    outcome: selected.courtesy_call_outcome,
+    completedAt: new Date(selected.courtesy_call_completed_at),
+  });
+} else {
   setCourtesyCompletion(null);
+}
 
   const closeOnEscape = (event: KeyboardEvent) => {
     if (event.key === "Escape") setSelected(null);
@@ -390,34 +406,50 @@ async function saveCourtesyCall() {
   setCourtesyError("");
 
   try {
-  await completeCourtesyCall(
-    selected.readiness_id,
-    courtesyStaff,
-    courtesyNotes,
-    arrivalConfirmed,
-    locationDiscussed,
-    callOutcome,
-  );
+    await completeCourtesyCall(
+      selected.readiness_id,
+      courtesyStaff,
+      courtesyNotes,
+      arrivalConfirmed,
+      locationDiscussed,
+      callOutcome,
+    );
 
-  setLocalRows((current) =>
-    current.map((row) =>
-      row.readiness_id === selected.readiness_id
-        ? { ...row, courtesy_call_completed: true }
-        : row,
-    ),
-  );
+    const completedAt = new Date();
+    const completedAtIso = completedAt.toISOString();
 
-  setSelected((current) =>
-    current
-      ? { ...current, courtesy_call_completed: true }
-      : current,
-  );
-  setCourtesyCompletion({
-  completedBy: courtesyStaff,
-  outcome: callOutcome,
-  completedAt: new Date(),
-});
-} catch (error) {
+    setLocalRows((current) =>
+      current.map((row) =>
+        row.readiness_id === selected.readiness_id
+          ? {
+              ...row,
+              courtesy_call_completed: true,
+              courtesy_call_completed_by: courtesyStaff,
+              courtesy_call_outcome: callOutcome,
+              courtesy_call_completed_at: completedAtIso,
+            }
+          : row,
+      ),
+    );
+
+    setSelected((current) =>
+      current
+        ? {
+            ...current,
+            courtesy_call_completed: true,
+            courtesy_call_completed_by: courtesyStaff,
+            courtesy_call_outcome: callOutcome,
+            courtesy_call_completed_at: completedAtIso,
+          }
+        : current,
+    );
+
+    setCourtesyCompletion({
+      completedBy: courtesyStaff,
+      outcome: callOutcome,
+      completedAt,
+    });
+  } catch (error) {
     setCourtesyError(
       error instanceof Error
         ? error.message
@@ -520,11 +552,33 @@ const selectedIsTomorrow =
     </div>
   </div>
 
-  <label className={styles.searchWrap}>
-          <span className={styles.searchIcon} aria-hidden="true">⌕</span>
-          <input className={styles.search} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search guests or activities..." aria-label="Search guests or activities" />
-        </label>
-      </div>
+ <label className={styles.searchWrap}>
+  <span className={styles.searchIcon} aria-hidden="true">⌕</span>
+
+  <input
+    className={styles.search}
+    value={query}
+    onChange={(event) => setQuery(event.target.value)}
+    placeholder="Search guests or activities..."
+    aria-label="Search guests or activities"
+  />
+
+  {query ? (
+    <button
+      type="button"
+      className={styles.searchClear}
+      onClick={(event) => {
+        event.preventDefault();
+        setQuery("");
+      }}
+      aria-label="Clear search"
+    >
+      ×
+    </button>
+  ) : null}
+</label>
+
+</div>
 
       <section className={styles.tableCard}>
         <table className={styles.table}>
@@ -549,7 +603,11 @@ const selectedIsTomorrow =
         ? styles.courtesyCallCompleteRow
         : undefined
 }
-  onClick={() => setSelected(row)}
+  onClick={() => {
+    setSelected(row);
+    setEditingField(null);
+    setEditValue("");
+  }}
 >
                   <td><div className={styles.mainLine}>{formatDate(row.visit_start_time)}</div><div className={styles.subLine}>{formatWallTime(row.visit_start_time)}</div></td>
                   <td><div className={styles.mainLine}>{row.customer_name}</div><div className={styles.subLine}>{phone || row.confirmation_code}</div></td>
@@ -566,7 +624,23 @@ const selectedIsTomorrow =
                   <td><span className={due > 0 ? styles.moneyBad : styles.moneyGood}>{due > 0 ? `$${(due / 100).toFixed(2)}` : "$0"}</span></td>
                   <td><OhvCell row={row} /></td>
                   <td><KioskSelect row={row} /></td>
-                  <td className={styles.center}>{row.notes ? <button className={styles.noteButton} type="button" aria-label="Open note" onClick={(event) => { event.stopPropagation(); setSelected(row); }}>▤</button> : null}</td>
+<td className={styles.center}>
+  {row.notes ? (
+    <button
+      className={styles.noteButton}
+      type="button"
+      aria-label="Open note"
+      onClick={(event) => {
+        event.stopPropagation();
+        setSelected(row);
+        setEditingField(null);
+        setEditValue("");
+      }}
+    >
+      ▤
+    </button>
+  ) : null}
+</td>
                 </tr>
               );
             })}
@@ -640,9 +714,125 @@ const selectedIsTomorrow =
     {mpwrCounts(selected).received}/{mpwrCounts(selected).expected || "?"}
   </strong>
 </div>
-              <div><span>Balance</span><strong>{(selected.amount_due_cents ?? 0) > 0 ? `$${((selected.amount_due_cents ?? 0) / 100).toFixed(2)}` : "$0"}</strong></div>
-              <div><span>Phone</span><strong>{formatPhone(selected.customer_phone) || "Not available"}</strong></div>
-            </section>
+              <div>
+  <span>Balance</span>
+  <strong>
+    {(selected.amount_due_cents ?? 0) > 0
+      ? `$${((selected.amount_due_cents ?? 0) / 100).toFixed(2)}`
+      : "$0"}
+  </strong>
+</div>
+
+<div>
+
+  {editingField === "phone" ? (
+    <div className={styles.contactEditRow}>
+      <input
+        className={styles.contactEditInput}
+        value={editValue}
+        onChange={(event) => setEditValue(event.target.value)}
+        autoFocus
+      />
+
+      <button
+        type="button"
+        className={styles.contactSaveButton}
+        disabled={savingContact}
+      >
+        {savingContact ? "Saving..." : "Save"}
+      </button>
+
+      <button
+        type="button"
+        className={styles.contactCancelButton}
+        onClick={() => {
+          setEditingField(null);
+          setEditValue("");
+        }}
+      >
+        Cancel
+      </button>
+    </div>
+  ) : (
+    <>
+  <span className={styles.contactLabelInline}>
+  <span>Phone</span>
+
+  <button
+    type="button"
+    className={styles.contactEditButton}
+    aria-label="Edit phone"
+    onClick={() => {
+      setEditingField("phone");
+      setEditValue(selected.customer_phone || "");
+    }}
+  >
+    ✎
+  </button>
+</span>
+
+  <strong>
+    {formatPhone(selected.customer_phone) || "Not available"}
+  </strong>
+</>
+  )}
+</div>
+
+<div className={styles.drawerFactWide}>
+  {editingField === "email" ? (
+    <div className={styles.contactEditRow}>
+      <input
+        className={styles.contactEditInput}
+        type="email"
+        value={editValue}
+        onChange={(event) => setEditValue(event.target.value)}
+        autoFocus
+      />
+
+      <button
+        type="button"
+        className={styles.contactSaveButton}
+        disabled={savingContact}
+      >
+        {savingContact ? "Saving..." : "Save"}
+      </button>
+
+      <button
+        type="button"
+        className={styles.contactCancelButton}
+        onClick={() => {
+          setEditingField(null);
+          setEditValue("");
+        }}
+      >
+        Cancel
+      </button>
+    </div>
+  ) : (
+    <>
+  <span className={styles.contactLabelInline}>
+  <span>Email</span>
+
+  <button
+    type="button"
+    className={styles.contactEditButton}
+    aria-label="Edit email"
+    onClick={() => {
+      setEditingField("email");
+      setEditValue(selected.customer_email || "");
+    }}
+  >
+    ✎
+  </button>
+</span>
+
+  <strong>
+    {selected.customer_email || "Not available"}
+  </strong>
+</>
+  )}
+</div>
+</section>
 
 {selectedIsToday ? (
   <section className={styles.handoffAction}>
@@ -846,14 +1036,116 @@ const selectedIsTomorrow =
             {selected.business_line === "rental" && validVehicleBreakdown(selected).length ? <section className={styles.drawerSection}><h3>Vehicle(s):</h3><div className={styles.drawerVehicleList}>{validVehicleBreakdown(selected).map((item) => <div className={styles.drawerVehicleRow} key={item.model}><strong>{item.quantity} ×</strong><span>{item.model}</span></div>)}</div></section> : null}
 
             <section className={styles.drawerSection}>
-              <h3>Important Notes</h3>
-              <textarea value={noteDraft} onChange={(event) => { setNoteDraft(event.target.value); setNoteStatus("idle"); }} placeholder="Enter important information for staff..." rows={5} style={{ width: "100%", resize: "vertical", border: "1px solid #dfe4e9", borderRadius: 10, padding: 12, font: "inherit", lineHeight: 1.45 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
-                <button type="button" onClick={saveNote} disabled={noteStatus === "saving"} style={{ border: 0, borderRadius: 8, background: "#d5521d", color: "#fff", fontWeight: 800, padding: "10px 16px", cursor: noteStatus === "saving" ? "wait" : "pointer" }}>{noteStatus === "saving" ? "Saving..." : noteDraft.trim() ? "Save Note" : "Clear Note"}</button>
-                {noteStatus === "saved" ? <span style={{ color: "#16834a", fontWeight: 700 }}>Saved</span> : null}
-                {noteStatus === "error" ? <span style={{ color: "#b42318" }}>{noteError}</span> : null}
-              </div>
-            </section>
+  <h3>Important Notes</h3>
+
+  <textarea
+    value={noteDraft}
+    onChange={(event) => {
+      setNoteDraft(event.target.value);
+      setNoteStatus("idle");
+    }}
+    placeholder="Enter important information for staff..."
+    rows={5}
+    style={{
+      width: "100%",
+      resize: "vertical",
+      border: "1px solid #dfe4e9",
+      borderRadius: 10,
+      padding: 12,
+      font: "inherit",
+      lineHeight: 1.45,
+    }}
+  />
+
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      marginTop: 10,
+    }}
+  >
+    {noteDraft !== (selected.notes ?? "") ? (
+      <button
+        type="button"
+        onClick={saveNote}
+        disabled={noteStatus === "saving"}
+        style={{
+          border: 0,
+          borderRadius: 8,
+          background: "#d5521d",
+          color: "#fff",
+          fontWeight: 800,
+          padding: "10px 16px",
+          cursor: noteStatus === "saving" ? "wait" : "pointer",
+        }}
+      >
+        {noteStatus === "saving" ? "Saving..." : "Save Note"}
+      </button>
+    ) : null}
+
+    {(selected.notes ?? "").trim() ? (
+      <button
+        type="button"
+        onClick={async () => {
+          setNoteDraft("");
+          setNoteStatus("saving");
+          setNoteError("");
+
+          try {
+            const saved = await persistNote(selected.readiness_id!, "");
+
+            setLocalRows((current) =>
+              current.map((row) =>
+                row.readiness_id === selected.readiness_id
+                  ? { ...row, notes: saved }
+                  : row,
+              ),
+            );
+
+            setSelected((current) =>
+              current ? { ...current, notes: saved } : current,
+            );
+
+            setNoteDraft("");
+            setNoteStatus("saved");
+          } catch (error) {
+            setNoteStatus("error");
+            setNoteError(
+              error instanceof Error
+                ? error.message
+                : "Unable to clear note.",
+            );
+          }
+        }}
+        disabled={noteStatus === "saving"}
+        style={{
+          border: "1px solid #d5521d",
+          borderRadius: 8,
+          background: "#fff",
+          color: "#d5521d",
+          fontWeight: 800,
+          padding: "10px 16px",
+          cursor: noteStatus === "saving" ? "wait" : "pointer",
+        }}
+      >
+        Clear Note
+      </button>
+    ) : null}
+
+    {noteStatus === "saved" ? (
+      <span style={{ color: "#16834a", fontWeight: 700 }}>
+        Saved
+      </span>
+    ) : null}
+
+    {noteStatus === "error" ? (
+      <span style={{ color: "#b42318" }}>
+        {noteError}
+      </span>
+    ) : null}
+  </div>
+</section>
 
             <section className={styles.drawerSection}><h3>Epic Documents</h3>{(selected.epic_document_signers ?? []).length ? <div className={styles.signerList}>{(selected.epic_document_signers ?? []).map((signer, index) => <div className={styles.signerRow} key={`${signer.name}-${index}`}><div><strong>{signer.name}</strong><small>{signer.is_minor_or_child ? "Child — cannot drive" : signer.is_waiver_adult ? "Adult signer" : "Signer"}</small></div>{signer.document_url ? <a href={signer.document_url} target="_blank" rel="noreferrer">Open Waiver</a> : <span>No link</span>}</div>)}</div> : <p className={styles.drawerEmpty}>No Epic document records were received.</p>}</section>
           </aside>
