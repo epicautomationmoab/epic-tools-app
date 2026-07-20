@@ -592,7 +592,7 @@ const selectedIsTomorrow =
               const phone = formatPhone(row.customer_phone);
               return (
 <tr
-  key={`${row.confirmation_code}-${row.visit_start_time}-${row.product_display_name}`}
+  key={row.readiness_id}
   className={
   row.handoff_status === "rental_out"
     ? styles.rentalOutRow
