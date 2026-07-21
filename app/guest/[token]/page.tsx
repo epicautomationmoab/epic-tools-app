@@ -626,13 +626,9 @@ export default function GuestPortalPage() {
                           target="_blank"
                           rel="noreferrer"
                         >
-                          {epicComplete
-                            ? isRental
-                              ? "Open Rental Documents"
-                              : "Open Tour Waivers"
-                            : isRental
-                              ? "Complete Rental Documents"
-                              : "Complete Tour Waivers"}
+                          {isRental
+                          ? "Complete Terms & Conditions"
+                          : "Complete Tour Waivers"}
                         </a>
                       ) : null}
                     </article>
@@ -719,9 +715,8 @@ export default function GuestPortalPage() {
                           target="_blank"
                           rel="noreferrer"
                         >
-                          {mpwrComplete
-                            ? "Open Polaris Waivers"
-                            : "Complete Polaris Waivers"}
+                          Complete Polaris Waivers
+                          
                         </a>
                       ) : null}
                     </article>
