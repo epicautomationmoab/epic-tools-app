@@ -1,0 +1,865 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top right, rgba(236, 111, 52, 0.08), transparent 35%),
+    #f4f1ec;
+  color: #17202a;
+}
+
+.hero {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  background-image: url("/sidebar-trail.jpg");
+  background-position: center 44%;
+  background-size: cover;
+  color: #fff;
+}
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(8, 14, 20, 0.9), rgba(8, 14, 20, 0.54) 55%, rgba(8, 14, 20, 0.3)),
+    linear-gradient(0deg, rgba(8, 14, 20, 0.58), transparent 58%);
+}
+
+.header,
+.heroContent {
+  position: relative;
+  z-index: 1;
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 28px;
+}
+
+.logo {
+  width: min(220px, 48vw);
+  height: auto;
+}
+
+.shareButton {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(12, 18, 24, 0.48);
+  color: #fff;
+  padding: 11px 20px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.shareButton:hover {
+  transform: translateY(-1px);
+  background: rgba(12, 18, 24, 0.72);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.heroContent {
+  padding-top: 88px;
+  padding-bottom: 76px;
+}
+
+.heroKicker {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: #ffb38e;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.heroContent h1 {
+  max-width: 680px;
+  margin: 0;
+  font-size: clamp(38px, 6vw, 64px);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.heroContent p {
+  max-width: 650px;
+  margin: 18px 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 18px;
+  line-height: 1.58;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  width: min(1120px, calc(100% - 40px));
+  margin: -42px auto 0;
+  padding-bottom: 42px;
+}
+
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  z-index: 20;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #151d26;
+  color: #fff;
+  padding: 11px 18px;
+  box-shadow: 0 12px 36px rgba(8, 14, 20, 0.24);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.reservationCard,
+.sectionCard,
+.helpCard {
+  border: 1px solid rgba(23, 32, 42, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 18px 55px rgba(23, 32, 42, 0.1);
+}
+
+.reservationCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  overflow: hidden;
+}
+
+.reservationMain {
+  padding: 30px 34px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #db5e25;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.reservationMain h2,
+.sectionHeading h2,
+.progressHeader h2,
+.helpCard h2 {
+  margin: 0;
+  color: #17202a;
+  font-size: clamp(25px, 3vw, 34px);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.contactSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: 17px;
+  color: #6a7480;
+  font-size: 14px;
+}
+
+.contactSummary span {
+  position: relative;
+}
+
+.contactSummary span + span::before {
+  position: absolute;
+  left: -13px;
+  content: "•";
+  color: #c3c8ce;
+}
+
+.confirmationPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 32px;
+  background:
+    linear-gradient(135deg, #1a232d, #0f151c);
+  color: #fff;
+}
+
+.confirmationLabel {
+  color: #c7d0d9;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.confirmationCode {
+  margin-top: 8px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  padding: 0;
+  font: inherit;
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.copyHint {
+  margin-top: 5px;
+  color: #93a0ac;
+  font-size: 11px;
+}
+
+.sectionCard {
+  margin-top: 24px;
+  padding: 30px;
+}
+
+.sectionHeading,
+.progressHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.sectionIntro {
+  max-width: 650px;
+  margin: 10px 0 0;
+  color: #78828d;
+  line-height: 1.55;
+}
+
+.itineraryList {
+  margin-top: 24px;
+  border: 1px solid #e4e8eb;
+  border-radius: 17px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.itineraryItem {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 18px;
+  padding: 24px;
+}
+
+.itineraryItem + .itineraryItem {
+  border-top: 1px solid #e7eaed;
+}
+
+.itineraryNumber {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #fff0e8, #ffe2d2);
+  color: #d9551d;
+  font-weight: 900;
+}
+
+.itineraryTopline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.itineraryContent h3 {
+  margin: 0;
+  color: #1c2630;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.businessLinePill {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #f1f3f5;
+  color: #68727d;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.reservationDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 10px;
+  color: #68737f;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.itineraryLocation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 13px;
+  margin-top: 16px;
+  border-radius: 12px;
+  background: #f7f8f9;
+  padding: 12px 14px;
+  color: #6f7984;
+  font-size: 13px;
+}
+
+.itineraryLocation strong {
+  color: #3f4a55;
+}
+
+.itineraryLocation a {
+  color: #d9551d;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.progressNumber {
+  flex: 0 0 auto;
+  min-width: 100px;
+  border-radius: 16px;
+  background: #f3f5f6;
+  padding: 15px 18px;
+  text-align: center;
+}
+
+.progressNumber strong {
+  display: block;
+  color: #1d2731;
+  font-size: 27px;
+  line-height: 1;
+}
+
+.progressNumber span {
+  display: block;
+  margin-top: 5px;
+  color: #7d8791;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.progressTrack {
+  height: 11px;
+  margin-top: 24px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8ecef;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #df5e25, #f18a50);
+  transition: width 300ms ease;
+}
+
+.progressPercent {
+  display: block;
+  margin-top: 8px;
+  color: #727d88;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.requirementList {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.activityRequirements {
+  display: grid;
+  gap: 14px;
+}
+
+.activityRequirements + .activityRequirements {
+  margin-top: 12px;
+  border-top: 1px solid #e6e9ec;
+  padding-top: 26px;
+}
+
+.activityRequirementTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 2px;
+}
+
+.activityRequirementTitle span {
+  color: #949ca5;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.activityRequirementTitle strong {
+  color: #3f4a55;
+  font-size: 15px;
+}
+
+.requirement {
+  position: relative;
+  display: grid;
+  grid-template-columns: 5px minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #e2e6e9;
+  border-radius: 18px;
+  background: #fff;
+  padding: 23px 24px 23px 0;
+}
+
+.requirementAccent {
+  align-self: stretch;
+  border-radius: 0 999px 999px 0;
+  background: #c8cdd2;
+}
+
+.epicRequirement {
+  background: linear-gradient(135deg, #fffaf6, #fff);
+}
+
+.epicRequirement .requirementAccent {
+  background: #e3672f;
+}
+
+.polarisRequirement {
+  background: linear-gradient(135deg, #f5f9ff, #fff);
+}
+
+.polarisRequirement .requirementAccent {
+  background: #1d6eb4;
+}
+
+.ohvRequirement {
+  background: linear-gradient(135deg, #f4faf5, #fff);
+}
+
+.ohvRequirement .requirementAccent {
+  background: #4f8a63;
+}
+
+.uploadRequirement {
+  background: linear-gradient(135deg, #f7f5fb, #fff);
+}
+
+.uploadRequirement .requirementAccent {
+  background: #7b6aa5;
+}
+
+.readyRow {
+  background: linear-gradient(135deg, #f4faf5, #fff);
+}
+
+.readyRow .requirementAccent {
+  background: #4f8a63;
+}
+
+.requirementContent {
+  min-width: 0;
+}
+
+.requirementHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.requirementKicker {
+  display: block;
+  margin-bottom: 5px;
+  color: #8b949e;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.requirementHeading h3 {
+  margin: 0;
+  color: #1c2630;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.requirementInstructions {
+  max-width: 690px;
+  margin: 11px 0 0;
+  color: #697581;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.requirementCount {
+  margin: 12px 0 0;
+  color: #46515c;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.statusBadge {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.statusComplete {
+  background: #e4f4e8;
+  color: #34734a;
+}
+
+.statusRequired {
+  background: #fff0e8;
+  color: #c94e19;
+}
+
+.polarisHeadingMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.polarisTitleBlock {
+  min-width: 0;
+}
+
+.polarisTitleRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.polarisTitleRow .polarisLogo {
+  margin-left: 28px;
+}
+
+.polarisTitleRow .requirementKicker {
+  margin-bottom: 0;
+}
+
+.polarisLogo {
+  width: 165px;
+  max-height: 46px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.signerList {
+  display: grid;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.signerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px 12px;
+}
+
+.signerCheck {
+  display: flex;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e3f2e7;
+  color: #337449;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.signerRow strong,
+.signerRow span {
+  display: block;
+}
+
+.signerRow strong {
+  color: #36414b;
+  font-size: 13px;
+}
+
+.signerRow span {
+  margin-top: 2px;
+  color: #8a939c;
+  font-size: 11px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  min-width: 180px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dd5e26;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e46830, #d9551d);
+  color: #fff;
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(217, 85, 29, 0.18);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.primaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(217, 85, 29, 0.25);
+}
+
+.primaryButton:disabled {
+  border-color: #d4d9de;
+  background: #e3e6e9;
+  color: #88919a;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.uploadedFile {
+  margin: 10px 0 0;
+  color: #4f8a63;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.helpCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 28px;
+  align-items: center;
+  margin-top: 24px;
+  padding: 30px;
+  background:
+    radial-gradient(circle at right top, rgba(227, 103, 47, 0.14), transparent 42%),
+    #fff;
+}
+
+.helpCard p:not(.eyebrow) {
+  max-width: 620px;
+  margin: 10px 0 0;
+  color: #77818b;
+  line-height: 1.55;
+}
+
+.helpLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: right;
+}
+
+.helpLinks a {
+  color: #d9551d;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.footer {
+  padding: 22px 10px 0;
+  color: #89929b;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.portalMessage {
+  width: min(620px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 120px 24px;
+  text-align: center;
+}
+
+.portalMessage h1 {
+  margin: 0;
+  font-size: 34px;
+  letter-spacing: -0.035em;
+}
+
+.portalMessage p {
+  margin: 12px 0 24px;
+  color: #748092;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .hero {
+    min-height: 330px;
+  }
+
+  .heroContent {
+    padding-top: 68px;
+    padding-bottom: 66px;
+  }
+
+  .content {
+    width: min(100% - 24px, 1120px);
+    margin-top: -30px;
+  }
+
+  .reservationCard {
+    grid-template-columns: 1fr;
+  }
+
+  .confirmationPanel {
+    padding: 20px 26px;
+  }
+
+  .sectionCard {
+    padding: 22px 18px;
+  }
+
+  .progressHeader,
+  .sectionHeading {
+    flex-direction: column;
+  }
+
+  .progressNumber {
+    align-self: stretch;
+  }
+
+  .requirement {
+    grid-template-columns: 5px minmax(0, 1fr);
+    padding-right: 18px;
+  }
+
+  .requirement > .primaryButton {
+    grid-column: 2;
+    justify-self: stretch;
+  }
+
+  .helpCard {
+    grid-template-columns: 1fr;
+  }
+
+  .helpLinks {
+    text-align: left;
+  }
+}
+
+@media (max-width: 560px) {
+  .header,
+  .heroContent {
+    width: calc(100% - 28px);
+  }
+
+  .logo {
+    width: 170px;
+  }
+
+  .shareButton {
+    padding: 9px 15px;
+  }
+
+  .heroContent h1 {
+    font-size: 38px;
+  }
+
+  .heroContent p {
+    font-size: 16px;
+  }
+
+  .reservationMain {
+    padding: 24px 22px;
+  }
+
+  .contactSummary {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .contactSummary span + span::before {
+    display: none;
+  }
+
+  .itineraryItem {
+    grid-template-columns: 1fr;
+    padding: 19px;
+  }
+
+  .itineraryNumber {
+    width: 34px;
+    height: 34px;
+  }
+
+  .itineraryTopline {
+    flex-direction: column;
+  }
+
+  .itineraryLocation {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .requirementHeading {
+    flex-direction: column;
+  }
+
+  .polarisHeadingMeta {
+    align-items: flex-start;
+  }
+
+  .polarisTitleRow {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.polarisLogo {
+  width: 130px;
+  max-height: 38px;
+  object-position: left center;
+  }
+
+  .statusBadge {
+    align-self: flex-start;
+  }
+
+  .primaryButton {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .locationNote {
+  flex-basis: 100%;
+  margin-top: 4px;
+  color: #4f5b67;
+  font-size: 12px;
+  font-weight: 700;
+}
+}
