@@ -1,6 +1,7 @@
 import Link from "next/link";
 import ReadinessTable from "./ReadinessTable";
 import HeaderClock from "./HeaderClock";
+import AutoRefresh from "./AutoRefresh";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -24,6 +25,8 @@ export default async function TeamReadinessPage() {
 
   return (
     <div className={styles.page}>
+      <AutoRefresh />
+
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
           <img src="/epic-logo.png" alt="Epic 4X4 Adventures" />
