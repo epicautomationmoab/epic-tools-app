@@ -7,6 +7,7 @@ export type ReadinessRow = {
   readiness_id?: string;
   visit_start_time: string;
   confirmation_code: string;
+  guest_portal_token?: string | null;
   customer_name: string;
   customer_email?: string | null;
   customer_phone?: string | null;
@@ -67,12 +68,18 @@ export type ArrivalBoardRow = {
   handoff_status?: "checked_in" | "rental_out" | "rental_returned" | null;
 };
 
-function getSupabaseConfig() {
+function getSupabaseConfig(useSecretKey = false) {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const key = useSecretKey
+    ? process.env.SUPABASE_SECRET_KEY?.trim()
+    : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
   if (!rawUrl || !key) {
-    throw new Error("Supabase environment variables are missing in Vercel.");
+    throw new Error(
+      useSecretKey
+        ? "Supabase secret environment variables are missing."
+        : "Supabase environment variables are missing in Vercel.",
+    );
   }
 
   const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
@@ -81,8 +88,12 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
-async function fetchView<T>(viewName: string, searchParams: URLSearchParams): Promise<T[]> {
-  const config = getSupabaseConfig();
+async function fetchView<T>(
+  viewName: string,
+  searchParams: URLSearchParams,
+  useSecretKey = false,
+): Promise<T[]> {
+  const config = getSupabaseConfig(useSecretKey);
   const endpoint = `${config.url}/rest/v1/${viewName}?${searchParams.toString()}`;
 
   let response: Response;
@@ -121,7 +132,55 @@ export async function getReadinessRows() {
     params,
   );
 
-  return rows.sort((a, b) => {
+  const confirmationCodes = [
+    ...new Set(
+      rows
+        .map((row) => row.confirmation_code)
+        .filter((code): code is string => Boolean(code)),
+    ),
+  ];
+
+  const portalTokenByConfirmationCode = new Map<string, string>();
+
+  for (let index = 0; index < confirmationCodes.length; index += 100) {
+    const batch = confirmationCodes.slice(index, index + 100);
+
+    const quotedCodes = batch
+      .map((code) => `"${code.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`)
+      .join(",");
+
+    const portalParams = new URLSearchParams({
+      select: "confirmation_code,guest_portal_token",
+      confirmation_code: `in.(${quotedCodes})`,
+      limit: "1000",
+    });
+
+    const portalRows = await fetchView<{
+      confirmation_code: string;
+      guest_portal_token: string | null;
+    }>("guest_portal_v", portalParams, true);
+
+    for (const portalRow of portalRows) {
+      if (
+        portalRow.confirmation_code &&
+        portalRow.guest_portal_token &&
+        !portalTokenByConfirmationCode.has(portalRow.confirmation_code)
+      ) {
+        portalTokenByConfirmationCode.set(
+          portalRow.confirmation_code,
+          portalRow.guest_portal_token,
+        );
+      }
+    }
+  }
+
+  const rowsWithPortalTokens = rows.map((row) => ({
+    ...row,
+    guest_portal_token:
+      portalTokenByConfirmationCode.get(row.confirmation_code) ?? null,
+  }));
+
+  return rowsWithPortalTokens.sort((a, b) => {
     const timeCompare = a.visit_start_time.localeCompare(b.visit_start_time);
     if (timeCompare !== 0) return timeCompare;
     return a.customer_name.localeCompare(b.customer_name);

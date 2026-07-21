@@ -1291,3 +1291,34 @@
     align-self: center;
   }
 }
+.guestPortalButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 13px;
+  min-height: 38px;
+  padding: 9px 15px;
+  border-radius: 8px;
+  background: #e45b22;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 5px 14px rgba(228, 91, 34, 0.2);
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.guestPortalButton:hover {
+  background: #c94a17;
+  transform: translateY(-1px);
+  box-shadow: 0 7px 17px rgba(228, 91, 34, 0.27);
+}
+
+.guestPortalButton:focus-visible {
+  outline: 3px solid rgba(228, 91, 34, 0.28);
+  outline-offset: 3px;
+}

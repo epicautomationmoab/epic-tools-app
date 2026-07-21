@@ -841,6 +841,17 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                       )}
                   </p>
                 </p>
+
+                {selected.guest_portal_token ? (
+                  <a
+                    className={styles.guestPortalButton}
+                    href={`/guest/${selected.guest_portal_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View Guest Portal
+                  </a>
+                ) : null}
               </div>
               <button
                 className={styles.drawerClose}
