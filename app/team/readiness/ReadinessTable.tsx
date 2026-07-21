@@ -112,7 +112,7 @@ function securityDepositDetails(row: ReadinessRow) {
 
   return {
     amount: `$${depositAmount.toLocaleString("en-US")}`,
-    note: `$3,000 × ${vehicleCount} vehicle${vehicleCount === 1 ? "" : "s"}`,
+    note: null,
   };
 }
 
