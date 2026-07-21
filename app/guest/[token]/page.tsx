@@ -21,6 +21,8 @@ type Activity = {
   expectedGuestCount: number | null;
   totalVehicleCount: number | null;
   vehicleBreakdown: VehicleBreakdownItem[] | null;
+  premierAdventureAssure: boolean | null;
+  adventureAssureLevel: string | null;
   ohvRequired: boolean | null;
   ohvCertificateUploaded: boolean | null;
   ohvCertificateFilename: string | null;
@@ -317,6 +319,7 @@ export default function GuestPortalPage() {
   }
 
   const maskedEmail = maskEmail(reservation.customerEmail);
+  const primaryActivity = reservation.activities[0];
 
   return (
     <main className={styles.page}>
@@ -454,6 +457,36 @@ export default function GuestPortalPage() {
                 </article>
               );
             })}
+          </div>
+
+        </section>
+
+        {/* Adventure Assure */}
+        <section className={styles.sectionCard}>
+          <div className={styles.sectionHeading}>
+            <div>
+              <p className={styles.eyebrow}>Protection</p>
+              <h2>Adventure Assure</h2>
+            </div>
+          </div>
+
+          <div className={styles.adventureAssureCard}>
+            <img
+              src="/aa-logo.png"
+              alt="Adventure Assure"
+              className={styles.adventureAssureLogo}
+            />
+
+            <div className={styles.adventureAssureContent}>
+              <h3>
+                {primaryActivity?.premierAdventureAssure
+                  ? "Premier Adventure Assure"
+                  : "Standard Adventure Assure"}
+              </h3>
+
+              <p>Selected for this reservation.</p>
+
+            </div>
           </div>
         </section>
 

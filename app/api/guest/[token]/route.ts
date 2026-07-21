@@ -17,6 +17,8 @@ type GuestPortalRow = {
     model: string;
     quantity: number;
   }> | null;
+ premier_adventure_assure: boolean | null;
+  adventure_assure_level: string | null;
   additional_waivers_url: string | null;
   mpwr_waiver_url: string | null;
   epic_document_received_count: number | null;
@@ -129,6 +131,8 @@ export async function GET(
           expectedGuestCount: row.expected_guest_count,
           totalVehicleCount: row.total_vehicle_count,
           vehicleBreakdown: row.vehicle_breakdown,
+          premierAdventureAssure: row.premier_adventure_assure,
+          adventureAssureLevel: row.adventure_assure_level,
           ohvRequired: row.ohv_required,
           ohvCertificateUploaded: row.ohv_certificate_uploaded,
           ohvCertificateFilename: row.ohv_certificate_filename,
