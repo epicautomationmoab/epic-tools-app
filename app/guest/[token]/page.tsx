@@ -119,12 +119,12 @@ function getLocation(businessLine: string) {
   }
 
   return {
-  label: "Tour Meeting Location",
-  address: "1041 S. Main Street, Moab, UT 84532",
-  note: "Please arrive 15 minutes in advance for check-in and a timely tour departure.",
-  mapsUrl:
-    "https://www.google.com/maps/search/?api=1&query=1041+S+Main+Street+Moab+UT+84532",
-};
+    label: "Tour Meeting Location",
+    address: "1041 S. Main Street, Moab, UT 84532",
+    note: "Please arrive 15 minutes in advance for check-in and a timely tour departure.",
+    mapsUrl:
+      "https://www.google.com/maps/search/?api=1&query=1041+S+Main+Street+Moab+UT+84532",
+  };
 }
 
 function requirementComplete(received: number, expected: number) {
@@ -320,6 +320,9 @@ export default function GuestPortalPage() {
 
   const maskedEmail = maskEmail(reservation.customerEmail);
   const primaryActivity = reservation.activities[0];
+  const hasRentalActivity = reservation.activities.some(
+    (activity) => activity.businessLine.toLowerCase() === "rental",
+  );
 
   return (
     <main className={styles.page}>
@@ -346,9 +349,8 @@ export default function GuestPortalPage() {
           <span className={styles.heroKicker}>Your Moab adventure awaits</span>
           <h1>Your adventure is almost here!</h1>
           <p>
-            Everything you need for a smooth arrival is right here.
-            Complete any remaining steps below and we will take care of
-            the rest.
+            Everything you need for a smooth arrival is right here. Complete
+            any remaining steps below and we will take care of the rest.
           </p>
         </div>
       </section>
@@ -372,9 +374,7 @@ export default function GuestPortalPage() {
           </div>
 
           <div className={styles.confirmationPanel}>
-            <span className={styles.confirmationLabel}>
-              Confirmation Code
-            </span>
+            <span className={styles.confirmationLabel}>Confirmation Code</span>
             <button
               type="button"
               className={styles.confirmationCode}
@@ -438,57 +438,58 @@ export default function GuestPortalPage() {
                     </div>
 
                     <div className={styles.itineraryLocation}>
-  <strong>{location.label}</strong>
-  <span>{location.address}</span>
+                      <strong>{location.label}</strong>
+                      <span>{location.address}</span>
 
-  {"note" in location ? (
-    <span className={styles.locationNote}>{location.note}</span>
-  ) : null}
+                      {"note" in location ? (
+                        <span className={styles.locationNote}>
+                          {location.note}
+                        </span>
+                      ) : null}
 
-  <a
-    href={location.mapsUrl}
-    target="_blank"
-    rel="noreferrer"
-  >
-    Open in Maps
-  </a>
-</div>
+                      <a
+                        href={location.mapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open in Maps
+                      </a>
+                    </div>
                   </div>
                 </article>
               );
             })}
           </div>
-
         </section>
 
-        {/* Adventure Assure */}
-        <section className={styles.sectionCard}>
-          <div className={styles.sectionHeading}>
-            <div>
-              <p className={styles.eyebrow}>Protection</p>
-              <h2>Adventure Assure</h2>
+        {hasRentalActivity ? (
+          <section className={styles.sectionCard}>
+            <div className={styles.sectionHeading}>
+              <div>
+                <p className={styles.eyebrow}>Protection</p>
+                <h2>Adventure Assure</h2>
+              </div>
             </div>
-          </div>
 
-          <div className={styles.adventureAssureCard}>
-            <img
-              src="/aa-logo.png"
-              alt="Adventure Assure"
-              className={styles.adventureAssureLogo}
-            />
+            <div className={styles.adventureAssureCard}>
+              <img
+                src="/aa-logo.png"
+                alt="Adventure Assure"
+                className={styles.adventureAssureLogo}
+              />
 
-            <div className={styles.adventureAssureContent}>
-              <h3>
-                {primaryActivity?.premierAdventureAssure
-                  ? "Premier Adventure Assure"
-                  : "Standard Adventure Assure"}
-              </h3>
+              <div className={styles.adventureAssureContent}>
+                <h3>
+                  {primaryActivity?.premierAdventureAssure
+                    ? "Premier Adventure Assure"
+                    : "Standard Adventure Assure"}
+                </h3>
 
-              <p>Selected for this reservation.</p>
-
+                <p>Selected for this reservation.</p>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
         <section className={styles.sectionCard}>
           <div className={styles.progressHeader}>
@@ -500,8 +501,8 @@ export default function GuestPortalPage() {
                   : "A few things still need your attention."}
               </h2>
               <p className={styles.sectionIntro}>
-                We will update this page automatically as each requirement
-                is completed.
+                We will update this page automatically as each requirement is
+                completed.
               </p>
             </div>
 
@@ -618,17 +619,20 @@ export default function GuestPortalPage() {
                         ) : null}
                       </div>
 
-                      {!epicComplete &&
-                      reservation.additionalWaiversUrl ? (
+                      {reservation.additionalWaiversUrl ? (
                         <a
                           className={styles.primaryButton}
                           href={reservation.additionalWaiversUrl}
                           target="_blank"
                           rel="noreferrer"
                         >
-                          {isRental
-                            ? "Complete Rental Documents"
-                            : "Complete Tour Waivers"}
+                          {epicComplete
+                            ? isRental
+                              ? "Open Rental Documents"
+                              : "Open Tour Waivers"
+                            : isRental
+                              ? "Complete Rental Documents"
+                              : "Complete Tour Waivers"}
                         </a>
                       ) : null}
                     </article>
@@ -643,20 +647,20 @@ export default function GuestPortalPage() {
                       <div className={styles.requirementContent}>
                         <div className={styles.requirementHeading}>
                           <div className={styles.polarisTitleBlock}>
-  <div className={styles.polarisTitleRow}>
-    <span className={styles.requirementKicker}>
-      Polaris Adventures
-    </span>
+                            <div className={styles.polarisTitleRow}>
+                              <span className={styles.requirementKicker}>
+                                Polaris Adventures
+                              </span>
 
-    <img
-      src="/polaris-adventures-elite.png"
-      alt="Polaris Adventures Elite"
-      className={styles.polarisLogo}
-    />
-  </div>
+                              <img
+                                src="/polaris-adventures-elite.png"
+                                alt="Polaris Adventures Elite"
+                                className={styles.polarisLogo}
+                              />
+                            </div>
 
-  <h3>Polaris Participant Waivers</h3>
-</div>
+                            <h3>Polaris Participant Waivers</h3>
+                          </div>
 
                           <div className={styles.polarisHeadingMeta}>
                             <StatusBadge complete={mpwrComplete} />
@@ -665,8 +669,8 @@ export default function GuestPortalPage() {
 
                         <p className={styles.requirementInstructions}>
                           Every adult participant must complete a waiver.
-                          Children must be added to a parent
-                          or legal guardian waiver.
+                          Children must be added to a parent or legal guardian
+                          waiver.
                         </p>
 
                         <p className={styles.requirementCount}>
@@ -678,9 +682,7 @@ export default function GuestPortalPage() {
                           <div className={styles.signerList}>
                             {mpwr.signers.map((signer, signerIndex) => {
                               const minor =
-                                signer.isMinor ??
-                                signer.is_minor ??
-                                false;
+                                signer.isMinor ?? signer.is_minor ?? false;
                               const passenger =
                                 signer.isPassenger ??
                                 signer.is_passenger ??
@@ -710,14 +712,16 @@ export default function GuestPortalPage() {
                         ) : null}
                       </div>
 
-                      {!mpwrComplete && reservation.mpwrWaiverUrl ? (
+                      {reservation.mpwrWaiverUrl ? (
                         <a
                           className={styles.primaryButton}
                           href={reservation.mpwrWaiverUrl}
                           target="_blank"
                           rel="noreferrer"
                         >
-                          Complete Polaris Waivers
+                          {mpwrComplete
+                            ? "Open Polaris Waivers"
+                            : "Complete Polaris Waivers"}
                         </a>
                       ) : null}
                     </article>
@@ -787,8 +791,8 @@ export default function GuestPortalPage() {
                           </div>
 
                           <p className={styles.requirementInstructions}>
-                            Upload the completed certificate so our team
-                            can verify it before rental pickup.
+                            Upload the completed certificate so our team can
+                            verify it before rental pickup.
                           </p>
 
                           {activity.ohvCertificateFilename ? (
@@ -862,8 +866,8 @@ export default function GuestPortalPage() {
         </section>
 
         <footer className={styles.footer}>
-          Your reservation information is private. Share this page only
-          with members of your travel group.
+          Your reservation information is private. Share this page only with
+          members of your travel group.
         </footer>
       </div>
     </main>
