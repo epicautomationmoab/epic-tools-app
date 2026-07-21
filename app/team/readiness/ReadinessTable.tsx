@@ -102,12 +102,18 @@ function securityDepositDetails(row: ReadinessRow) {
 
   if (assure === "Premier") {
     return {
-      amount: "$0*",
-      note: "U.S. license only · International license: $1,500",
+      amount: "$0",
+      note: "U.S. license only. Internationl license $1,500/vehicle.",
     };
   }
 
-  return { amount: "$3,000", note: "Standard Adventure Assure" };
+  const vehicleCount = Math.max(row.total_vehicle_count ?? 0, 1);
+  const depositAmount = vehicleCount * 3000;
+
+  return {
+    amount: `$${depositAmount.toLocaleString("en-US")}`,
+    note: `$3,000 × ${vehicleCount} vehicle${vehicleCount === 1 ? "" : "s"}`,
+  };
 }
 
 function OhvCell({ row }: { row: ReadinessRow }) {
