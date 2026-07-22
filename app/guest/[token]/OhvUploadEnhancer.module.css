@@ -1,0 +1,242 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: rgba(8, 14, 20, 0.72);
+  padding: 24px;
+  backdrop-filter: blur(6px);
+}
+
+.modal {
+  position: relative;
+  width: min(620px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border-radius: 22px;
+  background: #fff;
+  padding: 30px;
+  box-shadow: 0 28px 80px rgba(8, 14, 20, 0.35);
+}
+
+.close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: #f0f2f4;
+  color: #26313c;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.kicker {
+  margin: 0 0 7px;
+  color: #db5e25;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.modal h2 {
+  margin: 0;
+  color: #17202a;
+  font-size: 30px;
+  letter-spacing: -0.03em;
+}
+
+.intro {
+  margin: 12px 42px 22px 0;
+  color: #6c7782;
+  line-height: 1.55;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: #f4f7f5;
+  padding: 14px 16px;
+}
+
+.progress strong {
+  color: #34734a;
+  font-size: 20px;
+}
+
+.progress span {
+  color: #65716c;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.uploadList {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.uploadRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid #e3e8e4;
+  border-radius: 12px;
+  padding: 11px 13px;
+}
+
+.check {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #e3f2e7;
+  color: #337449;
+  font-weight: 900;
+}
+
+.uploadRow strong,
+.uploadRow small {
+  display: block;
+}
+
+.uploadRow strong {
+  color: #36414b;
+  font-size: 14px;
+}
+
+.uploadRow small {
+  margin-top: 2px;
+  color: #87919a;
+  font-size: 11px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.field span {
+  color: #45515c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  border: 1px solid #d7dde2;
+  border-radius: 12px;
+  background: #fff;
+  color: #17202a;
+  padding: 13px 14px;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: #df6a34;
+  box-shadow: 0 0 0 3px rgba(223, 106, 52, 0.13);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.chooserRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.chooserRow button {
+  border: 1px solid #d7dde2;
+  border-radius: 12px;
+  background: #f8f9fa;
+  color: #34404b;
+  padding: 13px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.chooserRow button:hover {
+  border-color: #c9d0d6;
+  background: #f1f3f5;
+}
+
+.selectedFile,
+.message {
+  margin: 12px 0 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.selectedFile {
+  color: #596570;
+}
+
+.message {
+  color: #c65322;
+}
+
+.uploadButton {
+  width: 100%;
+  margin-top: 18px;
+  border: 1px solid #dd5e26;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e46830, #d9551d);
+  color: #fff;
+  padding: 14px 18px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.uploadButton:disabled {
+  border-color: #d4d9de;
+  background: #e3e6e9;
+  color: #88919a;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .modal {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 22px 22px 0 0;
+    padding: 25px 18px 24px;
+  }
+
+  .modal h2 {
+    font-size: 26px;
+  }
+
+  .chooserRow {
+    grid-template-columns: 1fr;
+  }
+}
