@@ -36,10 +36,10 @@ export type ReadinessRow = {
   tripworks_booking_url: string | null;
   mpwr_reservation_url: string | null;
   handoff_status?: "checked_in" | "rental_out" | "rental_returned" | null;
-courtesy_call_completed?: boolean;
-courtesy_call_completed_by?: string | null;
-courtesy_call_outcome?: string | null;
-courtesy_call_completed_at?: string | null;
+  courtesy_call_completed?: boolean;
+  courtesy_call_completed_by?: string | null;
+  courtesy_call_outcome?: string | null;
+  courtesy_call_completed_at?: string | null;
   notes?: string | null;
   epic_document_signers: Array<{
     name: string;
@@ -47,14 +47,13 @@ courtesy_call_completed_at?: string | null;
     is_minor_or_child?: boolean | null;
     is_waiver_adult?: boolean | null;
   }> | null;
- 
   mpwr_waivers: Array<{
-  name: string;
-  email?: string | null;
-  document_url?: string | null;
-  is_minor?: boolean | null;
-  is_passenger?: boolean | null;
-}> | null;
+    name: string;
+    email?: string | null;
+    document_url?: string | null;
+    is_minor?: boolean | null;
+    is_passenger?: boolean | null;
+  }> | null;
 };
 
 export type ArrivalBoardRow = {
@@ -187,16 +186,65 @@ export async function getReadinessRows() {
   });
 }
 
+function getMountainDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+  };
+}
+
+function getMountainOffsetMs(date: Date) {
+  const zoneName = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    timeZoneName: "longOffset",
+  })
+    .formatToParts(date)
+    .find((part) => part.type === "timeZoneName")?.value;
+
+  const match = zoneName?.match(/^GMT([+-])(\d{2}):(\d{2})$/);
+  if (!match) throw new Error("Unable to determine America/Denver UTC offset.");
+
+  const direction = match[1] === "+" ? 1 : -1;
+  return direction * (Number(match[2]) * 60 + Number(match[3])) * 60_000;
+}
+
+function mountainMidnightUtc(year: number, month: number, day: number) {
+  const localMidnightAsUtc = Date.UTC(year, month - 1, day);
+  let instant = localMidnightAsUtc;
+
+  for (let index = 0; index < 3; index += 1) {
+    instant = localMidnightAsUtc - getMountainOffsetMs(new Date(instant));
+  }
+
+  return new Date(instant);
+}
+
 export async function getArrivalBoardRows() {
+  const today = getMountainDateParts(new Date());
+  const start = mountainMidnightUtc(today.year, today.month, today.day);
+  const end = mountainMidnightUtc(today.year, today.month, today.day + 1);
+
   const params = new URLSearchParams({
     select: "*",
-    limit: "500",
+    limit: "100",
   });
+  params.append("visit_start_time", `gte.${start.toISOString()}`);
+  params.append("visit_start_time", `lt.${end.toISOString()}`);
 
-const rows = await fetchView<ArrivalBoardRow>(
-  "guest_arrival_board_with_handoff_v",
-  params,
-);
+  const rows = await fetchView<ArrivalBoardRow>(
+    "guest_arrival_board_with_handoff_v",
+    params,
+  );
 
   return rows.sort((a, b) => {
     const timeCompare = a.visit_start_time.localeCompare(b.visit_start_time);
