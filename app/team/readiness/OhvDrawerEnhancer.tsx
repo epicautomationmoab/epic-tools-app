@@ -19,6 +19,14 @@ function portalTokenFromDrawer() {
   return match?.[1] ?? null;
 }
 
+function mpwrWaiverCard() {
+  const labels = Array.from(
+    document.querySelectorAll<HTMLElement>('[class*="drawerFacts"] > div > span'),
+  );
+  return labels.find((label) => label.textContent?.trim() === "MPWR Waivers")
+    ?.parentElement ?? null;
+}
+
 export default function OhvDrawerEnhancer() {
   const [token, setToken] = useState<string | null>(null);
   const [uploads, setUploads] = useState<Upload[]>([]);
@@ -73,12 +81,13 @@ export default function OhvDrawerEnhancer() {
     if (existing) existing.remove();
     if (!token) return;
 
-    const drawerFacts = document.querySelector('[class*="drawerFacts"]');
-    if (!drawerFacts?.parentElement) return;
+    const mpwrCard = mpwrWaiverCard();
+    if (!mpwrCard?.parentElement) return;
 
     const section = document.createElement("section");
     section.id = "ohv-drawer-certificates";
     section.className = styles.section;
+    section.style.gridColumn = "1 / -1";
 
     const heading = document.createElement("div");
     heading.className = styles.heading;
@@ -138,7 +147,7 @@ export default function OhvDrawerEnhancer() {
       section.appendChild(list);
     }
 
-    drawerFacts.insertAdjacentElement("afterend", section);
+    mpwrCard.insertAdjacentElement("afterend", section);
 
     return () => section.remove();
   }, [token, uploads, loading, error]);
