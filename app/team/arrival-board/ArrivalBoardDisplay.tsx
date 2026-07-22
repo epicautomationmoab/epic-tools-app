@@ -7,11 +7,14 @@ import styles from "./ArrivalBoard.module.css";
 type Filter = "all" | "tour" | "rental";
 
 function formatWallTime(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
+  const match = value.match(/\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/);
+  if (!match) return value;
+
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const suffix = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${hour}:${minute} ${suffix}`;
 }
 
 export default function ArrivalBoardDisplay({ rows }: { rows: ArrivalBoardRow[] }) {
@@ -41,7 +44,7 @@ export default function ArrivalBoardDisplay({ rows }: { rows: ArrivalBoardRow[] 
         <span>Guest</span>
         <span>Activity</span>
         <span>Direction</span>
-        <span>Enter Code</span>
+        <span>Kiosk Code</span>
       </section>
 
       <section className={styles.rows}>
@@ -59,12 +62,12 @@ export default function ArrivalBoardDisplay({ rows }: { rows: ArrivalBoardRow[] 
               </div>
               <div className={styles.activity}>{row.board_activity_label}</div>
               <div className={`${styles.action} ${isKiosk ? styles.kiosk : styles.agentReady}`}>
-                {!isKiosk ? <span className={styles.sparkle}>*</span> : null}
+                {!isKiosk ? <span className={styles.celebration} aria-hidden="true">🎉</span> : null}
                 {isKiosk ? "Proceed to Kiosk" : "See Epic Team Member"}
               </div>
               <div className={styles.codeBlock}>
-                <span>{isKiosk ? "Enter Code" : "Ready"}</span>
-                <strong>{isKiosk ? row.customer_phone_last_four || "----" : "OK"}</strong>
+                <span>Enter Code</span>
+                <strong>{row.customer_phone_last_four || "----"}</strong>
               </div>
             </article>
           );
@@ -72,7 +75,7 @@ export default function ArrivalBoardDisplay({ rows }: { rows: ArrivalBoardRow[] 
 
         {!visibleRows.length ? (
           <div className={styles.empty}>
-            <img src="/epic-logo.png" alt="" className={styles.emptyLogo} />
+            <img src="/epic-logo-black.png" alt="" className={styles.emptyLogo} />
             <h2>No {filter === "all" ? "arrivals" : `${filter}s`} are currently waiting.</h2>
             <p>Your name will appear here as your reservation time approaches.</p>
           </div>
