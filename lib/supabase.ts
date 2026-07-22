@@ -171,6 +171,11 @@ function mountainMidnightUtc(year: number, month: number, day: number) {
   return new Date(instant);
 }
 
+function normalizeTimestamp(value: string) {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+}
+
 export async function getArrivalBoardRows() {
   const today = getMountainDateParts(new Date());
   const start = mountainMidnightUtc(today.year, today.month, today.day);
@@ -200,7 +205,7 @@ export async function getArrivalBoardRows() {
 
   const readinessByKey = new Map(
     readinessRows.map((row) => [
-      `${row.confirmation_code}|${row.visit_start_time}|${row.business_line}`,
+      `${row.confirmation_code}|${normalizeTimestamp(row.visit_start_time)}|${row.business_line}`,
       row,
     ]),
   );
@@ -208,7 +213,9 @@ export async function getArrivalBoardRows() {
 
   return rows
     .map((row) => {
-      const readiness = readinessByKey.get(`${row.confirmation_code}|${row.visit_start_time}|${row.business_line}`);
+      const readiness = readinessByKey.get(
+        `${row.confirmation_code}|${normalizeTimestamp(row.visit_start_time)}|${row.business_line}`,
+      );
       return {
         ...row,
         customer_phone_last_four: readiness?.customer_phone_last_four ?? null,
