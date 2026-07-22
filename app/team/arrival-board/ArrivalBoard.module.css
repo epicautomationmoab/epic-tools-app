@@ -150,9 +150,6 @@
 }
 
 .guest {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
   min-width: 0;
 }
 
@@ -164,25 +161,27 @@
   white-space: nowrap;
 }
 
-.lineLabel {
-  color: var(--tour);
-  font-size: 13px;
-  font-weight: 950;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-}
-
-.rentalRow .lineLabel {
-  color: var(--rental);
-}
-
 .activity {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.activity strong {
   font-size: clamp(22px, 1.9vw, 30px);
   font-weight: 850;
   line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.activity span {
+  color: var(--muted);
+  font-size: clamp(15px, 1.25vw, 19px);
+  font-weight: 800;
+  letter-spacing: .01em;
 }
 
 .action {
@@ -316,5 +315,5 @@
   .columnHeader { display: none; }
   .row { grid-template-columns: 1fr; }
   .guest strong,
-  .activity { white-space: normal; }
+  .activity strong { white-space: normal; }
 }
