@@ -29,7 +29,7 @@ export default async function ArrivalBoardPage() {
 
       <header className={styles.header}>
         <div className={styles.brand}>
-          <img src="/epic-logo.png" alt="Epic 4X4 Adventures" className={styles.logo} />
+          <img src="/epic-logo-black.png" alt="Epic 4X4 Adventures" className={styles.logo} />
           <div>
             <p className={styles.kicker}>Welcome to Epic 4X4 Adventures</p>
             <h1>Find Your Visit</h1>
@@ -37,7 +37,7 @@ export default async function ArrivalBoardPage() {
         </div>
 
         <div className={styles.dateBlock}>
-          <span>Today's Arrivals</span>
+          <span>Today&apos;s Arrivals</span>
           <strong>{formatToday()}</strong>
         </div>
       </header>
