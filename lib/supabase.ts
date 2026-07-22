@@ -63,6 +63,9 @@ export type ArrivalBoardRow = {
   customer_phone_last_four?: string | null;
   business_line: "tour" | "rental" | string;
   board_activity_label: string;
+  product_display_name?: string | null;
+  rental_duration?: string | null;
+  total_vehicle_count?: number | null;
   board_action_label: "Proceed to Kiosk" | "See Agent" | string;
   board_action_type: "kiosk" | "agent" | string;
   handoff_status?: "checked_in" | "tour_returned" | "rental_out" | "rental_returned" | null;
@@ -187,7 +190,7 @@ export async function getArrivalBoardRows() {
 
   const arrivalParams = new URLSearchParams({ select: "*", limit: "100" });
   const readinessParams = new URLSearchParams({
-    select: "confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status",
+    select: "confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count",
     limit: "100",
   });
   for (const [key, value] of dateFilters) {
@@ -197,10 +200,16 @@ export async function getArrivalBoardRows() {
 
   const [rows, readinessRows] = await Promise.all([
     fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams),
-    fetchView<Pick<ReadinessRow, "confirmation_code" | "visit_start_time" | "business_line" | "customer_phone_last_four" | "handoff_status">>(
-      "guest_readiness_with_handoff_v",
-      readinessParams,
-    ),
+    fetchView<Pick<ReadinessRow,
+      "confirmation_code" |
+      "visit_start_time" |
+      "business_line" |
+      "customer_phone_last_four" |
+      "handoff_status" |
+      "product_display_name" |
+      "rental_duration" |
+      "total_vehicle_count"
+    >>("guest_readiness_with_handoff_v", readinessParams),
   ]);
 
   const readinessByKey = new Map(
@@ -220,6 +229,9 @@ export async function getArrivalBoardRows() {
         ...row,
         customer_phone_last_four: readiness?.customer_phone_last_four ?? null,
         handoff_status: readiness?.handoff_status ?? row.handoff_status ?? null,
+        product_display_name: readiness?.product_display_name ?? row.product_display_name ?? row.board_activity_label,
+        rental_duration: readiness?.rental_duration ?? row.rental_duration ?? null,
+        total_vehicle_count: readiness?.total_vehicle_count ?? row.total_vehicle_count ?? null,
       };
     })
     .filter((row) => !row.handoff_status || !terminalStatuses.has(row.handoff_status))
