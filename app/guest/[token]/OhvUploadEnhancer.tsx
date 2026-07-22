@@ -25,6 +25,75 @@ type Upload = {
   uploaded_at: string;
 };
 
+const DIRECT_UPLOAD_LIMIT = 4 * 1024 * 1024;
+
+async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || file.size <= DIRECT_UPLOAD_LIMIT) {
+    return file;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("This image could not be prepared for upload."));
+      element.src = objectUrl;
+    });
+
+    const maxDimension = 2200;
+    const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("This image could not be prepared for upload.");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    let quality = 0.86;
+    let blob: Blob | null = null;
+
+    while (quality >= 0.45) {
+      blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", quality),
+      );
+      if (blob && blob.size <= DIRECT_UPLOAD_LIMIT) break;
+      quality -= 0.1;
+    }
+
+    if (!blob) throw new Error("This image could not be prepared for upload.");
+    if (blob.size > DIRECT_UPLOAD_LIMIT) {
+      throw new Error("This photo is still too large. Please retake it at a lower resolution.");
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "ohv-certificate";
+    return new File([blob], `${baseName}.jpg`, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function readResponse(response: Response) {
+  const text = await response.text();
+  if (!text) return {} as { error?: string; uploads?: Upload[] };
+
+  try {
+    return JSON.parse(text) as { error?: string; uploads?: Upload[] };
+  } catch {
+    return {
+      error:
+        response.status === 413
+          ? "That photo is too large to upload. Please choose a smaller image."
+          : text.slice(0, 180),
+    };
+  }
+}
+
 export default function OhvUploadEnhancer() {
   const params = useParams<{ token: string }>();
   const token = params?.token;
@@ -111,19 +180,19 @@ export default function OhvUploadEnhancer() {
     setMessage("");
 
     try {
+      setMessage(file.size > DIRECT_UPLOAD_LIMIT ? "Preparing photo for upload…" : "");
+      const preparedFile = await compressImage(file);
+
       const form = new FormData();
       form.set("readinessId", readinessId);
       form.set("driverName", driverName.trim());
-      form.set("certificate", file);
+      form.set("certificate", preparedFile);
 
       const response = await fetch(`/api/guest/${encodeURIComponent(token)}/ohv`, {
         method: "POST",
         body: form,
       });
-      const data = (await response.json()) as {
-        error?: string;
-        uploads?: Upload[];
-      };
+      const data = await readResponse(response);
 
       if (!response.ok) {
         throw new Error(data.error || "Unable to upload certificate.");
