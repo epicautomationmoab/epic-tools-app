@@ -1,0 +1,149 @@
+.page {
+  align-items: center;
+  background:
+    linear-gradient(rgba(14, 24, 34, 0.64), rgba(14, 24, 34, 0.78)),
+    url("/sidebar-trail.jpg") center / cover no-repeat;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px 20px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  max-width: 520px;
+  padding: 38px;
+  width: 100%;
+}
+
+.logo {
+  display: block;
+  height: auto;
+  margin: 0 auto 24px;
+  max-width: 190px;
+  width: 52%;
+}
+
+.eyebrow {
+  color: #e35722;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  margin: 0 0 8px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.title {
+  color: #17202b;
+  font-size: clamp(30px, 5vw, 42px);
+  line-height: 1.05;
+  margin: 0;
+  text-align: center;
+}
+
+.intro {
+  color: #5b6470;
+  font-size: 16px;
+  line-height: 1.55;
+  margin: 16px auto 28px;
+  max-width: 420px;
+  text-align: center;
+}
+
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.label {
+  color: #242c35;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.input {
+  background: #fff;
+  border: 1px solid #cfd4d9;
+  border-radius: 8px;
+  color: #17202b;
+  font: inherit;
+  min-height: 50px;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.input:focus {
+  border-color: #e35722;
+  box-shadow: 0 0 0 3px rgba(227, 87, 34, 0.14);
+  outline: none;
+}
+
+.button {
+  background: #f15a24;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  min-height: 52px;
+  padding: 13px 18px;
+}
+
+.button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.error {
+  background: #fff0ed;
+  border: 1px solid #efb3a6;
+  border-radius: 8px;
+  color: #a52d1a;
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.help {
+  border-top: 1px solid #e4e6e8;
+  color: #69717a;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 28px 0 0;
+  padding-top: 20px;
+  text-align: center;
+}
+
+.help a {
+  color: #c9481d;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.honeypot {
+  left: -10000px;
+  position: absolute;
+  top: auto;
+}
+
+@media (max-width: 560px) {
+  .page {
+    align-items: flex-start;
+    padding: 18px 12px;
+  }
+
+  .card {
+    border-radius: 14px;
+    padding: 28px 20px;
+  }
+}
