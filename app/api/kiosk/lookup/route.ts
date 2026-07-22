@@ -11,6 +11,8 @@ type PortalLookupRow = {
   confirmation_code: string;
 };
 
+const PUBLIC_PORTAL_ORIGIN = "https://myepicreservation.com";
+
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SECRET_KEY?.trim();
@@ -72,15 +74,13 @@ export async function POST(request: Request) {
 
     const today = getMountainDateParts(new Date());
     const start = mountainMidnightUtc(today.year, today.month, today.day);
-    const end = mountainMidnightUtc(today.year, today.month, today.day + 1);
 
     const readinessParams = new URLSearchParams({
       select: "confirmation_code,customer_phone_last_four,handoff_status",
       customer_phone_last_four: `eq.${lastFour}`,
-      limit: "10",
+      limit: "50",
     });
     readinessParams.append("visit_start_time", `gte.${start.toISOString()}`);
-    readinessParams.append("visit_start_time", `lt.${end.toISOString()}`);
 
     const rows = await fetchRows<ReadinessLookupRow>("guest_readiness_with_handoff_v", readinessParams);
     const active = rows.filter((row) => !["checked_in", "tour_returned", "rental_out", "rental_returned"].includes(row.handoff_status ?? ""));
@@ -88,7 +88,12 @@ export async function POST(request: Request) {
 
     if (confirmations.length !== 1) {
       return NextResponse.json(
-        { error: confirmations.length > 1 ? "More than one arrival uses that code. Please see an Epic team member." : "We could not find today's reservation. Please see an Epic team member." },
+        {
+          error:
+            confirmations.length > 1
+              ? "More than one upcoming reservation uses that code. Please see an Epic team member."
+              : "We could not find an upcoming reservation. Please see an Epic team member.",
+        },
         { status: 404 },
       );
     }
@@ -103,7 +108,9 @@ export async function POST(request: Request) {
 
     if (!token) return NextResponse.json({ error: "Please see an Epic team member for assistance." }, { status: 404 });
 
-    return NextResponse.json({ portalPath: `/guest/${encodeURIComponent(token)}` });
+    return NextResponse.json({
+      portalPath: `${PUBLIC_PORTAL_ORIGIN}/guest/${encodeURIComponent(token)}`,
+    });
   } catch {
     return NextResponse.json({ error: "Please see an Epic team member for assistance." }, { status: 500 });
   }
