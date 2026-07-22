@@ -35,7 +35,7 @@ export type ReadinessRow = {
   attention_flags: string[] | null;
   tripworks_booking_url: string | null;
   mpwr_reservation_url: string | null;
-  handoff_status?: "checked_in" | "rental_out" | "rental_returned" | null;
+  handoff_status?: "checked_in" | "tour_returned" | "rental_out" | "rental_returned" | null;
   courtesy_call_completed?: boolean;
   courtesy_call_completed_by?: string | null;
   courtesy_call_outcome?: string | null;
@@ -60,11 +60,12 @@ export type ArrivalBoardRow = {
   visit_start_time: string;
   confirmation_code: string;
   customer_name: string;
+  customer_phone_last_four?: string | null;
   business_line: "tour" | "rental" | string;
   board_activity_label: string;
   board_action_label: "Proceed to Kiosk" | "See Agent" | string;
   board_action_type: "kiosk" | "agent" | string;
-  handoff_status?: "checked_in" | "rental_out" | "rental_returned" | null;
+  handoff_status?: "checked_in" | "tour_returned" | "rental_out" | "rental_returned" | null;
 };
 
 function getSupabaseConfig(useSecretKey = false) {
@@ -83,26 +84,17 @@ function getSupabaseConfig(useSecretKey = false) {
 
   const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
   const url = normalizedUrl.replace(/\/+$/, "");
-
   return { url, key };
 }
 
-async function fetchView<T>(
-  viewName: string,
-  searchParams: URLSearchParams,
-  useSecretKey = false,
-): Promise<T[]> {
+async function fetchView<T>(viewName: string, searchParams: URLSearchParams, useSecretKey = false): Promise<T[]> {
   const config = getSupabaseConfig(useSecretKey);
   const endpoint = `${config.url}/rest/v1/${viewName}?${searchParams.toString()}`;
-
   let response: Response;
 
   try {
     response = await fetch(endpoint, {
-      headers: {
-        apikey: config.key,
-        Authorization: `Bearer ${config.key}`,
-      },
+      headers: { apikey: config.key, Authorization: `Bearer ${config.key}` },
       cache: "no-store",
     });
   } catch (error) {
@@ -112,78 +104,42 @@ async function fetchView<T>(
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(
-      `Supabase ${viewName} request failed (${response.status}) at ${config.url}: ${body.slice(0, 300)}`,
-    );
+    throw new Error(`Supabase ${viewName} request failed (${response.status}) at ${config.url}: ${body.slice(0, 300)}`);
   }
 
   return response.json() as Promise<T[]>;
 }
 
 export async function getReadinessRows() {
-  const params = new URLSearchParams({
-    select: "*",
-    limit: "500",
-  });
-
-  const rows = await fetchView<ReadinessRow>(
-    "guest_readiness_with_handoff_v",
-    params,
-  );
-
-  const confirmationCodes = [
-    ...new Set(
-      rows
-        .map((row) => row.confirmation_code)
-        .filter((code): code is string => Boolean(code)),
-    ),
-  ];
-
+  const params = new URLSearchParams({ select: "*", limit: "500" });
+  const rows = await fetchView<ReadinessRow>("guest_readiness_with_handoff_v", params);
+  const confirmationCodes = [...new Set(rows.map((row) => row.confirmation_code).filter((code): code is string => Boolean(code)))];
   const portalTokenByConfirmationCode = new Map<string, string>();
 
   for (let index = 0; index < confirmationCodes.length; index += 100) {
     const batch = confirmationCodes.slice(index, index + 100);
-
-    const quotedCodes = batch
-      .map((code) => `"${code.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`)
-      .join(",");
-
+    const quotedCodes = batch.map((code) => `"${code.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
     const portalParams = new URLSearchParams({
       select: "confirmation_code,guest_portal_token",
       confirmation_code: `in.(${quotedCodes})`,
       limit: "1000",
     });
-
-    const portalRows = await fetchView<{
-      confirmation_code: string;
-      guest_portal_token: string | null;
-    }>("guest_portal_v", portalParams, true);
+    const portalRows = await fetchView<{ confirmation_code: string; guest_portal_token: string | null }>(
+      "guest_portal_v",
+      portalParams,
+      true,
+    );
 
     for (const portalRow of portalRows) {
-      if (
-        portalRow.confirmation_code &&
-        portalRow.guest_portal_token &&
-        !portalTokenByConfirmationCode.has(portalRow.confirmation_code)
-      ) {
-        portalTokenByConfirmationCode.set(
-          portalRow.confirmation_code,
-          portalRow.guest_portal_token,
-        );
+      if (portalRow.confirmation_code && portalRow.guest_portal_token && !portalTokenByConfirmationCode.has(portalRow.confirmation_code)) {
+        portalTokenByConfirmationCode.set(portalRow.confirmation_code, portalRow.guest_portal_token);
       }
     }
   }
 
-  const rowsWithPortalTokens = rows.map((row) => ({
-    ...row,
-    guest_portal_token:
-      portalTokenByConfirmationCode.get(row.confirmation_code) ?? null,
-  }));
-
-  return rowsWithPortalTokens.sort((a, b) => {
-    const timeCompare = a.visit_start_time.localeCompare(b.visit_start_time);
-    if (timeCompare !== 0) return timeCompare;
-    return a.customer_name.localeCompare(b.customer_name);
-  });
+  return rows
+    .map((row) => ({ ...row, guest_portal_token: portalTokenByConfirmationCode.get(row.confirmation_code) ?? null }))
+    .sort((a, b) => a.visit_start_time.localeCompare(b.visit_start_time) || a.customer_name.localeCompare(b.customer_name));
 }
 
 function getMountainDateParts(date: Date) {
@@ -193,27 +149,17 @@ function getMountainDateParts(date: Date) {
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(date);
-
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-
-  return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-  };
+  return { year: Number(values.year), month: Number(values.month), day: Number(values.day) };
 }
 
 function getMountainOffsetMs(date: Date) {
   const zoneName = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Denver",
     timeZoneName: "longOffset",
-  })
-    .formatToParts(date)
-    .find((part) => part.type === "timeZoneName")?.value;
-
+  }).formatToParts(date).find((part) => part.type === "timeZoneName")?.value;
   const match = zoneName?.match(/^GMT([+-])(\d{2}):(\d{2})$/);
   if (!match) throw new Error("Unable to determine America/Denver UTC offset.");
-
   const direction = match[1] === "+" ? 1 : -1;
   return direction * (Number(match[2]) * 60 + Number(match[3])) * 60_000;
 }
@@ -221,11 +167,7 @@ function getMountainOffsetMs(date: Date) {
 function mountainMidnightUtc(year: number, month: number, day: number) {
   const localMidnightAsUtc = Date.UTC(year, month - 1, day);
   let instant = localMidnightAsUtc;
-
-  for (let index = 0; index < 3; index += 1) {
-    instant = localMidnightAsUtc - getMountainOffsetMs(new Date(instant));
-  }
-
+  for (let index = 0; index < 3; index += 1) instant = localMidnightAsUtc - getMountainOffsetMs(new Date(instant));
   return new Date(instant);
 }
 
@@ -233,26 +175,50 @@ export async function getArrivalBoardRows() {
   const today = getMountainDateParts(new Date());
   const start = mountainMidnightUtc(today.year, today.month, today.day);
   const end = mountainMidnightUtc(today.year, today.month, today.day + 1);
+  const dateFilters = [
+    ["visit_start_time", `gte.${start.toISOString()}`],
+    ["visit_start_time", `lt.${end.toISOString()}`],
+  ] as const;
 
-  const params = new URLSearchParams({
-    select: "*",
+  const arrivalParams = new URLSearchParams({ select: "*", limit: "100" });
+  const readinessParams = new URLSearchParams({
+    select: "confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status",
     limit: "100",
   });
-  params.append("visit_start_time", `gte.${start.toISOString()}`);
-  params.append("visit_start_time", `lt.${end.toISOString()}`);
+  for (const [key, value] of dateFilters) {
+    arrivalParams.append(key, value);
+    readinessParams.append(key, value);
+  }
 
-  const rows = await fetchView<ArrivalBoardRow>(
-    "guest_arrival_board_with_handoff_v",
-    params,
+  const [rows, readinessRows] = await Promise.all([
+    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams),
+    fetchView<Pick<ReadinessRow, "confirmation_code" | "visit_start_time" | "business_line" | "customer_phone_last_four" | "handoff_status">>(
+      "guest_readiness_with_handoff_v",
+      readinessParams,
+    ),
+  ]);
+
+  const readinessByKey = new Map(
+    readinessRows.map((row) => [
+      `${row.confirmation_code}|${row.visit_start_time}|${row.business_line}`,
+      row,
+    ]),
   );
+  const terminalStatuses = new Set(["checked_in", "tour_returned", "rental_out", "rental_returned"]);
 
-  return rows.sort((a, b) => {
-    const timeCompare = a.visit_start_time.localeCompare(b.visit_start_time);
-    if (timeCompare !== 0) return timeCompare;
-
-    const lineCompare = a.business_line.localeCompare(b.business_line);
-    if (lineCompare !== 0) return lineCompare;
-
-    return a.customer_name.localeCompare(b.customer_name);
-  });
+  return rows
+    .map((row) => {
+      const readiness = readinessByKey.get(`${row.confirmation_code}|${row.visit_start_time}|${row.business_line}`);
+      return {
+        ...row,
+        customer_phone_last_four: readiness?.customer_phone_last_four ?? null,
+        handoff_status: readiness?.handoff_status ?? row.handoff_status ?? null,
+      };
+    })
+    .filter((row) => !row.handoff_status || !terminalStatuses.has(row.handoff_status))
+    .sort((a, b) =>
+      a.visit_start_time.localeCompare(b.visit_start_time) ||
+      a.business_line.localeCompare(b.business_line) ||
+      a.customer_name.localeCompare(b.customer_name),
+    );
 }
