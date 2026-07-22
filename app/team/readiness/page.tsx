@@ -4,6 +4,7 @@ import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
 import LastSynced from "./LastSynced";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
+import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -29,6 +30,7 @@ export default async function TeamReadinessPage() {
     <div className={styles.page}>
       <AutoRefresh />
       <PortalEmailEnhancer />
+      <OhvDrawerEnhancer />
 
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
