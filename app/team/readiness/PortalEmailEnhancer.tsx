@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+const PUBLIC_PORTAL_ORIGIN = "https://myepicreservation.com";
+
 function findGuestEmail(drawer: Element) {
   const values = Array.from(drawer.querySelectorAll("strong"))
     .map((element) => element.textContent?.trim() ?? "")
@@ -23,7 +25,8 @@ export default function PortalEmailEnhancer() {
       const guestName = drawer.querySelector("h2")?.textContent?.trim() ?? "Guest";
       const firstName = guestName.split(/\s+/).filter(Boolean)[0] ?? "there";
       const email = findGuestEmail(drawer);
-      const portalUrl = new URL(portalLink.getAttribute("href") ?? "", window.location.origin).toString();
+      const portalPath = portalLink.getAttribute("href") ?? "";
+      const portalUrl = new URL(portalPath, PUBLIC_PORTAL_ORIGIN).toString();
 
       const subject = "Your Epic 4X4 Adventures Guest Portal";
       const body = [
@@ -36,6 +39,7 @@ export default function PortalEmailEnhancer() {
         "We look forward to your adventure!",
         "",
         "Epic 4X4 Adventures",
+        "435-220-2700",
       ].join("\n");
 
       const emailLink = document.createElement("a");
