@@ -2,6 +2,7 @@ import Link from "next/link";
 import ReadinessTable from "./ReadinessTable";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
+import LastSynced from "./LastSynced";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -76,7 +77,7 @@ export default async function TeamReadinessPage() {
           </div>
 
           <div className={styles.headerActions}>
-            <div className={styles.sync}>Last synced<br />just now</div>
+            <div className={styles.sync}><LastSynced /></div>
             <Link className={styles.actionButton} href="/team/arrival-board">Arrival Board</Link>
             <Link className={`${styles.actionButton} ${styles.kioskButton}`} href="/kiosk">Kiosk</Link>
           </div>
