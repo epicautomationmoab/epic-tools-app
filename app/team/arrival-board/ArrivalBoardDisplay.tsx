@@ -17,6 +17,11 @@ function formatWallTime(value: string) {
   return `${hour}:${minute} ${suffix}`;
 }
 
+function formatVehicleCount(count?: number | null) {
+  if (!count) return null;
+  return `${count} ${count === 1 ? "Vehicle" : "Vehicles"}`;
+}
+
 export default function ArrivalBoardDisplay({ rows }: { rows: ArrivalBoardRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const visibleRows = useMemo(
@@ -42,7 +47,7 @@ export default function ArrivalBoardDisplay({ rows }: { rows: ArrivalBoardRow[] 
       <section className={styles.columnHeader} aria-hidden="true">
         <span>Time</span>
         <span>Guest</span>
-        <span>Activity</span>
+        <span>Reservation</span>
         <span>Direction</span>
         <span>Kiosk Code</span>
       </section>
@@ -50,6 +55,11 @@ export default function ArrivalBoardDisplay({ rows }: { rows: ArrivalBoardRow[] 
       <section className={styles.rows}>
         {visibleRows.map((row) => {
           const isKiosk = row.board_action_type === "kiosk";
+          const details = [
+            row.business_line === "rental" ? row.rental_duration : null,
+            formatVehicleCount(row.total_vehicle_count),
+          ].filter(Boolean);
+
           return (
             <article
               className={`${styles.row} ${row.business_line === "rental" ? styles.rentalRow : styles.tourRow}`}
@@ -58,9 +68,11 @@ export default function ArrivalBoardDisplay({ rows }: { rows: ArrivalBoardRow[] 
               <div className={styles.time}>{formatWallTime(row.visit_start_time)}</div>
               <div className={styles.guest}>
                 <strong>{row.customer_name}</strong>
-                <span className={styles.lineLabel}>{row.business_line === "rental" ? "Rental" : "Tour"}</span>
               </div>
-              <div className={styles.activity}>{row.board_activity_label}</div>
+              <div className={styles.activity}>
+                <strong>{row.product_display_name || row.board_activity_label}</strong>
+                {details.length ? <span>{details.join(" • ")}</span> : null}
+              </div>
               <div className={`${styles.action} ${isKiosk ? styles.kiosk : styles.agentReady}`}>
                 {!isKiosk ? <span className={styles.celebration} aria-hidden="true">🎉</span> : null}
                 {isKiosk ? "Proceed to Kiosk" : "See Epic Team Member"}
