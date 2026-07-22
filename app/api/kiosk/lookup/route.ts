@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 type ReadinessLookupRow = {
   confirmation_code: string;
+  customer_phone: string | null;
   customer_phone_last_four: string | null;
   handoff_status: string | null;
 };
@@ -52,6 +53,14 @@ function mountainMidnightUtc(year: number, month: number, day: number) {
   return new Date(instant);
 }
 
+function phoneLastFour(row: ReadinessLookupRow) {
+  const stored = (row.customer_phone_last_four ?? "").replace(/\D/g, "");
+  if (stored.length === 4) return stored;
+
+  const digits = (row.customer_phone ?? "").replace(/\D/g, "");
+  return digits.length >= 4 ? digits.slice(-4) : "";
+}
+
 async function fetchRows<T>(path: string, params: URLSearchParams): Promise<T[]> {
   const config = getSupabaseConfig();
   const response = await fetch(`${config.url}/rest/v1/${path}?${params.toString()}`, {
@@ -76,15 +85,18 @@ export async function POST(request: Request) {
     const start = mountainMidnightUtc(today.year, today.month, today.day);
 
     const readinessParams = new URLSearchParams({
-      select: "confirmation_code,customer_phone_last_four,handoff_status",
-      customer_phone_last_four: `eq.${lastFour}`,
-      limit: "50",
+      select: "confirmation_code,customer_phone,customer_phone_last_four,handoff_status",
+      limit: "500",
     });
     readinessParams.append("visit_start_time", `gte.${start.toISOString()}`);
 
     const rows = await fetchRows<ReadinessLookupRow>("guest_readiness_with_handoff_v", readinessParams);
-    const active = rows.filter((row) => !["checked_in", "tour_returned", "rental_out", "rental_returned"].includes(row.handoff_status ?? ""));
-    const confirmations = [...new Set(active.map((row) => row.confirmation_code).filter(Boolean))];
+    const matchingRows = rows.filter(
+      (row) =>
+        phoneLastFour(row) === lastFour &&
+        !["checked_in", "tour_returned", "rental_out", "rental_returned"].includes(row.handoff_status ?? ""),
+    );
+    const confirmations = [...new Set(matchingRows.map((row) => row.confirmation_code).filter(Boolean))];
 
     if (confirmations.length !== 1) {
       return NextResponse.json(
