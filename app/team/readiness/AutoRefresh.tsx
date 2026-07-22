@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const REFRESH_INTERVAL_MS = 10_000;
+const SYNC_EVENT = "epic-readiness-synced";
 
 export default function AutoRefresh() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function AutoRefresh() {
     function refreshWhenVisible() {
       if (document.visibilityState === "visible") {
         router.refresh();
+        window.dispatchEvent(new Event(SYNC_EVENT));
       }
     }
 
