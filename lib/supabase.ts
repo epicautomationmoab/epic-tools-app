@@ -65,7 +65,13 @@ export type ArrivalBoardRow = {
   board_activity_label: string;
   board_action_label: "Proceed to Kiosk" | "See Agent" | string;
   board_action_type: "kiosk" | "agent" | string;
-  handoff_status?: "checked_in" | "rental_out" | "rental_returned" | null;
+  handoff_status?:
+    | "checked_in"
+    | "tour_returned"
+    | "rental_out"
+    | "rental_returned"
+    | null;
+  customer_phone_last_four?: string | null;
 };
 
 function getSupabaseConfig(useSecretKey = false) {
