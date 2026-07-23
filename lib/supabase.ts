@@ -227,7 +227,7 @@ export async function getArrivalBoardRows() {
       );
       return {
         ...row,
-        customer_phone_last_four: readiness?.customer_phone_last_four ?? null,
+        customer_phone_last_four: readiness?.customer_phone_last_four ?? row.customer_phone_last_four ?? null,
         handoff_status: readiness?.handoff_status ?? row.handoff_status ?? null,
         product_display_name: readiness?.product_display_name ?? row.product_display_name ?? row.board_activity_label,
         rental_duration: readiness?.rental_duration ?? row.rental_duration ?? null,
