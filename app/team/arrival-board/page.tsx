@@ -43,7 +43,14 @@ export default async function ArrivalBoardPage() {
             <div className="arrivalName">{row.customer_name}</div>
             <div className="arrivalCode">{row.confirmation_code}</div>
             <div className="arrivalActivity">{row.board_activity_label}</div>
-            <div className={`arrivalAction ${row.board_action_type}`}>{row.board_action_label}</div>
+            <div className={`arrivalAction ${row.board_action_type}`}>
+  {row.board_action_label}
+</div>
+
+<div className="arrivalKioskCode">
+  <span>ENTER CODE</span>
+  <strong>{row.customer_phone_last_four || "----"}</strong>
+</div>
           </article>
         ))}
         {!rows.length ? <div className="emptyState">No arrivals loaded yet.</div> : null}
