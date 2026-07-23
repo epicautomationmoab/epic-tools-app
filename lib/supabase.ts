@@ -190,7 +190,7 @@ export async function getArrivalBoardRows() {
 
   const arrivalParams = new URLSearchParams({ select: "*", limit: "100" });
   const readinessParams = new URLSearchParams({
-    select: "confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count",
+    select: "readiness_id,confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count",
     limit: "100",
   });
   for (const [key, value] of dateFilters) {
@@ -201,6 +201,7 @@ export async function getArrivalBoardRows() {
   const [rows, readinessRows] = await Promise.all([
     fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams),
     fetchView<Pick<ReadinessRow,
+      "readiness_id" |
       "confirmation_code" |
       "visit_start_time" |
       "business_line" |
@@ -211,6 +212,33 @@ export async function getArrivalBoardRows() {
       "total_vehicle_count"
     >>("guest_readiness_with_handoff_v", readinessParams),
   ]);
+
+  const readinessIds = readinessRows
+    .map((row) => row.readiness_id)
+    .filter((id): id is string => Boolean(id));
+  const ohvUploadCountByReadinessId = new Map<string, number>();
+
+  for (let index = 0; index < readinessIds.length; index += 100) {
+    const batch = readinessIds.slice(index, index + 100);
+    const quotedIds = batch.map((id) => `"${id.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+    const ohvParams = new URLSearchParams({
+      select: "readiness_id",
+      readiness_id: `in.(${quotedIds})`,
+      limit: "1000",
+    });
+    const uploads = await fetchView<{ readiness_id: string }>(
+      "ohv_certificate_uploads",
+      ohvParams,
+      true,
+    );
+
+    for (const upload of uploads) {
+      ohvUploadCountByReadinessId.set(
+        upload.readiness_id,
+        (ohvUploadCountByReadinessId.get(upload.readiness_id) ?? 0) + 1,
+      );
+    }
+  }
 
   const readinessByKey = new Map(
     readinessRows.map((row) => [
@@ -225,13 +253,29 @@ export async function getArrivalBoardRows() {
       const readiness = readinessByKey.get(
         `${row.confirmation_code}|${normalizeTimestamp(row.visit_start_time)}|${row.business_line}`,
       );
+      const totalVehicleCount = readiness?.total_vehicle_count ?? row.total_vehicle_count ?? null;
+      const uploadedOhvCount = readiness?.readiness_id
+        ? (ohvUploadCountByReadinessId.get(readiness.readiness_id) ?? 0)
+        : 0;
+      const hasRequiredOhvCertificates =
+        row.business_line !== "rental" ||
+        (typeof totalVehicleCount === "number" &&
+          totalVehicleCount > 0 &&
+          uploadedOhvCount >= totalVehicleCount);
+
       return {
         ...row,
         customer_phone_last_four: readiness?.customer_phone_last_four ?? row.customer_phone_last_four ?? null,
         handoff_status: readiness?.handoff_status ?? row.handoff_status ?? null,
         product_display_name: readiness?.product_display_name ?? row.product_display_name ?? row.board_activity_label,
         rental_duration: readiness?.rental_duration ?? row.rental_duration ?? null,
-        total_vehicle_count: readiness?.total_vehicle_count ?? row.total_vehicle_count ?? null,
+        total_vehicle_count: totalVehicleCount,
+        board_action_label: hasRequiredOhvCertificates
+          ? row.board_action_label
+          : "Proceed to Kiosk",
+        board_action_type: hasRequiredOhvCertificates
+          ? row.board_action_type
+          : "kiosk",
       };
     })
     .filter((row) => !row.handoff_status || !terminalStatuses.has(row.handoff_status))
