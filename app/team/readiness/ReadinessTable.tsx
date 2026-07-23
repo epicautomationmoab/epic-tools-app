@@ -1098,47 +1098,109 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
             ) : null}
 
             {selectedIsToday ? (
-              <section className={styles.handoffAction}>
-                <button
-                  type="button"
-                  className={styles.handoffButton}
-                  disabled={
-                    handoffSaving ||
-                    (selected.amount_due_cents ?? 0) > 0 ||
-                    selected.handoff_status === "checked_in" ||
-                    selected.handoff_status === "rental_returned"
-                  }
-                  onClick={saveHandoff}
+              <>
+                <section
+                  className={`${styles.drawerSection} ${styles.courtesyAuditSection}`}
                 >
-                  {handoffSaving
-                    ? "Saving..."
-                    : selected.business_line === "tour"
-                      ? selected.handoff_status === "checked_in"
-                        ? "Checked In"
-                        : "Checked In"
-                      : selected.handoff_status === "rental_out"
-                        ? "Rental Returned"
-                        : selected.handoff_status === "rental_returned"
+                  {courtesyCompletion ? (
+                    <details className={styles.courtesyAuditComplete}>
+                      <summary className={styles.courtesyAuditSummary}>
+                        <span>
+                          <strong>Courtesy Call Complete</strong>
+                          <small>
+                            {courtesyCompletion.outcome === "live_call"
+                              ? "Live Call Completed"
+                              : courtesyCompletion.outcome === "voicemail_left"
+                                ? "Voicemail Left"
+                                : courtesyCompletion.outcome ===
+                                    "unable_to_leave_voicemail"
+                                  ? "Unable to Leave Voicemail"
+                                  : courtesyCompletion.outcome ===
+                                      "international_no_call"
+                                    ? "International Number - No Call"
+                                    : courtesyCompletion.outcome}
+                          </small>
+                        </span>
+                        <span className={styles.courtesyAuditView}>
+                          View Details
+                        </span>
+                      </summary>
+
+                      <div className={styles.courtesyAuditDetails}>
+                        <div>
+                          <span>Completed by</span>
+                          <strong>{courtesyCompletion.completedBy}</strong>
+                        </div>
+
+                        <div>
+                          <span>Completed</span>
+                          <strong>
+                            {courtesyCompletion.completedAt.toLocaleString(
+                              "en-US",
+                              {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </strong>
+                        </div>
+                      </div>
+                    </details>
+                  ) : (
+                    <div className={styles.courtesyAuditMissing}>
+                      <strong>Courtesy Call Not Completed</strong>
+                      <span>
+                        No completed courtesy call was recorded before arrival.
+                      </span>
+                    </div>
+                  )}
+                </section>
+
+                <section className={styles.handoffAction}>
+                  <button
+                    type="button"
+                    className={styles.handoffButton}
+                    disabled={
+                      handoffSaving ||
+                      (selected.amount_due_cents ?? 0) > 0 ||
+                      selected.handoff_status === "checked_in" ||
+                      selected.handoff_status === "rental_returned"
+                    }
+                    onClick={saveHandoff}
+                  >
+                    {handoffSaving
+                      ? "Saving..."
+                      : selected.business_line === "tour"
+                        ? selected.handoff_status === "checked_in"
+                          ? "Checked In"
+                          : "Checked In"
+                        : selected.handoff_status === "rental_out"
                           ? "Rental Returned"
-                          : "Rental Out"}
-                </button>
+                          : selected.handoff_status === "rental_returned"
+                            ? "Rental Returned"
+                            : "Rental Out"}
+                  </button>
 
-                {(selected.amount_due_cents ?? 0) > 0 ? (
-                  <p className={styles.handoffBlocked}>
-                    Balance must be paid first.
-                  </p>
-                ) : null}
+                  {(selected.amount_due_cents ?? 0) > 0 ? (
+                    <p className={styles.handoffBlocked}>
+                      Balance must be paid first.
+                    </p>
+                  ) : null}
 
-                {handoffError ? (
-                  <p className={styles.handoffBlocked}>{handoffError}</p>
-                ) : null}
-              </section>
+                  {handoffError ? (
+                    <p className={styles.handoffBlocked}>{handoffError}</p>
+                  ) : null}
+                </section>
+              </>
             ) : selectedIsTomorrow ? (
               <section className={styles.handoffAction}>
                 {courtesyCompletion ? (
                   <div className={styles.courtesyComplete}>
                     <div className={styles.courtesyCompleteTitle}>
-                      ✅ Courtesy Call Complete
+                      Courtesy Call Complete
                     </div>
 
                     <div className={styles.courtesyCompleteOutcome}>
@@ -1151,7 +1213,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                             ? "Unable to Leave Voicemail"
                             : courtesyCompletion.outcome ===
                                 "international_no_call"
-                              ? "International Number — No Call"
+                              ? "International Number - No Call"
                               : courtesyCompletion.outcome}
                     </div>
 
@@ -1209,13 +1271,15 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                           }
                         >
                           <option value="">Select call outcome...</option>
-                          <option value="live_call">Live call completed</option>
+                          <option value="live_call">
+                            Live call completed
+                          </option>
                           <option value="voicemail_left">Voicemail left</option>
                           <option value="unable_to_leave_voicemail">
                             Unable to leave voicemail
                           </option>
                           <option value="international_no_call">
-                            International number — no call
+                            International number - no call
                           </option>
                         </select>
                       </label>
@@ -1280,7 +1344,9 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                       </button>
 
                       {courtesyError ? (
-                        <p className={styles.handoffBlocked}>{courtesyError}</p>
+                        <p className={styles.handoffBlocked}>
+                          {courtesyError}
+                        </p>
                       ) : null}
                     </div>
                   </>
