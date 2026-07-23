@@ -8,28 +8,47 @@ type PortalLookupRow = {
   visit_start_time?: string | null;
 };
 
+type KioskReservationMatch = {
+  portalPath: string;
+  confirmationCode: string;
+  visitStartTime: string | null;
+};
+
 const PUBLIC_PORTAL_ORIGIN = "https://myepicreservation.com";
 
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SECRET_KEY?.trim();
 
-  if (!rawUrl || !key) throw new Error("Supabase environment variables are missing.");
+  if (!rawUrl || !key) {
+    throw new Error("Supabase environment variables are missing.");
+  }
 
-  const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
-  return { url: normalizedUrl.replace(/\/+$/, ""), key };
+  const normalizedUrl = /^https?:\/\//i.test(rawUrl)
+    ? rawUrl
+    : `https://${rawUrl}`;
+
+  return {
+    url: normalizedUrl.replace(/\/+$/, ""),
+    key,
+  };
 }
 
 function phoneLastFour(row: PortalLookupRow) {
   const stored = (row.customer_phone_last_four ?? "").replace(/\D/g, "");
-  if (stored.length === 4) return stored;
+
+  if (stored.length === 4) {
+    return stored;
+  }
 
   const digits = (row.customer_phone ?? "").replace(/\D/g, "");
+
   return digits.length >= 4 ? digits.slice(-4) : "";
 }
 
 async function fetchPortalRows() {
   const config = getSupabaseConfig();
+
   const params = new URLSearchParams({
     select: "*",
     limit: "1000",
@@ -69,9 +88,13 @@ export async function POST(request: Request) {
     }
 
     const lastFour = (body.lastFour ?? "").replace(/\D/g, "");
+
     if (lastFour.length !== 4) {
       return NextResponse.json(
-        { error: "Enter the last four digits of the reservation phone number." },
+        {
+          error:
+            "Enter the last four digits of the reservation phone number.",
+        },
         { status: 400 },
       );
     }
@@ -82,12 +105,14 @@ export async function POST(request: Request) {
     const matches = rows
       .filter(
         (row) =>
-          Boolean(row.guest_portal_token) && phoneLastFour(row) === lastFour,
+          Boolean(row.guest_portal_token) &&
+          phoneLastFour(row) === lastFour,
       )
       .sort((a, b) => {
         const aTime = a.visit_start_time
           ? new Date(a.visit_start_time).getTime()
           : Number.POSITIVE_INFINITY;
+
         const bTime = b.visit_start_time
           ? new Date(b.visit_start_time).getTime()
           : Number.POSITIVE_INFINITY;
@@ -95,13 +120,33 @@ export async function POST(request: Request) {
         const aUpcoming = aTime >= now ? 0 : 1;
         const bUpcoming = bTime >= now ? 0 : 1;
 
-        if (aUpcoming !== bUpcoming) return aUpcoming - bUpcoming;
-        return aUpcoming === 0 ? aTime - bTime : bTime - aTime;
+        if (aUpcoming !== bUpcoming) {
+          return aUpcoming - bUpcoming;
+        }
+
+        return aUpcoming === 0
+          ? aTime - bTime
+          : bTime - aTime;
       });
 
-    const match = matches[0];
+    const reservationMatches: KioskReservationMatch[] = matches
+      .filter(
+        (
+          row,
+        ): row is PortalLookupRow & {
+          guest_portal_token: string;
+        } => Boolean(row.guest_portal_token),
+      )
+      .map((row) => ({
+        portalPath: `${PUBLIC_PORTAL_ORIGIN}/guest/${encodeURIComponent(
+          row.guest_portal_token,
+        )}`,
+        confirmationCode:
+          row.confirmation_code?.trim() || "Reservation",
+        visitStartTime: row.visit_start_time ?? null,
+      }));
 
-    if (!match?.guest_portal_token) {
+    if (reservationMatches.length === 0) {
       return NextResponse.json(
         {
           error:
@@ -111,15 +156,25 @@ export async function POST(request: Request) {
       );
     }
 
+    if (reservationMatches.length === 1) {
+      return NextResponse.json({
+        portalPath: reservationMatches[0].portalPath,
+      });
+    }
+
     return NextResponse.json({
-      portalPath: `${PUBLIC_PORTAL_ORIGIN}/guest/${encodeURIComponent(match.guest_portal_token)}`,
+      matches: reservationMatches,
     });
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail =
+      error instanceof Error ? error.message : String(error);
+
     console.error("Kiosk lookup failed:", detail);
 
     return NextResponse.json(
-      { error: "Please see an Epic team member for assistance." },
+      {
+        error: "Please see an Epic team member for assistance.",
+      },
       { status: 500 },
     );
   }
