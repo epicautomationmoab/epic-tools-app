@@ -30,6 +30,20 @@ function detailedMpwrWaiverSection() {
   );
 }
 
+function rentalDrawerIsOpen() {
+  const factCards = Array.from(document.querySelectorAll<HTMLElement>("div"));
+
+  return factCards.some((card) => {
+    const label = card.querySelector(":scope > span");
+    const value = card.querySelector(":scope > strong");
+
+    return (
+      label?.textContent?.trim() === "Adventure Assure" &&
+      value?.textContent?.trim() !== "Tour"
+    );
+  });
+}
+
 export default function OhvDrawerEnhancer() {
   const [token, setToken] = useState<string | null>(null);
   const [uploads, setUploads] = useState<Upload[]>([]);
@@ -82,7 +96,16 @@ export default function OhvDrawerEnhancer() {
   useEffect(() => {
     const existing = document.getElementById("ohv-drawer-certificates");
     if (existing) existing.remove();
-    if (!token) return;
+
+    if (
+      !token ||
+      !rentalDrawerIsOpen() ||
+      loading ||
+      error ||
+      uploads.length === 0
+    ) {
+      return;
+    }
 
     const mpwrSection = detailedMpwrWaiverSection();
     if (!mpwrSection?.parentElement) return;
@@ -96,59 +119,41 @@ export default function OhvDrawerEnhancer() {
     heading.innerHTML = `<div><span>Utah Requirement</span><h3>OHV Certificates</h3></div><strong>${uploads.length} uploaded</strong>`;
     section.appendChild(heading);
 
-    if (loading) {
-      const p = document.createElement("p");
-      p.className = styles.message;
-      p.textContent = "Loading certificates…";
-      section.appendChild(p);
-    } else if (error) {
-      const p = document.createElement("p");
-      p.className = styles.error;
-      p.textContent = error;
-      section.appendChild(p);
-    } else if (!uploads.length) {
-      const p = document.createElement("p");
-      p.className = styles.message;
-      p.textContent = "No OHV certificates have been uploaded yet.";
-      section.appendChild(p);
-    } else {
-      const list = document.createElement("div");
-      list.className = styles.list;
+    const list = document.createElement("div");
+    list.className = styles.list;
 
-      for (const upload of uploads) {
-        const row = document.createElement("div");
-        row.className = styles.row;
+    for (const upload of uploads) {
+      const row = document.createElement("div");
+      row.className = styles.row;
 
-        const identity = document.createElement("div");
-        identity.className = styles.identity;
-        const check = document.createElement("span");
-        check.className = styles.check;
-        check.textContent = "✓";
-        const text = document.createElement("div");
-        const name = document.createElement("strong");
-        name.textContent = upload.driverName;
-        const filename = document.createElement("small");
-        filename.textContent = upload.filename;
-        text.append(name, filename);
-        identity.append(check, text);
-        row.appendChild(identity);
+      const identity = document.createElement("div");
+      identity.className = styles.identity;
+      const check = document.createElement("span");
+      check.className = styles.check;
+      check.textContent = "✓";
+      const text = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = upload.driverName;
+      const filename = document.createElement("small");
+      filename.textContent = upload.filename;
+      text.append(name, filename);
+      identity.append(check, text);
+      row.appendChild(identity);
 
-        if (upload.viewUrl) {
-          const link = document.createElement("a");
-          link.className = styles.viewButton;
-          link.href = upload.viewUrl;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.textContent = "View Certificate";
-          row.appendChild(link);
-        }
-
-        list.appendChild(row);
+      if (upload.viewUrl) {
+        const link = document.createElement("a");
+        link.className = styles.viewButton;
+        link.href = upload.viewUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "View Certificate";
+        row.appendChild(link);
       }
 
-      section.appendChild(list);
+      list.appendChild(row);
     }
 
+    section.appendChild(list);
     mpwrSection.insertAdjacentElement("afterend", section);
 
     return () => section.remove();
