@@ -70,7 +70,7 @@ function mpwrCounts(row: ReadinessRow) {
 }
 
 function statusClass(received: number, expected: number) {
-  if (expected === 0) return styles.muted;
+  if (expected === 0) return styles.good;
   if (received >= expected) return styles.good;
   if (received > 0) return styles.warn;
   return styles.bad;
