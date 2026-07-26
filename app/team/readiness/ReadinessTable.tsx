@@ -58,10 +58,14 @@ function docsCounts(row: ReadinessRow) {
 }
 
 function mpwrCounts(row: ReadinessRow) {
+  if (row.requires_mpwr === false) {
+    return { received: 0, expected: 0 };
+  }
+
   const received = row.mpwr_document_received_count ?? 0;
   const expected =
-    row.mpwr_document_expected_count ??
-    (row.requires_mpwr ? (row.expected_guest_count ?? 0) : 0);
+    row.mpwr_document_expected_count ?? row.expected_guest_count ?? 0;
+
   return { received, expected };
 }
 
@@ -756,7 +760,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                       <span
                         className={`${styles.dot} ${statusClass(mpwr.received, mpwr.expected)}`}
                       />
-                      {mpwr.received}/{mpwr.expected || "?"}
+                      {mpwr.received}/{mpwr.expected}
                     </div>
                     <div className={styles.subLine}>
                       {row.mpwr_confirmation_number
@@ -888,7 +892,9 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                         selected.mpwr_confirmation_number,
                         selected.mpwr_reservation_url,
                       )
-                    : "Missing"}
+                    : selected.requires_mpwr === false
+                      ? "N/A"
+                      : "Missing"}
                 </strong>
               </div>
 
@@ -930,7 +936,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                   }
                 >
                   {mpwrCounts(selected).received}/
-                  {mpwrCounts(selected).expected || "?"}
+                  {mpwrCounts(selected).expected}
                 </strong>
               </div>
 
