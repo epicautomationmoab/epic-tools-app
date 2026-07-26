@@ -768,7 +768,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                             row.mpwr_confirmation_number,
                             row.mpwr_reservation_url,
                           )
-                        : row.requires_mpwr === false
+                        : mpwr.expected === 0
                           ? "N/A"
                           : "Missing"}
                     </div>
@@ -892,7 +892,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                         selected.mpwr_confirmation_number,
                         selected.mpwr_reservation_url,
                       )
-                    : selected.requires_mpwr === false
+                    : mpwrCounts(selected).expected === 0
                       ? "N/A"
                       : "Missing"}
                 </strong>
