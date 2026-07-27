@@ -1434,3 +1434,126 @@
   line-height: 1.4;
 }
 
+/* Durable Epic Tools people-count override */
+.peopleCountCard {
+  background: #f4f8fc !important;
+  border-color: #d5e2ee !important;
+}
+
+.peopleCountHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.peopleCountHeader > span {
+  display: inline !important;
+}
+
+.overrideBadge,
+.tripWorksBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.overrideBadge {
+  background: #fff1e8;
+  color: #a54219;
+}
+
+.tripWorksBadge {
+  background: #eaf2fb;
+  color: #245d86;
+}
+
+.peopleCountEditRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.peopleCountInput {
+  width: 84px;
+  height: 38px;
+  border: 1px solid #cbd6e1;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: #202733;
+  font: inherit;
+  font-weight: 900;
+}
+
+.peopleCountSaveButton,
+.peopleCountRestoreButton {
+  min-height: 38px;
+  border-radius: 8px;
+  padding: 0 12px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.peopleCountSaveButton {
+  border: 0;
+  background: #202733;
+  color: #fff;
+}
+
+.peopleCountRestoreButton {
+  border: 1px solid #d5521d;
+  background: #fff;
+  color: #d5521d;
+}
+
+.peopleCountSaveButton:disabled,
+.peopleCountRestoreButton:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.peopleCountReasonInput {
+  width: 100%;
+  box-sizing: border-box;
+  height: 36px;
+  margin-top: 8px;
+  border: 1px solid #d4dce5;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: #202733;
+  font: inherit;
+  font-size: 13px;
+}
+
+.peopleCountSourceNote,
+.peopleCountSaved,
+.peopleCountError {
+  display: block !important;
+  margin-top: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-transform: none !important;
+}
+
+.peopleCountSourceNote {
+  color: #667181;
+}
+
+.peopleCountSaved {
+  color: #16834a;
+}
+
+.peopleCountError {
+  color: #b42318;
+}

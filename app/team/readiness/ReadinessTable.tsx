@@ -7,6 +7,18 @@ import styles from "./ReadinessShell.module.css";
 type TimeFilter = "all" | "today" | "tomorrow";
 type Filter = "all" | "rental" | "tour";
 
+type PeopleOverrideStatus = {
+  readiness_id?: string | null;
+  store_visit_id?: string | null;
+  effective_people_count?: number | null;
+  override_active?: boolean | null;
+  people_count_override?: number | null;
+  source_count_at_override?: number | null;
+  reason?: string | null;
+  updated_by?: string | null;
+  updated_at?: string | null;
+};
+
 function formatWallTime(value: string) {
   const match = value.match(/\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/);
   if (!match) return value;
@@ -273,6 +285,70 @@ async function persistHandoff(
   return handoffStatus;
 }
 
+function getSupabaseBrowserConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !key) {
+    throw new Error("Supabase configuration is missing.");
+  }
+
+  return { url, key };
+}
+
+async function callReadinessRpc<T>(
+  functionName: string,
+  body: Record<string, unknown>,
+): Promise<T> {
+  const { url, key } = getSupabaseBrowserConfig();
+  const response = await fetch(`${url}/rest/v1/rpc/${functionName}`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `Unable to run ${functionName}.`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function getPeopleOverride(readinessId: string) {
+  return callReadinessRpc<PeopleOverrideStatus | null>(
+    "get_readiness_people_override",
+    { p_readiness_id: readinessId },
+  );
+}
+
+function savePeopleOverride(
+  readinessId: string,
+  peopleCount: number,
+  reason: string,
+) {
+  return callReadinessRpc<PeopleOverrideStatus>(
+    "set_readiness_people_override",
+    {
+      p_readiness_id: readinessId,
+      p_people_count: peopleCount,
+      p_reason: reason,
+      p_updated_by: "EpicTools",
+    },
+  );
+}
+
+function removePeopleOverride(readinessId: string) {
+  return callReadinessRpc<PeopleOverrideStatus>(
+    "clear_readiness_people_override",
+    { p_readiness_id: readinessId },
+  );
+}
+
 export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
@@ -291,6 +367,15 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   );
   const [editValue, setEditValue] = useState("");
   const [savingContact, setSavingContact] = useState(false);
+
+  const [peopleDraft, setPeopleDraft] = useState("0");
+  const [peopleReason, setPeopleReason] = useState("");
+  const [peopleOverride, setPeopleOverride] =
+    useState<PeopleOverrideStatus | null>(null);
+  const [peopleStatus, setPeopleStatus] = useState<
+    "idle" | "loading" | "saving" | "saved" | "error"
+  >("idle");
+  const [peopleError, setPeopleError] = useState("");
 
   const COURTESY_CALL_STAFF = [
     "Alex",
@@ -328,6 +413,39 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     setNoteStatus("idle");
     setNoteError("");
 
+    setPeopleDraft(String(selected.expected_guest_count ?? 0));
+    setPeopleReason("");
+    setPeopleOverride(null);
+    setPeopleStatus("loading");
+    setPeopleError("");
+
+    let peopleRequestCancelled = false;
+
+    if (selected.readiness_id) {
+      getPeopleOverride(selected.readiness_id)
+        .then((result) => {
+          if (peopleRequestCancelled) return;
+          setPeopleOverride(result);
+          setPeopleDraft(
+            String(result?.effective_people_count ?? selected.expected_guest_count ?? 0),
+          );
+          setPeopleReason(result?.reason ?? "");
+          setPeopleStatus("idle");
+        })
+        .catch((error) => {
+          if (peopleRequestCancelled) return;
+          setPeopleStatus("error");
+          setPeopleError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load the people-count override.",
+          );
+        });
+    } else {
+      setPeopleStatus("error");
+      setPeopleError("This reservation is missing its readiness ID.");
+    }
+
     setCourtesyStaff("");
     setArrivalConfirmed(false);
     setLocationDiscussed(false);
@@ -355,7 +473,10 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
 
     window.addEventListener("keydown", closeOnEscape);
 
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    return () => {
+      peopleRequestCancelled = true;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
   }, [selected?.readiness_id]);
 
   const visibleRows = useMemo(() => {
@@ -406,6 +527,103 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
         !row.courtesy_call_completed,
     ).length;
   }, [localRows]);
+
+  function applyEffectivePeopleCount(
+    readinessId: string,
+    effectiveCount: number,
+  ) {
+    const updateRow = (row: ReadinessRow): ReadinessRow => ({
+      ...row,
+      expected_guest_count: effectiveCount,
+      epic_document_expected_count: effectiveCount,
+      mpwr_document_expected_count:
+        row.requires_mpwr === false ? 0 : effectiveCount,
+    });
+
+    setLocalRows((current) =>
+      current.map((row) =>
+        row.readiness_id === readinessId ? updateRow(row) : row,
+      ),
+    );
+
+    setSelected((current) =>
+      current?.readiness_id === readinessId ? updateRow(current) : current,
+    );
+  }
+
+  async function savePeopleCount() {
+    if (!selected?.readiness_id) {
+      setPeopleStatus("error");
+      setPeopleError("This reservation is missing its readiness ID.");
+      return;
+    }
+
+    const nextCount = Number(peopleDraft);
+
+    if (!Number.isInteger(nextCount) || nextCount < 0) {
+      setPeopleStatus("error");
+      setPeopleError("Enter a whole number that is zero or greater.");
+      return;
+    }
+
+    setPeopleStatus("saving");
+    setPeopleError("");
+
+    try {
+      await savePeopleOverride(
+        selected.readiness_id,
+        nextCount,
+        peopleReason,
+      );
+
+      const current = await getPeopleOverride(selected.readiness_id);
+      setPeopleOverride(current);
+      setPeopleDraft(String(current?.effective_people_count ?? nextCount));
+      setPeopleReason(current?.reason ?? peopleReason);
+      applyEffectivePeopleCount(
+        selected.readiness_id,
+        current?.effective_people_count ?? nextCount,
+      );
+      setPeopleStatus("saved");
+    } catch (error) {
+      setPeopleStatus("error");
+      setPeopleError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save the people count.",
+      );
+    }
+  }
+
+  async function restoreTripWorksPeopleCount() {
+    if (!selected?.readiness_id) {
+      setPeopleStatus("error");
+      setPeopleError("This reservation is missing its readiness ID.");
+      return;
+    }
+
+    setPeopleStatus("saving");
+    setPeopleError("");
+
+    try {
+      await removePeopleOverride(selected.readiness_id);
+      const current = await getPeopleOverride(selected.readiness_id);
+      const effectiveCount = current?.effective_people_count ?? 0;
+
+      setPeopleOverride(current);
+      setPeopleDraft(String(effectiveCount));
+      setPeopleReason("");
+      applyEffectivePeopleCount(selected.readiness_id, effectiveCount);
+      setPeopleStatus("saved");
+    } catch (error) {
+      setPeopleStatus("error");
+      setPeopleError(
+        error instanceof Error
+          ? error.message
+          : "Unable to restore the TripWorks count.",
+      );
+    }
+  }
 
   async function saveNote() {
     if (!selected?.readiness_id) {
@@ -1083,6 +1301,87 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                     </strong>
                   </>
                 )}
+              </div>
+
+              <div
+                className={`${styles.drawerFactWide} ${styles.peopleCountCard}`}
+              >
+                <div className={styles.peopleCountHeader}>
+                  <span>How many people?</span>
+                  {peopleOverride?.override_active ? (
+                    <small className={styles.overrideBadge}>Epic override</small>
+                  ) : (
+                    <small className={styles.tripWorksBadge}>TripWorks</small>
+                  )}
+                </div>
+
+                <div className={styles.peopleCountEditRow}>
+                  <input
+                    className={styles.peopleCountInput}
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    value={peopleDraft}
+                    onChange={(event) => {
+                      setPeopleDraft(event.target.value);
+                      setPeopleStatus("idle");
+                      setPeopleError("");
+                    }}
+                    aria-label="How many people"
+                  />
+
+                  <button
+                    type="button"
+                    className={styles.peopleCountSaveButton}
+                    disabled={peopleStatus === "saving" || peopleStatus === "loading"}
+                    onClick={savePeopleCount}
+                  >
+                    {peopleStatus === "saving" ? "Saving..." : "Save"}
+                  </button>
+
+                  {peopleOverride?.override_active ? (
+                    <button
+                      type="button"
+                      className={styles.peopleCountRestoreButton}
+                      disabled={peopleStatus === "saving"}
+                      onClick={restoreTripWorksPeopleCount}
+                    >
+                      Restore TripWorks count
+                    </button>
+                  ) : null}
+                </div>
+
+                <input
+                  className={styles.peopleCountReasonInput}
+                  value={peopleReason}
+                  onChange={(event) => {
+                    setPeopleReason(event.target.value);
+                    setPeopleStatus("idle");
+                  }}
+                  placeholder="Optional reason for adjustment"
+                  aria-label="Reason for people-count adjustment"
+                />
+
+                {peopleOverride?.override_active ? (
+                  <small className={styles.peopleCountSourceNote}>
+                    TripWorks originally supplied{" "}
+                    {peopleOverride.source_count_at_override ?? "an unknown count"}.
+                    This Epic Tools count will remain in effect until restored.
+                  </small>
+                ) : (
+                  <small className={styles.peopleCountSourceNote}>
+                    Saving a different count creates a durable Epic Tools override.
+                  </small>
+                )}
+
+                {peopleStatus === "saved" ? (
+                  <small className={styles.peopleCountSaved}>Saved</small>
+                ) : null}
+
+                {peopleStatus === "error" ? (
+                  <small className={styles.peopleCountError}>{peopleError}</small>
+                ) : null}
               </div>
             </section>
 
