@@ -21,12 +21,16 @@ type GuestPortalRow = {
   customer_email: string | null;
   product_display_name: string;
   visit_start_time: string;
+  business_line: string | null;
   total_vehicle_count: number | null;
   epic_document_received_count: number | null;
   epic_document_expected_count: number | null;
   mpwr_document_received_count: number | null;
   mpwr_document_expected_count: number | null;
 };
+
+const TOUR_ADDRESS = "1041 S. Main Street, Moab, UT 84532";
+const RENTAL_ADDRESS = "11860 S. Highway 191, Moab, UT 84532";
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -79,22 +83,10 @@ function buildReservationSummary(rows: GuestPortalRow[]) {
 }
 
 function buildReadinessMessage(rows: GuestPortalRow[]) {
-  const epicExpected = rows.reduce(
-    (sum, row) => sum + (row.epic_document_expected_count ?? 0),
-    0,
-  );
-  const epicReceived = rows.reduce(
-    (sum, row) => sum + (row.epic_document_received_count ?? 0),
-    0,
-  );
-  const mpwrExpected = rows.reduce(
-    (sum, row) => sum + (row.mpwr_document_expected_count ?? 0),
-    0,
-  );
-  const mpwrReceived = rows.reduce(
-    (sum, row) => sum + (row.mpwr_document_received_count ?? 0),
-    0,
-  );
+  const epicExpected = rows.reduce((sum, row) => sum + (row.epic_document_expected_count ?? 0), 0);
+  const epicReceived = rows.reduce((sum, row) => sum + (row.epic_document_received_count ?? 0), 0);
+  const mpwrExpected = rows.reduce((sum, row) => sum + (row.mpwr_document_expected_count ?? 0), 0);
+  const mpwrReceived = rows.reduce((sum, row) => sum + (row.mpwr_document_received_count ?? 0), 0);
 
   if (epicReceived >= epicExpected && mpwrReceived >= mpwrExpected) {
     return {
@@ -111,23 +103,31 @@ function buildReadinessMessage(rows: GuestPortalRow[]) {
   };
 }
 
-async function loadCommunication(id: string) {
-  const config = getSupabaseConfig();
-  const params = new URLSearchParams({
-    select: "*",
-    id: `eq.${id}`,
-    limit: "1",
-  });
-
-  const response = await fetch(
-    `${config.url}/rest/v1/guest_communications?${params.toString()}`,
-    { headers: supabaseHeaders(config.key), cache: "no-store" },
+function getLocation(rows: GuestPortalRow[]) {
+  const businessLines = new Set(
+    rows.map((row) => row.business_line?.trim().toLowerCase()).filter(Boolean),
   );
 
-  if (!response.ok) {
-    throw new Error(`Unable to load communication: ${await response.text()}`);
+  if (businessLines.size > 1) {
+    throw new Error("The reservation contains mixed business lines and needs manual location review.");
   }
 
+  const address = businessLines.has("rental") ? RENTAL_ADDRESS : TOUR_ADDRESS;
+  return {
+    address,
+    directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`,
+  };
+}
+
+async function loadCommunication(id: string) {
+  const config = getSupabaseConfig();
+  const params = new URLSearchParams({ select: "*", id: `eq.${id}`, limit: "1" });
+  const response = await fetch(`${config.url}/rest/v1/guest_communications?${params}`, {
+    headers: supabaseHeaders(config.key),
+    cache: "no-store",
+  });
+
+  if (!response.ok) throw new Error(`Unable to load communication: ${await response.text()}`);
   const rows = (await response.json()) as CommunicationRow[];
   return rows[0] ?? null;
 }
@@ -139,16 +139,12 @@ async function loadGuestPortalRows(token: string) {
     guest_portal_token: `eq.${token}`,
     order: "visit_start_time.asc",
   });
+  const response = await fetch(`${config.url}/rest/v1/guest_portal_v?${params}`, {
+    headers: supabaseHeaders(config.key),
+    cache: "no-store",
+  });
 
-  const response = await fetch(
-    `${config.url}/rest/v1/guest_portal_v?${params.toString()}`,
-    { headers: supabaseHeaders(config.key), cache: "no-store" },
-  );
-
-  if (!response.ok) {
-    throw new Error(`Unable to load portal data: ${await response.text()}`);
-  }
-
+  if (!response.ok) throw new Error(`Unable to load portal data: ${await response.text()}`);
   return (await response.json()) as GuestPortalRow[];
 }
 
@@ -158,30 +154,20 @@ async function updateCommunication(id: string, values: Record<string, unknown>) 
     `${config.url}/rest/v1/guest_communications?id=eq.${encodeURIComponent(id)}`,
     {
       method: "PATCH",
-      headers: {
-        ...supabaseHeaders(config.key),
-        Prefer: "return=representation",
-      },
+      headers: { ...supabaseHeaders(config.key), Prefer: "return=representation" },
       body: JSON.stringify({ ...values, updated_at: new Date().toISOString() }),
     },
   );
 
-  const responseText = await response.text();
-  if (!response.ok) {
-    throw new Error(`Unable to update communication: ${responseText}`);
-  }
-
-  const rows = responseText ? (JSON.parse(responseText) as Record<string, unknown>[]) : [];
-  if (rows.length !== 1) {
-    throw new Error(`Communication update matched ${rows.length} rows for id ${id}.`);
-  }
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Unable to update communication: ${text}`);
+  const rows = text ? (JSON.parse(text) as Record<string, unknown>[]) : [];
+  if (rows.length !== 1) throw new Error(`Communication update matched ${rows.length} rows for id ${id}.`);
 }
 
 export async function POST(request: Request) {
   const authorization = request.headers.get("authorization");
-  const senderSecret = requiredEnv("GUEST_EMAIL_SENDER_SECRET");
-
-  if (authorization !== `Bearer ${senderSecret}`) {
+  if (authorization !== `Bearer ${requiredEnv("GUEST_EMAIL_SENDER_SECRET")}`) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -189,10 +175,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as { communicationId?: string };
   } catch {
-    return NextResponse.json(
-      { error: "A JSON body with communicationId is required." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "A JSON body with communicationId is required." }, { status: 400 });
   }
 
   const communicationId = body.communicationId?.trim();
@@ -201,16 +184,11 @@ export async function POST(request: Request) {
   }
 
   const communication = await loadCommunication(communicationId);
-  if (!communication) {
-    return NextResponse.json({ error: "Communication not found." }, { status: 404 });
-  }
+  if (!communication) return NextResponse.json({ error: "Communication not found." }, { status: 404 });
 
   const configuredMode = process.env.GUEST_EMAIL_MODE?.trim().toLowerCase() ?? "test";
   if (configuredMode === "production" || communication.test_mode !== true) {
-    return NextResponse.json(
-      { error: "This endpoint only sends test-mode communications." },
-      { status: 409 },
-    );
+    return NextResponse.json({ error: "This endpoint only sends test-mode communications." }, { status: 409 });
   }
 
   if (!["ready", "scheduled", "failed"].includes(communication.status)) {
@@ -228,8 +206,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const testRecipient = requiredEnv("GUEST_EMAIL_TEST_RECIPIENT");
-  const recipient = communication.test_recipient_email || testRecipient;
+  const recipient = communication.test_recipient_email || requiredEnv("GUEST_EMAIL_TEST_RECIPIENT");
   const attemptTime = new Date().toISOString();
 
   await updateCommunication(communication.id, {
@@ -244,8 +221,8 @@ export async function POST(request: Request) {
       communication.communication_type === "arrival_reminder_day_before"
         ? requiredEnv("RESEND_REMINDER_TEMPLATE_ID")
         : requiredEnv("RESEND_CONFIRMATION_TEMPLATE_ID");
-
     const readiness = buildReadinessMessage(portalRows);
+    const location = getLocation(portalRows);
     const portalBaseUrl = requiredEnv("GUEST_PORTAL_BASE_URL");
     const portalUrl = `${portalBaseUrl.replace(/\/+$/, "")}/guest/${communication.guest_portal_token}`;
 
@@ -259,12 +236,12 @@ export async function POST(request: Request) {
         template: {
           id: templateId,
           variables: {
-            ARRIVAL_INSTRUCTIONS:
-              "Please arrive 15 minutes before your scheduled departure time.",
+            ARRIVAL_INSTRUCTIONS: "Please arrive 15 minutes before your scheduled departure time.",
             CONFIRMATION_CODE: communication.confirmation_code,
+            DIRECTIONS_URL: location.directionsUrl,
             GUEST_NAME: firstName(communication.customer_name),
             INTENDED_RECIPIENT: communication.customer_email ?? "",
-            LOCATION_SUMMARY: "Epic 4X4 Adventures, Main Street, Moab, Utah",
+            LOCATION_SUMMARY: location.address,
             PORTAL_URL: portalUrl,
             READINESS_HEADLINE: readiness.headline,
             READINESS_MESSAGE: readiness.message,
@@ -272,7 +249,7 @@ export async function POST(request: Request) {
           },
         },
       },
-      { idempotencyKey: `guest-communication-test-${communication.id}` },
+      { idempotencyKey: `guest-communication-test-${communication.id}-${Date.now()}` },
     );
 
     if (error) throw new Error(error.message);
@@ -297,15 +274,13 @@ export async function POST(request: Request) {
       intendedRecipient: communication.customer_email,
       testMode: true,
       providerMessageId: data.id,
+      businessLine: portalRows[0]?.business_line ?? null,
+      location: location.address,
+      directionsUrl: location.directionsUrl,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown email sender error.";
-
-    await updateCommunication(communication.id, {
-      status: "failed",
-      last_error: message.slice(0, 1000),
-    });
-
+    await updateCommunication(communication.id, { status: "failed", last_error: message.slice(0, 1000) });
     return NextResponse.json(
       { ok: false, communicationId: communication.id, error: message },
       { status: 500 },
