@@ -27,6 +27,7 @@ type GuestPortalRow = {
   epic_document_expected_count: number | null;
   mpwr_document_received_count: number | null;
   mpwr_document_expected_count: number | null;
+  ohv_certificate_uploaded: boolean | null;
 };
 
 const TOUR_ADDRESS = "1041 S. Main Street, Moab, UT 84532";
@@ -87,8 +88,10 @@ function buildReadinessMessage(rows: GuestPortalRow[]) {
   const epicReceived = rows.reduce((sum, row) => sum + (row.epic_document_received_count ?? 0), 0);
   const mpwrExpected = rows.reduce((sum, row) => sum + (row.mpwr_document_expected_count ?? 0), 0);
   const mpwrReceived = rows.reduce((sum, row) => sum + (row.mpwr_document_received_count ?? 0), 0);
+  const hasRental = rows.some((row) => row.business_line?.trim().toLowerCase() === "rental");
+  const ohvComplete = !hasRental || rows.every((row) => row.business_line?.trim().toLowerCase() !== "rental" || row.ohv_certificate_uploaded === true);
 
-  if (epicReceived >= epicExpected && mpwrReceived >= mpwrExpected) {
+  if (epicReceived >= epicExpected && mpwrReceived >= mpwrExpected && ohvComplete) {
     return {
       headline: "You’re Ready!",
       message:
@@ -191,7 +194,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This endpoint only sends test-mode communications." }, { status: 409 });
   }
 
-  if (!["ready", "scheduled", "failed"].includes(communication.status)) {
+  if (!["ready", "scheduled", "failed", "sent"].includes(communication.status)) {
     return NextResponse.json(
       { error: `Communication status ${communication.status} is not test-sendable.` },
       { status: 409 },
