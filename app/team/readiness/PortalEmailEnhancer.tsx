@@ -2,13 +2,15 @@
 
 import { useEffect } from "react";
 
-const PUBLIC_PORTAL_ORIGIN = "https://myepicreservation.com";
-
-function findGuestEmail(drawer: Element) {
-  const values = Array.from(drawer.querySelectorAll("strong"))
-    .map((element) => element.textContent?.trim() ?? "")
-    .filter(Boolean);
-  return values.find((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) ?? "";
+function findBookingConfirmation(drawer: Element) {
+  const cards = Array.from(drawer.querySelectorAll("div"));
+  for (const card of cards) {
+    const label = card.querySelector("span")?.textContent?.trim();
+    if (label !== "Booking Confirmation") continue;
+    const value = card.querySelector("strong")?.textContent?.trim();
+    if (value) return value;
+  }
+  return "";
 }
 
 export default function PortalEmailEnhancer() {
@@ -23,44 +25,77 @@ export default function PortalEmailEnhancer() {
       if (!drawer) return;
 
       const guestName = drawer.querySelector("h2")?.textContent?.trim() ?? "Guest";
-      const firstName = guestName.split(/\s+/).filter(Boolean)[0] ?? "there";
-      const email = findGuestEmail(drawer);
-      const portalPath = portalLink.getAttribute("href") ?? "";
-      const portalUrl = new URL(portalPath, PUBLIC_PORTAL_ORIGIN).toString();
+      const confirmationCode = findBookingConfirmation(drawer);
+      if (!confirmationCode) return;
 
-      const subject = "Your Epic 4X4 Adventures Guest Portal";
-      const body = [
-        `Hi ${firstName},`,
-        "",
-        "Your Epic 4X4 Adventures guest portal is ready. Use the link below to review your reservation and complete any outstanding items before arrival:",
-        "",
-        portalUrl,
-        "",
-        "We look forward to your adventure!",
-        "",
-        "Epic 4X4 Adventures",
-        "435-220-2700",
-      ].join("\n");
+      const resendButton = document.createElement("button");
+      resendButton.type = "button";
+      resendButton.textContent = "Resend Confirmation Email";
+      resendButton.setAttribute(
+        "aria-label",
+        `Resend confirmation email to ${guestName}`,
+      );
+      resendButton.style.display = "inline-flex";
+      resendButton.style.alignItems = "center";
+      resendButton.style.justifyContent = "center";
+      resendButton.style.marginLeft = "10px";
+      resendButton.style.padding = "10px 14px";
+      resendButton.style.border = "1px solid #c8d0d7";
+      resendButton.style.borderRadius = "8px";
+      resendButton.style.background = "#fff";
+      resendButton.style.color = "#26313b";
+      resendButton.style.fontWeight = "850";
+      resendButton.style.cursor = "pointer";
 
-      const emailLink = document.createElement("a");
-      emailLink.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      emailLink.textContent = "Email Guest Portal";
-      emailLink.setAttribute("aria-label", `Email guest portal to ${guestName}`);
-      emailLink.style.display = "inline-flex";
-      emailLink.style.alignItems = "center";
-      emailLink.style.justifyContent = "center";
-      emailLink.style.marginLeft = "10px";
-      emailLink.style.padding = "10px 14px";
-      emailLink.style.border = "1px solid #c8d0d7";
-      emailLink.style.borderRadius = "8px";
-      emailLink.style.background = "#fff";
-      emailLink.style.color = "#26313b";
-      emailLink.style.fontWeight = "850";
-      emailLink.style.textDecoration = "none";
-      emailLink.style.cursor = "pointer";
+      resendButton.addEventListener("click", async () => {
+        const confirmed = window.confirm(
+          `Resend the full confirmation email to ${guestName}?`,
+        );
+        if (!confirmed) return;
+
+        const originalText = resendButton.textContent;
+        resendButton.disabled = true;
+        resendButton.textContent = "Sending...";
+        resendButton.style.opacity = "0.65";
+
+        try {
+          const response = await fetch(
+            "/api/guest-communications/resend-confirmation",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ confirmationCode }),
+            },
+          );
+          const result = (await response.json()) as {
+            ok?: boolean;
+            error?: string;
+          };
+
+          if (!response.ok || result.ok !== true) {
+            throw new Error(result.error || "Unable to resend confirmation email.");
+          }
+
+          resendButton.textContent = "Confirmation Sent";
+          resendButton.style.opacity = "1";
+          window.setTimeout(() => {
+            resendButton.textContent = originalText;
+            resendButton.disabled = false;
+          }, 2500);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Unable to resend confirmation email.";
+          window.alert(message);
+          resendButton.textContent = originalText;
+          resendButton.disabled = false;
+          resendButton.style.opacity = "1";
+        }
+      });
 
       portalLink.dataset.emailEnhanced = "true";
-      portalLink.insertAdjacentElement("afterend", emailLink);
+      portalLink.insertAdjacentElement("afterend", resendButton);
     }
 
     enhance();
