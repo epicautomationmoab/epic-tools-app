@@ -57,15 +57,14 @@ async function drainConfirmationQueue(origin: string) {
 }
 
 async function run(request: Request) {
-  const authorization = request.headers.get("authorization");
-  const cronSecret = requiredEnv("CRON_SECRET");
-  const senderSecret = requiredEnv("GUEST_EMAIL_SENDER_SECRET");
-
-  if (authorization !== `Bearer ${cronSecret}` && authorization !== `Bearer ${senderSecret}`) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-  }
-
   try {
+    const authorization = request.headers.get("authorization");
+    const cronSecret = requiredEnv("CRON_SECRET");
+
+    if (authorization !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ ok: false, error: "Unauthorized cron request." }, { status: 401 });
+    }
+
     const refreshed = await refreshConfirmationQueue();
     const origin = new URL(request.url).origin;
     const sends = await drainConfirmationQueue(origin);
