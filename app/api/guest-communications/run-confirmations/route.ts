@@ -16,9 +16,9 @@ function getSupabaseConfig() {
   };
 }
 
-async function refreshConfirmationQueue() {
+async function callQueueFunction(functionName: string) {
   const config = getSupabaseConfig();
-  const response = await fetch(`${config.url}/rest/v1/rpc/refresh_guest_portal_email_queue`, {
+  const response = await fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
     method: "POST",
     headers: {
       apikey: config.key,
@@ -30,11 +30,11 @@ async function refreshConfirmationQueue() {
   });
 
   const text = await response.text();
-  if (!response.ok) throw new Error(`Unable to refresh confirmation queue: ${text}`);
+  if (!response.ok) throw new Error(`Unable to run ${functionName}: ${text}`);
   return text ? JSON.parse(text) : null;
 }
 
-async function drainConfirmationQueue() {
+async function drainCommunicationQueue() {
   const results: unknown[] = [];
 
   for (let index = 0; index < 50; index += 1) {
@@ -47,8 +47,8 @@ async function drainConfirmationQueue() {
     const result = await response.json();
     results.push(result);
 
-    if (!response.ok) throw new Error(`Confirmation sender failed: ${JSON.stringify(result)}`);
-    if (result.sent !== true && !result.skippedStale) break;
+    if (!response.ok) throw new Error(`Communication sender failed: ${JSON.stringify(result)}`);
+    if (result.sent !== true && !result.skippedStale && !result.skippedComplete) break;
   }
 
   return results;
@@ -63,17 +63,19 @@ async function run(request: Request) {
       return NextResponse.json({ ok: false, error: "Unauthorized cron request." }, { status: 401 });
     }
 
-    const refreshed = await refreshConfirmationQueue();
-    const sends = await drainConfirmationQueue();
+    const confirmationsRefreshed = await callQueueFunction("refresh_guest_portal_email_queue");
+    const twoHourRemindersQueued = await callQueueFunction("queue_two_hour_portal_reminders");
+    const sends = await drainCommunicationQueue();
 
     return NextResponse.json({
       ok: true,
       mode: process.env.GUEST_EMAIL_MODE?.trim().toLowerCase() ?? "test",
-      refreshed,
+      confirmationsRefreshed,
+      twoHourRemindersQueued,
       sends,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown confirmation runner error.";
+    const message = error instanceof Error ? error.message : "Unknown communication runner error.";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
