@@ -50,9 +50,9 @@ async function drainReminderQueue(origin: string) {
     const response = await fetch(`${origin}/api/guest-communications/send`, {
       method: "POST",
       headers: {
-        "x-guest-email-sender-secret": requiredEnv("GUEST_EMAIL_SENDER_SECRET"),
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({ senderSecret: requiredEnv("GUEST_EMAIL_SENDER_SECRET") }),
       cache: "no-store",
     });
 
