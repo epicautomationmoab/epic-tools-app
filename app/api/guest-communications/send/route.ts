@@ -28,6 +28,10 @@ type GuestPortalRow = {
   ohv_certificate_uploaded: boolean | null;
 };
 
+type GuestActionRow = {
+  guest_action_items: string[] | null;
+};
+
 const TOUR_ADDRESS = "1041 S. Main Street, Moab, UT 84532";
 const RENTAL_ADDRESS = "11860 S. Highway 191, Moab, UT 84532";
 
@@ -144,7 +148,19 @@ async function fetchOneCommunication(params: URLSearchParams) {
 }
 
 async function loadNextCommunication() {
-  const dueReminder = await fetchOneCommunication(new URLSearchParams({
+  const dueTwoHourReminder = await fetchOneCommunication(new URLSearchParams({
+    select: "*",
+    communication_type: "eq.arrival_readiness_two_hour",
+    status: "eq.scheduled",
+    scheduled_for: `lte.${new Date().toISOString()}`,
+    customer_email: "not.is.null",
+    order: "scheduled_for.asc",
+    limit: "1",
+  }));
+
+  if (dueTwoHourReminder) return dueTwoHourReminder;
+
+  const dueDayBeforeReminder = await fetchOneCommunication(new URLSearchParams({
     select: "*",
     communication_type: "eq.arrival_reminder_day_before",
     status: "eq.scheduled",
@@ -154,7 +170,7 @@ async function loadNextCommunication() {
     limit: "1",
   }));
 
-  if (dueReminder) return dueReminder;
+  if (dueDayBeforeReminder) return dueDayBeforeReminder;
 
   return fetchOneCommunication(new URLSearchParams({
     select: "*",
@@ -176,6 +192,20 @@ async function loadGuestPortalRows(token: string) {
   return (await response.json()) as GuestPortalRow[];
 }
 
+async function hasOutstandingGuestActions(confirmationCode: string) {
+  const config = getSupabaseConfig();
+  const params = new URLSearchParams({
+    select: "guest_action_items",
+    confirmation_code: `eq.${confirmationCode}`,
+  });
+  const response = await fetch(`${config.url}/rest/v1/guest_portal_store_visit_v?${params}`, {
+    headers: supabaseHeaders(config.key), cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Unable to load live guest actions: ${await response.text()}`);
+  const rows = (await response.json()) as GuestActionRow[];
+  return rows.some((row) => Array.isArray(row.guest_action_items) && row.guest_action_items.length > 0);
+}
+
 async function updateCommunication(id: string, values: Record<string, unknown>) {
   const config = getSupabaseConfig();
   const response = await fetch(`${config.url}/rest/v1/guest_communications?id=eq.${encodeURIComponent(id)}`, {
@@ -187,6 +217,16 @@ async function updateCommunication(id: string, values: Record<string, unknown>) 
   if (!response.ok) throw new Error(`Unable to update communication: ${text}`);
   const rows = text ? (JSON.parse(text) as Record<string, unknown>[]) : [];
   if (rows.length !== 1) throw new Error(`Communication update matched ${rows.length} rows for id ${id}.`);
+}
+
+function templateIdFor(communicationType: string) {
+  if (communicationType === "arrival_readiness_two_hour") {
+    return requiredEnv("RESEND_TWO_HOUR_TEMPLATE_ID");
+  }
+  if (communicationType === "arrival_reminder_day_before") {
+    return requiredEnv("RESEND_REMINDER_TEMPLATE_ID");
+  }
+  return requiredEnv("RESEND_CONFIRMATION_TEMPLATE_ID");
 }
 
 export async function POST(request: Request) {
@@ -219,6 +259,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, sent: false, skippedStale: communication.id });
   }
 
+  if (
+    communication.communication_type === "arrival_readiness_two_hour" &&
+    !(await hasOutstandingGuestActions(communication.confirmation_code))
+  ) {
+    await updateCommunication(communication.id, {
+      status: "cancelled",
+      waiting_reason: "No outstanding guest action items",
+      last_error: null,
+    });
+    return NextResponse.json({ ok: true, sent: false, skippedComplete: communication.id });
+  }
+
   const attemptTime = new Date().toISOString();
   await updateCommunication(communication.id, {
     status: "sending",
@@ -238,9 +290,6 @@ export async function POST(request: Request) {
       : communication.customer_email;
     if (!recipient) throw new Error("No recipient email address is available.");
 
-    const templateId = communication.communication_type === "arrival_reminder_day_before"
-      ? requiredEnv("RESEND_REMINDER_TEMPLATE_ID")
-      : requiredEnv("RESEND_CONFIRMATION_TEMPLATE_ID");
     const readiness = buildReadinessMessage(portalRows);
     const location = getLocation(portalRows);
     const portalUrl = `${requiredEnv("GUEST_PORTAL_BASE_URL").replace(/\/+$/, "")}/guest/${communication.guest_portal_token}`;
@@ -252,7 +301,7 @@ export async function POST(request: Request) {
       bcc: requiredEnv("GUEST_EMAIL_BCC"),
       replyTo: requiredEnv("GUEST_EMAIL_REPLY_TO"),
       template: {
-        id: templateId,
+        id: templateIdFor(communication.communication_type),
         variables: {
           ARRIVAL_INSTRUCTIONS: "Please arrive 15 minutes before your scheduled departure time.",
           CONFIRMATION_CODE: communication.confirmation_code,
@@ -286,6 +335,7 @@ export async function POST(request: Request) {
       sent: true,
       communicationId: communication.id,
       confirmationCode: communication.confirmation_code,
+      communicationType: communication.communication_type,
       recipient,
       intendedRecipient: communication.customer_email,
       testMode: mustUseTestRecipient,
