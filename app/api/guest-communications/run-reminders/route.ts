@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { POST as sendCommunication } from "../send/route";
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -43,18 +44,15 @@ async function queueTomorrowReminders() {
   return text ? JSON.parse(text) : null;
 }
 
-async function drainReminderQueue(origin: string) {
+async function drainReminderQueue() {
   const results: unknown[] = [];
 
   for (let index = 0; index < 100; index += 1) {
-    const response = await fetch(`${origin}/api/guest-communications/send`, {
+    const response = await sendCommunication(new Request("http://internal/guest-communications/send", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ senderSecret: requiredEnv("GUEST_EMAIL_SENDER_SECRET") }),
-      cache: "no-store",
-    });
+    }));
 
     const result = await response.json();
     results.push(result);
@@ -80,8 +78,7 @@ async function run(request: Request) {
     }
 
     const queued = await queueTomorrowReminders();
-    const origin = new URL(request.url).origin;
-    const sends = await drainReminderQueue(origin);
+    const sends = await drainReminderQueue();
 
     return NextResponse.json({
       ok: true,
