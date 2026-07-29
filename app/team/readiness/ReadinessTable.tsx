@@ -140,6 +140,11 @@ function OhvCell({ row }: { row: ReadinessRow }) {
   return <span className={styles.ohvBad}>Missing</span>;
 }
 
+function mpwrReservationUrlFromConfirmation(confirmation: string | null | undefined) {
+  const value = confirmation?.trim().toUpperCase();
+  return value ? `https://mpwr-hq.poladv.com/orders/${value}` : null;
+}
+
 function linkedValue(value: string, url: string | null | undefined) {
   return url ? (
     <a
@@ -427,7 +432,9 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     setPeopleError("");
 
     setMpwrConfirmationDraft(selected.mpwr_confirmation_number ?? "");
-    setMpwrWaiverUrlDraft(selected.mpwr_reservation_url ?? "");
+    // The readiness row exposes the internal MPWR order URL, not the guest waiver URL.
+    // Leave the waiver field blank so staff must paste the actual Polaris join link.
+    setMpwrWaiverUrlDraft("");
     setManualMpwrStatus("idle");
     setManualMpwrError("");
 
@@ -663,7 +670,8 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
       const updateRow = (row: ReadinessRow): ReadinessRow => ({
         ...row,
         mpwr_confirmation_number: confirmationNumber,
-        mpwr_reservation_url: waiverUrl,
+        mpwr_reservation_url:
+          mpwrReservationUrlFromConfirmation(confirmationNumber),
       });
 
       setLocalRows((current) =>
@@ -1944,8 +1952,8 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                 <summary>Manual MPWR Recovery</summary>
                 <div className={styles.manualMpwrRecoveryBody}>
                   <p>
-                    Use only when the reservation already exists in MPWR but its
-                    confirmation and unique waiver link did not reach Guest Readiness.
+                    Enter the MPWR confirmation and the guest waiver link. The internal
+                    MPWR reservation link is generated automatically from the confirmation.
                   </p>
 
                   <label className={styles.manualMpwrField}>
@@ -1963,7 +1971,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                   </label>
 
                   <label className={styles.manualMpwrField}>
-                    <span>MPWR Unique Waiver Link</span>
+                    <span>MPWR Guest Waiver Link</span>
                     <input
                       type="url"
                       value={mpwrWaiverUrlDraft}
