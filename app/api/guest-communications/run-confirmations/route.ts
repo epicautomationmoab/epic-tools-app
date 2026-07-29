@@ -40,7 +40,7 @@ async function drainConfirmationQueue(origin: string) {
     const response = await fetch(`${origin}/api/guest-communications/send`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${requiredEnv("GUEST_EMAIL_SENDER_SECRET")}`,
+        "x-guest-email-sender-secret": requiredEnv("GUEST_EMAIL_SENDER_SECRET"),
         "Content-Type": "application/json",
       },
       cache: "no-store",
