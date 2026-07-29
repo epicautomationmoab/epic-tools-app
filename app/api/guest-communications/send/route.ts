@@ -28,10 +28,6 @@ type GuestPortalRow = {
   ohv_certificate_uploaded: boolean | null;
 };
 
-type GuestActionRow = {
-  guest_action_items: string[] | null;
-};
-
 const TOUR_ADDRESS = "1041 S. Main Street, Moab, UT 84532";
 const RENTAL_ADDRESS = "11860 S. Highway 191, Moab, UT 84532";
 
@@ -106,16 +102,18 @@ function buildReservationSummary(rows: GuestPortalRow[]) {
   }).join("\n");
 }
 
-function buildReadinessMessage(rows: GuestPortalRow[]) {
-  const epicExpected = rows.reduce((sum, row) => sum + (row.epic_document_expected_count ?? 0), 0);
-  const epicReceived = rows.reduce((sum, row) => sum + (row.epic_document_received_count ?? 0), 0);
-  const mpwrExpected = rows.reduce((sum, row) => sum + (row.mpwr_document_expected_count ?? 0), 0);
-  const mpwrReceived = rows.reduce((sum, row) => sum + (row.mpwr_document_received_count ?? 0), 0);
-  const ohvComplete = rows.every(
-    (row) => row.business_line?.trim().toLowerCase() !== "rental" || row.ohv_certificate_uploaded === true,
-  );
+function hasOutstandingRequirements(rows: GuestPortalRow[]) {
+  return rows.some((row) => {
+    const epicOutstanding = (row.epic_document_received_count ?? 0) < (row.epic_document_expected_count ?? 0);
+    const mpwrOutstanding = (row.mpwr_document_received_count ?? 0) < (row.mpwr_document_expected_count ?? 0);
+    const ohvOutstanding = row.business_line?.trim().toLowerCase() === "rental"
+      && row.ohv_certificate_uploaded !== true;
+    return epicOutstanding || mpwrOutstanding || ohvOutstanding;
+  });
+}
 
-  if (epicReceived >= epicExpected && mpwrReceived >= mpwrExpected && ohvComplete) {
+function buildReadinessMessage(rows: GuestPortalRow[]) {
+  if (!hasOutstandingRequirements(rows)) {
     return {
       headline: "You’re Ready!",
       message: "Nicely done—your required items are complete. Review your reservation and arrival details before your adventure.",
@@ -192,20 +190,6 @@ async function loadGuestPortalRows(token: string) {
   return (await response.json()) as GuestPortalRow[];
 }
 
-async function hasOutstandingGuestActions(confirmationCode: string) {
-  const config = getSupabaseConfig();
-  const params = new URLSearchParams({
-    select: "guest_action_items",
-    confirmation_code: `eq.${confirmationCode}`,
-  });
-  const response = await fetch(`${config.url}/rest/v1/guest_portal_store_visit_v?${params}`, {
-    headers: supabaseHeaders(config.key), cache: "no-store",
-  });
-  if (!response.ok) throw new Error(`Unable to load live guest actions: ${await response.text()}`);
-  const rows = (await response.json()) as GuestActionRow[];
-  return rows.some((row) => Array.isArray(row.guest_action_items) && row.guest_action_items.length > 0);
-}
-
 async function updateCommunication(id: string, values: Record<string, unknown>) {
   const config = getSupabaseConfig();
   const response = await fetch(`${config.url}/rest/v1/guest_communications?id=eq.${encodeURIComponent(id)}`, {
@@ -259,13 +243,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, sent: false, skippedStale: communication.id });
   }
 
+  const portalRows = await loadGuestPortalRows(communication.guest_portal_token);
+  if (!portalRows.length) {
+    await updateCommunication(communication.id, {
+      status: "failed",
+      last_error: "No guest portal rows were found.",
+    });
+    return NextResponse.json({ ok: false, communicationId: communication.id, error: "No guest portal rows were found." }, { status: 500 });
+  }
+
   if (
     communication.communication_type === "arrival_readiness_two_hour" &&
-    !(await hasOutstandingGuestActions(communication.confirmation_code))
+    !hasOutstandingRequirements(portalRows)
   ) {
     await updateCommunication(communication.id, {
       status: "cancelled",
-      waiting_reason: "No outstanding guest action items",
+      waiting_reason: "No outstanding guest requirements",
       last_error: null,
     });
     return NextResponse.json({ ok: true, sent: false, skippedComplete: communication.id });
@@ -280,9 +273,6 @@ export async function POST(request: Request) {
   });
 
   try {
-    const portalRows = await loadGuestPortalRows(communication.guest_portal_token);
-    if (!portalRows.length) throw new Error("No guest portal rows were found.");
-
     const configuredMode = process.env.GUEST_EMAIL_MODE?.trim().toLowerCase() ?? "test";
     const mustUseTestRecipient = configuredMode !== "production" || communication.test_mode === true;
     const recipient = mustUseTestRecipient
