@@ -67,19 +67,18 @@ async function drainReminderQueue(origin: string) {
 }
 
 async function run(request: Request) {
-  const authorization = request.headers.get("authorization");
-  const cronSecret = requiredEnv("CRON_SECRET");
-  const senderSecret = requiredEnv("GUEST_EMAIL_SENDER_SECRET");
-
-  if (authorization !== `Bearer ${cronSecret}` && authorization !== `Bearer ${senderSecret}`) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-  }
-
-  if (denverHour() !== 8) {
-    return NextResponse.json({ ok: true, skipped: true, reason: "Not 8:00 AM America/Denver." });
-  }
-
   try {
+    const authorization = request.headers.get("authorization");
+    const cronSecret = requiredEnv("CRON_SECRET");
+
+    if (authorization !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ ok: false, error: "Unauthorized cron request." }, { status: 401 });
+    }
+
+    if (denverHour() !== 8) {
+      return NextResponse.json({ ok: true, skipped: true, reason: "Not 8:00 AM America/Denver." });
+    }
+
     const queued = await queueTomorrowReminders();
     const origin = new URL(request.url).origin;
     const sends = await drainReminderQueue(origin);
