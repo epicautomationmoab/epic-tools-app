@@ -171,7 +171,15 @@ async function updateCommunication(id: string, values: Record<string, unknown>) 
 }
 
 export async function POST(request: Request) {
-  if (request.headers.get("x-guest-email-sender-secret") !== requiredEnv("GUEST_EMAIL_SENDER_SECRET")) {
+  let senderSecret: string | null = null;
+  try {
+    const body = await request.json() as { senderSecret?: unknown };
+    senderSecret = typeof body.senderSecret === "string" ? body.senderSecret : null;
+  } catch {
+    senderSecret = null;
+  }
+
+  if (senderSecret !== requiredEnv("GUEST_EMAIL_SENDER_SECRET")) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
