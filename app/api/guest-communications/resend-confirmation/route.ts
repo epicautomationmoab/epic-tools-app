@@ -23,6 +23,7 @@ type GuestPortalRow = {
 
 const TOUR_ADDRESS = "1041 S. Main Street, Moab, UT 84532";
 const RENTAL_ADDRESS = "11860 S. Highway 191, Moab, UT 84532";
+const DEFAULT_GUEST_PORTAL_BASE_URL = "https://team.myepicreservation.com";
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -166,7 +167,8 @@ export async function POST(request: NextRequest) {
 
     const readiness = buildReadinessMessage(portalRows);
     const location = getLocation(portalRows);
-    const portalUrl = `${requiredEnv("GUEST_PORTAL_BASE_URL").replace(/\/+$/, "")}/guest/${communication.guest_portal_token}`;
+    const portalBaseUrl = (process.env.GUEST_PORTAL_BASE_URL?.trim() || DEFAULT_GUEST_PORTAL_BASE_URL).replace(/\/+$/, "");
+    const portalUrl = `${portalBaseUrl}/guest/${communication.guest_portal_token}`;
 
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
