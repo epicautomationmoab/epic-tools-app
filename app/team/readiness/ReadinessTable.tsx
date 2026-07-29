@@ -377,6 +377,13 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   >("idle");
   const [peopleError, setPeopleError] = useState("");
 
+  const [mpwrConfirmationDraft, setMpwrConfirmationDraft] = useState("");
+  const [mpwrWaiverUrlDraft, setMpwrWaiverUrlDraft] = useState("");
+  const [manualMpwrStatus, setManualMpwrStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [manualMpwrError, setManualMpwrError] = useState("");
+
   const COURTESY_CALL_STAFF = [
     "Alex",
     "Cody",
@@ -418,6 +425,11 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     setPeopleOverride(null);
     setPeopleStatus("loading");
     setPeopleError("");
+
+    setMpwrConfirmationDraft(selected.mpwr_confirmation_number ?? "");
+    setMpwrWaiverUrlDraft(selected.mpwr_reservation_url ?? "");
+    setManualMpwrStatus("idle");
+    setManualMpwrError("");
 
     let peopleRequestCancelled = false;
 
@@ -621,6 +633,54 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
         error instanceof Error
           ? error.message
           : "Unable to restore the TripWorks count.",
+      );
+    }
+  }
+
+  async function saveManualMpwrIdentity() {
+    if (!selected) return;
+
+    const confirmationNumber = mpwrConfirmationDraft.trim().toUpperCase();
+    const waiverUrl = mpwrWaiverUrlDraft.trim();
+
+    if (!confirmationNumber || !waiverUrl) {
+      setManualMpwrStatus("error");
+      setManualMpwrError("Enter both the MPWR confirmation and unique waiver link.");
+      return;
+    }
+
+    setManualMpwrStatus("saving");
+    setManualMpwrError("");
+
+    try {
+      await callReadinessRpc("save_manual_mpwr_identity", {
+        p_confirmation_code: selected.confirmation_code,
+        p_visit_start_time: selected.visit_start_time,
+        p_mpwr_confirmation_number: confirmationNumber,
+        p_mpwr_waiver_url: waiverUrl,
+      });
+
+      const updateRow = (row: ReadinessRow): ReadinessRow => ({
+        ...row,
+        mpwr_confirmation_number: confirmationNumber,
+        mpwr_reservation_url: waiverUrl,
+      });
+
+      setLocalRows((current) =>
+        current.map((row) =>
+          row.readiness_id === selected.readiness_id ? updateRow(row) : row,
+        ),
+      );
+      setSelected((current) => (current ? updateRow(current) : current));
+      setMpwrConfirmationDraft(confirmationNumber);
+      setMpwrWaiverUrlDraft(waiverUrl);
+      setManualMpwrStatus("saved");
+    } catch (error) {
+      setManualMpwrStatus("error");
+      setManualMpwrError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save the MPWR information.",
       );
     }
   }
@@ -1303,86 +1363,6 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                 )}
               </div>
 
-              <div
-                className={`${styles.drawerFactWide} ${styles.peopleCountCard}`}
-              >
-                <div className={styles.peopleCountHeader}>
-                  <span>How many people?</span>
-                  {peopleOverride?.override_active ? (
-                    <small className={styles.overrideBadge}>Epic override</small>
-                  ) : (
-                    <small className={styles.tripWorksBadge}>TripWorks</small>
-                  )}
-                </div>
-
-                <div className={styles.peopleCountEditRow}>
-                  <input
-                    className={styles.peopleCountInput}
-                    type="number"
-                    min="0"
-                    step="1"
-                    inputMode="numeric"
-                    value={peopleDraft}
-                    onChange={(event) => {
-                      setPeopleDraft(event.target.value);
-                      setPeopleStatus("idle");
-                      setPeopleError("");
-                    }}
-                    aria-label="How many people"
-                  />
-
-                  <button
-                    type="button"
-                    className={styles.peopleCountSaveButton}
-                    disabled={peopleStatus === "saving" || peopleStatus === "loading"}
-                    onClick={savePeopleCount}
-                  >
-                    {peopleStatus === "saving" ? "Saving..." : "Save"}
-                  </button>
-
-                  {peopleOverride?.override_active ? (
-                    <button
-                      type="button"
-                      className={styles.peopleCountRestoreButton}
-                      disabled={peopleStatus === "saving"}
-                      onClick={restoreTripWorksPeopleCount}
-                    >
-                      Restore TripWorks count
-                    </button>
-                  ) : null}
-                </div>
-
-                <input
-                  className={styles.peopleCountReasonInput}
-                  value={peopleReason}
-                  onChange={(event) => {
-                    setPeopleReason(event.target.value);
-                    setPeopleStatus("idle");
-                  }}
-                  placeholder="Optional reason for adjustment"
-                  aria-label="Reason for people-count adjustment"
-                />
-
-                {peopleOverride?.override_active ? (
-                  <small className={styles.peopleCountSourceNote}>
-                    TripWorks originally supplied{" "}
-                    {peopleOverride.source_count_at_override ?? "an unknown count"}.
-                    This Epic Tools count will remain in effect until restored.
-                  </small>
-                ) : (
-                  <small className={styles.peopleCountSourceNote}>
-                    Saving a different count creates a durable Epic Tools override.
-                  </small>
-                )}
-
-                {peopleStatus === "saved" ? (
-                  <small className={styles.peopleCountSaved}>Saved</small>
-                ) : null}
-
-                {peopleStatus === "error" ? (
-                  <small className={styles.peopleCountError}>{peopleError}</small>
-                ) : null}
-              </div>
             </section>
 
             {selected.business_line === "rental" &&
@@ -1870,6 +1850,158 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                   No MPWR waiver records were received.
                 </p>
               )}
+            </section>
+
+            <section
+              className={`${styles.drawerSection} ${styles.peopleCountSection}`}
+            >
+              <h3>People Count</h3>
+              <div
+                className={`${styles.drawerFactWide} ${styles.peopleCountCard}`}
+              >
+                <div className={styles.peopleCountHeader}>
+                  <span>How many people?</span>
+                  {peopleOverride?.override_active ? (
+                    <small className={styles.overrideBadge}>Epic override</small>
+                  ) : (
+                    <small className={styles.tripWorksBadge}>TripWorks</small>
+                  )}
+                </div>
+
+                <div className={styles.peopleCountEditRow}>
+                  <input
+                    className={styles.peopleCountInput}
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    value={peopleDraft}
+                    onChange={(event) => {
+                      setPeopleDraft(event.target.value);
+                      setPeopleStatus("idle");
+                      setPeopleError("");
+                    }}
+                    aria-label="How many people"
+                  />
+
+                  <button
+                    type="button"
+                    className={styles.peopleCountSaveButton}
+                    disabled={peopleStatus === "saving" || peopleStatus === "loading"}
+                    onClick={savePeopleCount}
+                  >
+                    {peopleStatus === "saving" ? "Saving..." : "Save"}
+                  </button>
+
+                  {peopleOverride?.override_active ? (
+                    <button
+                      type="button"
+                      className={styles.peopleCountRestoreButton}
+                      disabled={peopleStatus === "saving"}
+                      onClick={restoreTripWorksPeopleCount}
+                    >
+                      Restore TripWorks count
+                    </button>
+                  ) : null}
+                </div>
+
+                <input
+                  className={styles.peopleCountReasonInput}
+                  value={peopleReason}
+                  onChange={(event) => {
+                    setPeopleReason(event.target.value);
+                    setPeopleStatus("idle");
+                  }}
+                  placeholder="Optional reason for adjustment"
+                  aria-label="Reason for people-count adjustment"
+                />
+
+                {peopleOverride?.override_active ? (
+                  <small className={styles.peopleCountSourceNote}>
+                    TripWorks originally supplied{" "}
+                    {peopleOverride.source_count_at_override ?? "an unknown count"}.
+                    This Epic Tools count will remain in effect until restored.
+                  </small>
+                ) : (
+                  <small className={styles.peopleCountSourceNote}>
+                    Saving a different count creates a durable Epic Tools override.
+                  </small>
+                )}
+
+                {peopleStatus === "saved" ? (
+                  <small className={styles.peopleCountSaved}>Saved</small>
+                ) : null}
+
+                {peopleStatus === "error" ? (
+                  <small className={styles.peopleCountError}>{peopleError}</small>
+                ) : null}
+              </div>
+
+            </section>
+
+            <section className={styles.drawerSection}>
+              <details className={styles.manualMpwrRecovery}>
+                <summary>Manual MPWR Recovery</summary>
+                <div className={styles.manualMpwrRecoveryBody}>
+                  <p>
+                    Use only when the reservation already exists in MPWR but its
+                    confirmation and unique waiver link did not reach Guest Readiness.
+                  </p>
+
+                  <label className={styles.manualMpwrField}>
+                    <span>MPWR Confirmation</span>
+                    <input
+                      value={mpwrConfirmationDraft}
+                      onChange={(event) => {
+                        setMpwrConfirmationDraft(event.target.value);
+                        setManualMpwrStatus("idle");
+                        setManualMpwrError("");
+                      }}
+                      placeholder="CO-ABC-123"
+                      autoCapitalize="characters"
+                    />
+                  </label>
+
+                  <label className={styles.manualMpwrField}>
+                    <span>MPWR Unique Waiver Link</span>
+                    <input
+                      type="url"
+                      value={mpwrWaiverUrlDraft}
+                      onChange={(event) => {
+                        setMpwrWaiverUrlDraft(event.target.value);
+                        setManualMpwrStatus("idle");
+                        setManualMpwrError("");
+                      }}
+                      placeholder="https://adventures.polaris.com/join/..."
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    className={styles.manualMpwrSaveButton}
+                    onClick={saveManualMpwrIdentity}
+                    disabled={
+                      manualMpwrStatus === "saving" ||
+                      !mpwrConfirmationDraft.trim() ||
+                      !mpwrWaiverUrlDraft.trim()
+                    }
+                  >
+                    {manualMpwrStatus === "saving"
+                      ? "Saving..."
+                      : "Save MPWR Information"}
+                  </button>
+
+                  {manualMpwrStatus === "saved" ? (
+                    <p className={styles.manualMpwrSuccess}>
+                      MPWR information saved and Guest Readiness refreshed.
+                    </p>
+                  ) : null}
+
+                  {manualMpwrStatus === "error" ? (
+                    <p className={styles.manualMpwrError}>{manualMpwrError}</p>
+                  ) : null}
+                </div>
+              </details>
             </section>
           </aside>
         </div>

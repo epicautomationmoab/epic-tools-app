@@ -1557,3 +1557,111 @@
 .peopleCountError {
   color: #b42318;
 }
+
+/* Bottom-of-drawer people count and manual MPWR recovery */
+.peopleCountSection {
+  margin-left: -2px;
+  margin-right: -2px;
+  padding: 14px;
+  border: 1px solid #eadfae;
+  border-radius: 12px;
+  background: #fffbea;
+}
+
+.peopleCountSection h3 {
+  color: #765d00;
+  font-weight: 900;
+}
+
+.peopleCountSection .peopleCountCard {
+  grid-column: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.manualMpwrRecovery {
+  overflow: hidden;
+  border: 1px solid #d9e4f0;
+  border-radius: 12px;
+  background: #f3f7fc;
+}
+
+.manualMpwrRecovery > summary {
+  padding: 14px;
+  color: #245d86;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.manualMpwrRecoveryBody {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+
+.manualMpwrRecoveryBody > p {
+  margin: 0;
+  color: #667181;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.manualMpwrField {
+  display: grid;
+  gap: 6px;
+}
+
+.manualMpwrField span {
+  color: #48515c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.manualMpwrField input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 40px;
+  border: 1px solid #cbdbe8;
+  border-radius: 8px;
+  background: #fff;
+  color: #202733;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.manualMpwrSaveButton {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 9px;
+  background: #245d86;
+  color: #fff;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.manualMpwrSaveButton:disabled {
+  background: #d5d9df;
+  color: #7f8994;
+  cursor: not-allowed;
+}
+
+.manualMpwrSuccess,
+.manualMpwrError {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.manualMpwrSuccess {
+  color: #16834a;
+}
+
+.manualMpwrError {
+  color: #b42318;
+}
