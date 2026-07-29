@@ -114,22 +114,37 @@ function getLocation(rows: GuestPortalRow[]) {
   };
 }
 
-async function loadNextCommunication() {
+async function fetchOneCommunication(params: URLSearchParams) {
   const config = getSupabaseConfig();
-  const params = new URLSearchParams({
-    select: "*",
-    status: "eq.scheduled",
-    scheduled_for: `lte.${new Date().toISOString()}`,
-    customer_email: "not.is.null",
-    order: "scheduled_for.asc",
-    limit: "1",
-  });
   const response = await fetch(`${config.url}/rest/v1/guest_communications?${params}`, {
     headers: supabaseHeaders(config.key), cache: "no-store",
   });
   if (!response.ok) throw new Error(`Unable to load communication queue: ${await response.text()}`);
   const rows = (await response.json()) as CommunicationRow[];
   return rows[0] ?? null;
+}
+
+async function loadNextCommunication() {
+  const dueReminder = await fetchOneCommunication(new URLSearchParams({
+    select: "*",
+    communication_type: "eq.arrival_reminder_day_before",
+    status: "eq.scheduled",
+    scheduled_for: `lte.${new Date().toISOString()}`,
+    customer_email: "not.is.null",
+    order: "scheduled_for.asc",
+    limit: "1",
+  }));
+
+  if (dueReminder) return dueReminder;
+
+  return fetchOneCommunication(new URLSearchParams({
+    select: "*",
+    communication_type: "eq.initial_guest_portal",
+    status: "eq.ready",
+    customer_email: "not.is.null",
+    order: "ready_at.asc,queued_at.asc",
+    limit: "1",
+  }));
 }
 
 async function loadGuestPortalRows(token: string) {
@@ -162,7 +177,7 @@ export async function POST(request: Request) {
 
   const communication = await loadNextCommunication();
   if (!communication) {
-    return NextResponse.json({ ok: true, sent: false, message: "No scheduled communications are ready." });
+    return NextResponse.json({ ok: true, sent: false, message: "No communications are ready." });
   }
 
   if (
