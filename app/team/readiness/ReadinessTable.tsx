@@ -81,6 +81,13 @@ function mpwrCounts(row: ReadinessRow) {
   return { received, expected };
 }
 
+function isRetrievingMpwrWaivers(row: ReadinessRow) {
+  const observedCount = mpwrCounts(row).received;
+  const savedDetailCount = row.mpwr_waivers?.length ?? 0;
+
+  return observedCount > savedDetailCount;
+}
+
 function statusClass(received: number, expected: number) {
   if (expected === 0) return styles.good;
   if (received >= expected) return styles.good;
@@ -1224,8 +1231,20 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                   {mpwrCounts(selected).received}/
                   {mpwrCounts(selected).expected}
                 </strong>
-              </div>
 
+                {isRetrievingMpwrWaivers(selected) ? (
+                 <small
+                   style={{
+                     display: "block",
+                     marginTop: 4,
+                     fontWeight: 700,
+                     color: "#8a5a00",
+                  }}
+                 >
+                  Retrieving waiver details…
+                </small>
+                ) : null}
+              </div>
               <div>
                 <span>Adventure Assure</span>
                 <strong>{adventureAssureLabel(selected)}</strong>
