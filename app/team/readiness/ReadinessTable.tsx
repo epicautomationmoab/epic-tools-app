@@ -667,9 +667,8 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     setManualMpwrError("");
 
     try {
-      await callReadinessRpc("save_manual_mpwr_identity", {
+      await callReadinessRpc("manual_override_mpwr_information", {
         p_confirmation_code: selected.confirmation_code,
-        p_visit_start_time: selected.visit_start_time,
         p_mpwr_confirmation_number: confirmationNumber,
         p_mpwr_waiver_url: waiverUrl,
       });
