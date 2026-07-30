@@ -1873,7 +1873,9 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
                 </div>
               ) : (
                 <p className={styles.drawerEmpty}>
-                  No MPWR waiver records were received.
+                  {isRetrievingMpwrWaivers(selected)
+                    ? "Retrieving waivers..."
+                    : "No MPWR waiver records were received."}
                 </p>
               )}
             </section>
