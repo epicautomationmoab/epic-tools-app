@@ -667,11 +667,15 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     setManualMpwrError("");
 
     try {
-      await callReadinessRpc("manual_override_mpwr_information", {
-        p_confirmation_code: selected.confirmation_code,
-        p_mpwr_confirmation_number: confirmationNumber,
-        p_mpwr_waiver_url: waiverUrl,
-      });
+      if (!selected.readiness_id) {
+  throw new Error("This Store Visit is missing its readiness ID.");
+}
+
+await callReadinessRpc("manual_override_mpwr_information", {
+  p_readiness_id: selected.readiness_id,
+  p_mpwr_confirmation_number: confirmationNumber,
+  p_mpwr_waiver_url: waiverUrl,
+});
 
       const updateRow = (row: ReadinessRow): ReadinessRow => ({
         ...row,
