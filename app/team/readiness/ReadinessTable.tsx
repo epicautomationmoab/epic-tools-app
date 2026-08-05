@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReadinessRow, VehicleBreakdownItem } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
+import CancellationAgreementPanel from "./CancellationAgreementPanel";
 
 type TimeFilter = "all" | "today" | "tomorrow";
 type Filter = "all" | "rental" | "tour";
@@ -1394,6 +1395,8 @@ await callReadinessRpc("manual_override_mpwr_information", {
               </div>
 
             </section>
+
+            <CancellationAgreementPanel row={selected} />
 
             {selected.business_line === "rental" &&
             validVehicleBreakdown(selected).length ? (
