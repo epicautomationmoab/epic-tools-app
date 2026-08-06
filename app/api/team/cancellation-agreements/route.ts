@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
     });
     requestId = created.id;
 
-    const baseUrl = (process.env.AGREEMENT_BASE_URL?.trim() || "https://team.myepicreservation.com").replace(/\/+$/, "");
+    const baseUrl = (process.env.AGREEMENT_BASE_URL?.trim() || request.nextUrl.origin).replace(/\/+$/, "");
     const agreementUrl = `${baseUrl}/a/${token}`;
     const detailedMessage = `Epic 4X4: Sign cancellation terms for ${readiness.confirmation_code}: ${agreementUrl}`;
     const message = detailedMessage.length <= 140 ? detailedMessage : `Epic 4X4: Sign terms: ${agreementUrl}`;
