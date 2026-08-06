@@ -8,7 +8,7 @@ type AgreementRow = {
   customer_name: string;
   visit_summary: string;
   amount_due_cents: number | null;
-  tripsafe_status: "declined" | "purchased";
+  tripsafe_status: "declined" | "purchased" | "confirmed_within_48";
   policy_version: string;
   policy_title: string;
   policy_summary: string;

@@ -9,7 +9,7 @@ type Agreement = {
   customer_name: string;
   visit_summary: string;
   amount_due_cents: number | null;
-  tripsafe_status: "declined" | "purchased";
+  tripsafe_status: "declined" | "purchased" | "confirmed_within_48";
   policy_title: string;
   policy_summary: string;
   policy_paragraphs: string[];
@@ -17,6 +17,25 @@ type Agreement = {
   status: string;
   accepted_at: string | null;
 };
+
+function completionCopy(status: Agreement["tripsafe_status"]) {
+  if (status === "purchased") {
+    return {
+      title: "TripSafe Terms Accepted",
+      body: "Your acceptance of the TripSafe Travel Protection terms has been recorded.",
+    };
+  }
+  if (status === "confirmed_within_48") {
+    return {
+      title: "Reservation Terms Accepted",
+      body: "Your acceptance of the confirmed, nonrefundable reservation terms has been recorded.",
+    };
+  }
+  return {
+    title: "48-Hour Policy Accepted",
+    body: "Your acceptance of the 48-hour cancellation and no-show policy has been recorded.",
+  };
+}
 
 function SignaturePad({ onChange }: { onChange: (value: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -160,8 +179,9 @@ export default function AgreementPage() {
         {!loading && agreement && complete ? (
           <div className={styles.complete}>
             <span aria-hidden="true">✓</span>
-            <h1>Agreement accepted</h1>
-            <p>Your acceptance for reservation <strong>{agreement.confirmation_code}</strong> has been recorded.</p>
+            <h1>{completionCopy(agreement.tripsafe_status).title}</h1>
+            <p>{completionCopy(agreement.tripsafe_status).body}</p>
+            <p>Reservation <strong>{agreement.confirmation_code}</strong></p>
             <small>You may close this page.</small>
           </div>
         ) : null}

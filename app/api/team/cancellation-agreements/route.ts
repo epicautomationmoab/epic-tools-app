@@ -131,8 +131,8 @@ export async function POST(request: NextRequest) {
   const deliveryMode = ["sms", "email", "both", "copy"].includes(body.deliveryMode ?? "")
     ? body.deliveryMode as "sms" | "email" | "both" | "copy"
     : "copy";
-  if (!readinessId || !sentBy || !["declined", "purchased"].includes(tripSafeStatus ?? "")) {
-    return NextResponse.json({ error: "Reservation, team member, and TripSafe status are required." }, { status: 400 });
+  if (!readinessId || !sentBy || !["declined", "purchased", "confirmed_within_48"].includes(tripSafeStatus ?? "")) {
+    return NextResponse.json({ error: "Reservation, team member, and agreement type are required." }, { status: 400 });
   }
 
   let requestId: string | null = null;

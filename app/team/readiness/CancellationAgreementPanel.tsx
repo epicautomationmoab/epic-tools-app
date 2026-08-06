@@ -7,7 +7,7 @@ import styles from "./CancellationAgreementPanel.module.css";
 type AgreementStatus = {
   id: string;
   status: "created" | "sent" | "opened" | "accepted" | "failed" | "expired";
-  tripsafe_status: "declined" | "purchased";
+  tripsafe_status: "declined" | "purchased" | "confirmed_within_48";
   delivery_mode: "sms" | "email" | "both" | "copy";
   sent_by: string;
   sent_at: string | null;
@@ -30,7 +30,7 @@ function statusLabel(status: AgreementStatus["status"]) {
 
 export default function CancellationAgreementPanel({ row }: { row: ReadinessRow }) {
   const [agreement, setAgreement] = useState<AgreementStatus | null>(null);
-  const [tripSafeStatus, setTripSafeStatus] = useState<"declined" | "purchased">("declined");
+  const [tripSafeStatus, setTripSafeStatus] = useState<"declined" | "purchased" | "confirmed_within_48">("declined");
   const [sentBy, setSentBy] = useState("");
   const [phone, setPhone] = useState(row.customer_phone || "");
   const [email, setEmail] = useState(row.customer_email || "");
@@ -131,7 +131,11 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
           <span>
             {agreement.status === "accepted"
               ? `${agreement.signer_name || row.customer_name} · ${agreement.accepted_at ? new Date(agreement.accepted_at).toLocaleString() : "recorded"}`
-              : `${agreement.tripsafe_status === "purchased" ? "TripSafe purchased" : "TripSafe declined"} · sent by ${agreement.sent_by}`}
+              : `${agreement.tripsafe_status === "purchased"
+                ? "TripSafe purchased — 1-hour policy"
+                : agreement.tripsafe_status === "confirmed_within_48"
+                  ? "Confirmed within 48 hours — nonrefundable"
+                  : "TripSafe declined — 48-hour policy"} · sent by ${agreement.sent_by}`}
           </span>
           {agreement.status === "opened" ? <small>Keep the guest on the phone—they have the agreement open.</small> : null}
           {agreement.last_error ? <small className={styles.error}>{agreement.last_error}</small> : null}
@@ -149,10 +153,11 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
             <input value={email} onChange={(event) => setEmail(event.target.value)} inputMode="email" placeholder="guest@example.com" />
           </label>
           <label>
-            <span>TripSafe</span>
-            <select value={tripSafeStatus} onChange={(event) => setTripSafeStatus(event.target.value as "declined" | "purchased")}>
-              <option value="declined">Declined</option>
-              <option value="purchased">Purchased</option>
+            <span>Agreement type</span>
+            <select value={tripSafeStatus} onChange={(event) => setTripSafeStatus(event.target.value as "declined" | "purchased" | "confirmed_within_48")}>
+              <option value="declined">TripSafe Declined — 48-Hour Policy</option>
+              <option value="purchased">TripSafe Purchased — 1-Hour Policy</option>
+              <option value="confirmed_within_48">Confirmed Within 48 Hours — Nonrefundable</option>
             </select>
           </label>
           <label>
