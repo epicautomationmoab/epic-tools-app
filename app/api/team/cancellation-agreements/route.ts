@@ -6,7 +6,7 @@ import {
   type TripSafeStatus,
 } from "@/lib/cancellation-policy";
 import { agreementEmailConfigured, sendAgreementEmail } from "@/lib/server/agreement-email";
-import { callRailConfigured, sendCallRailSms } from "@/lib/server/callrail";
+import { podiumConnected, sendPodiumSms } from "@/lib/server/podium";
 import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
 
 type ReadinessRecord = {
@@ -32,7 +32,7 @@ type AgreementRequest = {
   sent_at: string | null;
   opened_at: string | null;
   accepted_at: string | null;
-  callrail_delivery_status: string | null;
+  podium_delivery_status: string | null;
   email_delivery_status: string | null;
   delivery_mode: "sms" | "email" | "both" | "copy";
   last_error: string | null;
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     const rows = await supabaseSelect<AgreementRequest>(
       "cancellation_agreement_requests",
       new URLSearchParams({
-        select: "id,readiness_id,confirmation_code,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,callrail_delivery_status,email_delivery_status,delivery_mode,last_error,created_at",
+        select: "id,readiness_id,confirmation_code,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,podium_delivery_status,email_delivery_status,delivery_mode,last_error,created_at",
         readiness_id: `eq.${readinessId}`,
         order: "created_at.desc",
         limit: "1",
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({
       agreement: agreement ? { ...agreement, signer_name: signerName } : null,
-      callRailConfigured: callRailConfigured(),
+      podiumConfigured: await podiumConnected(),
       emailConfigured: agreementEmailConfigured(),
     });
   } catch (error) {
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
     const email = emailInput ? normalizeEmail(emailInput) : null;
     if (needsText && !phone) return NextResponse.json({ error: "Enter a mobile phone number for text delivery." }, { status: 409 });
     if (needsEmail && !email) return NextResponse.json({ error: "Enter an email address for email delivery." }, { status: 409 });
-    if (needsText && !callRailConfigured()) return NextResponse.json({ error: "CallRail is not connected yet. Use Email or Copy Link." }, { status: 409 });
+    if (needsText && !await podiumConnected()) return NextResponse.json({ error: "Podium is not connected yet. Use Email or Copy Link." }, { status: 409 });
     if (needsEmail && !agreementEmailConfigured()) return NextResponse.json({ error: "Agreement email delivery is not configured." }, { status: 409 });
 
     const token = randomBytes(32).toString("base64url");
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
     });
     requestId = created.id;
 
-    const baseUrl = (process.env.AGREEMENT_BASE_URL?.trim() || request.nextUrl.origin).replace(/\/+$/, "");
+    const baseUrl = (process.env.AGREEMENT_BASE_URL?.trim() || "https://epic-tools-app.vercel.app").replace(/\/+$/, "");
     const agreementUrl = `${baseUrl}/a/${token}`;
     const detailedMessage = `Epic 4X4: Sign cancellation terms for ${readiness.confirmation_code}: ${agreementUrl}`;
     const message = detailedMessage.length <= 140 ? detailedMessage : `Epic 4X4: Sign terms: ${agreementUrl}`;
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
     }
 
     const [textDelivery, emailDelivery] = await Promise.allSettled([
-      needsText ? sendCallRailSms({ phone: phone!, body: message }) : Promise.resolve(null),
+      needsText ? sendPodiumSms({ phone: phone!, body: message, contactName: readiness.customer_name, senderName: sentBy }) : Promise.resolve(null),
       needsEmail
         ? sendAgreementEmail({
             email: email!,
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
           })
         : Promise.resolve(null),
     ]);
-    const callRailResult = textDelivery.status === "fulfilled" ? textDelivery.value : null;
+    const podiumResult = textDelivery.status === "fulfilled" ? textDelivery.value : null;
     const emailResult = emailDelivery.status === "fulfilled" ? emailDelivery.value : null;
     const deliveryErrors: string[] = [];
     if (textDelivery.status === "rejected") {
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
     if (emailDelivery.status === "rejected") {
       deliveryErrors.push(`Email: ${emailDelivery.reason instanceof Error ? emailDelivery.reason.message : "failed"}`);
     }
-    if (!callRailResult && !emailResult) throw new Error(deliveryErrors.join(" ") || "Agreement delivery failed.");
+    if (!podiumResult && !emailResult) throw new Error(deliveryErrors.join(" ") || "Agreement delivery failed.");
 
     await supabasePatch(
       "cancellation_agreement_requests",
@@ -223,8 +223,8 @@ export async function POST(request: NextRequest) {
       {
         status: "sent",
         sent_at: new Date().toISOString(),
-        callrail_conversation_id: callRailResult?.conversationId ?? null,
-        callrail_delivery_status: callRailResult ? "sent" : null,
+        podium_message_uid: podiumResult?.messageUid ?? null,
+        podium_delivery_status: podiumResult?.deliveryStatus ?? null,
         resend_message_id: emailResult?.messageId ?? null,
         email_delivery_status: emailResult ? "sent" : null,
         last_error: deliveryErrors.length ? deliveryErrors.join(" ") : null,

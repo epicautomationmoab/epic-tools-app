@@ -39,7 +39,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   const [sending, setSending] = useState(false);
   const [copying, setCopying] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [callRailConfigured, setCallRailConfigured] = useState(false);
+  const [podiumConfigured, setPodiumConfigured] = useState(false);
   const [emailConfigured, setEmailConfigured] = useState(false);
   const [error, setError] = useState("");
 
@@ -50,15 +50,15 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
       const response = await fetch(`/api/team/cancellation-agreements?readinessId=${encodeURIComponent(row.readiness_id)}`, { cache: "no-store" });
       const data = (await response.json()) as {
         agreement?: AgreementStatus | null;
-        callRailConfigured?: boolean;
+        podiumConfigured?: boolean;
         emailConfigured?: boolean;
         error?: string;
       };
       if (!response.ok) throw new Error(data.error || "Unable to load agreement status.");
       setAgreement(data.agreement ?? null);
-      setCallRailConfigured(data.callRailConfigured === true);
+      setPodiumConfigured(data.podiumConfigured === true);
       setEmailConfigured(data.emailConfigured === true);
-      if (data.callRailConfigured === true && data.emailConfigured !== true) setDeliveryMode("sms");
+      if (data.podiumConfigured === true && data.emailConfigured !== true) setDeliveryMode("sms");
       setError("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load agreement status.");
@@ -158,9 +158,9 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
           <label>
             <span>Delivery</span>
             <select value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value as "sms" | "email" | "both")}>
-              {callRailConfigured ? <option value="sms">Text</option> : null}
+              {podiumConfigured ? <option value="sms">Text</option> : null}
               {emailConfigured ? <option value="email">Email</option> : null}
-              {callRailConfigured && emailConfigured ? <option value="both">Text + Email</option> : null}
+              {podiumConfigured && emailConfigured ? <option value="both">Text + Email</option> : null}
             </select>
           </label>
           <label>
@@ -170,7 +170,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
               {TEAM.map((name) => <option key={name} value={name}>{name}</option>)}
             </select>
           </label>
-          {callRailConfigured || emailConfigured ? (
+          {podiumConfigured || emailConfigured ? (
             <button type="button" disabled={sending || copying} onClick={() => void createAgreement(deliveryMode)}>
               {sending ? "Sending…" : "Send Agreement"}
             </button>

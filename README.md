@@ -25,25 +25,26 @@ The app reads:
 
 ## Cancellation Agreement
 
-EpicTools can send a reservation-specific cancellation agreement through CallRail SMS, Resend email, both channels, or a copied secure link. The guest opens the link, accepts the applicable TripSafe policy, signs on their phone, and the dashboard displays the result.
+EpicTools can send a reservation-specific cancellation agreement through Podium text, Resend email, both channels, or a copied secure link. The guest opens the link, accepts the applicable TripSafe policy, signs on their phone, and the dashboard displays the result.
 
 Before deployment:
 
 1. Apply `supabase/migrations/20260805_cancellation_agreements.sql` to the Epic Supabase project.
-2. Create a dedicated CallRail API V3 key with **Allow Writes** enabled and select one SMS-enabled CallRail tracking number for agreement delivery.
+2. Create a Podium Developer application with the `read_locations`, `write_messages`, and `read_messages` scopes. Use `https://epic-tools-app.vercel.app/api/podium/oauth/callback` as its redirect URL.
 3. Add these server-only variables in Vercel:
 
 ```bash
-CALLRAIL_API_KEY=
-CALLRAIL_ACCOUNT_NUMERIC_ID=
-CALLRAIL_COMPANY_NUMERIC_ID=
-CALLRAIL_TRACKING_NUMBER=+14355551234
-AGREEMENT_BASE_URL=https://team.myepicreservation.com
+PODIUM_CLIENT_ID=
+PODIUM_CLIENT_SECRET=
+PODIUM_REDIRECT_URI=https://epic-tools-app.vercel.app/api/podium/oauth/callback
+AGREEMENT_BASE_URL=https://epic-tools-app.vercel.app
 ```
 
-Never prefix CallRail credentials with `NEXT_PUBLIC_` or commit their values. Existing Resend email variables, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `EPIC_PREVIEW_TOKEN` variables are also required.
+Never prefix Podium credentials with `NEXT_PUBLIC_` or commit their values. Existing Resend email variables, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `EPIC_PREVIEW_TOKEN` variables are also required.
 
-Until CallRail SMS is fully configured, staff can send through Resend email or use **Copy Link** in the reservation drawer. Every delivery method uses the same secure link and evidence workflow.
+4. After deploying, sign in to EpicTools once and open `/api/podium/oauth/start` to connect the Epic Podium account.
+
+Until Podium is connected, staff can send through Resend email or use **Copy Link** in the reservation drawer. Every delivery method uses the same secure link and evidence workflow.
 
 ## Development
 
