@@ -38,6 +38,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [podiumConfigured, setPodiumConfigured] = useState(false);
   const [emailConfigured, setEmailConfigured] = useState(false);
@@ -111,7 +112,27 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
     }
   }
 
+  async function resetAgreement() {
+    if (!row.readiness_id || !window.confirm("Reset this agreement? The current link will stop working and the Send controls will return.")) return;
+    setResetting(true);
+    setError("");
+    setCopied(false);
+    try {
+      const response = await fetch(`/api/team/cancellation-agreements?readinessId=${encodeURIComponent(row.readiness_id)}`, {
+        method: "DELETE",
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "Unable to reset agreement.");
+      await loadStatus(true);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to reset agreement.");
+    } finally {
+      setResetting(false);
+    }
+  }
+
   const canSend = !agreement || ["failed", "expired"].includes(agreement.status);
+  const canReset = Boolean(agreement && ["created", "sent", "opened"].includes(agreement.status));
 
   return (
     <section className={styles.panel}>
@@ -139,6 +160,11 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
           </span>
           {agreement.status === "opened" ? <small>Keep the guest on the phone—they have the agreement open.</small> : null}
           {agreement.last_error ? <small className={styles.error}>{agreement.last_error}</small> : null}
+          {canReset ? (
+            <button type="button" className={styles.resetButton} disabled={resetting} onClick={() => void resetAgreement()}>
+              {resetting ? "Resetting…" : "Reset agreement"}
+            </button>
+          ) : null}
         </div>
       ) : null}
 
