@@ -39,6 +39,13 @@ type AgreementRequest = {
   created_at: string;
 };
 
+const REVIEW_TIMEOUT_MS = 15 * 60 * 1000;
+
+function reviewTimedOut(agreement: AgreementRequest) {
+  if (agreement.status !== "opened" || !agreement.opened_at) return false;
+  return new Date(agreement.opened_at).getTime() + REVIEW_TIMEOUT_MS <= Date.now();
+}
+
 function isAuthorized(request: NextRequest) {
   const previewToken = process.env.EPIC_PREVIEW_TOKEN;
   return Boolean(previewToken && request.cookies.get("epic_preview_access")?.value === previewToken);
@@ -90,6 +97,14 @@ export async function GET(request: NextRequest) {
       }),
     );
     const agreement = rows[0] ?? null;
+    if (agreement && reviewTimedOut(agreement)) {
+      await supabasePatch(
+        "cancellation_agreement_requests",
+        new URLSearchParams({ id: `eq.${agreement.id}`, status: "eq.opened" }),
+        { status: "expired", updated_at: new Date().toISOString() },
+      );
+      agreement.status = "expired";
+    }
     let signerName: string | null = null;
     if (agreement?.status === "accepted") {
       const acceptances = await supabaseSelect<{ signer_name: string }>(
@@ -105,6 +120,40 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load agreement status." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!isAuthorized(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
+  if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
+
+  try {
+    const rows = await supabaseSelect<Pick<AgreementRequest, "id" | "status">>(
+      "cancellation_agreement_requests",
+      new URLSearchParams({
+        select: "id,status",
+        readiness_id: `eq.${readinessId}`,
+        order: "created_at.desc",
+        limit: "1",
+      }),
+    );
+    const agreement = rows[0] ?? null;
+    if (!agreement) return NextResponse.json({ error: "Agreement was not found." }, { status: 404 });
+    if (agreement.status === "accepted") {
+      return NextResponse.json({ error: "Accepted agreements cannot be reset." }, { status: 409 });
+    }
+
+    if (["created", "sent", "opened"].includes(agreement.status)) {
+      await supabasePatch(
+        "cancellation_agreement_requests",
+        new URLSearchParams({ id: `eq.${agreement.id}`, status: "in.(created,sent,opened)" }),
+        { status: "expired", updated_at: new Date().toISOString() },
+      );
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to reset agreement." }, { status: 500 });
   }
 }
 
