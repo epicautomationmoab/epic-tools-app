@@ -10,6 +10,8 @@
 .statusCard { display: grid; gap: 4px; margin-top: 14px; padding: 13px; border-radius: 9px; background: #f6f8fa; }
 .statusCard strong { color: #202733; font-size: 14px; }
 .statusCard span, .statusCard small, .muted { color: #68717c; font-size: 12px; line-height: 1.45; }
+.resetButton { justify-self: start; margin-top: 6px; padding: 7px 10px; border: 1px solid #bf452d; border-radius: 7px; background: #fff; color: #a33f2b; font-size: 11px; font-weight: 900; cursor: pointer; }
+.resetButton:disabled { opacity: .55; cursor: not-allowed; }
 .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; margin-top: 15px; }
 .controls label { display: grid; gap: 5px; color: #56606a; font-size: 11px; font-weight: 800; }
 .controls select, .controls input { width: 100%; height: 38px; min-width: 0; padding: 0 9px; border: 1px solid #d5dbe1; border-radius: 8px; background: #fff; color: #202733; font-weight: 700; box-sizing: border-box; }
