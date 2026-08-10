@@ -15,7 +15,7 @@ type TeamProfile = {
 export default function InviteTeamPanel() {
   const [profiles, setProfiles] = useState<TeamProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [workingEmail, setWorkingEmail] = useState("");
+  const [workingKey, setWorkingKey] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -38,37 +38,41 @@ export default function InviteTeamPanel() {
     void loadProfiles();
   }, []);
 
-  async function invite(email: string, displayName: string) {
-    setWorkingEmail(email);
+  async function manageAuth(profile: TeamProfile, action: "invite" | "reset_password") {
+    const key = `${action}:${profile.email}`;
+    setWorkingKey(key);
     setMessage("");
     setError("");
     try {
       const response = await fetch("/api/admin/team-invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: profile.email, action }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Unable to send invitation.");
+      if (!response.ok) throw new Error(payload.error || "Unable to manage employee account.");
+
       setMessage(
-        payload.alreadyLinked
-          ? `${displayName} already has a linked Supabase Auth account.`
-          : `Invitation sent to ${displayName}.`,
+        action === "reset_password"
+          ? `Password reset sent to ${profile.display_name}.`
+          : payload.alreadyLinked
+            ? `${profile.display_name} already has a linked Supabase Auth account.`
+            : `Invitation sent to ${profile.display_name}.`,
       );
       await loadProfiles();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to send invitation.");
+      setError(err instanceof Error ? err.message : "Unable to manage employee account.");
     } finally {
-      setWorkingEmail("");
+      setWorkingKey("");
     }
   }
 
   return (
-    <div style={{ width: "100%", maxWidth: 900 }}>
+    <div style={{ width: "100%", maxWidth: 980 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ marginBottom: 8 }}>EpicTools Employee Auth Setup</h1>
         <p style={{ margin: 0, color: "#667085" }}>
-          Jennifer is the pilot account. Do not invite the rest of the team or Reception until the shared-workstation flow is verified.
+          Invite new employees and send password resets for existing accounts. Employee PINs are created during initial activation and are not changed by a password reset.
         </p>
       </div>
 
@@ -82,43 +86,53 @@ export default function InviteTeamPanel() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                {['Profile', 'Role', 'TripWorks ID', 'Auth status', ''].map((label) => (
+                {['Profile', 'Role', 'TripWorks ID', 'Auth status', 'Account action'].map((label) => (
                   <th key={label} style={{ textAlign: "left", padding: 12, borderBottom: "1px solid #e4e7ec" }}>{label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {profiles.map((profile) => (
-                <tr key={profile.id}>
-                  <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
-                    <strong>{profile.display_name}</strong><br />
-                    <span style={{ color: "#667085" }}>{profile.email}</span>
-                  </td>
-                  <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.role}</td>
-                  <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.tripworks_user_id ?? "—"}</td>
-                  <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
-                    {profile.user_id ? "Linked" : "Not invited"}
-                  </td>
-                  <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
-                    <button
-                      type="button"
-                      disabled={!profile.active || Boolean(profile.user_id) || workingEmail === profile.email}
-                      onClick={() => void invite(profile.email, profile.display_name)}
-                      style={{
-                        border: 0,
-                        borderRadius: 8,
-                        padding: "9px 14px",
-                        background: profile.user_id ? "#d0d5dd" : "#d5521d",
-                        color: "#fff",
-                        fontWeight: 700,
-                        cursor: profile.user_id ? "default" : "pointer",
-                      }}
-                    >
-                      {workingEmail === profile.email ? "Sending..." : profile.user_id ? "Linked" : "Send invite"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {profiles.map((profile) => {
+                const inviteKey = `invite:${profile.email}`;
+                const resetKey = `reset_password:${profile.email}`;
+                const isWorkstation = profile.role === "workstation";
+                return (
+                  <tr key={profile.id}>
+                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
+                      <strong>{profile.display_name}</strong><br />
+                      <span style={{ color: "#667085" }}>{profile.email}</span>
+                    </td>
+                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.role}</td>
+                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.tripworks_user_id ?? "—"}</td>
+                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
+                      {isWorkstation ? "Shared workstation" : profile.user_id ? "Active / linked" : "Not invited"}
+                    </td>
+                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
+                      {isWorkstation ? (
+                        <span style={{ color: "#667085" }}>Managed separately</span>
+                      ) : profile.user_id ? (
+                        <button
+                          type="button"
+                          disabled={!profile.active || Boolean(workingKey)}
+                          onClick={() => void manageAuth(profile, "reset_password")}
+                          style={{ border: "1px solid #d0d5dd", borderRadius: 8, padding: "9px 14px", background: "#fff", color: "#344054", fontWeight: 700, cursor: workingKey ? "wait" : "pointer" }}
+                        >
+                          {workingKey === resetKey ? "Sending..." : "Send password reset"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!profile.active || Boolean(workingKey)}
+                          onClick={() => void manageAuth(profile, "invite")}
+                          style={{ border: 0, borderRadius: 8, padding: "9px 14px", background: "#d5521d", color: "#fff", fontWeight: 700, cursor: workingKey ? "wait" : "pointer" }}
+                        >
+                          {workingKey === inviteKey ? "Sending..." : "Send invite"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
