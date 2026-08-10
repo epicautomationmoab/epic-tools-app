@@ -3,10 +3,10 @@ export type TeamProfile = {
   user_id: string | null;
   display_name: string;
   email: string;
-  role: "admin" | "manager" | "agent";
+  role: "admin" | "manager" | "agent" | "workstation";
   active: boolean;
-  tripworks_user_id: number;
-  tripworks_full_name: string;
+  tripworks_user_id: number | null;
+  tripworks_full_name: string | null;
 };
 
 type SupabaseAuthUser = {
@@ -171,6 +171,15 @@ export async function getAuthUser(accessToken: string) {
   });
   if (!response.ok) return null;
   return response.json() as Promise<SupabaseAuthUser>;
+}
+
+export async function getAuthenticatedTeamProfile(accessToken: string | null | undefined) {
+  if (!accessToken) return null;
+  const user = await getAuthUser(accessToken);
+  if (!user) return null;
+  const profile = await getTeamProfileByUserId(user.id);
+  if (!profile || !profile.active) return null;
+  return profile;
 }
 
 export function authCookieOptions(maxAge: number) {
