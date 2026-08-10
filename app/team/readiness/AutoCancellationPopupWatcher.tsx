@@ -29,14 +29,18 @@ export default function AutoCancellationPopupWatcher() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermissionState>("unsupported");
   const [notificationOptIn, setNotificationOptIn] = useState(true);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [pushError, setPushError] = useState("");
+  const [pushRetrying, setPushRetrying] = useState(false);
 
   async function ensurePushSubscription() {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window) || Notification.permission !== "granted") return false;
+    if (!("serviceWorker" in navigator)) throw new Error("This browser does not support service workers.");
+    if (!("PushManager" in window)) throw new Error("This browser does not support web push.");
+    if (!("Notification" in window) || Notification.permission !== "granted") throw new Error("Notification permission is not granted.");
 
     const configResponse = await fetch("/api/team/push-subscriptions", { cache: "no-store" });
-    if (!configResponse.ok) return false;
-    const config = await configResponse.json() as { configured?: boolean; publicKey?: string | null };
-    if (!config.configured || !config.publicKey) return false;
+    const config = await configResponse.json().catch(() => ({})) as { configured?: boolean; publicKey?: string | null; error?: string };
+    if (!configResponse.ok) throw new Error(config.error || `Push configuration request failed (${configResponse.status}).`);
+    if (!config.configured || !config.publicKey) throw new Error("Web push is not configured on this deployment.");
 
     const registration = await navigator.serviceWorker.register("/epic-push-sw.js", { scope: "/" });
     await navigator.serviceWorker.ready;
@@ -53,7 +57,23 @@ export default function AutoCancellationPopupWatcher() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ endpoint: subscription.endpoint, subscription: subscription.toJSON() }),
     });
-    return response.ok;
+    const data = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) throw new Error(data.error || `Unable to save push subscription (${response.status}).`);
+    return true;
+  }
+
+  async function registerPushSubscription() {
+    setPushRetrying(true);
+    try {
+      await ensurePushSubscription();
+      setPushError("");
+      return true;
+    } catch (error) {
+      setPushError(error instanceof Error ? error.message : "Unable to register booking notifications.");
+      return false;
+    } finally {
+      setPushRetrying(false);
+    }
   }
 
   useEffect(() => {
@@ -65,7 +85,7 @@ export default function AutoCancellationPopupWatcher() {
     const permission = Notification.permission;
     setNotificationPermission(permission);
     if (permission === "granted") {
-      void ensurePushSubscription();
+      void registerPushSubscription();
     } else if (permission === "default") {
       const dismissed = window.localStorage.getItem(NOTIFICATION_PROMPT_DISMISSED_KEY) === "1";
       setShowNotificationPrompt(!dismissed);
@@ -151,7 +171,7 @@ export default function AutoCancellationPopupWatcher() {
 
     if (permission === "granted") {
       window.localStorage.removeItem(NOTIFICATION_PROMPT_DISMISSED_KEY);
-      const subscribed = await ensurePushSubscription().catch(() => false);
+      const subscribed = await registerPushSubscription();
       const registration = await navigator.serviceWorker.ready.catch(() => null);
       if (subscribed && registration) {
         await registration.showNotification("EpicTools notifications are on", {
@@ -182,6 +202,16 @@ export default function AutoCancellationPopupWatcher() {
           </label>
           <button type="button" onClick={() => void enableNotifications()} style={{ width: "100%", border: 0, borderRadius: 10, padding: "11px 14px", font: "inherit", fontWeight: 800, cursor: "pointer" }}>
             Continue
+          </button>
+        </div>
+      ) : null}
+
+      {pushError && notificationPermission === "granted" ? (
+        <div style={{ position: "fixed", right: 20, bottom: 20, zIndex: 2100, width: "min(430px, calc(100vw - 40px))", borderRadius: 14, background: "#fff", boxShadow: "0 16px 50px rgba(0, 0, 0, 0.2)", padding: 18 }}>
+          <div style={{ fontWeight: 800, fontSize: 17 }}>Booking notifications need attention</div>
+          <p style={{ margin: "8px 0 14px", lineHeight: 1.45 }}>{pushError}</p>
+          <button type="button" disabled={pushRetrying} onClick={() => void registerPushSubscription()} style={{ width: "100%", border: 0, borderRadius: 10, padding: "11px 14px", font: "inherit", fontWeight: 800, cursor: pushRetrying ? "default" : "pointer" }}>
+            {pushRetrying ? "Retrying…" : "Retry notification setup"}
           </button>
         </div>
       ) : null}
