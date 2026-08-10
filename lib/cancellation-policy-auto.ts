@@ -17,23 +17,31 @@ type TripWorksAddon = {
   } | null;
 };
 
-const TRIPSAFE_EXPERIENCE_ADDON_ID = 6451;
-const TRIPSAFE_EXPERIENCE_ADDON_TITLE = "Optional Travel Protection";
-const TRIPSAFE_PURCHASED_NAME = "Yes, please add TripSafe";
-const TRIPSAFE_DECLINED_NAME = "No, do not add TripSafe";
+const TRIPSAFE_EXPERIENCE_ADDON_TITLE = "optional travel protection";
 const CANCELLATION_WINDOW_HOURS = 48;
 
-export function getTripSafeSelection(addons: TripWorksAddon[] | null | undefined): TripSafeAddonSelection {
-  const tripSafeAddon = (addons ?? []).find((addon) => {
-    const idMatch = addon.experience_addon?.id === TRIPSAFE_EXPERIENCE_ADDON_ID;
-    const titleMatch = addon.experience_addon?.title === TRIPSAFE_EXPERIENCE_ADDON_TITLE;
-    return idMatch || titleMatch;
-  });
+function normalize(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase().replace(/[’]/g, "'");
+}
 
-  if (!tripSafeAddon) return "unknown";
-  if (tripSafeAddon.name === TRIPSAFE_PURCHASED_NAME) return "purchased";
-  if (tripSafeAddon.name === TRIPSAFE_DECLINED_NAME) return "declined";
+function selectionFromName(value: string | null | undefined): TripSafeAddonSelection {
+  const name = normalize(value);
+  if (!name.includes("tripsafe")) return "unknown";
+  if (name.startsWith("yes")) return "purchased";
+  if (name.startsWith("no")) return "declined";
   return "unknown";
+}
+
+export function getTripSafeSelection(addons: TripWorksAddon[] | null | undefined): TripSafeAddonSelection {
+  const selections = new Set(
+    (addons ?? [])
+      .filter((addon) => normalize(addon.experience_addon?.title) === TRIPSAFE_EXPERIENCE_ADDON_TITLE)
+      .map((addon) => selectionFromName(addon.name))
+      .filter((selection) => selection !== "unknown"),
+  );
+
+  if (selections.size !== 1) return "unknown";
+  return [...selections][0] as TripSafeAddonSelection;
 }
 
 export function resolvePattiCancellationPolicy(input: {
@@ -51,9 +59,6 @@ export function resolvePattiCancellationPolicy(input: {
     const hoursBetweenReservationAndStart =
       (validActivityStart.getTime() - validReservedAt.getTime()) / (60 * 60 * 1000);
 
-    // Patti's first and controlling rule: reservations created inside the 48-hour
-    // cancellation window use the nonrefundable confirmed-within-48 policy,
-    // regardless of whether an ecommerce guest also selected TripSafe.
     if (hoursBetweenReservationAndStart >= 0 && hoursBetweenReservationAndStart < CANCELLATION_WINDOW_HOURS) {
       return {
         status: "confirmed_within_48",
