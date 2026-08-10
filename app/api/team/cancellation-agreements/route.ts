@@ -7,6 +7,7 @@ import {
 } from "@/lib/cancellation-policy";
 import { getAuthenticatedTeamProfile, type TeamProfile } from "@/lib/team-auth";
 import { agreementEmailConfigured, sendAgreementEmail } from "@/lib/server/agreement-email";
+import { getPattiPolicyDecision } from "@/lib/server/patti-policy-source";
 import { podiumConnected, sendPodiumSms } from "@/lib/server/podium";
 import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
 
@@ -95,21 +96,38 @@ async function loadReadiness(readinessId: string) {
   return rows[0] ?? null;
 }
 
+async function loadPattiDecision(readiness: ReadinessRecord) {
+  try {
+    return await getPattiPolicyDecision(readiness.confirmation_code, readiness.visit_start_time);
+  } catch {
+    return {
+      status: null,
+      source: "manual_fallback" as const,
+      hoursBetweenReservationAndStart: null,
+      tripSafeSelection: "unknown" as const,
+    };
+  }
+}
+
 export async function GET(request: NextRequest) {
   if (!await getRequestIdentity(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
   if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
 
   try {
-    const rows = await supabaseSelect<AgreementRequest>(
-      "cancellation_agreement_requests",
-      new URLSearchParams({
-        select: "id,readiness_id,confirmation_code,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,podium_delivery_status,email_delivery_status,delivery_mode,last_error,created_at",
-        readiness_id: `eq.${readinessId}`,
-        order: "created_at.desc",
-        limit: "1",
-      }),
-    );
+    const [rows, readiness] = await Promise.all([
+      supabaseSelect<AgreementRequest>(
+        "cancellation_agreement_requests",
+        new URLSearchParams({
+          select: "id,readiness_id,confirmation_code,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,podium_delivery_status,email_delivery_status,delivery_mode,last_error,created_at",
+          readiness_id: `eq.${readinessId}`,
+          order: "created_at.desc",
+          limit: "1",
+        }),
+      ),
+      loadReadiness(readinessId),
+    ]);
+
     const agreement = rows[0] ?? null;
     if (agreement && reviewTimedOut(agreement)) {
       await supabasePatch(
@@ -119,6 +137,7 @@ export async function GET(request: NextRequest) {
       );
       agreement.status = "expired";
     }
+
     let signerName: string | null = null;
     if (agreement?.status === "accepted") {
       const acceptances = await supabaseSelect<{ signer_name: string }>(
@@ -127,8 +146,17 @@ export async function GET(request: NextRequest) {
       );
       signerName = acceptances[0]?.signer_name ?? null;
     }
+
+    const policyDecision = readiness ? await loadPattiDecision(readiness) : {
+      status: null,
+      source: "manual_fallback" as const,
+      hoursBetweenReservationAndStart: null,
+      tripSafeSelection: "unknown" as const,
+    };
+
     return NextResponse.json({
       agreement: agreement ? { ...agreement, signer_name: signerName } : null,
+      policyDecision,
       podiumConfigured: await podiumConnected(),
       emailConfigured: agreementEmailConfigured(),
     });
@@ -198,18 +226,24 @@ export async function POST(request: NextRequest) {
 
   const readinessId = body.readinessId?.trim();
   const sentBy = identity.profile?.display_name || body.sentBy?.trim();
-  const tripSafeStatus = body.tripSafeStatus;
   const deliveryMode = ["sms", "email", "both", "copy"].includes(body.deliveryMode ?? "")
     ? body.deliveryMode as "sms" | "email" | "both" | "copy"
     : "copy";
-  if (!readinessId || !sentBy || !["declined", "purchased", "confirmed_within_48"].includes(tripSafeStatus ?? "")) {
-    return NextResponse.json({ error: "Reservation, team member, and agreement type are required." }, { status: 400 });
+  if (!readinessId || !sentBy) {
+    return NextResponse.json({ error: "Reservation and team member are required." }, { status: 400 });
   }
 
   let requestId: string | null = null;
   try {
     const readiness = await loadReadiness(readinessId);
     if (!readiness) return NextResponse.json({ error: "Reservation was not found." }, { status: 404 });
+
+    const policyDecision = await loadPattiDecision(readiness);
+    const tripSafeStatus = policyDecision.status || body.tripSafeStatus;
+    if (!tripSafeStatus || !["declined", "purchased", "confirmed_within_48"].includes(tripSafeStatus)) {
+      return NextResponse.json({ error: "Agreement type could not be determined. Select it manually and try again." }, { status: 400 });
+    }
+
     const needsText = deliveryMode === "sms" || deliveryMode === "both";
     const needsEmail = deliveryMode === "email" || deliveryMode === "both";
     const phoneInput = body.phone?.trim() || readiness.customer_phone || "";
@@ -263,6 +297,7 @@ export async function POST(request: NextRequest) {
         phone,
         agreementUrl,
         message,
+        policyDecision,
       });
     }
 
@@ -310,6 +345,7 @@ export async function POST(request: NextRequest) {
       phone,
       email,
       deliveryMode,
+      policyDecision,
       warning: deliveryErrors.length ? deliveryErrors.join(" ") : null,
     });
   } catch (error) {
