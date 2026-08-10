@@ -25,9 +25,11 @@ type TripWorksPayload = {
   }> | null;
 };
 
-const TRIPSAFE_ADDON_ID = 6451;
-const PURCHASED = "Yes, please add TripSafe";
-const DECLINED = "No, do not add TripSafe";
+const TRIPSAFE_TITLE = "optional travel protection";
+
+function normalize(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase().replace(/[’]/g, "'");
+}
 
 function unwrapPayload(value: Record<string, unknown> | null): TripWorksPayload | null {
   if (!value) return null;
@@ -51,12 +53,18 @@ function collectBookingAddons(payload: TripWorksPayload) {
 function tripSafeSelection(addons: TripWorksAddon[]): "purchased" | "declined" | "unknown" {
   const selections = new Set(
     addons
-      .filter((addon) => addon.experience_addon?.id === TRIPSAFE_ADDON_ID)
-      .map((addon) => addon.name)
-      .filter((name): name is string => name === PURCHASED || name === DECLINED),
+      .filter((addon) => normalize(addon.experience_addon?.title) === TRIPSAFE_TITLE)
+      .map((addon) => normalize(addon.name))
+      .map((name) => {
+        if (!name.includes("tripsafe")) return "unknown" as const;
+        if (name.startsWith("yes")) return "purchased" as const;
+        if (name.startsWith("no")) return "declined" as const;
+        return "unknown" as const;
+      })
+      .filter((selection) => selection !== "unknown"),
   );
   if (selections.size !== 1) return "unknown";
-  return selections.has(PURCHASED) ? "purchased" : "declined";
+  return [...selections][0] as "purchased" | "declined";
 }
 
 async function queryEvents(confirmationCode: string, eventType: "trip_reserved" | "trip_updated", wrapped: boolean) {
@@ -95,10 +103,10 @@ async function recoverTripSafeFromUpdates(confirmationCode: string) {
   return recovered;
 }
 
-function addonsForSelection(selection: "purchased" | "declined") : TripWorksAddon[] {
+function addonsForSelection(selection: "purchased" | "declined"): TripWorksAddon[] {
   return [{
-    name: selection === "purchased" ? PURCHASED : DECLINED,
-    experience_addon: { id: TRIPSAFE_ADDON_ID, title: "Optional Travel Protection" },
+    name: selection === "purchased" ? "Yes, please add TripSafe" : "No, don't add TripSafe",
+    experience_addon: { title: "Optional Travel Protection" },
   }];
 }
 
@@ -129,9 +137,6 @@ export async function getPattiPolicyDecision(
     if (decision.status) return decision;
   }
 
-  // Older reservations may predate our trip_reserved webhook history. For future
-  // active reservations in that group, the original booking was made well outside
-  // the cancellation window, so only TripSafe yes/no needs to be recovered.
   const recoveredSelection = await recoverTripSafeFromUpdates(confirmationCode);
   if (recoveredSelection !== "unknown") {
     return {
