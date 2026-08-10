@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import CancellationAgreementPanel from "./CancellationAgreementPanel";
 
-const POLL_INTERVAL_MS = 1500;
+const FALLBACK_POLL_INTERVAL_MS = 1500;
 const NOTIFICATION_PROMPT_DISMISSED_KEY = "epic-booking-notification-prompt-dismissed";
 
 type CandidateResponse = {
@@ -44,8 +44,9 @@ export default function AutoCancellationPopupWatcher() {
 
   useEffect(() => {
     let cancelled = false;
-    let timer: number | null = null;
+    let fallbackTimer: number | null = null;
     let requestInFlight = false;
+    let eventSource: EventSource | null = null;
 
     function showNext() {
       if (cancelled) return;
@@ -69,7 +70,15 @@ export default function AutoCancellationPopupWatcher() {
       };
     }
 
-    async function checkForNewBookings() {
+    function handleCandidate(row: ReadinessRow) {
+      if (!row.readiness_id || seen.current.has(row.readiness_id)) return;
+      seen.current.add(row.readiness_id);
+      queued.current.push(row);
+      sendDesktopNotification(row);
+      showNext();
+    }
+
+    async function fallbackPoll() {
       if (cancelled || requestInFlight) return;
       requestInFlight = true;
 
@@ -80,31 +89,37 @@ export default function AutoCancellationPopupWatcher() {
         );
 
         if (response.status === 401) return;
-
         const data = (await response.json()) as CandidateResponse;
         if (!response.ok) return;
-
-        for (const row of data.candidates ?? []) {
-          if (!row.readiness_id || seen.current.has(row.readiness_id)) continue;
-          seen.current.add(row.readiness_id);
-          queued.current.push(row);
-          sendDesktopNotification(row);
-        }
-
-        showNext();
+        for (const row of data.candidates ?? []) handleCandidate(row);
       } catch {
-        // Keep the sales screen quiet on transient network failures; the next poll retries.
+        // A later poll retries transient failures.
       } finally {
         requestInFlight = false;
       }
     }
 
-    void checkForNewBookings();
-    timer = window.setInterval(() => void checkForNewBookings(), POLL_INTERVAL_MS);
+    if ("EventSource" in window) {
+      eventSource = new EventSource(
+        `/api/team/cancellation-popup-stream?since=${encodeURIComponent(startedAt.current)}`,
+      );
+
+      eventSource.addEventListener("booking", (event) => {
+        try {
+          handleCandidate(JSON.parse((event as MessageEvent<string>).data) as ReadinessRow);
+        } catch {
+          // Ignore malformed stream events; the stream continues.
+        }
+      });
+    } else {
+      void fallbackPoll();
+      fallbackTimer = window.setInterval(() => void fallbackPoll(), FALLBACK_POLL_INTERVAL_MS);
+    }
 
     return () => {
       cancelled = true;
-      if (timer !== null) window.clearInterval(timer);
+      eventSource?.close();
+      if (fallbackTimer !== null) window.clearInterval(fallbackTimer);
     };
   }, []);
 
