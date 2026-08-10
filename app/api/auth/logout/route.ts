@@ -13,6 +13,7 @@ export async function POST() {
   response.cookies.set("epic_access_token", "", expired);
   response.cookies.set("epic_refresh_token", "", expired);
   response.cookies.set("epic_preview_access", "", expired);
+  response.cookies.set("epic_workstation_access", "", expired);
 
   return response;
 }
