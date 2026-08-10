@@ -18,6 +18,8 @@ type PendingAction = {
   kind: "cancellation" | "courtesy";
 };
 
+const PIN_REQUIRED_VALUE = "__EPIC_PIN_REQUIRED__";
+
 function buttonAction(button: HTMLButtonElement): PendingAction["kind"] | null {
   const text = button.textContent?.trim() || "";
   if (text === "Send Agreement" || text === "Copy Link") return "cancellation";
@@ -41,6 +43,18 @@ function setReactSelectValue(select: HTMLSelectElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
   setter?.call(select, value);
   select.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function prepareHiddenIdentitySelect(select: HTMLSelectElement | null) {
+  if (!select) return;
+  const label = select.closest("label");
+  if (label instanceof HTMLElement) label.style.display = "none";
+
+  if (!Array.from(select.options).some((option) => option.value === PIN_REQUIRED_VALUE)) {
+    select.add(new Option("PIN required", PIN_REQUIRED_VALUE));
+  }
+
+  if (!select.value) setReactSelectValue(select, PIN_REQUIRED_VALUE);
 }
 
 export default function SharedActionPinEnhancer() {
@@ -78,6 +92,28 @@ export default function SharedActionPinEnhancer() {
   useEffect(() => {
     if (!authChecked || !sharedMode) return;
 
+    function prepareSharedIdentityFields() {
+      for (const dialog of Array.from(document.querySelectorAll('[role="dialog"]'))) {
+        prepareHiddenIdentitySelect(findLabeledSelect(dialog, "Sent by"));
+      }
+
+      for (const select of Array.from(document.querySelectorAll("select"))) {
+        if (!(select instanceof HTMLSelectElement)) continue;
+        const label = select.closest("label");
+        const span = label?.querySelector("span");
+        if (span?.textContent?.trim() === "Completed by") prepareHiddenIdentitySelect(select);
+      }
+    }
+
+    prepareSharedIdentityFields();
+    const observer = new MutationObserver(() => prepareSharedIdentityFields());
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [authChecked, sharedMode]);
+
+  useEffect(() => {
+    if (!authChecked || !sharedMode) return;
+
     function intercept(event: MouseEvent) {
       const target = event.target;
       const button = target instanceof Element ? target.closest("button") : null;
@@ -98,10 +134,12 @@ export default function SharedActionPinEnhancer() {
       let currentName = "";
       if (kind === "cancellation") {
         const dialog = button.closest('[role="dialog"]');
-        currentName = findLabeledSelect(dialog, "Sent by")?.value || "";
+        const value = findLabeledSelect(dialog, "Sent by")?.value || "";
+        currentName = value === PIN_REQUIRED_VALUE ? "" : value;
       } else {
         const drawer = button.closest("section")?.parentElement?.parentElement ?? button.parentElement;
-        currentName = findLabeledSelect(drawer, "Completed by")?.value || "";
+        const value = findLabeledSelect(drawer, "Completed by")?.value || "";
+        currentName = value === PIN_REQUIRED_VALUE ? "" : value;
       }
 
       setEmployee(currentName);
@@ -138,23 +176,22 @@ export default function SharedActionPinEnhancer() {
       if (!response.ok) throw new Error(data.error || "Unable to verify PIN.");
 
       const verifiedName = data.profile?.display_name || employee;
+      let identitySelect: HTMLSelectElement | null = null;
+
       if (pending.kind === "cancellation") {
         const dialog = pending.button.closest('[role="dialog"]');
-        const select = findLabeledSelect(dialog, "Sent by");
-        if (!select) throw new Error("Unable to find the employee field for this agreement.");
-        if (!Array.from(select.options).some((option) => option.value === verifiedName)) {
-          select.add(new Option(verifiedName, verifiedName));
-        }
-        setReactSelectValue(select, verifiedName);
+        identitySelect = findLabeledSelect(dialog, "Sent by");
+        if (!identitySelect) throw new Error("Unable to find the employee field for this agreement.");
       } else {
         const drawer = pending.button.closest("section")?.parentElement?.parentElement ?? pending.button.parentElement;
-        const select = findLabeledSelect(drawer, "Completed by");
-        if (!select) throw new Error("Unable to find the employee field for this courtesy call.");
-        if (!Array.from(select.options).some((option) => option.value === verifiedName)) {
-          select.add(new Option(verifiedName, verifiedName));
-        }
-        setReactSelectValue(select, verifiedName);
+        identitySelect = findLabeledSelect(drawer, "Completed by");
+        if (!identitySelect) throw new Error("Unable to find the employee field for this courtesy call.");
       }
+
+      if (!Array.from(identitySelect.options).some((option) => option.value === verifiedName)) {
+        identitySelect.add(new Option(verifiedName, verifiedName));
+      }
+      setReactSelectValue(identitySelect, verifiedName);
 
       const button = pending.button;
       setPending(null);
@@ -162,7 +199,10 @@ export default function SharedActionPinEnhancer() {
       window.setTimeout(() => {
         bypassButton.current = button;
         button.click();
-      }, 0);
+        window.setTimeout(() => {
+          if (identitySelect?.isConnected) setReactSelectValue(identitySelect, PIN_REQUIRED_VALUE);
+        }, 250);
+      }, 50);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to verify PIN.");
     } finally {
