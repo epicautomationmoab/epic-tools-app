@@ -6,6 +6,7 @@ import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
 import LastSynced from "./LastSynced";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
 import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
+import LogoutButton from "./LogoutButton";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -86,6 +87,7 @@ export default async function TeamReadinessPage() {
             <div className={styles.sync}><LastSynced /></div>
             <Link className={styles.actionButton} href="/team/arrival-board">Arrival Board</Link>
             <Link className={`${styles.actionButton} ${styles.kioskButton}`} href="/kiosk">Kiosk</Link>
+            <LogoutButton />
           </div>
         </header>
 
