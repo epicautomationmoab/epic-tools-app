@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./CancellationAgreementPanel.module.css";
 
+type TripSafeStatus = "declined" | "purchased" | "confirmed_within_48";
+
 type AgreementStatus = {
   id: string;
   status: "created" | "sent" | "opened" | "accepted" | "failed" | "expired";
-  tripsafe_status: "declined" | "purchased" | "confirmed_within_48";
+  tripsafe_status: TripSafeStatus;
   delivery_mode: "sms" | "email" | "both" | "copy";
   sent_by: string;
   sent_at: string | null;
@@ -15,6 +17,13 @@ type AgreementStatus = {
   accepted_at: string | null;
   signer_name: string | null;
   last_error: string | null;
+};
+
+type PolicyDecision = {
+  status: TripSafeStatus | null;
+  source: "inside_48_hours" | "tripsafe_purchased" | "tripsafe_declined" | "manual_fallback";
+  hoursBetweenReservationAndStart: number | null;
+  tripSafeSelection: "purchased" | "declined" | "unknown";
 };
 
 type AuthProfile = {
@@ -33,9 +42,16 @@ function statusLabel(status: AgreementStatus["status"]) {
   return "Send failed";
 }
 
+function policyLabel(status: TripSafeStatus) {
+  if (status === "purchased") return "TripSafe Purchased — 1-Hour Policy";
+  if (status === "confirmed_within_48") return "Confirmed Within 48 Hours — Nonrefundable";
+  return "TripSafe Declined — 48-Hour Policy";
+}
+
 export default function CancellationAgreementPanel({ row }: { row: ReadinessRow }) {
   const [agreement, setAgreement] = useState<AgreementStatus | null>(null);
-  const [tripSafeStatus, setTripSafeStatus] = useState<"declined" | "purchased" | "confirmed_within_48">("declined");
+  const [tripSafeStatus, setTripSafeStatus] = useState<TripSafeStatus>("declined");
+  const [policyDecision, setPolicyDecision] = useState<PolicyDecision | null>(null);
   const [sentBy, setSentBy] = useState("");
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -58,12 +74,17 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
       const response = await fetch(`/api/team/cancellation-agreements?readinessId=${encodeURIComponent(row.readiness_id)}`, { cache: "no-store" });
       const data = (await response.json()) as {
         agreement?: AgreementStatus | null;
+        policyDecision?: PolicyDecision | null;
         podiumConfigured?: boolean;
         emailConfigured?: boolean;
         error?: string;
       };
       if (!response.ok) throw new Error(data.error || "Unable to load agreement status.");
       setAgreement(data.agreement ?? null);
+      setPolicyDecision(data.policyDecision ?? null);
+      if (!data.agreement && data.policyDecision?.status) {
+        setTripSafeStatus(data.policyDecision.status);
+      }
       setPodiumConfigured(data.podiumConfigured === true);
       setEmailConfigured(data.emailConfigured === true);
       if (data.podiumConfigured === true && data.emailConfigured !== true) setDeliveryMode("sms");
@@ -91,6 +112,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
 
   useEffect(() => {
     setAgreement(null);
+    setPolicyDecision(null);
     setError("");
     setPhone(row.customer_phone || "");
     setEmail(row.customer_email || "");
@@ -167,6 +189,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   const canSend = !agreement || ["failed", "expired"].includes(agreement.status);
   const canReset = Boolean(agreement && ["created", "sent", "opened"].includes(agreement.status));
   const workstationBlocked = authProfile?.role === "workstation";
+  const automaticPolicy = Boolean(policyDecision?.status);
 
   return (
     <section className={styles.panel}>
@@ -212,14 +235,25 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
             <span>Email address</span>
             <input value={email} onChange={(event) => setEmail(event.target.value)} inputMode="email" placeholder="guest@example.com" />
           </label>
-          <label>
-            <span>Agreement type</span>
-            <select value={tripSafeStatus} onChange={(event) => setTripSafeStatus(event.target.value as "declined" | "purchased" | "confirmed_within_48")}>
-              <option value="declined">TripSafe Declined — 48-Hour Policy</option>
-              <option value="purchased">TripSafe Purchased — 1-Hour Policy</option>
-              <option value="confirmed_within_48">Confirmed Within 48 Hours — Nonrefundable</option>
-            </select>
-          </label>
+
+          {automaticPolicy && policyDecision?.status ? (
+            <div>
+              <span>Agreement type</span>
+              <strong style={{ display: "block", marginTop: 6 }}>{policyLabel(policyDecision.status)}</strong>
+              <small>Determined automatically by Patti from the original TripWorks reservation.</small>
+            </div>
+          ) : (
+            <label>
+              <span>Agreement type</span>
+              <select value={tripSafeStatus} onChange={(event) => setTripSafeStatus(event.target.value as TripSafeStatus)}>
+                <option value="declined">TripSafe Declined — 48-Hour Policy</option>
+                <option value="purchased">TripSafe Purchased — 1-Hour Policy</option>
+                <option value="confirmed_within_48">Confirmed Within 48 Hours — Nonrefundable</option>
+              </select>
+              <small>Patti could not determine this reservation automatically. Verify before sending.</small>
+            </label>
+          )}
+
           <label>
             <span>Delivery</span>
             <select value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value as "sms" | "email" | "both")}>
