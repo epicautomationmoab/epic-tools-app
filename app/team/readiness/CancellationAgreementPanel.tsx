@@ -17,6 +17,11 @@ type AgreementStatus = {
   last_error: string | null;
 };
 
+type AuthProfile = {
+  display_name: string;
+  role: "admin" | "manager" | "agent" | "workstation";
+};
+
 const TEAM = ["Alex", "Cody", "Jenna", "Kim", "Lonnie", "Maggie", "Price", "Randy", "Taylin"];
 
 function statusLabel(status: AgreementStatus["status"]) {
@@ -32,6 +37,8 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   const [agreement, setAgreement] = useState<AgreementStatus | null>(null);
   const [tripSafeStatus, setTripSafeStatus] = useState<"declined" | "purchased" | "confirmed_within_48">("declined");
   const [sentBy, setSentBy] = useState("");
+  const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [phone, setPhone] = useState(row.customer_phone || "");
   const [email, setEmail] = useState(row.customer_email || "");
   const [deliveryMode, setDeliveryMode] = useState<"sms" | "email" | "both">("email");
@@ -69,6 +76,20 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   }
 
   useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = await response.json();
+        setAuthProfile(data?.authenticated ? data.profile : null);
+      } catch {
+        setAuthProfile(null);
+      } finally {
+        setAuthChecked(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     setAgreement(null);
     setError("");
     setPhone(row.customer_phone || "");
@@ -83,7 +104,12 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   }, [agreement?.status, row.readiness_id]);
 
   async function createAgreement(mode: "sms" | "email" | "both" | "copy") {
-    if (!row.readiness_id || !sentBy) {
+    if (!row.readiness_id) return;
+    if (authProfile?.role === "workstation") {
+      setError("Reception is a shared workstation. Employee verification will be required before sending an agreement.");
+      return;
+    }
+    if (!authProfile && !sentBy) {
       setError("Select the team member sending this agreement.");
       return;
     }
@@ -95,7 +121,14 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
       const response = await fetch("/api/team/cancellation-agreements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ readinessId: row.readiness_id, tripSafeStatus, sentBy, deliveryMode: mode, phone, email }),
+        body: JSON.stringify({
+          readinessId: row.readiness_id,
+          tripSafeStatus,
+          sentBy: authProfile ? undefined : sentBy,
+          deliveryMode: mode,
+          phone,
+          email,
+        }),
       });
       const data = (await response.json()) as { error?: string; agreementUrl?: string };
       if (!response.ok) throw new Error(data.error || "Unable to send agreement.");
@@ -133,6 +166,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
 
   const canSend = !agreement || ["failed", "expired"].includes(agreement.status);
   const canReset = Boolean(agreement && ["created", "sent", "opened"].includes(agreement.status));
+  const workstationBlocked = authProfile?.role === "workstation";
 
   return (
     <section className={styles.panel}>
@@ -194,19 +228,38 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
               {podiumConfigured && emailConfigured ? <option value="both">Text + Email</option> : null}
             </select>
           </label>
-          <label>
-            <span>Sent by</span>
-            <select value={sentBy} onChange={(event) => setSentBy(event.target.value)}>
-              <option value="">Select team member…</option>
-              {TEAM.map((name) => <option key={name} value={name}>{name}</option>)}
-            </select>
-          </label>
+
+          {authChecked && authProfile && authProfile.role !== "workstation" ? (
+            <div>
+              <span>Sent by</span>
+              <strong style={{ display: "block", marginTop: 6 }}>{authProfile.display_name} · signed in</strong>
+            </div>
+          ) : null}
+
+          {authChecked && workstationBlocked ? (
+            <div>
+              <span>Shared workstation</span>
+              <strong style={{ display: "block", marginTop: 6 }}>Reception</strong>
+              <small>Employee verification will be added before Reception can send agreements.</small>
+            </div>
+          ) : null}
+
+          {authChecked && !authProfile ? (
+            <label>
+              <span>Sent by</span>
+              <select value={sentBy} onChange={(event) => setSentBy(event.target.value)}>
+                <option value="">Select team member…</option>
+                {TEAM.map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </label>
+          ) : null}
+
           {podiumConfigured || emailConfigured ? (
-            <button type="button" disabled={sending || copying} onClick={() => void createAgreement(deliveryMode)}>
+            <button type="button" disabled={sending || copying || workstationBlocked} onClick={() => void createAgreement(deliveryMode)}>
               {sending ? "Sending…" : "Send Agreement"}
             </button>
           ) : null}
-          <button type="button" className={styles.copyButton} disabled={sending || copying} onClick={() => void createAgreement("copy")}>
+          <button type="button" className={styles.copyButton} disabled={sending || copying || workstationBlocked} onClick={() => void createAgreement("copy")}>
             {copying ? "Creating…" : copied ? "Link Copied" : "Copy Link"}
           </button>
         </div>
