@@ -206,6 +206,7 @@ export async function POST(request: NextRequest) {
   let body: {
     readinessId?: string;
     tripSafeStatus?: TripSafeStatus;
+    policyOverride?: boolean;
     sentBy?: string;
     deliveryMode?: "sms" | "email" | "both" | "copy";
     phone?: string;
@@ -239,8 +240,15 @@ export async function POST(request: NextRequest) {
     if (!readiness) return NextResponse.json({ error: "Reservation was not found." }, { status: 404 });
 
     const policyDecision = await loadPattiDecision(readiness);
-    const tripSafeStatus = policyDecision.status || body.tripSafeStatus;
-    if (!tripSafeStatus || !["declined", "purchased", "confirmed_within_48"].includes(tripSafeStatus)) {
+    const requestedStatus = body.tripSafeStatus;
+    const validRequestedStatus = ["declined", "purchased", "confirmed_within_48"].includes(requestedStatus ?? "")
+      ? requestedStatus as TripSafeStatus
+      : null;
+    const tripSafeStatus = body.policyOverride && validRequestedStatus
+      ? validRequestedStatus
+      : policyDecision.status || validRequestedStatus;
+
+    if (!tripSafeStatus) {
       return NextResponse.json({ error: "Agreement type could not be determined. Select it manually and try again." }, { status: 400 });
     }
 
