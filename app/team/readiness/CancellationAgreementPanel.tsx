@@ -331,6 +331,7 @@ export default function CancellationAgreementPanel({
                           ? "Confirmed within 48 hours — nonrefundable"
                           : "TripSafe declined — 48-hour policy"} · sent by ${agreement.sent_by}`}
                   </span>
+                  {agreement.status === "accepted" && agreement.sent_by ? <small>Sent by {agreement.sent_by}</small> : null}
                   {agreement.status === "opened" ? <small>Keep the guest on the phone—they have the agreement open.</small> : null}
                   {agreement.last_error ? <small className={styles.error}>{agreement.last_error}</small> : null}
                   {canReset ? (
