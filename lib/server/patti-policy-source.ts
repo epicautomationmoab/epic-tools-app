@@ -25,6 +25,10 @@ type TripReservedPayload = {
   }> | null;
 };
 
+const TRIPSAFE_ADDON_ID = 6451;
+const PURCHASED = "Yes, please add TripSafe";
+const DECLINED = "No, do not add TripSafe";
+
 function unwrapPayload(value: Record<string, unknown> | null): TripReservedPayload | null {
   if (!value) return null;
   const nested = value.payload;
@@ -42,6 +46,16 @@ function collectBookingAddons(payload: TripReservedPayload) {
     }
   }
   return addons;
+}
+
+function hasConflictingTripSafeSelections(addons: TripWorksAddon[]) {
+  const selections = new Set(
+    addons
+      .filter((addon) => addon.experience_addon?.id === TRIPSAFE_ADDON_ID)
+      .map((addon) => addon.name)
+      .filter((name): name is string => name === PURCHASED || name === DECLINED),
+  );
+  return selections.size > 1;
 }
 
 async function queryTripReservedEvents(confirmationCode: string, wrapped: boolean) {
@@ -69,10 +83,20 @@ export async function getPattiPolicyDecision(
     const payload = unwrapPayload(event.payload);
     if (!payload || payload.confirmation_code !== confirmationCode) continue;
 
+    const bookingAddons = collectBookingAddons(payload);
+    if (hasConflictingTripSafeSelections(bookingAddons)) {
+      return {
+        status: null,
+        source: "manual_fallback",
+        hoursBetweenReservationAndStart: null,
+        tripSafeSelection: "unknown",
+      };
+    }
+
     const decision = resolvePattiCancellationPolicy({
       reservationCreatedAt: payload.reserved_at || event.received_at,
       activityStartAt,
-      bookingAddons: collectBookingAddons(payload),
+      bookingAddons,
     });
 
     if (decision.status) return decision;
