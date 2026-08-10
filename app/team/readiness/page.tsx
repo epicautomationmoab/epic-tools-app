@@ -7,6 +7,7 @@ import LastSynced from "./LastSynced";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
 import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
 import LogoutButton from "./LogoutButton";
+import SharedActionPinEnhancer from "./SharedActionPinEnhancer";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -34,6 +35,7 @@ export default async function TeamReadinessPage() {
       <AutoCancellationPopupWatcher />
       <PortalEmailEnhancer />
       <OhvDrawerEnhancer />
+      <SharedActionPinEnhancer />
 
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
