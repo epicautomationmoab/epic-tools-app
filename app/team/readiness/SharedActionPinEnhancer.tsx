@@ -7,12 +7,6 @@ type AuthProfile = {
   role: "admin" | "manager" | "agent" | "workstation";
 };
 
-type PinProfile = {
-  id: string;
-  display_name: string;
-  role: "admin" | "manager" | "agent";
-};
-
 type PendingAction = {
   button: HTMLButtonElement;
   kind: "cancellation" | "courtesy";
@@ -60,9 +54,7 @@ function prepareHiddenIdentitySelect(select: HTMLSelectElement | null) {
 export default function SharedActionPinEnhancer() {
   const [authChecked, setAuthChecked] = useState(false);
   const [sharedMode, setSharedMode] = useState(false);
-  const [profiles, setProfiles] = useState<PinProfile[]>([]);
   const [pending, setPending] = useState<PendingAction | null>(null);
-  const [employee, setEmployee] = useState("");
   const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState("");
@@ -75,14 +67,7 @@ export default function SharedActionPinEnhancer() {
         const response = await fetch("/api/auth/me", { cache: "no-store" });
         const data = await response.json().catch(() => ({})) as { authenticated?: boolean; profile?: AuthProfile | null };
         const profile = data.authenticated ? data.profile ?? null : null;
-        const isShared = !profile || profile.role === "workstation";
-        setSharedMode(isShared);
-
-        if (isShared) {
-          const pinResponse = await fetch("/api/team/action-pin", { cache: "no-store" });
-          const pinData = await pinResponse.json().catch(() => ({})) as { profiles?: PinProfile[] };
-          if (pinResponse.ok) setProfiles(pinData.profiles ?? []);
-        }
+        setSharedMode(!profile || profile.role === "workstation");
       } finally {
         setAuthChecked(true);
       }
@@ -131,18 +116,6 @@ export default function SharedActionPinEnhancer() {
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      let currentName = "";
-      if (kind === "cancellation") {
-        const dialog = button.closest('[role="dialog"]');
-        const value = findLabeledSelect(dialog, "Sent by")?.value || "";
-        currentName = value === PIN_REQUIRED_VALUE ? "" : value;
-      } else {
-        const drawer = button.closest("section")?.parentElement?.parentElement ?? button.parentElement;
-        const value = findLabeledSelect(drawer, "Completed by")?.value || "";
-        currentName = value === PIN_REQUIRED_VALUE ? "" : value;
-      }
-
-      setEmployee(currentName);
       setPin("");
       setShowPin(false);
       setError("");
@@ -155,10 +128,6 @@ export default function SharedActionPinEnhancer() {
 
   async function verifyAndContinue() {
     if (!pending) return;
-    if (!employee) {
-      setError("Select your name.");
-      return;
-    }
     if (!pin) {
       setError("Enter your PIN.");
       return;
@@ -170,14 +139,15 @@ export default function SharedActionPinEnhancer() {
       const response = await fetch("/api/team/action-pin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName: employee, pin }),
+        body: JSON.stringify({ pin }),
       });
       const data = await response.json().catch(() => ({})) as { error?: string; profile?: { display_name?: string } };
       if (!response.ok) throw new Error(data.error || "Unable to verify PIN.");
 
-      const verifiedName = data.profile?.display_name || employee;
-      let identitySelect: HTMLSelectElement | null = null;
+      const verifiedName = data.profile?.display_name?.trim();
+      if (!verifiedName) throw new Error("Unable to identify employee from PIN.");
 
+      let identitySelect: HTMLSelectElement | null = null;
       if (pending.kind === "cancellation") {
         const dialog = pending.button.closest('[role="dialog"]');
         identitySelect = findLabeledSelect(dialog, "Sent by");
@@ -214,33 +184,24 @@ export default function SharedActionPinEnhancer() {
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 4000, display: "grid", placeItems: "center", padding: 20, background: "rgba(17,24,39,.55)" }}>
-      <div role="dialog" aria-modal="true" aria-label="Employee PIN verification" style={{ width: "min(420px, 100%)", borderRadius: 16, background: "#fff", padding: 24, boxShadow: "0 24px 70px rgba(0,0,0,.28)" }}>
+      <div role="dialog" aria-modal="true" aria-label="Employee PIN verification" style={{ width: "min(380px, 100%)", borderRadius: 16, background: "#fff", padding: 24, boxShadow: "0 24px 70px rgba(0,0,0,.28)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", opacity: .6 }}>HQ Reception</div>
-            <h2 style={{ margin: "4px 0 0" }}>Who are you?</h2>
+            <h2 style={{ margin: "4px 0 0" }}>Enter your PIN</h2>
           </div>
           <button type="button" onClick={() => setPending(null)} aria-label="Close PIN verification" style={{ border: 0, background: "transparent", fontSize: 28, cursor: "pointer" }}>×</button>
         </div>
-        <p style={{ color: "#667085", lineHeight: 1.45 }}>Select your name and enter your PIN so this action is recorded under you.</p>
 
-        <label style={{ display: "block", marginTop: 16 }}>
-          <span style={{ display: "block", fontWeight: 700, marginBottom: 6 }}>Employee</span>
-          <select value={employee} onChange={(event) => setEmployee(event.target.value)} style={{ width: "100%", height: 46, border: "1px solid #cfd6de", borderRadius: 9, padding: "0 12px", font: "inherit" }}>
-            <option value="">Select your name…</option>
-            {profiles.map((profile) => <option key={profile.id} value={profile.display_name}>{profile.display_name}</option>)}
-          </select>
-        </label>
-
-        <label style={{ display: "block", marginTop: 14 }}>
+        <label style={{ display: "block", marginTop: 18 }}>
           <span style={{ display: "block", fontWeight: 700, marginBottom: 6 }}>PIN</span>
           <div style={{ position: "relative" }}>
-            <input type={showPin ? "text" : "password"} value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="off" placeholder="4–6 digit PIN" onKeyDown={(event) => { if (event.key === "Enter") void verifyAndContinue(); }} style={{ width: "100%", height: 46, border: "1px solid #cfd6de", borderRadius: 9, padding: "0 46px 0 12px", boxSizing: "border-box", font: "inherit" }} />
+            <input autoFocus type={showPin ? "text" : "password"} value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="off" placeholder="4–6 digit PIN" onKeyDown={(event) => { if (event.key === "Enter") void verifyAndContinue(); }} style={{ width: "100%", height: 46, border: `1px solid ${error ? "#d92d20" : "#cfd6de"}`, borderRadius: 9, padding: "0 46px 0 12px", boxSizing: "border-box", font: "inherit" }} />
             <button type="button" onClick={() => setShowPin((value) => !value)} aria-label={showPin ? "Hide PIN" : "Show PIN"} title={showPin ? "Hide PIN" : "Show PIN"} style={{ position: "absolute", top: 0, right: 0, width: 46, height: 46, border: 0, background: "transparent", cursor: "pointer", fontSize: 18 }}>{showPin ? "◉" : "◎"}</button>
           </div>
         </label>
 
-        {error ? <p style={{ color: "#b42318", marginBottom: 0 }}>{error}</p> : null}
+        {error ? <p style={{ color: "#b42318", margin: "8px 0 0", fontWeight: 700 }}>{error}</p> : null}
 
         <button type="button" disabled={verifying} onClick={() => void verifyAndContinue()} style={{ width: "100%", height: 46, marginTop: 18, border: 0, borderRadius: 9, background: "#d5521d", color: "#fff", fontWeight: 800, cursor: verifying ? "wait" : "pointer" }}>
           {verifying ? "Verifying…" : "Continue"}
