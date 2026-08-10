@@ -52,6 +52,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   const [agreement, setAgreement] = useState<AgreementStatus | null>(null);
   const [tripSafeStatus, setTripSafeStatus] = useState<TripSafeStatus>("declined");
   const [policyDecision, setPolicyDecision] = useState<PolicyDecision | null>(null);
+  const [overridePolicy, setOverridePolicy] = useState(false);
   const [sentBy, setSentBy] = useState("");
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -82,7 +83,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
       if (!response.ok) throw new Error(data.error || "Unable to load agreement status.");
       setAgreement(data.agreement ?? null);
       setPolicyDecision(data.policyDecision ?? null);
-      if (!data.agreement && data.policyDecision?.status) {
+      if (!data.agreement && data.policyDecision?.status && !overridePolicy) {
         setTripSafeStatus(data.policyDecision.status);
       }
       setPodiumConfigured(data.podiumConfigured === true);
@@ -113,6 +114,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   useEffect(() => {
     setAgreement(null);
     setPolicyDecision(null);
+    setOverridePolicy(false);
     setError("");
     setPhone(row.customer_phone || "");
     setEmail(row.customer_email || "");
@@ -146,6 +148,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
         body: JSON.stringify({
           readinessId: row.readiness_id,
           tripSafeStatus,
+          policyOverride: Boolean(policyDecision?.status && overridePolicy),
           sentBy: authProfile ? undefined : sentBy,
           deliveryMode: mode,
           phone,
@@ -236,10 +239,13 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
             <input value={email} onChange={(event) => setEmail(event.target.value)} inputMode="email" placeholder="guest@example.com" />
           </label>
 
-          {automaticPolicy && policyDecision?.status ? (
-            <div>
+          {automaticPolicy && policyDecision?.status && !overridePolicy ? (
+            <div className={styles.policyField}>
               <span>Agreement type</span>
-              <strong style={{ display: "block", marginTop: 6 }}>{policyLabel(policyDecision.status)}</strong>
+              <strong>{policyLabel(policyDecision.status)}</strong>
+              <button type="button" className={styles.textButton} onClick={() => setOverridePolicy(true)}>
+                Change agreement type
+              </button>
             </div>
           ) : (
             <label>
@@ -249,7 +255,18 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
                 <option value="purchased">TripSafe Purchased — 1-Hour Policy</option>
                 <option value="confirmed_within_48">Confirmed Within 48 Hours — Nonrefundable</option>
               </select>
-              <small>Verify before sending.</small>
+              {automaticPolicy && overridePolicy ? (
+                <button
+                  type="button"
+                  className={styles.textButton}
+                  onClick={() => {
+                    setOverridePolicy(false);
+                    if (policyDecision?.status) setTripSafeStatus(policyDecision.status);
+                  }}
+                >
+                  Use original policy
+                </button>
+              ) : <small>Verify before sending.</small>}
             </label>
           )}
 
