@@ -15,6 +15,21 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#039;");
 }
 
+function agreementBcc(recipient: string) {
+  const configured = process.env.GUEST_EMAIL_BCC?.trim();
+  if (!configured) return undefined;
+
+  const normalizedRecipient = recipient.trim().toLowerCase();
+  const recipients = configured
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value) => value.toLowerCase() !== normalizedRecipient);
+
+  if (!recipients.length) return undefined;
+  return recipients.length === 1 ? recipients[0] : recipients;
+}
+
 export function agreementEmailConfigured() {
   return ["RESEND_API_KEY", "GUEST_EMAIL_FROM"].every((name) => Boolean(process.env[name]?.trim()));
 }
@@ -31,7 +46,7 @@ export async function sendAgreementEmail(input: {
     from: requiredEnv("GUEST_EMAIL_FROM"),
     to: input.email,
     replyTo: process.env.GUEST_EMAIL_REPLY_TO?.trim() || undefined,
-    bcc: process.env.GUEST_EMAIL_BCC?.trim() || undefined,
+    bcc: agreementBcc(input.email),
     subject: `Action required for Epic reservation ${input.confirmationCode}`,
     html: `
       <div style="background:#f5f2ed;padding:32px 16px;font-family:Arial,sans-serif;color:#2b2b2b">
