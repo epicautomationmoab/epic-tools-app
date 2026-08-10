@@ -47,6 +47,7 @@ type RequestIdentity = {
 };
 
 const REVIEW_TIMEOUT_MS = 15 * 60 * 1000;
+const EMAIL_IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
 
 function reviewTimedOut(agreement: AgreementRequest) {
   if (agreement.status !== "opened" || !agreement.opened_at) return false;
@@ -82,6 +83,11 @@ function normalizeEmail(value: string) {
 
 function tokenHash(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function emailIdempotencyKey(readinessId: string) {
+  const bucket = Math.floor(Date.now() / EMAIL_IDEMPOTENCY_WINDOW_MS);
+  return `cancellation-agreement/${readinessId}/${bucket}`;
 }
 
 async function loadReadiness(readinessId: string) {
@@ -329,6 +335,7 @@ export async function POST(request: NextRequest) {
             customerName: readiness.customer_name,
             confirmationCode: readiness.confirmation_code,
             agreementUrl,
+            idempotencyKey: emailIdempotencyKey(readiness.readiness_id),
           })
         : Promise.resolve(null),
     ]);
