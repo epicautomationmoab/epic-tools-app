@@ -39,6 +39,7 @@ export default function AutoCancellationPopupWatcher() {
 
     const configResponse = await fetch("/api/team/push-subscriptions", { cache: "no-store" });
     const config = await configResponse.json().catch(() => ({})) as { configured?: boolean; publicKey?: string | null; error?: string };
+    if (configResponse.status === 401) return false;
     if (!configResponse.ok) throw new Error(config.error || `Push configuration request failed (${configResponse.status}).`);
     if (!config.configured || !config.publicKey) throw new Error("Web push is not configured on this deployment.");
 
@@ -58,6 +59,7 @@ export default function AutoCancellationPopupWatcher() {
       body: JSON.stringify({ endpoint: subscription.endpoint, subscription: subscription.toJSON() }),
     });
     const data = await response.json().catch(() => ({})) as { error?: string };
+    if (response.status === 401) return false;
     if (!response.ok) throw new Error(data.error || `Unable to save push subscription (${response.status}).`);
     return true;
   }
@@ -65,9 +67,9 @@ export default function AutoCancellationPopupWatcher() {
   async function registerPushSubscription() {
     setPushRetrying(true);
     try {
-      await ensurePushSubscription();
+      const subscribed = await ensurePushSubscription();
       setPushError("");
-      return true;
+      return subscribed;
     } catch (error) {
       setPushError(error instanceof Error ? error.message : "Unable to register booking notifications.");
       return false;
@@ -208,7 +210,8 @@ export default function AutoCancellationPopupWatcher() {
 
       {pushError && notificationPermission === "granted" ? (
         <div style={{ position: "fixed", right: 20, bottom: 20, zIndex: 2100, width: "min(430px, calc(100vw - 40px))", borderRadius: 14, background: "#fff", boxShadow: "0 16px 50px rgba(0, 0, 0, 0.2)", padding: 18 }}>
-          <div style={{ fontWeight: 800, fontSize: 17 }}>Booking notifications need attention</div>
+          <button type="button" aria-label="Dismiss notification setup message" title="Dismiss" onClick={() => setPushError("")} style={{ position: "absolute", top: 8, right: 10, border: 0, background: "transparent", fontSize: 22, lineHeight: 1, cursor: "pointer", color: "#667085" }}>×</button>
+          <div style={{ fontWeight: 800, fontSize: 17, paddingRight: 26 }}>Booking notifications need attention</div>
           <p style={{ margin: "8px 0 14px", lineHeight: 1.45 }}>{pushError}</p>
           <button type="button" disabled={pushRetrying} onClick={() => void registerPushSubscription()} style={{ width: "100%", border: 0, borderRadius: 10, padding: "11px 14px", font: "inherit", fontWeight: 800, cursor: pushRetrying ? "default" : "pointer" }}>
             {pushRetrying ? "Retrying…" : "Retry notification setup"}
