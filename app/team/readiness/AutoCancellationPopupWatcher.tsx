@@ -99,8 +99,9 @@ export default function AutoCancellationPopupWatcher() {
       }
     }
 
-    if ("EventSource" in window) {
-      eventSource = new EventSource(
+    const EventSourceCtor = typeof EventSource === "function" ? EventSource : null;
+    if (EventSourceCtor) {
+      eventSource = new EventSourceCtor(
         `/api/team/cancellation-popup-stream?since=${encodeURIComponent(startedAt.current)}`,
       );
 
@@ -113,13 +114,13 @@ export default function AutoCancellationPopupWatcher() {
       });
     } else {
       void fallbackPoll();
-      fallbackTimer = window.setInterval(() => void fallbackPoll(), FALLBACK_POLL_INTERVAL_MS);
+      fallbackTimer = globalThis.setInterval(() => void fallbackPoll(), FALLBACK_POLL_INTERVAL_MS) as unknown as number;
     }
 
     return () => {
       cancelled = true;
       eventSource?.close();
-      if (fallbackTimer !== null) window.clearInterval(fallbackTimer);
+      if (fallbackTimer !== null) globalThis.clearInterval(fallbackTimer);
     };
   }, []);
 
