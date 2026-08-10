@@ -109,26 +109,36 @@ async function loadPattiDecision(readiness: ReadinessRecord) {
   }
 }
 
+async function loadLatestAgreement(readinessId: string) {
+  const rows = await supabaseSelect<AgreementRequest>(
+    "cancellation_agreement_requests",
+    new URLSearchParams({
+      select: "id,readiness_id,confirmation_code,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,podium_delivery_status,email_delivery_status,delivery_mode,last_error,created_at",
+      readiness_id: `eq.${readinessId}`,
+      order: "created_at.desc",
+      limit: "1",
+    }),
+  );
+  return rows[0] ?? null;
+}
+
+function blocksDuplicateSend(agreement: AgreementRequest | null) {
+  if (!agreement) return false;
+  if (["sent", "opened", "accepted"].includes(agreement.status)) return true;
+  return agreement.status === "created" && agreement.delivery_mode !== "copy";
+}
+
 export async function GET(request: NextRequest) {
   if (!await getRequestIdentity(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
   if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
 
   try {
-    const [rows, readiness] = await Promise.all([
-      supabaseSelect<AgreementRequest>(
-        "cancellation_agreement_requests",
-        new URLSearchParams({
-          select: "id,readiness_id,confirmation_code,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,podium_delivery_status,email_delivery_status,delivery_mode,last_error,created_at",
-          readiness_id: `eq.${readinessId}`,
-          order: "created_at.desc",
-          limit: "1",
-        }),
-      ),
+    const [agreement, readiness] = await Promise.all([
+      loadLatestAgreement(readinessId),
       loadReadiness(readinessId),
     ]);
 
-    const agreement = rows[0] ?? null;
     if (agreement && reviewTimedOut(agreement)) {
       await supabasePatch(
         "cancellation_agreement_requests",
@@ -171,16 +181,7 @@ export async function DELETE(request: NextRequest) {
   if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
 
   try {
-    const rows = await supabaseSelect<Pick<AgreementRequest, "id" | "status">>(
-      "cancellation_agreement_requests",
-      new URLSearchParams({
-        select: "id,status",
-        readiness_id: `eq.${readinessId}`,
-        order: "created_at.desc",
-        limit: "1",
-      }),
-    );
-    const agreement = rows[0] ?? null;
+    const agreement = await loadLatestAgreement(readinessId);
     if (!agreement) return NextResponse.json({ error: "Agreement was not found." }, { status: 404 });
     if (agreement.status === "accepted") {
       return NextResponse.json({ error: "Accepted agreements cannot be reset." }, { status: 409 });
@@ -238,6 +239,17 @@ export async function POST(request: NextRequest) {
   try {
     const readiness = await loadReadiness(readinessId);
     if (!readiness) return NextResponse.json({ error: "Reservation was not found." }, { status: 404 });
+
+    const existingAgreement = await loadLatestAgreement(readinessId);
+    if (deliveryMode !== "copy" && blocksDuplicateSend(existingAgreement)) {
+      return NextResponse.json({
+        ok: true,
+        duplicatePrevented: true,
+        agreementId: existingAgreement!.id,
+        status: existingAgreement!.status,
+        deliveryMode: existingAgreement!.delivery_mode,
+      });
+    }
 
     const policyDecision = await loadPattiDecision(readiness);
     const requestedStatus = body.tripSafeStatus;
