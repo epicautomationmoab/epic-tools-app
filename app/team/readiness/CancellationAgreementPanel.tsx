@@ -31,6 +31,13 @@ type AuthProfile = {
   role: "admin" | "manager" | "agent" | "workstation";
 };
 
+type CancellationAgreementPanelProps = {
+  row: ReadinessRow;
+  autoOpen?: boolean;
+  showLauncher?: boolean;
+  onPopupClose?: () => void;
+};
+
 const TEAM = ["Alex", "Cody", "Jenna", "Kim", "Lonnie", "Maggie", "Price", "Randy", "Taylin"];
 
 function statusLabel(status: AgreementStatus["status"]) {
@@ -48,8 +55,13 @@ function policyLabel(status: TripSafeStatus) {
   return "TripSafe Declined — 48-Hour Policy";
 }
 
-export default function CancellationAgreementPanel({ row }: { row: ReadinessRow }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function CancellationAgreementPanel({
+  row,
+  autoOpen = false,
+  showLauncher = true,
+  onPopupClose,
+}: CancellationAgreementPanelProps) {
+  const [isOpen, setIsOpen] = useState(autoOpen);
   const [agreement, setAgreement] = useState<AgreementStatus | null>(null);
   const [tripSafeStatus, setTripSafeStatus] = useState<TripSafeStatus>("declined");
   const [policyDecision, setPolicyDecision] = useState<PolicyDecision | null>(null);
@@ -68,6 +80,11 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   const [podiumConfigured, setPodiumConfigured] = useState(false);
   const [emailConfigured, setEmailConfigured] = useState(false);
   const [error, setError] = useState("");
+
+  function closePopup() {
+    setIsOpen(false);
+    onPopupClose?.();
+  }
 
   async function loadStatus(quiet = false) {
     if (!row.readiness_id) return;
@@ -113,7 +130,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
   }, []);
 
   useEffect(() => {
-    setIsOpen(false);
+    setIsOpen(autoOpen);
     setAgreement(null);
     setPolicyDecision(null);
     setOverridePolicy(false);
@@ -121,7 +138,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
     setPhone(row.customer_phone || "");
     setEmail(row.customer_email || "");
     void loadStatus();
-  }, [row.readiness_id, row.customer_phone, row.customer_email]);
+  }, [row.readiness_id, row.customer_phone, row.customer_email, autoOpen]);
 
   useEffect(() => {
     if (!agreement || !["created", "sent", "opened"].includes(agreement.status)) return;
@@ -198,46 +215,48 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
 
   return (
     <>
-      <section className={styles.panel}>
-        <div className={styles.heading}>
-          <div>
-            <h3>Cancellation Policy Acknowledgement</h3>
-            <p>Send the guest the cancellation policy that applies to this Store Visit.</p>
+      {showLauncher ? (
+        <section className={styles.panel}>
+          <div className={styles.heading}>
+            <div>
+              <h3>Cancellation Policy Acknowledgement</h3>
+              <p>Send the guest the cancellation policy that applies to this Store Visit.</p>
+            </div>
+            {agreement ? <span className={`${styles.badge} ${styles[agreement.status]}`}>{statusLabel(agreement.status)}</span> : null}
           </div>
-          {agreement ? <span className={`${styles.badge} ${styles[agreement.status]}`}>{statusLabel(agreement.status)}</span> : null}
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setIsOpen(true);
-            void loadStatus();
-          }}
-          style={{
-            width: "100%",
-            marginTop: 12,
-            border: 0,
-            borderRadius: 10,
-            padding: "12px 16px",
-            font: "inherit",
-            fontWeight: 800,
-            cursor: "pointer",
-          }}
-        >
-          {agreement ? "View Cancellation Acknowledgement" : "Send Cancellation Acknowledgement"}
-        </button>
-      </section>
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(true);
+              void loadStatus();
+            }}
+            style={{
+              width: "100%",
+              marginTop: 12,
+              border: 0,
+              borderRadius: 10,
+              padding: "12px 16px",
+              font: "inherit",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            {agreement ? "View Cancellation Acknowledgement" : "Send Cancellation Acknowledgement"}
+          </button>
+        </section>
+      ) : null}
 
       {isOpen ? (
         <div
           role="presentation"
           onMouseDown={(event) => {
             event.stopPropagation();
-            if (event.target === event.currentTarget) setIsOpen(false);
+            if (event.target === event.currentTarget) closePopup();
           }}
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 1000,
+            zIndex: 2000,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -269,7 +288,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
               <button
                 type="button"
                 aria-label="Close cancellation acknowledgement"
-                onClick={() => setIsOpen(false)}
+                onClick={closePopup}
                 style={{
                   border: 0,
                   background: "transparent",
