@@ -2,6 +2,7 @@ import Link from "next/link";
 import ReadinessTable from "./ReadinessTable";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
+import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
 import LastSynced from "./LastSynced";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
 import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
@@ -29,6 +30,7 @@ export default async function TeamReadinessPage() {
   return (
     <div className={styles.page}>
       <AutoRefresh />
+      <AutoCancellationPopupWatcher />
       <PortalEmailEnhancer />
       <OhvDrawerEnhancer />
 
