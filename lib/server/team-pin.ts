@@ -62,12 +62,33 @@ async function getActivePinRow(profileId: string) {
   return rows[0] ?? null;
 }
 
+async function getActiveEmployeePinRows() {
+  return supabaseSelect<TeamPinRow>(
+    "team_profiles",
+    new URLSearchParams({
+      select: "id,display_name,email,role,active,pin_hash,pin_set_at",
+      active: "eq.true",
+      role: "neq.workstation",
+      pin_set_at: "not.is.null",
+      order: "display_name.asc",
+    }),
+  );
+}
+
 export async function setTeamProfilePin(profileId: string, pin: string) {
   validatePin(pin);
 
   const profile = await getActivePinRow(profileId);
   if (!profile) throw new Error("Active EpicTools team profile not found.");
   if (profile.role === "workstation") throw new Error("Shared workstation profiles cannot have employee PINs.");
+
+  const existing = await getActiveEmployeePinRows();
+  for (const row of existing) {
+    if (row.id === profileId || !row.pin_hash) continue;
+    if (verifyPinHash(pin, row.pin_hash)) {
+      throw new Error("That PIN is already in use. Choose a different PIN.");
+    }
+  }
 
   const now = new Date().toISOString();
   await supabasePatch(
@@ -88,6 +109,22 @@ export async function verifyTeamProfilePin(profileId: string, pin: string): Prom
   if (!profile || profile.role === "workstation" || !profile.pin_hash) return null;
   if (!verifyPinHash(pin, profile.pin_hash)) return null;
 
+  return {
+    id: profile.id,
+    display_name: profile.display_name,
+    email: profile.email,
+    role: profile.role,
+  };
+}
+
+export async function identifyTeamProfileByPin(pin: string): Promise<VerifiedTeamPinIdentity | null> {
+  if (!PIN_PATTERN.test(pin)) return null;
+
+  const rows = await getActiveEmployeePinRows();
+  const matches = rows.filter((row) => row.pin_hash && verifyPinHash(pin, row.pin_hash));
+  if (matches.length !== 1) return null;
+
+  const profile = matches[0];
   return {
     id: profile.id,
     display_name: profile.display_name,
