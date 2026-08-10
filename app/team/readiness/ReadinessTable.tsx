@@ -875,17 +875,10 @@ await callReadinessRpc("manual_override_mpwr_information", {
       throw new Error(await response.text());
     }
   }
-  const selectedDateKey = selected
-    ? visitDateKey(selected.visit_start_time)
-    : "";
 
-  const currentDate = new Date();
-  const nextDate = new Date(currentDate);
-  nextDate.setDate(currentDate.getDate() + 1);
-
-  const selectedIsToday = selectedDateKey === localDateKey(currentDate);
-
-  const selectedIsTomorrow = selectedDateKey === localDateKey(nextDate);
+  const selectedIsToday = selected
+    ? visitDateKey(selected.visit_start_time) === localDateKey(new Date())
+    : false;
 
   return (
     <>
@@ -1415,260 +1408,198 @@ await callReadinessRpc("manual_override_mpwr_information", {
               </section>
             ) : null}
 
-            {selectedIsToday ? (
-              <>
-                <section
-                  className={`${styles.drawerSection} ${styles.courtesyAuditSection}`}
-                >
-                  {courtesyCompletion ? (
-                    <details className={styles.courtesyAuditComplete}>
-                      <summary className={styles.courtesyAuditSummary}>
-                        <span>
-                          <strong>Courtesy Call Complete</strong>
-                          <small>
-                            {courtesyCompletion.outcome === "live_call"
-                              ? "Live Call Completed"
-                              : courtesyCompletion.outcome === "voicemail_left"
-                                ? "Voicemail Left"
-                                : courtesyCompletion.outcome ===
-                                    "unable_to_leave_voicemail"
-                                  ? "Unable to Leave Voicemail"
-                                  : courtesyCompletion.outcome ===
-                                      "international_no_call"
-                                    ? "International Number - No Call"
-                                    : courtesyCompletion.outcome}
-                          </small>
-                        </span>
-                        <span className={styles.courtesyAuditView}>
-                          View Details
-                        </span>
-                      </summary>
-
-                      <div className={styles.courtesyAuditDetails}>
-                        <div>
-                          <span>Completed by</span>
-                          <strong>{courtesyCompletion.completedBy}</strong>
-                        </div>
-
-                        <div>
-                          <span>Completed</span>
-                          <strong>
-                            {courtesyCompletion.completedAt.toLocaleString(
-                              "en-US",
-                              {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </strong>
-                        </div>
-                      </div>
-                    </details>
-                  ) : (
-                    <div className={styles.courtesyAuditMissing}>
-                      <strong>Courtesy Call Not Completed</strong>
-                      <span>
-                        No completed courtesy call was recorded before arrival.
-                      </span>
-                    </div>
-                  )}
-                </section>
-
-                <section className={styles.handoffAction}>
-                  <button
-                    type="button"
-                    className={styles.handoffButton}
-                    disabled={
-                      handoffSaving ||
-                      (selected.amount_due_cents ?? 0) > 0 ||
-                      selected.handoff_status === "checked_in" ||
-                      selected.handoff_status === "rental_returned"
-                    }
-                    onClick={saveHandoff}
-                  >
-                    {handoffSaving
-                      ? "Saving..."
-                      : selected.business_line === "tour"
-                        ? selected.handoff_status === "checked_in"
-                          ? "Checked In"
-                          : "Checked In"
-                        : selected.handoff_status === "rental_out"
-                          ? "Rental Returned"
-                          : selected.handoff_status === "rental_returned"
-                            ? "Rental Returned"
-                            : "Rental Out"}
-                  </button>
-
-                  {(selected.amount_due_cents ?? 0) > 0 ? (
-                    <p className={styles.handoffBlocked}>
-                      Balance must be paid first.
-                    </p>
-                  ) : null}
-
-                  {handoffError ? (
-                    <p className={styles.handoffBlocked}>{handoffError}</p>
-                  ) : null}
-                </section>
-              </>
-            ) : selectedIsTomorrow ? (
-              <section className={styles.handoffAction}>
-                {courtesyCompletion ? (
-                  <div className={styles.courtesyComplete}>
-                    <div className={styles.courtesyCompleteTitle}>
-                      Courtesy Call Complete
-                    </div>
-
-                    <div className={styles.courtesyCompleteOutcome}>
-                      {courtesyCompletion.outcome === "live_call"
-                        ? "Live Call Completed"
-                        : courtesyCompletion.outcome === "voicemail_left"
-                          ? "Voicemail Left"
-                          : courtesyCompletion.outcome ===
-                              "unable_to_leave_voicemail"
-                            ? "Unable to Leave Voicemail"
-                            : courtesyCompletion.outcome ===
-                                "international_no_call"
-                              ? "International Number - No Call"
-                              : courtesyCompletion.outcome}
-                    </div>
-
-                    <div className={styles.courtesyCompleteDetail}>
-                      {courtesyCompletion.completedBy}
-                    </div>
-
-                    <div className={styles.courtesyCompleteDetail}>
-                      {courtesyCompletion.completedAt.toLocaleString("en-US", {
-                        month: "2-digit",
-                        day: "2-digit",
-                        year: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </div>
+            <section className={styles.handoffAction}>
+              {courtesyCompletion ? (
+                <div className={styles.courtesyComplete}>
+                  <div className={styles.courtesyCompleteTitle}>
+                    Courtesy Call Complete
                   </div>
-                ) : (
-                  <>
-                    <div className={styles.courtesyHeader}>
-                      <strong>Courtesy Call</strong>
 
-                      <p className={styles.subLine}>
-                        Prepare this guest for tomorrow.
-                      </p>
-                    </div>
+                  <div className={styles.courtesyCompleteOutcome}>
+                    {courtesyCompletion.outcome === "live_call"
+                      ? "Live Call Completed"
+                      : courtesyCompletion.outcome === "voicemail_left"
+                        ? "Voicemail Left"
+                        : courtesyCompletion.outcome ===
+                            "unable_to_leave_voicemail"
+                          ? "Unable to Leave Voicemail"
+                          : courtesyCompletion.outcome ===
+                              "international_no_call"
+                            ? "International Number - No Call"
+                            : courtesyCompletion.outcome}
+                  </div>
 
-                    <div className={styles.courtesyForm}>
-                      <label className={styles.courtesyField}>
-                        <span>Completed by</span>
+                  <div className={styles.courtesyCompleteDetail}>
+                    {courtesyCompletion.completedBy}
+                  </div>
 
-                        <select
-                          value={courtesyStaff}
-                          onChange={(event) =>
-                            setCourtesyStaff(event.target.value)
-                          }
-                        >
-                          <option value="">Select team member...</option>
+                  <div className={styles.courtesyCompleteDetail}>
+                    {courtesyCompletion.completedAt.toLocaleString("en-US", {
+                      month: "2-digit",
+                      day: "2-digit",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className={styles.courtesyHeader}>
+                    <strong>Courtesy Call</strong>
 
-                          {COURTESY_CALL_STAFF.map((name) => (
-                            <option key={name} value={name}>
-                              {name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                    <p className={styles.subLine}>
+                      Prepare this guest before arrival.
+                    </p>
+                  </div>
 
-                      <label className={styles.courtesyField}>
-                        <span>Call outcome</span>
+                  <div className={styles.courtesyForm}>
+                    <label className={styles.courtesyField}>
+                      <span>Completed by</span>
 
-                        <select
-                          value={callOutcome}
-                          onChange={(event) =>
-                            setCallOutcome(event.target.value)
-                          }
-                        >
-                          <option value="">Select call outcome...</option>
-                          <option value="live_call">
-                            Live call completed
-                          </option>
-                          <option value="voicemail_left">Voicemail left</option>
-                          <option value="unable_to_leave_voicemail">
-                            Unable to leave voicemail
-                          </option>
-                          <option value="international_no_call">
-                            International number - no call
-                          </option>
-                        </select>
-                      </label>
-
-                      {callOutcome === "live_call" ||
-                      callOutcome === "voicemail_left" ? (
-                        <>
-                          <label className={styles.courtesyCheck}>
-                            <input
-                              type="checkbox"
-                              checked={arrivalConfirmed}
-                              onChange={(event) =>
-                                setArrivalConfirmed(event.target.checked)
-                              }
-                            />
-
-                            <span>Arrival time confirmed</span>
-                          </label>
-
-                          <label className={styles.courtesyCheck}>
-                            <input
-                              type="checkbox"
-                              checked={locationDiscussed}
-                              onChange={(event) =>
-                                setLocationDiscussed(event.target.checked)
-                              }
-                            />
-
-                            <span>Location Confirmed</span>
-                          </label>
-                        </>
-                      ) : null}
-
-                      <label className={styles.courtesyField}>
-                        <span>Notes</span>
-
-                        <textarea
-                          value={courtesyNotes}
-                          onChange={(event) =>
-                            setCourtesyNotes(event.target.value)
-                          }
-                          placeholder="Optional notes..."
-                          rows={4}
-                        />
-                      </label>
-
-                      <button
-                        type="button"
-                        className={styles.handoffButton}
-                        onClick={saveCourtesyCall}
-                        disabled={
-                          courtesySaving ||
-                          !courtesyStaff ||
-                          !callOutcome ||
-                          (callOutcome === "live_call" &&
-                            (!arrivalConfirmed || !locationDiscussed))
+                      <select
+                        value={courtesyStaff}
+                        onChange={(event) =>
+                          setCourtesyStaff(event.target.value)
                         }
                       >
-                        {courtesySaving
-                          ? "Saving..."
-                          : "Complete Courtesy Call"}
-                      </button>
+                        <option value="">Select team member...</option>
 
-                      {courtesyError ? (
-                        <p className={styles.handoffBlocked}>
-                          {courtesyError}
-                        </p>
-                      ) : null}
-                    </div>
-                  </>
-                )}
+                        {COURTESY_CALL_STAFF.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className={styles.courtesyField}>
+                      <span>Call outcome</span>
+
+                      <select
+                        value={callOutcome}
+                        onChange={(event) =>
+                          setCallOutcome(event.target.value)
+                        }
+                      >
+                        <option value="">Select call outcome...</option>
+                        <option value="live_call">
+                          Live call completed
+                        </option>
+                        <option value="voicemail_left">Voicemail left</option>
+                        <option value="unable_to_leave_voicemail">
+                          Unable to leave voicemail
+                        </option>
+                        <option value="international_no_call">
+                          International number - no call
+                        </option>
+                      </select>
+                    </label>
+
+                    {callOutcome === "live_call" ||
+                    callOutcome === "voicemail_left" ? (
+                      <>
+                        <label className={styles.courtesyCheck}>
+                          <input
+                            type="checkbox"
+                            checked={arrivalConfirmed}
+                            onChange={(event) =>
+                              setArrivalConfirmed(event.target.checked)
+                            }
+                          />
+
+                          <span>Arrival time confirmed</span>
+                        </label>
+
+                        <label className={styles.courtesyCheck}>
+                          <input
+                            type="checkbox"
+                            checked={locationDiscussed}
+                            onChange={(event) =>
+                              setLocationDiscussed(event.target.checked)
+                            }
+                          />
+
+                          <span>Location Confirmed</span>
+                        </label>
+                      </>
+                    ) : null}
+
+                    <label className={styles.courtesyField}>
+                      <span>Notes</span>
+
+                      <textarea
+                        value={courtesyNotes}
+                        onChange={(event) =>
+                          setCourtesyNotes(event.target.value)
+                        }
+                        placeholder="Optional notes..."
+                        rows={4}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      className={styles.handoffButton}
+                      onClick={saveCourtesyCall}
+                      disabled={
+                        courtesySaving ||
+                        !courtesyStaff ||
+                        !callOutcome ||
+                        (callOutcome === "live_call" &&
+                          (!arrivalConfirmed || !locationDiscussed))
+                      }
+                    >
+                      {courtesySaving
+                        ? "Saving..."
+                        : "Complete Courtesy Call"}
+                    </button>
+
+                    {courtesyError ? (
+                      <p className={styles.handoffBlocked}>
+                        {courtesyError}
+                      </p>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </section>
+
+            {selectedIsToday ? (
+              <section className={styles.handoffAction}>
+                <button
+                  type="button"
+                  className={styles.handoffButton}
+                  disabled={
+                    handoffSaving ||
+                    (selected.amount_due_cents ?? 0) > 0 ||
+                    selected.handoff_status === "checked_in" ||
+                    selected.handoff_status === "rental_returned"
+                  }
+                  onClick={saveHandoff}
+                >
+                  {handoffSaving
+                    ? "Saving..."
+                    : selected.business_line === "tour"
+                      ? selected.handoff_status === "checked_in"
+                        ? "Checked In"
+                        : "Checked In"
+                      : selected.handoff_status === "rental_out"
+                        ? "Rental Returned"
+                        : selected.handoff_status === "rental_returned"
+                          ? "Rental Returned"
+                          : "Rental Out"}
+                </button>
+
+                {(selected.amount_due_cents ?? 0) > 0 ? (
+                  <p className={styles.handoffBlocked}>
+                    Balance must be paid first.
+                  </p>
+                ) : null}
+
+                {handoffError ? (
+                  <p className={styles.handoffBlocked}>{handoffError}</p>
+                ) : null}
               </section>
             ) : null}
 
