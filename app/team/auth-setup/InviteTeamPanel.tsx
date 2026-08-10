@@ -7,9 +7,9 @@ type TeamProfile = {
   user_id: string | null;
   display_name: string;
   email: string;
-  role: "admin" | "manager" | "agent";
+  role: "admin" | "manager" | "agent" | "workstation";
   active: boolean;
-  tripworks_user_id: number;
+  tripworks_user_id: number | null;
 };
 
 export default function InviteTeamPanel() {
@@ -25,10 +25,10 @@ export default function InviteTeamPanel() {
     try {
       const response = await fetch("/api/admin/team-invites", { cache: "no-store" });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Unable to load employees.");
+      if (!response.ok) throw new Error(payload.error || "Unable to load team profiles.");
       setProfiles(payload.profiles || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load employees.");
+      setError(err instanceof Error ? err.message : "Unable to load team profiles.");
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function InviteTeamPanel() {
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ marginBottom: 8 }}>EpicTools Employee Auth Setup</h1>
         <p style={{ margin: 0, color: "#667085" }}>
-          Invite one employee at a time. Start with Jennifer, verify her account works, then invite the rest.
+          Jennifer is the pilot account. Do not invite the rest of the team or Reception until the shared-workstation flow is verified.
         </p>
       </div>
 
@@ -76,13 +76,13 @@ export default function InviteTeamPanel() {
       {error ? <div style={{ padding: 12, marginBottom: 14, background: "#fef3f2", color: "#b42318", borderRadius: 8 }}>{error}</div> : null}
 
       {loading ? (
-        <p>Loading employees...</p>
+        <p>Loading team profiles...</p>
       ) : (
         <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #e4e7ec", borderRadius: 12 }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                {['Employee', 'Role', 'TripWorks ID', 'Auth status', ''].map((label) => (
+                {['Profile', 'Role', 'TripWorks ID', 'Auth status', ''].map((label) => (
                   <th key={label} style={{ textAlign: "left", padding: 12, borderBottom: "1px solid #e4e7ec" }}>{label}</th>
                 ))}
               </tr>
@@ -95,7 +95,7 @@ export default function InviteTeamPanel() {
                     <span style={{ color: "#667085" }}>{profile.email}</span>
                   </td>
                   <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.role}</td>
-                  <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.tripworks_user_id}</td>
+                  <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.tripworks_user_id ?? "—"}</td>
                   <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
                     {profile.user_id ? "Linked" : "Not invited"}
                   </td>
