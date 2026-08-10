@@ -126,6 +126,32 @@ export async function inviteTeamProfile(email: string, redirectTo: string) {
   };
 }
 
+export async function sendTeamPasswordReset(email: string, redirectTo: string) {
+  const profile = await getTeamProfileByEmail(email);
+  if (!profile || !profile.active || profile.role === "workstation") {
+    throw new Error("No active EpicTools employee account exists for that email.");
+  }
+  if (!profile.user_id) {
+    throw new Error("This employee has not activated EpicTools yet. Send an invitation instead.");
+  }
+
+  const { url, key } = getConfig(false);
+  const endpoint = `${url}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { apikey: key, "Content-Type": "application/json" },
+    body: JSON.stringify({ email: profile.email }),
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.msg || payload?.message || payload?.error_description || "Unable to send password reset email.");
+  }
+
+  return { profile };
+}
+
 export async function signInWithPassword(email: string, password: string): Promise<SupabaseSession> {
   const { url, key } = getConfig(false);
   const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
