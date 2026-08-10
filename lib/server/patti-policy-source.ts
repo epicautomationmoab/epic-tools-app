@@ -87,20 +87,25 @@ async function getEvents(confirmationCode: string, eventType: "trip_reserved" | 
   return events;
 }
 
-async function recoverTripSafeFromUpdates(confirmationCode: string) {
-  const events = await getEvents(confirmationCode, "trip_updated");
-  let recovered: "purchased" | "declined" | "unknown" = "unknown";
+async function getLatestTripSafeSelection(
+  confirmationCode: string,
+  reservedEvents?: WebhookEventRow[],
+): Promise<"purchased" | "declined" | "unknown"> {
+  const reservations = reservedEvents ?? await getEvents(confirmationCode, "trip_reserved");
+  const updates = await getEvents(confirmationCode, "trip_updated");
+  const events = [...reservations, ...updates].sort(
+    (a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime(),
+  );
 
+  let latest: "purchased" | "declined" | "unknown" = "unknown";
   for (const event of events) {
     const payload = unwrapPayload(event.payload);
     if (!payload || payload.confirmation_code !== confirmationCode) continue;
     const selection = tripSafeSelection(collectBookingAddons(payload));
-    if (selection === "unknown") continue;
-    if (recovered !== "unknown" && recovered !== selection) return "unknown";
-    recovered = selection;
+    if (selection !== "unknown") latest = selection;
   }
 
-  return recovered;
+  return latest;
 }
 
 function addonsForSelection(selection: "purchased" | "declined"): TripWorksAddon[] {
@@ -115,18 +120,15 @@ export async function getPattiPolicyDecision(
   activityStartAt: string,
 ): Promise<PattiPolicyDecision> {
   const reservedEvents = await getEvents(confirmationCode, "trip_reserved");
+  const latestSelection = await getLatestTripSafeSelection(confirmationCode, reservedEvents);
 
   for (const event of reservedEvents) {
     const payload = unwrapPayload(event.payload);
     if (!payload || payload.confirmation_code !== confirmationCode) continue;
 
-    let bookingAddons = collectBookingAddons(payload);
-    let selection = tripSafeSelection(bookingAddons);
-
-    if (selection === "unknown") {
-      selection = await recoverTripSafeFromUpdates(confirmationCode);
-      if (selection !== "unknown") bookingAddons = addonsForSelection(selection);
-    }
+    const bookingAddons = latestSelection === "unknown"
+      ? collectBookingAddons(payload)
+      : addonsForSelection(latestSelection);
 
     const decision = resolvePattiCancellationPolicy({
       reservationCreatedAt: payload.reserved_at || event.received_at,
@@ -137,13 +139,12 @@ export async function getPattiPolicyDecision(
     if (decision.status) return decision;
   }
 
-  const recoveredSelection = await recoverTripSafeFromUpdates(confirmationCode);
-  if (recoveredSelection !== "unknown") {
+  if (latestSelection !== "unknown") {
     return {
-      status: recoveredSelection,
-      source: recoveredSelection === "purchased" ? "tripsafe_purchased" : "tripsafe_declined",
+      status: latestSelection,
+      source: latestSelection === "purchased" ? "tripsafe_purchased" : "tripsafe_declined",
       hoursBetweenReservationAndStart: null,
-      tripSafeSelection: recoveredSelection,
+      tripSafeSelection: latestSelection,
     };
   }
 
