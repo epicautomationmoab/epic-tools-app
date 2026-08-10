@@ -71,7 +71,7 @@ export default function CancellationAgreementPanel({
   const [authChecked, setAuthChecked] = useState(false);
   const [phone, setPhone] = useState(row.customer_phone || "");
   const [email, setEmail] = useState(row.customer_email || "");
-  const [deliveryMode, setDeliveryMode] = useState<"sms" | "email" | "both">("email");
+  const [deliveryMode, setDeliveryMode] = useState<"sms" | "email" | "both">("both");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [copying, setCopying] = useState(false);
@@ -104,9 +104,15 @@ export default function CancellationAgreementPanel({
       if (!data.agreement && data.policyDecision?.status && !overridePolicy) {
         setTripSafeStatus(data.policyDecision.status);
       }
-      setPodiumConfigured(data.podiumConfigured === true);
-      setEmailConfigured(data.emailConfigured === true);
-      if (data.podiumConfigured === true && data.emailConfigured !== true) setDeliveryMode("sms");
+      const hasPodium = data.podiumConfigured === true;
+      const hasEmail = data.emailConfigured === true;
+      setPodiumConfigured(hasPodium);
+      setEmailConfigured(hasEmail);
+      if (!data.agreement) {
+        if (hasPodium && hasEmail) setDeliveryMode("both");
+        else if (hasPodium) setDeliveryMode("sms");
+        else if (hasEmail) setDeliveryMode("email");
+      }
       setError("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load agreement status.");
