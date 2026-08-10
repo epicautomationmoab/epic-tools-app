@@ -58,14 +58,6 @@ function collectOrderAddons(order: TripWorksTripOrder) {
   return addons;
 }
 
-function collectBookingAddons(payload: TripWorksPayload) {
-  const addons: TripWorksAddon[] = [];
-  for (const order of payload.tripOrders ?? []) {
-    addons.push(...collectOrderAddons(order));
-  }
-  return addons;
-}
-
 function tripSafeSelection(addons: TripWorksAddon[]): TripSafeSelection {
   const selections = new Set(
     addons
@@ -91,29 +83,30 @@ function sameVisitStart(value: string | null | undefined, activityStartAt: strin
   return !Number.isNaN(left) && !Number.isNaN(right) && Math.abs(left - right) < 60_000;
 }
 
-function rentalOrdersForVisit(payload: TripWorksPayload, activityStartAt: string) {
+function ordersForVisit(payload: TripWorksPayload, activityStartAt: string) {
   return (payload.tripOrders ?? []).filter((order) => sameVisitStart(order.experience_timeslot?.start_time, activityStartAt));
 }
 
-function rentalTripSafeSelection(payload: TripWorksPayload, activityStartAt: string): TripSafeSelection {
-  const orders = rentalOrdersForVisit(payload, activityStartAt);
+function visitTripSafeSelection(
+  payload: TripWorksPayload,
+  activityStartAt: string,
+  businessLine?: string | null,
+): TripSafeSelection {
+  const orders = ordersForVisit(payload, activityStartAt);
   if (!orders.length) return "unknown";
 
   const selections = orders.map((order) => tripSafeSelection(collectOrderAddons(order)));
-  if (selections.some((selection) => selection === "declined")) return "declined";
-  if (selections.every((selection) => selection === "purchased")) return "purchased";
-  return "unknown";
-}
 
-function selectionForPayload(payload: TripWorksPayload, activityStartAt: string, businessLine?: string | null) {
-  return normalize(businessLine) === "rental"
-    ? rentalTripSafeSelection(payload, activityStartAt)
-    : tripSafeSelection(collectBookingAddons(payload));
-}
+  if (normalize(businessLine) === "rental") {
+    if (selections.some((selection) => selection === "declined")) return "declined";
+    if (selections.every((selection) => selection === "purchased")) return "purchased";
+    return "unknown";
+  }
 
-function addonsForDecision(payload: TripWorksPayload, activityStartAt: string, businessLine?: string | null) {
-  if (normalize(businessLine) !== "rental") return collectBookingAddons(payload);
-  return rentalOrdersForVisit(payload, activityStartAt).flatMap((order) => collectOrderAddons(order));
+  const known = selections.filter((selection) => selection !== "unknown");
+  if (!known.length) return "unknown";
+  const unique = new Set(known);
+  return unique.size === 1 ? known[0] : "unknown";
 }
 
 async function queryEvents(confirmationCode: string, eventType: "trip_reserved" | "trip_updated", wrapped: boolean) {
@@ -151,7 +144,7 @@ async function getLatestTripSafeSelection(
   for (const event of events) {
     const payload = unwrapPayload(event.payload);
     if (!payload || payload.confirmation_code !== confirmationCode) continue;
-    const selection = selectionForPayload(payload, activityStartAt, businessLine);
+    const selection = visitTripSafeSelection(payload, activityStartAt, businessLine);
     if (selection !== "unknown") latest = selection;
   }
 
@@ -182,8 +175,9 @@ export async function getPattiPolicyDecision(
     const payload = unwrapPayload(event.payload);
     if (!payload || payload.confirmation_code !== confirmationCode) continue;
 
+    const visitOrders = ordersForVisit(payload, activityStartAt);
     const bookingAddons = latestSelection === "unknown"
-      ? addonsForDecision(payload, activityStartAt, businessLine)
+      ? visitOrders.flatMap((order) => collectOrderAddons(order))
       : addonsForSelection(latestSelection);
 
     const decision = resolvePattiCancellationPolicy({
