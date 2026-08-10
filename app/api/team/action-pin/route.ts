@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { identifyTeamProfileByPin } from "@/lib/server/team-pin";
+import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 function hasPreviewAccess(request: NextRequest) {
   const expected = process.env.EPIC_PREVIEW_TOKEN;
@@ -10,7 +11,8 @@ function hasPreviewAccess(request: NextRequest) {
 
 async function canUseActionPin(request: NextRequest) {
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
-  return Boolean(profile || hasPreviewAccess(request));
+  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
+  return Boolean(profile || workstation || hasPreviewAccess(request));
 }
 
 export async function POST(request: NextRequest) {
