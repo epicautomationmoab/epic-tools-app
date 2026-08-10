@@ -22,18 +22,15 @@ type TripWorksBooking = {
 type TripWorksTripOrder = {
   id?: number | string | null;
   bookings?: TripWorksBooking[] | null;
+  experience_timeslot?: {
+    start_time?: string | null;
+  } | null;
 };
 
 type TripWorksPayload = {
   confirmation_code?: string | null;
   reserved_at?: string | null;
   tripOrders?: TripWorksTripOrder[] | null;
-};
-
-type PattiStoreVisitRow = {
-  business_line: string | null;
-  visit_start_time: string | null;
-  source_trip_order_ids: Array<string | number> | null;
 };
 
 type TripSafeSelection = "purchased" | "declined" | "unknown";
@@ -53,13 +50,18 @@ function unwrapPayload(value: Record<string, unknown> | null): TripWorksPayload 
   return value as TripWorksPayload;
 }
 
-function collectBookingAddons(payload: TripWorksPayload, sourceTripOrderIds?: Set<string>) {
+function collectOrderAddons(order: TripWorksTripOrder) {
+  const addons: TripWorksAddon[] = [];
+  for (const booking of order.bookings ?? []) {
+    addons.push(...(booking.addons ?? []));
+  }
+  return addons;
+}
+
+function collectBookingAddons(payload: TripWorksPayload) {
   const addons: TripWorksAddon[] = [];
   for (const order of payload.tripOrders ?? []) {
-    if (sourceTripOrderIds?.size && !sourceTripOrderIds.has(String(order.id ?? ""))) continue;
-    for (const booking of order.bookings ?? []) {
-      addons.push(...(booking.addons ?? []));
-    }
+    addons.push(...collectOrderAddons(order));
   }
   return addons;
 }
@@ -77,21 +79,41 @@ function tripSafeSelection(addons: TripWorksAddon[]): TripSafeSelection {
       })
       .filter((selection) => selection !== "unknown"),
   );
+
   if (selections.size !== 1) return "unknown";
   return [...selections][0] as "purchased" | "declined";
 }
 
-function rentalStoreVisitSelection(payload: TripWorksPayload, sourceTripOrderIds: Set<string>): TripSafeSelection {
-  const selections: TripSafeSelection[] = [];
+function sameVisitStart(value: string | null | undefined, activityStartAt: string) {
+  if (!value) return false;
+  const left = new Date(value).getTime();
+  const right = new Date(activityStartAt).getTime();
+  return !Number.isNaN(left) && !Number.isNaN(right) && Math.abs(left - right) < 60_000;
+}
 
-  for (const order of payload.tripOrders ?? []) {
-    if (!sourceTripOrderIds.has(String(order.id ?? ""))) continue;
-    selections.push(tripSafeSelection(collectBookingAddons({ tripOrders: [order] })));
-  }
+function rentalOrdersForVisit(payload: TripWorksPayload, activityStartAt: string) {
+  return (payload.tripOrders ?? []).filter((order) => sameVisitStart(order.experience_timeslot?.start_time, activityStartAt));
+}
 
-  if (!selections.length || selections.some((selection) => selection === "unknown")) return "unknown";
+function rentalTripSafeSelection(payload: TripWorksPayload, activityStartAt: string): TripSafeSelection {
+  const orders = rentalOrdersForVisit(payload, activityStartAt);
+  if (!orders.length) return "unknown";
+
+  const selections = orders.map((order) => tripSafeSelection(collectOrderAddons(order)));
   if (selections.some((selection) => selection === "declined")) return "declined";
-  return selections.every((selection) => selection === "purchased") ? "purchased" : "unknown";
+  if (selections.every((selection) => selection === "purchased")) return "purchased";
+  return "unknown";
+}
+
+function selectionForPayload(payload: TripWorksPayload, activityStartAt: string, businessLine?: string | null) {
+  return normalize(businessLine) === "rental"
+    ? rentalTripSafeSelection(payload, activityStartAt)
+    : tripSafeSelection(collectBookingAddons(payload));
+}
+
+function addonsForDecision(payload: TripWorksPayload, activityStartAt: string, businessLine?: string | null) {
+  if (normalize(businessLine) !== "rental") return collectBookingAddons(payload);
+  return rentalOrdersForVisit(payload, activityStartAt).flatMap((order) => collectOrderAddons(order));
 }
 
 async function queryEvents(confirmationCode: string, eventType: "trip_reserved" | "trip_updated", wrapped: boolean) {
@@ -114,34 +136,11 @@ async function getEvents(confirmationCode: string, eventType: "trip_reserved" | 
   return events;
 }
 
-async function getRentalStoreVisitSourceOrderIds(confirmationCode: string, activityStartAt: string) {
-  const rows = await supabaseSelect<PattiStoreVisitRow>(
-    "portal_patti_store_visits",
-    new URLSearchParams({
-      select: "business_line,visit_start_time,source_trip_order_ids",
-      confirmation_code: `eq.${confirmationCode}`,
-      business_line: "eq.rental",
-      limit: "20",
-    }),
-  );
-
-  const target = new Date(activityStartAt).getTime();
-  if (Number.isNaN(target)) return null;
-
-  const match = rows.find((row) => {
-    if (normalize(row.business_line) !== "rental" || !row.visit_start_time) return false;
-    const start = new Date(row.visit_start_time).getTime();
-    return !Number.isNaN(start) && Math.abs(start - target) < 60_000;
-  });
-
-  if (!match?.source_trip_order_ids?.length) return null;
-  return new Set(match.source_trip_order_ids.map((id) => String(id)));
-}
-
 async function getLatestTripSafeSelection(
   confirmationCode: string,
   reservedEvents: WebhookEventRow[],
-  rentalSourceTripOrderIds: Set<string> | null,
+  activityStartAt: string,
+  businessLine?: string | null,
 ): Promise<TripSafeSelection> {
   const updates = await getEvents(confirmationCode, "trip_updated");
   const events = [...reservedEvents, ...updates].sort(
@@ -152,9 +151,7 @@ async function getLatestTripSafeSelection(
   for (const event of events) {
     const payload = unwrapPayload(event.payload);
     if (!payload || payload.confirmation_code !== confirmationCode) continue;
-    const selection = rentalSourceTripOrderIds?.size
-      ? rentalStoreVisitSelection(payload, rentalSourceTripOrderIds)
-      : tripSafeSelection(collectBookingAddons(payload));
+    const selection = selectionForPayload(payload, activityStartAt, businessLine);
     if (selection !== "unknown") latest = selection;
   }
 
@@ -171,13 +168,14 @@ function addonsForSelection(selection: "purchased" | "declined"): TripWorksAddon
 export async function getPattiPolicyDecision(
   confirmationCode: string,
   activityStartAt: string,
+  businessLine?: string | null,
 ): Promise<PattiPolicyDecision> {
   const reservedEvents = await getEvents(confirmationCode, "trip_reserved");
-  const rentalSourceTripOrderIds = await getRentalStoreVisitSourceOrderIds(confirmationCode, activityStartAt);
   const latestSelection = await getLatestTripSafeSelection(
     confirmationCode,
     reservedEvents,
-    rentalSourceTripOrderIds,
+    activityStartAt,
+    businessLine,
   );
 
   for (const event of reservedEvents) {
@@ -185,7 +183,7 @@ export async function getPattiPolicyDecision(
     if (!payload || payload.confirmation_code !== confirmationCode) continue;
 
     const bookingAddons = latestSelection === "unknown"
-      ? collectBookingAddons(payload, rentalSourceTripOrderIds ?? undefined)
+      ? addonsForDecision(payload, activityStartAt, businessLine)
       : addonsForSelection(latestSelection);
 
     const decision = resolvePattiCancellationPolicy({
