@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { inviteTeamProfile, listTeamProfiles } from "@/lib/team-auth";
+import { getAuthenticatedTeamProfile, inviteTeamProfile, listTeamProfiles } from "@/lib/team-auth";
 
 function hasPreviewAccess(request: NextRequest) {
   const expected = process.env.EPIC_PREVIEW_TOKEN;
@@ -7,8 +7,15 @@ function hasPreviewAccess(request: NextRequest) {
   return Boolean(expected && supplied === expected);
 }
 
+async function isAuthorizedAdmin(request: NextRequest) {
+  const accessToken = request.cookies.get("epic_access_token")?.value;
+  const profile = await getAuthenticatedTeamProfile(accessToken);
+  if (profile?.role === "admin") return true;
+  return hasPreviewAccess(request);
+}
+
 export async function GET(request: NextRequest) {
-  if (!hasPreviewAccess(request)) {
+  if (!await isAuthorizedAdmin(request)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -24,7 +31,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!hasPreviewAccess(request)) {
+  if (!await isAuthorizedAdmin(request)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
