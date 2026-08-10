@@ -240,7 +240,6 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
             <div>
               <span>Agreement type</span>
               <strong style={{ display: "block", marginTop: 6 }}>{policyLabel(policyDecision.status)}</strong>
-              <small>Determined automatically by Patti from the original TripWorks reservation.</small>
             </div>
           ) : (
             <label>
@@ -250,7 +249,7 @@ export default function CancellationAgreementPanel({ row }: { row: ReadinessRow 
                 <option value="purchased">TripSafe Purchased — 1-Hour Policy</option>
                 <option value="confirmed_within_48">Confirmed Within 48 Hours — Nonrefundable</option>
               </select>
-              <small>Patti could not determine this reservation automatically. Verify before sending.</small>
+              <small>Verify before sending.</small>
             </label>
           )}
 
