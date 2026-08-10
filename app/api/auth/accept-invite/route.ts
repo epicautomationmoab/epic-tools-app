@@ -6,18 +6,27 @@ import {
   linkTeamProfileUser,
   updatePasswordWithAccessToken,
 } from "@/lib/team-auth";
+import { setTeamProfilePin } from "@/lib/server/team-pin";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const accessToken = typeof body?.access_token === "string" ? body.access_token : "";
   const refreshToken = typeof body?.refresh_token === "string" ? body.refresh_token : "";
   const password = typeof body?.password === "string" ? body.password : "";
+  const pin = typeof body?.pin === "string" ? body.pin.trim() : "";
+  const confirmPin = typeof body?.confirm_pin === "string" ? body.confirm_pin.trim() : "";
 
   if (!accessToken || !refreshToken || password.length < 8) {
     return NextResponse.json(
       { error: "A valid invitation and a password of at least 8 characters are required." },
       { status: 400 },
     );
+  }
+  if (!/^\d{4,6}$/.test(pin)) {
+    return NextResponse.json({ error: "PIN must be 4 to 6 digits." }, { status: 400 });
+  }
+  if (pin !== confirmPin) {
+    return NextResponse.json({ error: "PINs do not match." }, { status: 400 });
   }
 
   try {
@@ -39,6 +48,9 @@ export async function POST(request: Request) {
     }
 
     if (!profile.active) throw new Error("This EpicTools employee account is inactive.");
+    if (profile.role === "workstation") throw new Error("Shared workstation profiles are not invited as employees.");
+
+    await setTeamProfilePin(profile.id, pin);
 
     const response = NextResponse.json({
       success: true,
