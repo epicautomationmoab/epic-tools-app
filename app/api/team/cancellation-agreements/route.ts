@@ -5,6 +5,7 @@ import {
   getCancellationPolicy,
   type TripSafeStatus,
 } from "@/lib/cancellation-policy";
+import { getAuthenticatedTeamProfile, type TeamProfile } from "@/lib/team-auth";
 import { agreementEmailConfigured, sendAgreementEmail } from "@/lib/server/agreement-email";
 import { podiumConnected, sendPodiumSms } from "@/lib/server/podium";
 import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
@@ -39,6 +40,11 @@ type AgreementRequest = {
   created_at: string;
 };
 
+type RequestIdentity = {
+  profile: TeamProfile | null;
+  legacyPreview: boolean;
+};
+
 const REVIEW_TIMEOUT_MS = 15 * 60 * 1000;
 
 function reviewTimedOut(agreement: AgreementRequest) {
@@ -46,9 +52,17 @@ function reviewTimedOut(agreement: AgreementRequest) {
   return new Date(agreement.opened_at).getTime() + REVIEW_TIMEOUT_MS <= Date.now();
 }
 
-function isAuthorized(request: NextRequest) {
+function hasPreviewAccess(request: NextRequest) {
   const previewToken = process.env.EPIC_PREVIEW_TOKEN;
   return Boolean(previewToken && request.cookies.get("epic_preview_access")?.value === previewToken);
+}
+
+async function getRequestIdentity(request: NextRequest): Promise<RequestIdentity | null> {
+  const accessToken = request.cookies.get("epic_access_token")?.value;
+  const profile = await getAuthenticatedTeamProfile(accessToken);
+  if (profile) return { profile, legacyPreview: false };
+  if (hasPreviewAccess(request)) return { profile: null, legacyPreview: true };
+  return null;
 }
 
 function normalizePhone(value: string) {
@@ -82,7 +96,7 @@ async function loadReadiness(readinessId: string) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!await getRequestIdentity(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
   if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
 
@@ -124,7 +138,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!isAuthorized(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!await getRequestIdentity(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
   if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
 
@@ -158,7 +172,8 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const identity = await getRequestIdentity(request);
+  if (!identity) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   let body: {
     readinessId?: string;
@@ -174,8 +189,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A JSON request body is required." }, { status: 400 });
   }
 
+  if (identity.profile?.role === "workstation") {
+    return NextResponse.json(
+      { error: "Reception is a shared workstation. Employee verification is required before sending an agreement." },
+      { status: 409 },
+    );
+  }
+
   const readinessId = body.readinessId?.trim();
-  const sentBy = body.sentBy?.trim();
+  const sentBy = identity.profile?.display_name || body.sentBy?.trim();
   const tripSafeStatus = body.tripSafeStatus;
   const deliveryMode = ["sms", "email", "both", "copy"].includes(body.deliveryMode ?? "")
     ? body.deliveryMode as "sms" | "email" | "both" | "copy"
