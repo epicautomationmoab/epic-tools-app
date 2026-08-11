@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthenticatedTeamProfile, inviteTeamProfile, listTeamProfiles, sendTeamPasswordReset } from "@/lib/team-auth";
+import {
+  getAuthenticatedTeamProfile,
+  inviteTeamProfile,
+  listSupabaseAuthUsers,
+  listTeamProfiles,
+  sendTeamPasswordReset,
+} from "@/lib/team-auth";
 
 function hasPreviewAccess(request: NextRequest) {
   const expected = process.env.EPIC_PREVIEW_TOKEN;
@@ -20,8 +26,34 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const profiles = await listTeamProfiles();
-    return NextResponse.json({ profiles });
+    const [profiles, authUsers] = await Promise.all([
+      listTeamProfiles(),
+      listSupabaseAuthUsers(),
+    ]);
+
+    const authByEmail = new Map(
+      authUsers
+        .filter((user) => user.email)
+        .map((user) => [user.email!.trim().toLowerCase(), user]),
+    );
+
+    const enrichedProfiles = profiles.map((profile) => {
+      const authUser = authByEmail.get(profile.email.trim().toLowerCase());
+      const invitationPending = Boolean(
+        !profile.user_id &&
+        authUser?.id &&
+        authUser.invited_at &&
+        !authUser.last_sign_in_at,
+      );
+
+      return {
+        ...profile,
+        invitation_pending: invitationPending,
+        invitation_sent_at: invitationPending ? authUser?.invited_at ?? null : null,
+      };
+    });
+
+    return NextResponse.json({ profiles: enrichedProfiles });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to load team profiles." },
