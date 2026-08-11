@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 type CommunicationRow = {
   id: string;
@@ -40,6 +42,18 @@ function getSupabaseConfig() {
 
 function supabaseHeaders(key: string) {
   return { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+}
+
+function hasPreviewAccess(request: NextRequest) {
+  const expected = process.env.EPIC_PREVIEW_TOKEN;
+  const supplied = request.cookies.get("epic_preview_access")?.value;
+  return Boolean(expected && supplied === expected);
+}
+
+async function canResendConfirmation(request: NextRequest) {
+  const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
+  return Boolean(profile || workstation || hasPreviewAccess(request));
 }
 
 function firstName(fullName: string) {
@@ -133,9 +147,7 @@ async function loadGuestPortalRows(token: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const previewToken = process.env.EPIC_PREVIEW_TOKEN;
-  const suppliedToken = request.cookies.get("epic_preview_access")?.value;
-  if (!previewToken || suppliedToken !== previewToken) {
+  if (!await canResendConfirmation(request)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
