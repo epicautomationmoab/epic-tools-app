@@ -12,6 +12,9 @@ export type TeamProfile = {
 type SupabaseAuthUser = {
   id: string;
   email?: string | null;
+  invited_at?: string | null;
+  email_confirmed_at?: string | null;
+  last_sign_in_at?: string | null;
 };
 
 type SupabaseSession = {
@@ -65,6 +68,28 @@ export async function listTeamProfiles() {
   return adminRest<TeamProfile[]>(
     "team_profiles?select=id,user_id,display_name,email,role,active,tripworks_user_id,tripworks_full_name&order=display_name.asc",
   );
+}
+
+export async function listSupabaseAuthUsers() {
+  const { url, key } = getConfig(true);
+  const response = await fetch(`${url}/auth/v1/admin/users?page=1&per_page=100`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      payload?.msg || payload?.message || payload?.error_description || "Unable to load Supabase Auth users.",
+    );
+  }
+
+  const users = Array.isArray(payload?.users) ? payload.users : [];
+  return users as SupabaseAuthUser[];
 }
 
 export async function getTeamProfileByEmail(email: string) {
