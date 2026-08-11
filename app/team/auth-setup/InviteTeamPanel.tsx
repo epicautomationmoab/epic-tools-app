@@ -59,7 +59,9 @@ export default function InviteTeamPanel() {
           ? `Password reset sent to ${profile.display_name}.`
           : payload.alreadyLinked
             ? `${profile.display_name} already has a linked Supabase Auth account.`
-            : `Invitation sent to ${profile.display_name}.`,
+            : profile.invitation_pending
+              ? `Fresh invitation sent to ${profile.display_name}.`
+              : `Invitation sent to ${profile.display_name}.`,
       );
       await loadProfiles();
     } catch (err) {
@@ -74,7 +76,7 @@ export default function InviteTeamPanel() {
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ marginBottom: 8 }}>EpicTools Employee Auth Setup</h1>
         <p style={{ margin: 0, color: "#667085" }}>
-          Invite new employees and send password resets for existing accounts. Employee PINs are created during initial activation and are not changed by a password reset.
+          Invite new employees, resend pending invitations, and send password resets for existing accounts. Employee PINs are created during initial activation and are not changed by a password reset.
         </p>
       </div>
 
@@ -140,14 +142,14 @@ export default function InviteTeamPanel() {
                       ) : (
                         <button
                           type="button"
-                          disabled={!profile.active || Boolean(workingKey) || Boolean(profile.invitation_pending)}
+                          disabled={!profile.active || Boolean(workingKey)}
                           onClick={() => void manageAuth(profile, "invite")}
-                          style={{ border: 0, borderRadius: 8, padding: "9px 14px", background: profile.invitation_pending ? "#d0d5dd" : "#d5521d", color: "#fff", fontWeight: 700, cursor: profile.invitation_pending || workingKey ? "default" : "pointer" }}
+                          style={{ border: 0, borderRadius: 8, padding: "9px 14px", background: "#d5521d", color: "#fff", fontWeight: 700, cursor: workingKey ? "wait" : "pointer" }}
                         >
-                          {profile.invitation_pending
-                            ? "Invite sent"
-                            : workingKey === inviteKey
-                              ? "Sending..."
+                          {workingKey === inviteKey
+                            ? "Sending..."
+                            : profile.invitation_pending
+                              ? "Resend invite"
                               : "Send invite"}
                         </button>
                       )}
