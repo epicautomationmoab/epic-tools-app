@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getAuthenticatedTeamProfile,
   inviteTeamProfile,
+  linkTeamProfileUser,
   listSupabaseAuthUsers,
   listTeamProfiles,
   sendTeamPasswordReset,
@@ -37,13 +38,30 @@ export async function GET(request: NextRequest) {
         .map((user) => [user.email!.trim().toLowerCase(), user]),
     );
 
-    const enrichedProfiles = profiles.map((profile) => {
+    const reconciledProfiles = await Promise.all(
+      profiles.map(async (profile) => {
+        const authUser = authByEmail.get(profile.email.trim().toLowerCase());
+        const authAccountActivated = Boolean(
+          authUser?.id && (authUser.last_sign_in_at || authUser.email_confirmed_at),
+        );
+
+        if (!profile.user_id && authUser?.id && authAccountActivated && profile.role !== "workstation") {
+          await linkTeamProfileUser(profile.id, authUser.id);
+          return { ...profile, user_id: authUser.id };
+        }
+
+        return profile;
+      }),
+    );
+
+    const enrichedProfiles = reconciledProfiles.map((profile) => {
       const authUser = authByEmail.get(profile.email.trim().toLowerCase());
       const invitationPending = Boolean(
         !profile.user_id &&
         authUser?.id &&
         authUser.invited_at &&
-        !authUser.last_sign_in_at,
+        !authUser.last_sign_in_at &&
+        !authUser.email_confirmed_at,
       );
 
       return {
