@@ -10,6 +10,7 @@ import { agreementEmailConfigured, sendAgreementEmail } from "@/lib/server/agree
 import { getPattiPolicyDecision } from "@/lib/server/patti-policy-source";
 import { podiumConnected, sendPodiumSms } from "@/lib/server/podium";
 import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
+import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 type ReadinessRecord = {
   readiness_id: string;
@@ -44,6 +45,7 @@ type AgreementRequest = {
 type RequestIdentity = {
   profile: TeamProfile | null;
   legacyPreview: boolean;
+  workstation: boolean;
 };
 
 const REVIEW_TIMEOUT_MS = 15 * 60 * 1000;
@@ -62,8 +64,12 @@ function hasPreviewAccess(request: NextRequest) {
 async function getRequestIdentity(request: NextRequest): Promise<RequestIdentity | null> {
   const accessToken = request.cookies.get("epic_access_token")?.value;
   const profile = await getAuthenticatedTeamProfile(accessToken);
-  if (profile) return { profile, legacyPreview: false };
-  if (hasPreviewAccess(request)) return { profile: null, legacyPreview: true };
+  if (profile) return { profile, legacyPreview: false, workstation: false };
+
+  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
+  if (workstation) return { profile: null, legacyPreview: false, workstation: true };
+
+  if (hasPreviewAccess(request)) return { profile: null, legacyPreview: true, workstation: false };
   return null;
 }
 
@@ -225,13 +231,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A JSON request body is required." }, { status: 400 });
   }
 
-  if (identity.profile?.role === "workstation") {
-    return NextResponse.json(
-      { error: "Reception is a shared workstation. Employee verification is required before sending an agreement." },
-      { status: 409 },
-    );
-  }
-
   const readinessId = body.readinessId?.trim();
   const sentBy = identity.profile?.display_name || body.sentBy?.trim();
   const deliveryMode = ["sms", "email", "both", "copy"].includes(body.deliveryMode ?? "")
@@ -356,10 +355,8 @@ export async function POST(request: NextRequest) {
       {
         status: "sent",
         sent_at: new Date().toISOString(),
-        podium_message_uid: podiumResult?.messageUid ?? null,
-        podium_delivery_status: podiumResult?.deliveryStatus ?? null,
-        resend_message_id: emailResult?.messageId ?? null,
-        email_delivery_status: emailResult ? "sent" : null,
+        podium_delivery_status: podiumResult ? "sent" : needsText ? "failed" : null,
+        email_delivery_status: emailResult ? "sent" : needsEmail ? "failed" : null,
         last_error: deliveryErrors.length ? deliveryErrors.join(" ") : null,
         updated_at: new Date().toISOString(),
       },
@@ -371,18 +368,23 @@ export async function POST(request: NextRequest) {
       status: "sent",
       phone,
       email,
-      deliveryMode,
+      agreementUrl,
+      message,
       policyDecision,
-      warning: deliveryErrors.length ? deliveryErrors.join(" ") : null,
+      partialFailure: deliveryErrors.length > 0,
+      deliveryError: deliveryErrors.length ? deliveryErrors.join(" ") : null,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to send cancellation agreement.";
+    const message = error instanceof Error ? error.message : "Unable to send agreement.";
     if (requestId) {
-      await supabasePatch(
-        "cancellation_agreement_requests",
-        new URLSearchParams({ id: `eq.${requestId}` }),
-        { status: "failed", last_error: message, updated_at: new Date().toISOString() },
-      ).catch(() => undefined);
+      try {
+        await supabasePatch(
+          "cancellation_agreement_requests",
+          new URLSearchParams({ id: `eq.${requestId}` }),
+          { status: "failed", last_error: message, updated_at: new Date().toISOString() },
+        );
+      } catch {
+      }
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }
