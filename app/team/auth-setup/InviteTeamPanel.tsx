@@ -10,6 +10,8 @@ type TeamProfile = {
   role: "admin" | "manager" | "agent" | "workstation";
   active: boolean;
   tripworks_user_id: number | null;
+  invitation_pending?: boolean;
+  invitation_sent_at?: string | null;
 };
 
 export default function InviteTeamPanel() {
@@ -105,7 +107,23 @@ export default function InviteTeamPanel() {
                     <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.role}</td>
                     <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.tripworks_user_id ?? "—"}</td>
                     <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
-                      {isWorkstation ? "Shared workstation" : profile.user_id ? "Active / linked" : "Not invited"}
+                      {isWorkstation
+                        ? "Shared workstation"
+                        : profile.user_id
+                          ? "Active / linked"
+                          : profile.invitation_pending
+                            ? "Invitation sent / pending setup"
+                            : "Not invited"}
+                      {profile.invitation_pending && profile.invitation_sent_at ? (
+                        <div style={{ marginTop: 4, color: "#667085", fontSize: 12 }}>
+                          {new Date(profile.invitation_sent_at).toLocaleString("en-US", {
+                            month: "numeric",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                      ) : null}
                     </td>
                     <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
                       {isWorkstation ? (
@@ -122,11 +140,15 @@ export default function InviteTeamPanel() {
                       ) : (
                         <button
                           type="button"
-                          disabled={!profile.active || Boolean(workingKey)}
+                          disabled={!profile.active || Boolean(workingKey) || Boolean(profile.invitation_pending)}
                           onClick={() => void manageAuth(profile, "invite")}
-                          style={{ border: 0, borderRadius: 8, padding: "9px 14px", background: "#d5521d", color: "#fff", fontWeight: 700, cursor: workingKey ? "wait" : "pointer" }}
+                          style={{ border: 0, borderRadius: 8, padding: "9px 14px", background: profile.invitation_pending ? "#d0d5dd" : "#d5521d", color: "#fff", fontWeight: 700, cursor: profile.invitation_pending || workingKey ? "default" : "pointer" }}
                         >
-                          {workingKey === inviteKey ? "Sending..." : "Send invite"}
+                          {profile.invitation_pending
+                            ? "Invite sent"
+                            : workingKey === inviteKey
+                              ? "Sending..."
+                              : "Send invite"}
                         </button>
                       )}
                     </td>
