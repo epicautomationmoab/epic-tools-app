@@ -17,7 +17,7 @@ type SupabaseAuthUser = {
   last_sign_in_at?: string | null;
 };
 
-type SupabaseSession = {
+export type SupabaseSession = {
   access_token: string;
   refresh_token: string;
   expires_in?: number;
@@ -202,6 +202,23 @@ export async function signInWithPassword(email: string, password: string): Promi
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload?.error_description || payload?.msg || "Invalid email or password.");
+  }
+
+  return payload as SupabaseSession;
+}
+
+export async function refreshSessionWithRefreshToken(refreshToken: string): Promise<SupabaseSession> {
+  const { url, key } = getConfig(false);
+  const response = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: { apikey: key, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error_description || payload?.msg || "Unable to refresh employee session.");
   }
 
   return payload as SupabaseSession;
