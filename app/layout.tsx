@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import EmployeeSessionRefresher from "./EmployeeSessionRefresher";
 import "./globals.css";
 import "./drawer.css";
 
@@ -15,7 +16,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <EmployeeSessionRefresher />
+        {children}
+      </body>
     </html>
   );
 }
