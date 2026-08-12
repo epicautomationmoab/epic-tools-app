@@ -92,6 +92,12 @@ export async function listSupabaseAuthUsers() {
   return users as SupabaseAuthUser[];
 }
 
+async function getSupabaseAuthUserByEmail(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const users = await listSupabaseAuthUsers();
+  return users.find((user) => user.email?.trim().toLowerCase() === normalizedEmail) ?? null;
+}
+
 export async function getTeamProfileByEmail(email: string) {
   const rows = await adminRest<TeamProfile[]>(
     `team_profiles?select=id,user_id,display_name,email,role,active,tripworks_user_id,tripworks_full_name&email=ilike.${encodeURIComponent(email)}&limit=1`,
@@ -152,12 +158,19 @@ export async function inviteTeamProfile(email: string, redirectTo: string) {
 }
 
 export async function sendTeamPasswordReset(email: string, redirectTo: string) {
-  const profile = await getTeamProfileByEmail(email);
+  let profile = await getTeamProfileByEmail(email);
   if (!profile || !profile.active || profile.role === "workstation") {
     throw new Error("No active EpicTools employee account exists for that email.");
   }
+
   if (!profile.user_id) {
-    throw new Error("This employee has not activated EpicTools yet. Send an invitation instead.");
+    const authUser = await getSupabaseAuthUserByEmail(profile.email);
+    if (!authUser?.id) {
+      throw new Error("This employee does not have a Supabase Auth account yet. Send an invitation instead.");
+    }
+
+    await linkTeamProfileUser(profile.id, authUser.id);
+    profile = { ...profile, user_id: authUser.id };
   }
 
   const { url, key } = getConfig(false);
