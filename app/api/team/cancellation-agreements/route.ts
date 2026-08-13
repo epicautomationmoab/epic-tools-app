@@ -39,6 +39,7 @@ type AgreementRequest = {
   email_delivery_status: string | null;
   delivery_mode: "sms" | "email" | "both" | "copy";
   last_error: string | null;
+  expires_at: string;
   created_at: string;
 };
 
@@ -48,13 +49,7 @@ type RequestIdentity = {
   workstation: boolean;
 };
 
-const REVIEW_TIMEOUT_MS = 15 * 60 * 1000;
 const EMAIL_IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
-
-function reviewTimedOut(agreement: AgreementRequest) {
-  if (agreement.status !== "opened" || !agreement.opened_at) return false;
-  return new Date(agreement.opened_at).getTime() + REVIEW_TIMEOUT_MS <= Date.now();
-}
 
 function hasPreviewAccess(request: NextRequest) {
   const previewToken = process.env.EPIC_PREVIEW_TOKEN;
@@ -125,7 +120,7 @@ async function loadLatestAgreement(readinessId: string) {
   const rows = await supabaseSelect<AgreementRequest>(
     "cancellation_agreement_requests",
     new URLSearchParams({
-      select: "id,readiness_id,confirmation_code,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,podium_delivery_status,email_delivery_status,delivery_mode,last_error,created_at",
+      select: "id,readiness_id,confirmation_code,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,podium_delivery_status,email_delivery_status,delivery_mode,last_error,expires_at,created_at",
       readiness_id: `eq.${readinessId}`,
       order: "created_at.desc",
       limit: "1",
@@ -151,13 +146,14 @@ export async function GET(request: NextRequest) {
       loadReadiness(readinessId),
     ]);
 
-    if (agreement && reviewTimedOut(agreement)) {
+    if (agreement?.status === "expired" && new Date(agreement.expires_at).getTime() > Date.now()) {
+      const restoredStatus = agreement.opened_at ? "opened" : agreement.sent_at ? "sent" : "created";
       await supabasePatch(
         "cancellation_agreement_requests",
-        new URLSearchParams({ id: `eq.${agreement.id}`, status: "eq.opened" }),
-        { status: "expired", updated_at: new Date().toISOString() },
+        new URLSearchParams({ id: `eq.${agreement.id}`, status: "eq.expired" }),
+        { status: restoredStatus, updated_at: new Date().toISOString() },
       );
-      agreement.status = "expired";
+      agreement.status = restoredStatus;
     }
 
     let signerName: string | null = null;
