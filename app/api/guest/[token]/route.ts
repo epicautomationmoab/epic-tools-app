@@ -120,7 +120,9 @@ export async function GET(
         customerEmail: rows[0].customer_email,
         customerPhoneLastFour: rows[0].customer_phone_last_four,
         additionalWaiversUrl: rows[0].additional_waivers_url,
-        mpwrWaiverUrl: rows[0].mpwr_waiver_url,
+        mpwrWaiverUrl: rows[0].mpwr_waiver_url
+          ? `/api/guest/${encodeURIComponent(token)}/mpwr-waiver`
+          : null,
 
         activities: rows.map((row) => ({
           readinessId: row.readiness_id,
