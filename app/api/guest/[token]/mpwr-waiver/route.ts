@@ -94,6 +94,39 @@ async function recordMpwrPortalClick(
   return updatedCount;
 }
 
+async function recordMpwrObservationEvent(
+  config: { url: string; key: string },
+  confirmationCode: string,
+  clickedAt: string,
+) {
+  const response = await fetch(
+    `${config.url}/rest/v1/scout_mpwr_observation_events`,
+    {
+      method: "POST",
+      headers: {
+        apikey: config.key,
+        Authorization: `Bearer ${config.key}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        confirmation_code: confirmationCode,
+        event_type: "guest_mpwr_click",
+        observed_at: clickedAt,
+        source: "guest_portal",
+      }),
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(
+      `Could not record MPWR observation event: ${body.slice(0, 300)}`,
+    );
+  }
+}
+
 export async function GET(
   request: Request,
   context: { params: Promise<{ token: string }> },
@@ -165,6 +198,19 @@ export async function GET(
     } catch (error) {
       console.error(
         "MPWR waiver click listener could not write Scout queue signal:",
+        error,
+      );
+    }
+
+    try {
+      await recordMpwrObservationEvent(
+        config,
+        row.confirmation_code,
+        clickedAt,
+      );
+    } catch (error) {
+      console.error(
+        "MPWR click listener could not write observation event:",
         error,
       );
     }
