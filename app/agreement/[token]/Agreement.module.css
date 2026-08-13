@@ -1,0 +1,87 @@
+.page {
+  min-height: 100vh;
+  padding: 20px 12px 40px;
+  background: #eeeae3;
+  color: #252525;
+}
+
+.card {
+  width: min(100%, 620px);
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 34px rgba(35, 30, 25, 0.12);
+}
+
+.header {
+  padding: 22px;
+  border-bottom: 5px solid #c6492d;
+  background: #171717;
+}
+
+.header img {
+  display: block;
+  width: 170px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.form { padding: 28px 26px 30px; }
+.eyebrow { margin: 0 0 7px; color: #a33f2b; font-size: 12px; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase; }
+.form h1 { margin: 0 0 18px; color: #171717; font-size: clamp(27px, 7vw, 35px); line-height: 1.08; }
+
+.reservation {
+  display: grid;
+  gap: 7px;
+  padding: 16px 17px;
+  border: 1px solid #e3dcd2;
+  border-radius: 11px;
+  background: #f6f3ee;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.reservation span { color: #555; }
+.policy { padding: 15px 2px 4px; }
+.policy p { margin: 0 0 11px; color: #4f4f4f; font-size: 14px; line-height: 1.55; }
+
+.agreementCheck {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 11px;
+  padding: 16px;
+  border: 2px solid #c6492d;
+  border-radius: 11px;
+  background: #fff9f6;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.agreementCheck input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: #b9432b; }
+.nameField { display: grid; gap: 6px; margin: 17px 0; font-size: 13px; font-weight: 800; }
+.nameField input { height: 44px; padding: 0 12px; border: 1px solid #cfc8be; border-radius: 9px; background: #fff; color: #222; font-size: 16px; }
+
+.signatureHeading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; font-size: 13px; font-weight: 800; }
+.signatureHeading button { border: 0; background: transparent; color: #a33f2b; font-weight: 800; cursor: pointer; }
+.signaturePad { display: block; width: 100%; height: 145px; border: 1px solid #cfc8be; border-radius: 9px; background: linear-gradient(to bottom, transparent 73%, #ddd4ca 74%, transparent 75%); touch-action: none; }
+
+.submit { width: 100%; min-height: 52px; margin-top: 18px; border: 0; border-radius: 10px; background: #bf452d; color: #fff; font-size: 16px; font-weight: 900; cursor: pointer; box-shadow: 0 5px 14px rgba(191, 69, 45, 0.22); }
+.submit:disabled { opacity: 0.65; cursor: wait; }
+.privacy { margin: 12px 0 0; color: #777; font-size: 11px; line-height: 1.45; text-align: center; }
+.formError { margin: 13px 0 0; color: #a12626; font-size: 13px; font-weight: 800; }
+.message { padding: 52px 26px; text-align: center; }
+.error { color: #a12626; }
+
+.complete { padding: 58px 28px 64px; text-align: center; }
+.complete > span { display: grid; place-items: center; width: 58px; height: 58px; margin: 0 auto 18px; border-radius: 50%; background: #e5f5ea; color: #14733a; font-size: 30px; font-weight: 900; }
+.complete h1 { margin: 0 0 10px; color: #171717; font-size: 30px; }
+.complete p { margin: 0 0 15px; color: #555; line-height: 1.55; }
+.complete small { color: #777; }
+
+@media (max-width: 520px) {
+  .page { padding: 0; background: #fff; }
+  .card { min-height: 100vh; border-radius: 0; box-shadow: none; }
+  .form { padding: 25px 19px 30px; }
+}

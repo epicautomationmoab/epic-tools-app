@@ -1,15 +1,16 @@
-import Link from "next/link";
 import { getArrivalBoardRows, type ArrivalBoardRow } from "@/lib/supabase";
+import ArrivalBoardRefresh from "./ArrivalBoardRefresh";
+import ArrivalBoardDisplay from "./ArrivalBoardDisplay";
+import styles from "./ArrivalBoard.module.css";
 
-function formatWallTime(value: string) {
-  const match = value.match(/\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/);
-  if (!match) return value;
-
-  let hour = Number(match[1]);
-  const minute = match[2];
-  const suffix = hour >= 12 ? "PM" : "AM";
-  hour = hour % 12 || 12;
-  return `${hour}:${minute} ${suffix}`;
+function formatToday() {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/Denver",
+  }).format(new Date());
 }
 
 export default async function ArrivalBoardPage() {
@@ -23,31 +24,30 @@ export default async function ArrivalBoardPage() {
   }
 
   return (
-    <main className="arrivalShell">
-      <header className="arrivalTopbar">
-        <div>
-          <p className="eyebrow">Epic 4x4 Adventures</p>
-          <h1>Find Your Visit</h1>
+    <main className={styles.page}>
+      <ArrivalBoardRefresh />
+
+      <header className={styles.header}>
+        <div className={styles.brand}>
+          <img src="/epic-logo-black.png" alt="Epic 4X4 Adventures" className={styles.logo} />
+          <div>
+            <p className={styles.kicker}>Welcome to Epic 4X4 Adventures</p>
+            <h1>Find Your Visit</h1>
+          </div>
         </div>
-        <nav className="navLinks">
-          <Link href="/team/readiness">Staff Dashboard</Link>
-        </nav>
+
+        <div className={styles.dateBlock}>
+          <span>Today&apos;s Arrivals</span>
+          <strong>{formatToday()}</strong>
+        </div>
       </header>
 
-      {error ? <section className="setupNote">{error}</section> : null}
+      {error ? <section className={styles.error}>{error}</section> : <ArrivalBoardDisplay rows={rows} />}
 
-      <section className="arrivalRows">
-        {rows.map((row) => (
-          <article className="arrivalRow" key={`${row.confirmation_code}-${row.visit_start_time}-${row.business_line}`}>
-            <div className="arrivalTime">{formatWallTime(row.visit_start_time)}</div>
-            <div className="arrivalName">{row.customer_name}</div>
-            <div className="arrivalCode">{row.confirmation_code}</div>
-            <div className="arrivalActivity">{row.board_activity_label}</div>
-            <div className={`arrivalAction ${row.board_action_type}`}>{row.board_action_label}</div>
-          </article>
-        ))}
-        {!rows.length ? <div className="emptyState">No arrivals loaded yet.</div> : null}
-      </section>
+      <footer className={styles.footer}>
+        <span>Questions? Please see an Epic team member.</span>
+        <span className={styles.refreshStatus}>Updates automatically every 30 seconds</span>
+      </footer>
     </main>
   );
 }

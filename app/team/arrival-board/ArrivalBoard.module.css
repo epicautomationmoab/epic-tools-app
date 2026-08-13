@@ -1,0 +1,379 @@
+.page {
+  --epic-red: #b4232a;
+  --ink: #20242a;
+  --muted: #68707a;
+  --line: rgba(39, 48, 58, 0.18);
+  --tour: #b4232a;
+  --rental: #355b73;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(250, 248, 244, 0.72), rgba(244, 241, 235, 0.78)),
+    url("/sidebar-trail.jpg") center / cover fixed;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 36px 20px;
+}
+
+.header {
+  align-items: center;
+  border-bottom: 3px solid rgba(180, 35, 42, 0.78);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 22px;
+}
+
+.brand {
+  align-items: center;
+  display: flex;
+  gap: 24px;
+}
+
+.logo,
+.emptyLogo {
+  object-fit: contain;
+}
+
+.logo {
+  height: 70px;
+  width: auto;
+}
+
+.kicker {
+  color: var(--epic-red);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin: 0 0 7px;
+  text-transform: uppercase;
+}
+
+.header h1 {
+  font-size: clamp(46px, 5vw, 78px);
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+  margin: 0;
+}
+
+.dateBlock {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: right;
+}
+
+.dateBlock span {
+  color: var(--epic-red);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dateBlock strong {
+  font-size: 23px;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 0 12px;
+}
+
+.control,
+.controlActive {
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  padding: 10px 18px;
+}
+
+.control {
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(46, 58, 70, 0.24);
+  color: #515963;
+}
+
+.controlActive {
+  background: #35414d;
+  border: 1px solid #35414d;
+  color: #fff;
+}
+
+.columnHeader,
+.row {
+  display: grid;
+  column-gap: 28px;
+  grid-template-columns:
+    145px
+    minmax(330px, 1.15fr)
+    minmax(300px, 1fr)
+    210px
+    140px;
+}
+
+.columnHeader {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(46, 58, 70, 0.14);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(22, 29, 36, 0.06);
+  color: #323b45;
+  font-size: 16px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  margin-bottom: 9px;
+  padding: 11px 20px;
+  text-transform: uppercase;
+}
+
+.rows {
+  display: grid;
+  flex: 1;
+  gap: 9px;
+}
+
+.row {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(46, 58, 70, 0.16);
+  border-left: 6px solid var(--tour);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(22, 29, 36, 0.09);
+  min-height: 82px;
+  padding: 12px 18px;
+}
+
+.rentalRow {
+  border-left-color: var(--rental);
+}
+
+.time {
+  font-size: clamp(24px, 1.85vw, 31px);
+  font-weight: 950;
+  letter-spacing: -0.025em;
+  padding-right: 8px;
+  white-space: nowrap;
+}
+
+.guest {
+  min-width: 0;
+}
+
+.guest strong {
+  font-size: clamp(27px, 2.25vw, 37px);
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.activity strong {
+  font-size: clamp(21px, 1.7vw, 28px);
+  font-weight: 850;
+  line-height: 1.08;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity span {
+  color: var(--muted);
+  font-size: clamp(14px, 1.1vw, 18px);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.action {
+  align-items: center;
+  display: flex;
+  font-size: clamp(15px, 1.15vw, 18px);
+  font-weight: 850;
+  gap: 8px;
+  justify-content: flex-start;
+  line-height: 1.15;
+  min-height: auto;
+  padding: 5px 0;
+  text-align: left;
+}
+
+.kiosk {
+  color: #27485b;
+}
+
+.agentReady {
+  color: #185c32;
+}
+
+.directionIcon {
+  flex: 0 0 auto;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.directionText {
+  display: block;
+}
+
+.codeBlock {
+  align-items: center;
+  background: rgba(247, 248, 249, 0.94);
+  border: 1px solid rgba(67, 78, 90, 0.16);
+  border-radius: 9px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 56px;
+  padding: 7px 10px;
+  text-align: center;
+}
+
+.codeBlock span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.codeBlock strong {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 28px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.error {
+  background: #fff3f1;
+  border: 1px solid #e7aaa0;
+  border-radius: 10px;
+  color: #a2261c;
+  font-size: 20px;
+  font-weight: 800;
+  margin-top: 12px;
+  padding: 18px;
+}
+
+.empty {
+  align-items: center;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(5px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 52vh;
+  padding: 48px;
+  text-align: center;
+}
+
+.emptyLogo {
+  height: 86px;
+  margin-bottom: 24px;
+}
+
+.empty h2 {
+  font-size: 42px;
+  margin: 0 0 12px;
+}
+
+.empty p {
+  color: var(--muted);
+  font-size: 22px;
+  margin: 0;
+}
+
+.footer {
+  align-items: center;
+  color: #505862;
+  display: flex;
+  font-size: 14px;
+  font-weight: 750;
+  justify-content: space-between;
+  padding-top: 16px;
+}
+
+.refreshStatus {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1150px) {
+  .page {
+    padding: 22px;
+  }
+
+  .columnHeader,
+  .row {
+    column-gap: 22px;
+    grid-template-columns:
+      125px
+      minmax(260px, 1.1fr)
+      minmax(250px, 1fr)
+      185px
+      125px;
+  }
+
+  .columnHeader {
+    font-size: 14px;
+  }
+
+  .time {
+    font-size: clamp(22px, 2vw, 28px);
+  }
+}
+
+@media (max-width: 850px) {
+  .header,
+  .footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .dateBlock {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .controls {
+    justify-content: flex-start;
+  }
+
+  .columnHeader {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .guest strong,
+  .activity strong {
+    white-space: normal;
+  }
+
+  .action {
+    justify-content: flex-start;
+  }
+
+  .codeBlock {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

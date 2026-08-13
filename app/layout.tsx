@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import EmployeeSessionRefresher from "./EmployeeSessionRefresher";
 import "./globals.css";
 import "./drawer.css";
-import "./modern.css";
 
 export const metadata: Metadata = {
   title: "EpicTools",
@@ -15,4 +15,11 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang
+    <html lang="en">
+      <body>
+        <EmployeeSessionRefresher />
+        {children}
+      </body>
+    </html>
+  );
+}

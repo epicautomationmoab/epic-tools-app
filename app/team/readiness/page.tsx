@@ -1,6 +1,23 @@
 import Link from "next/link";
 import ReadinessTable from "./ReadinessTable";
+import HeaderClock from "./HeaderClock";
+import AutoRefresh from "./AutoRefresh";
+import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
+import LastSynced from "./LastSynced";
+import PortalEmailEnhancer from "./PortalEmailEnhancer";
+import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
+import LogoutButton from "./LogoutButton";
+import SharedActionPinEnhancer from "./SharedActionPinEnhancer";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
+import styles from "./ReadinessShell.module.css";
+
+const navItems = [
+  { label: "Guest Readiness", href: "/team/readiness", external: false },
+  { label: "Reservations", href: "https://epic4x4.tripworks.com", external: true },
+  { label: "MPWR", href: "https://mpwr-hq.poladv.com/orders", external: true },
+] as const;
+
+const agents = ["MPWR Agent", "Waiver Agent", "Portal Agent"] as const;
 
 export default async function TeamReadinessPage() {
   let rows: ReadinessRow[] = [];
@@ -12,53 +29,75 @@ export default async function TeamReadinessPage() {
     error = err instanceof Error ? err.message : "Unable to load readiness rows.";
   }
 
-  const docsAttention = rows.filter((row) => row.epic_document_count_color !== "green").length;
-  const balancesDue = rows.filter((row) => (row.amount_due_cents ?? 0) > 0).length;
-  const ohvNeeded = rows.filter(
-    (row) => row.business_line === "rental" && !row.ohv_certificate_uploaded,
-  ).length;
-
   return (
-    <main className="shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">EpicTools</p>
-          <h1>Guest Readiness</h1>
+    <div className={styles.page}>
+      <AutoRefresh />
+      <AutoCancellationPopupWatcher />
+      <PortalEmailEnhancer />
+      <OhvDrawerEnhancer />
+      <SharedActionPinEnhancer />
+
+      <aside className={styles.sidebar}>
+        <div className={styles.brand}>
+          <img src="/epic-logo.png" alt="Epic 4X4 Adventures" />
         </div>
-        <nav className="navLinks">
-          <Link href="/team/arrival-board">Arrival Board</Link>
-          <Link href="/kiosk">Kiosk</Link>
+
+        <nav className={styles.nav} aria-label="EpicTools navigation">
+          {navItems.map((item) => {
+            const className = item.label === "Guest Readiness" ? styles.active : undefined;
+            const content = (
+              <>
+                <span aria-hidden="true">◇</span>
+                {item.label}
+              </>
+            );
+
+            return item.external ? (
+              <a key={item.label} href={item.href} className={className} target="_blank" rel="noreferrer">
+                {content}
+              </a>
+            ) : (
+              <Link key={item.label} href={item.href} className={className}>
+                {content}
+              </Link>
+            );
+          })}
         </nav>
-      </header>
 
-      <section className="metrics" aria-label="Readiness facts">
-        <div className="metric">
-          <span className="metricValue">{rows.length}</span>
-          <span className="metricLabel">visits loaded</span>
+        <div className={styles.sidebarPhoto}>
+          <div className={styles.agentStack}>
+            {agents.map((agent) => (
+              <div className={styles.agentCard} key={agent}>
+                <div className={styles.agentTitle}>{agent}</div>
+                <div className={styles.agentStatus}>
+                  <span className={styles.onlineDot} />Online
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="metric">
-          <span className="metricValue">{docsAttention}</span>
-          <span className="metricLabel">Epic docs attention</span>
-        </div>
-        <div className="metric">
-          <span className="metricValue">{balancesDue}</span>
-          <span className="metricLabel">balance due</span>
-        </div>
-        <div className="metric">
-          <span className="metricValue">{ohvNeeded}</span>
-          <span className="metricLabel">OHV upload needed</span>
-        </div>
-      </section>
+      </aside>
 
-      {!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? (
-        <section className="setupNote">
-          Supabase is not connected yet. Add environment variables to load live rows.
+      <main className={styles.main}>
+        <header className={styles.topbar}>
+          <div className={styles.titleBlock}>
+            <h1>Guest Readiness</h1>
+            <HeaderClock />
+          </div>
+
+          <div className={styles.headerActions}>
+            <div className={styles.sync}><LastSynced /></div>
+            <Link className={styles.actionButton} href="/team/arrival-board">Arrival Board</Link>
+            <Link className={`${styles.actionButton} ${styles.kioskButton}`} href="/kiosk">Kiosk</Link>
+            <LogoutButton />
+          </div>
+        </header>
+
+        <section className={styles.content}>
+          {error ? <div className={styles.error}>{error}</div> : null}
+          <ReadinessTable rows={rows} />
         </section>
-      ) : null}
-
-      {error ? <section className="setupNote">{error}</section> : null}
-
-      <ReadinessTable rows={rows} />
-    </main>
+      </main>
+    </div>
   );
 }

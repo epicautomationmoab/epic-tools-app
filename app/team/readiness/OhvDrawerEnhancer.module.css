@@ -1,0 +1,136 @@
+.section {
+  margin: 18px 22px 0;
+  border: 1px solid #e2e6e9;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f7f5fb, #fff);
+  padding: 18px;
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heading span {
+  display: block;
+  margin-bottom: 4px;
+  color: #8b949e;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.heading h3 {
+  margin: 0;
+  color: #1c2630;
+  font-size: 18px;
+}
+
+.heading > strong {
+  border-radius: 999px;
+  background: #eee9f7;
+  color: #67558e;
+  padding: 7px 10px;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.list {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid #e8e5ef;
+  border-radius: 12px;
+  background: rgba(255,255,255,.82);
+  padding: 11px 12px;
+}
+
+.identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.check {
+  display: inline-flex;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e4f4e8;
+  color: #34734a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.identity strong,
+.identity small {
+  display: block;
+}
+
+.identity strong {
+  color: #36414b;
+  font-size: 13px;
+}
+
+.identity small {
+  max-width: 260px;
+  overflow: hidden;
+  margin-top: 2px;
+  color: #8a939c;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewButton {
+  flex: 0 0 auto;
+  border: 1px solid #d9d2e9;
+  border-radius: 9px;
+  background: #fff;
+  color: #67558e;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.message,
+.error {
+  margin: 13px 0 0;
+  font-size: 13px;
+}
+
+.message { color: #77818b; }
+.error { color: #b42318; }
+
+@media (max-width: 640px) {
+  .section {
+    margin-right: 14px;
+    margin-left: 14px;
+  }
+
+  .row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .viewButton {
+    width: 100%;
+    text-align: center;
+  }
+}
