@@ -20,8 +20,6 @@ type AgreementRow = {
   accepted_at: string | null;
 };
 
-const REVIEW_TIMEOUT_MS = 15 * 60 * 1000;
-
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -39,12 +37,8 @@ async function loadAgreement(token: string) {
 }
 
 function hasExpired(agreement: AgreementRow) {
-  if (agreement.status === "expired") return true;
   if (agreement.status === "accepted") return false;
-  if (new Date(agreement.expires_at).getTime() <= Date.now()) return true;
-  return agreement.status === "opened"
-    && Boolean(agreement.opened_at)
-    && new Date(agreement.opened_at!).getTime() + REVIEW_TIMEOUT_MS <= Date.now();
+  return new Date(agreement.expires_at).getTime() <= Date.now();
 }
 
 async function expireAgreement(agreement: AgreementRow) {
@@ -55,6 +49,18 @@ async function expireAgreement(agreement: AgreementRow) {
       { status: "expired", updated_at: new Date().toISOString() },
     );
   }
+}
+
+async function restorePrematurelyExpiredAgreement(agreement: AgreementRow) {
+  if (agreement.status !== "expired" || hasExpired(agreement)) return;
+  const now = new Date().toISOString();
+  await supabasePatch(
+    "cancellation_agreement_requests",
+    new URLSearchParams({ id: `eq.${agreement.id}`, status: "eq.expired" }),
+    { status: "opened", opened_at: agreement.opened_at ?? now, updated_at: now },
+  );
+  agreement.status = "opened";
+  agreement.opened_at ??= now;
 }
 
 function clientIp(request: Request) {
@@ -76,6 +82,8 @@ export async function GET(
       await expireAgreement(agreement);
       return NextResponse.json({ error: "This agreement link has expired. Please ask Epic 4X4 Adventures to send a new one." }, { status: 410 });
     }
+
+    await restorePrematurelyExpiredAgreement(agreement);
 
     if (["created", "sent"].includes(agreement.status)) {
       const now = new Date().toISOString();
@@ -121,6 +129,8 @@ export async function POST(
       await expireAgreement(agreement);
       return NextResponse.json({ error: "This agreement link has expired. Please ask Epic 4X4 Adventures to send a new one." }, { status: 410 });
     }
+
+    await restorePrematurelyExpiredAgreement(agreement);
 
     const result = await supabaseRpc<{ accepted: boolean; acceptanceId: string; acceptedAt: string }>(
       "record_cancellation_agreement_acceptance",
