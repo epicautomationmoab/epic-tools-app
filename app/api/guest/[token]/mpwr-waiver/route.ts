@@ -18,6 +18,82 @@ function getSupabaseConfig() {
   };
 }
 
+async function recordMpwrPortalClick(
+  config: { url: string; key: string },
+  confirmationCode: string,
+  clickedAt: string,
+) {
+  const headers = {
+    apikey: config.key,
+    Authorization: `Bearer ${config.key}`,
+  };
+
+  const queueParams = new URLSearchParams({
+    select: "id,mpwr_portal_click_count",
+    confirmation_code: `eq.${confirmationCode}`,
+  });
+
+  const queueResponse = await fetch(
+    `${config.url}/rest/v1/scout_mpwr_queue?${queueParams.toString()}`,
+    {
+      headers,
+      cache: "no-store",
+    },
+  );
+
+  if (!queueResponse.ok) {
+    const body = await queueResponse.text();
+    throw new Error(
+      `Could not load Scout queue rows for MPWR click: ${body.slice(0, 300)}`,
+    );
+  }
+
+  const queueRows = (await queueResponse.json()) as Array<{
+    id: number;
+    mpwr_portal_click_count: number | null;
+  }>;
+
+  if (!queueRows.length) {
+    console.warn(
+      `MPWR click recorded in logs but no scout_mpwr_queue row matched confirmation ${confirmationCode}.`,
+    );
+    return 0;
+  }
+
+  let updatedCount = 0;
+
+  for (const queueRow of queueRows) {
+    const updateResponse = await fetch(
+      `${config.url}/rest/v1/scout_mpwr_queue?id=eq.${encodeURIComponent(String(queueRow.id))}`,
+      {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          last_guest_mpwr_click_at: clickedAt,
+          mpwr_portal_click_count:
+            (queueRow.mpwr_portal_click_count ?? 0) + 1,
+        }),
+        cache: "no-store",
+      },
+    );
+
+    if (!updateResponse.ok) {
+      const body = await updateResponse.text();
+      throw new Error(
+        `Could not update Scout queue row ${queueRow.id} for MPWR click: ${body.slice(0, 300)}`,
+      );
+    }
+
+    updatedCount += 1;
+  }
+
+  return updatedCount;
+}
+
 export async function GET(
   request: Request,
   context: { params: Promise<{ token: string }> },
@@ -77,13 +153,30 @@ export async function GET(
       );
     }
 
+    const clickedAt = new Date().toISOString();
+    let scoutQueueRowsUpdated = 0;
+
+    try {
+      scoutQueueRowsUpdated = await recordMpwrPortalClick(
+        config,
+        row.confirmation_code,
+        clickedAt,
+      );
+    } catch (error) {
+      console.error(
+        "MPWR waiver click listener could not write Scout queue signal:",
+        error,
+      );
+    }
+
     console.log(
       JSON.stringify({
         event: "mpwr_waiver_clicked",
         source: "guest_portal",
         guestPortalToken: token,
         confirmationCode: row.confirmation_code,
-        clickedAt: new Date().toISOString(),
+        clickedAt,
+        scoutQueueRowsUpdated,
       }),
     );
 
