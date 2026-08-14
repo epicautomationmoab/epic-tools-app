@@ -130,7 +130,7 @@ export async function POST(request: Request) {
 
     delete payload.drawn_signature_png;
 
-    const response = await fetch(`${c.url}/rest/v1/rpc/submit_epic_tour_waiver_v4`, {
+    const response = await fetch(`${c.url}/rest/v1/rpc/submit_epic_tour_waiver_v5`, {
       method: "POST",
       headers: {
         apikey: c.key,
