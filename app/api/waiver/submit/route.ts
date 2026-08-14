@@ -10,6 +10,17 @@ function config() {
   };
 }
 
+function signerIp(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const firstForwarded = forwarded?.split(",")[0]?.trim();
+  return (
+    firstForwarded ||
+    request.headers.get("x-real-ip")?.trim() ||
+    request.headers.get("cf-connecting-ip")?.trim() ||
+    null
+  );
+}
+
 async function resolveSession(
   url: string,
   key: string,
@@ -75,6 +86,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Signature method must be typed or drawn." }, { status: 400 });
     }
 
+    payload.p_signer_ip_address = signerIp(request);
+
     if (payload.p_signature_method === "drawn") {
       const session = await resolveSession(
         c.url,
@@ -117,7 +130,7 @@ export async function POST(request: Request) {
 
     delete payload.drawn_signature_png;
 
-    const response = await fetch(`${c.url}/rest/v1/rpc/submit_epic_tour_waiver_v3`, {
+    const response = await fetch(`${c.url}/rest/v1/rpc/submit_epic_tour_waiver_v4`, {
       method: "POST",
       headers: {
         apikey: c.key,
