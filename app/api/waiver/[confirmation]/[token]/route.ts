@@ -11,7 +11,7 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
   try {
     const { confirmation, token } = await context.params;
     const c = config();
-    const response = await fetch(`${c.url}/rest/v1/rpc/resolve_epic_waiver_session`, {
+    const response = await fetch(`${c.url}/rest/v1/rpc/resolve_epic_waiver_session_v2`, {
       method: "POST",
       headers: { apikey: c.key, Authorization: `Bearer ${c.key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ p_confirmation_code: confirmation, p_public_token: token }),
