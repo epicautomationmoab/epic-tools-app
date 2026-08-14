@@ -71,6 +71,42 @@ async function deleteStoredSignature(url: string, key: string, storagePath: stri
   }).catch(() => undefined);
 }
 
+async function generateSignedPdf(
+  url: string,
+  key: string,
+  signatureId: string,
+  confirmationCode: string,
+  publicToken: string,
+) {
+  const response = await fetch(`${url}/functions/v1/generate-epic-waiver-pdf`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      signature_id: signatureId,
+      confirmation_code: confirmationCode,
+      public_token: publicToken,
+    }),
+    cache: "no-store",
+  });
+
+  const body = await response.text();
+  if (!response.ok) {
+    return {
+      ok: false as const,
+      error: body.slice(0, 500),
+    };
+  }
+
+  return {
+    ok: true as const,
+    result: JSON.parse(body),
+  };
+}
+
 export async function POST(request: Request) {
   let storedPath: string | null = null;
 
@@ -148,9 +184,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: body.slice(0, 500) }, { status: response.status });
     }
 
+    const result = JSON.parse(body);
+    const signatureId = result?.[0]?.signature_id;
+    let pdfGenerated = false;
+    let pdfResult: unknown = null;
+    let pdfError: string | null = null;
+
+    if (signatureId) {
+      const pdf = await generateSignedPdf(
+        c.url,
+        c.key,
+        signatureId,
+        payload.p_confirmation_code,
+        payload.p_public_token,
+      );
+
+      if (pdf.ok) {
+        pdfGenerated = true;
+        pdfResult = pdf.result;
+      } else {
+        pdfError = pdf.error;
+        console.error("Signed waiver PDF generation failed", {
+          signatureId,
+          confirmationCode: payload.p_confirmation_code,
+          error: pdf.error,
+        });
+      }
+    } else {
+      pdfError = "Waiver was recorded but the signature id was not returned for PDF generation.";
+    }
+
     return NextResponse.json({
-      result: JSON.parse(body),
+      result,
       drawnSignatureStored: Boolean(storedPath),
+      pdfGenerated,
+      pdfResult,
+      pdfError,
     });
   } catch (error) {
     if (storedPath) {
