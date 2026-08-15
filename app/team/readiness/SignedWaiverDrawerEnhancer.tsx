@@ -11,6 +11,10 @@ type SignedWaiver = {
   copyEmailStatus: string | null;
   copyEmailSentAt: string | null;
   isMinor?: boolean;
+  businessLine?: string | null;
+  responsibilityScope?: string | null;
+  vehicleCoverageCount?: number | null;
+  vehicleCountAtSigning?: number | null;
 };
 
 function portalTokenFromDrawer() {
@@ -83,6 +87,40 @@ function replaceNoLink(row: HTMLElement, href: string) {
   }
 }
 
+function rentalBadgeLabel(waiver: SignedWaiver) {
+  if (waiver.businessLine !== "rental" || waiver.isMinor) return null;
+  if (waiver.responsibilityScope === "all_reservation_vehicles") {
+    const count = Math.max(1, waiver.vehicleCountAtSigning ?? waiver.vehicleCoverageCount ?? 1);
+    return `All ${count} Vehicle${count === 1 ? "" : "s"}`;
+  }
+  if (waiver.responsibilityScope === "assigned_vehicle_only") return "1 Vehicle";
+  return null;
+}
+
+function applyRentalBadge(row: HTMLElement, waiver: SignedWaiver) {
+  const label = rentalBadgeLabel(waiver);
+  const existing = row.querySelector<HTMLElement>('[data-rental-responsibility-badge="true"]');
+
+  if (!label) {
+    existing?.remove();
+    return;
+  }
+
+  if (existing) {
+    existing.textContent = label;
+    return;
+  }
+
+  const badge = document.createElement("span");
+  badge.textContent = label;
+  badge.dataset.rentalResponsibilityBadge = "true";
+  badge.classList.add(sourceStyles.rentalResponsibilityBadge);
+
+  const role = row.querySelector("small");
+  if (role) role.insertAdjacentElement("afterend", badge);
+  else row.appendChild(badge);
+}
+
 export default function SignedWaiverDrawerEnhancer() {
   const [token, setToken] = useState<string | null>(null);
   const [waivers, setWaivers] = useState<SignedWaiver[]>([]);
@@ -146,6 +184,7 @@ export default function SignedWaiverDrawerEnhancer() {
 
         if (!row) continue;
         replaceNoLink(row, `/api/team/waivers/${waiver.id}/pdf`);
+        applyRentalBadge(row, waiver);
       }
 
       styleSourceLinks(section);
