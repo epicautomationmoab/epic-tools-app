@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import sourceStyles from "./WaiverSourceLinks.module.css";
 
 type SignedWaiver = {
   id: string;
@@ -33,12 +34,34 @@ function normalizeName(value: string | null | undefined) {
   return (value || "").trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function styleSourceLinks(section: HTMLElement) {
+  const links = Array.from(section.querySelectorAll<HTMLAnchorElement>("a"));
+
+  for (const link of links) {
+    const href = link.getAttribute("href") || "";
+    link.classList.remove(
+      sourceStyles.tripWorksWaiverLink,
+      sourceStyles.epicWaiverLink,
+    );
+
+    if (href.startsWith("/api/team/waivers/")) {
+      link.classList.add(sourceStyles.epicWaiverLink);
+    } else if (
+      href.includes("tripworks.com") ||
+      href.includes("cdn-images.tripworks.com")
+    ) {
+      link.classList.add(sourceStyles.tripWorksWaiverLink);
+    }
+  }
+}
+
 function replaceNoLink(row: HTMLElement, href: string) {
   const existingEpicLink = row.querySelector<HTMLAnchorElement>(
     'a[data-epic-waiver-link="true"]',
   );
   if (existingEpicLink) {
     existingEpicLink.href = href;
+    existingEpicLink.classList.add(sourceStyles.epicWaiverLink);
     return;
   }
 
@@ -52,6 +75,7 @@ function replaceNoLink(row: HTMLElement, href: string) {
       link.rel = "noopener noreferrer";
       link.textContent = "Open Waiver";
       link.dataset.epicWaiverLink = "true";
+      link.classList.add(sourceStyles.epicWaiverLink);
       node.parentNode?.replaceChild(link, node);
       return;
     }
@@ -106,15 +130,15 @@ export default function SignedWaiverDrawerEnhancer() {
   }, [token]);
 
   useEffect(() => {
-    if (!token || !waivers.length) return;
+    if (!token) return;
 
     const applyLinks = () => {
       const section = epicDocumentsSection();
       if (!section) return;
 
-      const rows = Array.from(section.querySelectorAll<HTMLElement>("div"));
       for (const waiver of waivers) {
         const targetName = normalizeName(waiver.signerName);
+        const rows = Array.from(section.querySelectorAll<HTMLElement>("div"));
         const row = rows.find((candidate) => {
           const strong = candidate.querySelector(":scope > strong");
           return normalizeName(strong?.textContent) === targetName;
@@ -123,6 +147,8 @@ export default function SignedWaiverDrawerEnhancer() {
         if (!row) continue;
         replaceNoLink(row, `/api/team/waivers/${waiver.id}/pdf`);
       }
+
+      styleSourceLinks(section);
     };
 
     applyLinks();
