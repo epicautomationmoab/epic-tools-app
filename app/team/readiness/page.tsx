@@ -6,6 +6,7 @@ import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
 import LastSynced from "./LastSynced";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
 import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
+import SignedWaiverDrawerEnhancer from "./SignedWaiverDrawerEnhancer";
 import LogoutButton from "./LogoutButton";
 import SharedActionPinEnhancer from "./SharedActionPinEnhancer";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
@@ -35,6 +36,7 @@ export default async function TeamReadinessPage() {
       <AutoCancellationPopupWatcher />
       <PortalEmailEnhancer />
       <OhvDrawerEnhancer />
+      <SignedWaiverDrawerEnhancer />
       <SharedActionPinEnhancer />
 
       <aside className={styles.sidebar}>
