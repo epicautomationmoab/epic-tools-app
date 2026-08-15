@@ -201,7 +201,7 @@ export default function WaiverPage() {
         setError(json.error || "Unable to submit waiver.");
         return;
       }
-      setSuccess("Waiver submitted successfully.");
+      setSuccess("Waiver submitted successfully. A copy has been emailed to you for your records. You may now close this browser window.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to submit waiver.");
     } finally {
