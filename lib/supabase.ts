@@ -92,46 +92,198 @@ function getSupabaseConfig(useSecretKey = false) {
   return { url, key };
 }
 
-async function fetchSupabase<T>(
-  path: string,
-  params: URLSearchParams,
-  useSecretKey = false,
-): Promise<T[]> {
-  const { url, key } = getSupabaseConfig(useSecretKey);
-  const response = await fetch(`${url}/rest/v1/${path}?${params.toString()}`, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-    cache: "no-store",
-  });
+async function fetchView<T>(viewName: string, searchParams: URLSearchParams, useSecretKey = false): Promise<T[]> {
+  const config = getSupabaseConfig(useSecretKey);
+  const endpoint = `${config.url}/rest/v1/${viewName}?${searchParams.toString()}`;
+  let response: Response;
+
+  try {
+    response = await fetch(endpoint, {
+      headers: { apikey: config.key, Authorization: `Bearer ${config.key}` },
+      cache: "no-store",
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Supabase network request failed for ${config.url}: ${detail}`);
+  }
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`Supabase ${path} failed (${response.status}): ${body.slice(0, 300)}`);
+    throw new Error(`Supabase ${viewName} request failed (${response.status}) at ${config.url}: ${body.slice(0, 300)}`);
   }
 
-  return (await response.json()) as T[];
+  return response.json() as Promise<T[]>;
 }
 
-export async function getReadinessRows(): Promise<ReadinessRow[]> {
-  return fetchSupabase<ReadinessRow>(
-    "guest_readiness_with_handoff_v",
-    new URLSearchParams({
-      select: "*",
-      order: "visit_start_time.asc",
-    }),
-    true,
-  );
+export async function getReadinessRows() {
+  const params = new URLSearchParams({ select: "*", limit: "500" });
+  const rows = await fetchView<ReadinessRow>("guest_readiness_with_handoff_v", params);
+  const confirmationCodes = [...new Set(rows.map((row) => row.confirmation_code).filter((code): code is string => Boolean(code)))];
+  const portalTokenByConfirmationCode = new Map<string, string>();
+
+  for (let index = 0; index < confirmationCodes.length; index += 100) {
+    const batch = confirmationCodes.slice(index, index + 100);
+    const quotedCodes = batch.map((code) => `"${code.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+    const portalParams = new URLSearchParams({
+      select: "confirmation_code,guest_portal_token",
+      confirmation_code: `in.(${quotedCodes})`,
+      limit: "1000",
+    });
+    const portalRows = await fetchView<{ confirmation_code: string; guest_portal_token: string | null }>(
+      "guest_portal_v",
+      portalParams,
+      true,
+    );
+
+    for (const portalRow of portalRows) {
+      if (portalRow.confirmation_code && portalRow.guest_portal_token && !portalTokenByConfirmationCode.has(portalRow.confirmation_code)) {
+        portalTokenByConfirmationCode.set(portalRow.confirmation_code, portalRow.guest_portal_token);
+      }
+    }
+  }
+
+  return rows
+    .map((row) => ({ ...row, guest_portal_token: portalTokenByConfirmationCode.get(row.confirmation_code) ?? null }))
+    .sort((a, b) => a.visit_start_time.localeCompare(b.visit_start_time) || a.customer_name.localeCompare(b.customer_name));
 }
 
-export async function getArrivalBoardRows(): Promise<ArrivalBoardRow[]> {
-  return fetchSupabase<ArrivalBoardRow>(
-    "arrival_board_v",
-    new URLSearchParams({
-      select: "*",
-      order: "visit_start_time.asc",
-    }),
-    true,
+function getMountainDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return { year: Number(values.year), month: Number(values.month), day: Number(values.day) };
+}
+
+function getMountainOffsetMs(date: Date) {
+  const zoneName = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    timeZoneName: "longOffset",
+  }).formatToParts(date).find((part) => part.type === "timeZoneName")?.value;
+  const match = zoneName?.match(/^GMT([+-])(\d{2}):(\d{2})$/);
+  if (!match) throw new Error("Unable to determine America/Denver UTC offset.");
+  const direction = match[1] === "+" ? 1 : -1;
+  return direction * (Number(match[2]) * 60 + Number(match[3])) * 60_000;
+}
+
+function mountainMidnightUtc(year: number, month: number, day: number) {
+  const localMidnightAsUtc = Date.UTC(year, month - 1, day);
+  let instant = localMidnightAsUtc;
+  for (let index = 0; index < 3; index += 1) instant = localMidnightAsUtc - getMountainOffsetMs(new Date(instant));
+  return new Date(instant);
+}
+
+function normalizeTimestamp(value: string) {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+}
+
+export async function getArrivalBoardRows() {
+  const today = getMountainDateParts(new Date());
+  const start = mountainMidnightUtc(today.year, today.month, today.day);
+  const end = mountainMidnightUtc(today.year, today.month, today.day + 1);
+  const dateFilters = [
+    ["visit_start_time", `gte.${start.toISOString()}`],
+    ["visit_start_time", `lt.${end.toISOString()}`],
+  ] as const;
+
+  const arrivalParams = new URLSearchParams({ select: "*", limit: "100" });
+  const readinessParams = new URLSearchParams({
+    select: "readiness_id,confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count",
+    limit: "100",
+  });
+  for (const [key, value] of dateFilters) {
+    arrivalParams.append(key, value);
+    readinessParams.append(key, value);
+  }
+
+  const [rows, readinessRows] = await Promise.all([
+    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams),
+    fetchView<Pick<ReadinessRow,
+      "readiness_id" |
+      "confirmation_code" |
+      "visit_start_time" |
+      "business_line" |
+      "customer_phone_last_four" |
+      "handoff_status" |
+      "product_display_name" |
+      "rental_duration" |
+      "total_vehicle_count"
+    >>("guest_readiness_with_handoff_v", readinessParams),
+  ]);
+
+  const readinessIds = readinessRows
+    .map((row) => row.readiness_id)
+    .filter((id): id is string => Boolean(id));
+  const ohvUploadCountByReadinessId = new Map<string, number>();
+
+  for (let index = 0; index < readinessIds.length; index += 100) {
+    const batch = readinessIds.slice(index, index + 100);
+    const quotedIds = batch.map((id) => `"${id.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+    const ohvParams = new URLSearchParams({
+      select: "readiness_id",
+      readiness_id: `in.(${quotedIds})`,
+      limit: "1000",
+    });
+    const uploads = await fetchView<{ readiness_id: string }>(
+      "ohv_certificate_uploads",
+      ohvParams,
+      true,
+    );
+
+    for (const upload of uploads) {
+      ohvUploadCountByReadinessId.set(
+        upload.readiness_id,
+        (ohvUploadCountByReadinessId.get(upload.readiness_id) ?? 0) + 1,
+      );
+    }
+  }
+
+  const readinessByKey = new Map(
+    readinessRows.map((row) => [
+      `${row.confirmation_code}|${normalizeTimestamp(row.visit_start_time)}|${row.business_line}`,
+      row,
+    ]),
   );
+  const terminalStatuses = new Set(["checked_in", "tour_returned", "rental_out", "rental_returned"]);
+
+  return rows
+    .map((row) => {
+      const readiness = readinessByKey.get(
+        `${row.confirmation_code}|${normalizeTimestamp(row.visit_start_time)}|${row.business_line}`,
+      );
+      const totalVehicleCount = readiness?.total_vehicle_count ?? row.total_vehicle_count ?? null;
+      const uploadedOhvCount = readiness?.readiness_id
+        ? (ohvUploadCountByReadinessId.get(readiness.readiness_id) ?? 0)
+        : 0;
+      const hasRequiredOhvCertificates =
+        row.business_line !== "rental" ||
+        (typeof totalVehicleCount === "number" &&
+          totalVehicleCount > 0 &&
+          uploadedOhvCount >= totalVehicleCount);
+
+      return {
+        ...row,
+        customer_phone_last_four: readiness?.customer_phone_last_four ?? row.customer_phone_last_four ?? null,
+        handoff_status: readiness?.handoff_status ?? row.handoff_status ?? null,
+        product_display_name: readiness?.product_display_name ?? row.product_display_name ?? row.board_activity_label,
+        rental_duration: readiness?.rental_duration ?? row.rental_duration ?? null,
+        total_vehicle_count: totalVehicleCount,
+        board_action_label: hasRequiredOhvCertificates
+          ? row.board_action_label
+          : "Proceed to Kiosk",
+        board_action_type: hasRequiredOhvCertificates
+          ? row.board_action_type
+          : "kiosk",
+      };
+    })
+    .filter((row) => !row.handoff_status || !terminalStatuses.has(row.handoff_status))
+    .sort((a, b) =>
+      a.visit_start_time.localeCompare(b.visit_start_time) ||
+      a.business_line.localeCompare(b.business_line) ||
+      a.customer_name.localeCompare(b.customer_name),
+    );
 }
