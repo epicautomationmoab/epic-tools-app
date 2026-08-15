@@ -73,7 +73,6 @@ export async function GET(request: NextRequest) {
           guest_portal_token: `eq.${portalToken}`,
           limit: "1",
         }),
-        true,
       );
       readinessId = portalRows[0]?.readiness_id ?? "";
     }
@@ -92,7 +91,6 @@ export async function GET(request: NextRequest) {
         readiness_id: `eq.${readinessId}`,
         limit: "1",
       }),
-      true,
     );
 
     const readiness = readinessRows[0];
@@ -109,7 +107,6 @@ export async function GET(request: NextRequest) {
           store_visit_id: `eq.${readiness.source_store_visit_id}`,
           limit: "1",
         }),
-        true,
       );
       operationalReservationId = visits[0]?.operational_reservation_id ?? null;
     }
@@ -132,7 +129,6 @@ export async function GET(request: NextRequest) {
     const signatures = await supabaseSelect<SignatureRow>(
       "epic_waiver_signatures",
       params,
-      true,
     );
 
     return NextResponse.json({
