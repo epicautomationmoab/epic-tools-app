@@ -43,6 +43,13 @@ type SignatureRow = {
   copy_email_sent_at: string | null;
 };
 
+type MinorRow = {
+  adult_signature_id: string;
+  minor_first_name: string | null;
+  minor_last_name: string | null;
+  minor_full_name: string | null;
+};
+
 function signatureName(row: SignatureRow) {
   const composed = [
     row.signer_first_name,
@@ -54,6 +61,17 @@ function signatureName(row: SignatureRow) {
     .join(" ");
 
   return composed || row.signer_full_name || "Signed participant";
+}
+
+function minorName(row: MinorRow) {
+  return (
+    row.minor_full_name?.trim() ||
+    [row.minor_first_name, row.minor_last_name]
+      .map((value) => value?.trim())
+      .filter(Boolean)
+      .join(" ") ||
+    "Minor participant"
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -131,16 +149,50 @@ export async function GET(request: NextRequest) {
       params,
     );
 
+    const signatureById = new Map(signatures.map((signature) => [signature.id, signature]));
+    const signatureIds = signatures.map((signature) => signature.id);
+    let minors: MinorRow[] = [];
+
+    if (signatureIds.length) {
+      minors = await supabaseSelect<MinorRow>(
+        "epic_waiver_minors",
+        new URLSearchParams({
+          select: "adult_signature_id,minor_first_name,minor_last_name,minor_full_name",
+          adult_signature_id: `in.(${signatureIds.join(",")})`,
+          limit: "100",
+        }),
+      );
+    }
+
+    const adultWaivers = signatures.map((signature) => ({
+      id: signature.id,
+      signerName: signatureName(signature),
+      signerEmail: signature.signer_email,
+      signedAt: signature.signed_at,
+      copyEmailStatus: signature.copy_email_status,
+      copyEmailSentAt: signature.copy_email_sent_at,
+      isMinor: false,
+    }));
+
+    const minorWaivers = minors
+      .map((minor) => {
+        const parentSignature = signatureById.get(minor.adult_signature_id);
+        if (!parentSignature) return null;
+        return {
+          id: parentSignature.id,
+          signerName: minorName(minor),
+          signerEmail: parentSignature.signer_email,
+          signedAt: parentSignature.signed_at,
+          copyEmailStatus: parentSignature.copy_email_status,
+          copyEmailSentAt: parentSignature.copy_email_sent_at,
+          isMinor: true,
+        };
+      })
+      .filter(Boolean);
+
     return NextResponse.json({
       readinessId,
-      waivers: signatures.map((signature) => ({
-        id: signature.id,
-        signerName: signatureName(signature),
-        signerEmail: signature.signer_email,
-        signedAt: signature.signed_at,
-        copyEmailStatus: signature.copy_email_status,
-        copyEmailSentAt: signature.copy_email_sent_at,
-      })),
+      waivers: [...adultWaivers, ...minorWaivers],
     });
   } catch (error) {
     return NextResponse.json(
