@@ -17,7 +17,7 @@ type GuestPortalRow = {
     model: string;
     quantity: number;
   }> | null;
- premier_adventure_assure: boolean | null;
+  premier_adventure_assure: boolean | null;
   adventure_assure_level: string | null;
   additional_waivers_url: string | null;
   mpwr_waiver_url: string | null;
@@ -32,6 +32,8 @@ type GuestPortalRow = {
   mpwr_document_expected_count: number | null;
   mpwr_waivers: Array<{
     name: string;
+    isMinor?: boolean | null;
+    isPassenger?: boolean | null;
     is_minor?: boolean | null;
     is_passenger?: boolean | null;
   }> | null;
@@ -57,6 +59,48 @@ function getSupabaseConfig() {
     url: normalizedUrl.replace(/\/+$/, ""),
     key,
   };
+}
+
+function denverWallTimeToIso(value: string) {
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?/,
+  );
+
+  if (!match) return value;
+
+  const [, year, month, day, hour, minute, rawSecond = "00"] = match;
+  const second = Number.parseFloat(rawSecond);
+  const wholeSecond = Math.floor(second);
+  const millisecond = Math.round((second - wholeSecond) * 1000);
+
+  const wallClockAsUtc = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      wholeSecond,
+      millisecond,
+    ),
+  );
+
+  const offsetName = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    timeZoneName: "longOffset",
+  })
+    .formatToParts(wallClockAsUtc)
+    .find((part) => part.type === "timeZoneName")?.value;
+
+  const offsetMatch = offsetName?.match(/^GMT([+-]\d{2}:\d{2})$/);
+  if (!offsetMatch) return value;
+
+  const seconds = String(wholeSecond).padStart(2, "0");
+  const fraction = millisecond
+    ? `.${String(millisecond).padStart(3, "0")}`
+    : "";
+
+  return `${year}-${month}-${day}T${hour}:${minute}:${seconds}${fraction}${offsetMatch[1]}`;
 }
 
 export async function GET(
@@ -128,7 +172,7 @@ export async function GET(
           readinessId: row.readiness_id,
           businessLine: row.business_line,
           productDisplayName: row.product_display_name,
-          visitStartTime: row.visit_start_time,
+          visitStartTime: denverWallTimeToIso(row.visit_start_time),
           rentalDuration: row.rental_duration,
           expectedGuestCount: row.expected_guest_count,
           totalVehicleCount: row.total_vehicle_count,
