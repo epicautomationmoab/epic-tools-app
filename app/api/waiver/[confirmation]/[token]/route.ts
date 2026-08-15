@@ -21,7 +21,28 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     if (!response.ok) return NextResponse.json({ error: "Unable to load waiver.", detail: body.slice(0, 300) }, { status: response.status });
     const rows = JSON.parse(body);
     if (!rows?.length) return NextResponse.json({ error: "This waiver link is invalid, inactive, or expired." }, { status: 404 });
-    return NextResponse.json({ session: rows[0] });
+
+    let customerPhone: string | null = null;
+    const reservationParams = new URLSearchParams({
+      select: "customer_phone",
+      confirmation_code: `eq.${confirmation}`,
+      limit: "1",
+    });
+    const reservationResponse = await fetch(`${c.url}/rest/v1/operational_reservations?${reservationParams.toString()}`, {
+      headers: { apikey: c.key, Authorization: `Bearer ${c.key}` },
+      cache: "no-store",
+    });
+    if (reservationResponse.ok) {
+      const reservations = await reservationResponse.json();
+      customerPhone = reservations?.[0]?.customer_phone ?? null;
+    }
+
+    return NextResponse.json({
+      session: {
+        ...rows[0],
+        customer_phone: customerPhone,
+      },
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load waiver." }, { status: 500 });
   }
