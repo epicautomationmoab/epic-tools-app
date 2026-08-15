@@ -158,7 +158,7 @@ export default function RentalTermsForm({
 
     setSubmitting(true);
     try {
-      const response = await fetch("/api/waiver/submit", {
+      const response = await fetch("/api/waiver/submit-rental", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
