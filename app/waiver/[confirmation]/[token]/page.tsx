@@ -21,7 +21,7 @@ type Session = {
 type Minor = { first_name: string; last_name: string; dob: string };
 
 function normalize(value: string) {
-  return value.trim().replace(/\s+/g, " ").toLowerCase();
+  return value.trim().replace(/\./g, "").replace(/\s+/g, " ").toLowerCase();
 }
 
 function dateValue() {
