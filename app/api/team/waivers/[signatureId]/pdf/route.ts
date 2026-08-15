@@ -56,7 +56,6 @@ export async function GET(
         archived_at: "is.null",
         limit: "1",
       }),
-      true,
     );
 
     const signature = rows[0];
