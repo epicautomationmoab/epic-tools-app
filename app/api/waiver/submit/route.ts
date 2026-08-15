@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendWaiverCopyEmail, waiverEmailConfigured } from "@/lib/server/waiver-email";
 
 function config() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -103,8 +104,57 @@ async function generateSignedPdf(
 
   return {
     ok: true as const,
-    result: JSON.parse(body),
+    result: JSON.parse(body) as { storage_path?: string; sha256?: string; layout_version?: string },
   };
+}
+
+async function updateWaiverCopyStatus(
+  url: string,
+  key: string,
+  signatureId: string,
+  patch: Record<string, unknown>,
+) {
+  const response = await fetch(
+    `${url}/rest/v1/epic_waiver_signatures?id=eq.${encodeURIComponent(signatureId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }),
+      cache: "no-store",
+    },
+  );
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Unable to update waiver email status: ${body.slice(0, 300)}`);
+  }
+}
+
+async function downloadSignedPdf(url: string, key: string, storagePath: string) {
+  const encodedPath = storagePath.split("/").map(encodeURIComponent).join("/");
+  const response = await fetch(`${url}/storage/v1/object/authenticated/epic-legal-documents/${encodedPath}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Unable to retrieve signed waiver PDF: ${body.slice(0, 300)}`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
+function signerName(payload: Record<string, unknown>) {
+  return [payload.p_signer_first_name, payload.p_signer_middle_initial, payload.p_signer_last_name]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
 }
 
 export async function POST(request: Request) {
@@ -189,6 +239,8 @@ export async function POST(request: Request) {
     let pdfGenerated = false;
     let pdfResult: unknown = null;
     let pdfError: string | null = null;
+    let copyEmailStatus: "sent" | "failed" | null = null;
+    let copyEmailError: string | null = null;
 
     if (signatureId) {
       const pdf = await generateSignedPdf(
@@ -202,6 +254,46 @@ export async function POST(request: Request) {
       if (pdf.ok) {
         pdfGenerated = true;
         pdfResult = pdf.result;
+
+        try {
+          await updateWaiverCopyStatus(c.url, c.key, signatureId, {
+            copy_email_status: "pending",
+            copy_email_error: null,
+          });
+
+          if (!waiverEmailConfigured()) throw new Error("Waiver email delivery is not configured.");
+          const email = String(payload.p_signer_email ?? "").trim();
+          if (!email) throw new Error("Signer email address is missing.");
+          if (!pdf.result.storage_path) throw new Error("Signed PDF storage path was not returned.");
+
+          const pdfBytes = await downloadSignedPdf(c.url, c.key, pdf.result.storage_path);
+          const emailResult = await sendWaiverCopyEmail({
+            email,
+            signerName: signerName(payload),
+            pdf: pdfBytes,
+            idempotencyKey: `waiver-copy/${signatureId}`,
+          });
+
+          await updateWaiverCopyStatus(c.url, c.key, signatureId, {
+            copy_email_status: "sent",
+            copy_email_sent_at: new Date().toISOString(),
+            copy_email_message_id: emailResult.messageId,
+            copy_email_error: null,
+          });
+          copyEmailStatus = "sent";
+        } catch (emailError) {
+          copyEmailStatus = "failed";
+          copyEmailError = emailError instanceof Error ? emailError.message : "Unable to email signed waiver copy.";
+          console.error("Signed waiver copy email failed", {
+            signatureId,
+            confirmationCode: payload.p_confirmation_code,
+            error: copyEmailError,
+          });
+          await updateWaiverCopyStatus(c.url, c.key, signatureId, {
+            copy_email_status: "failed",
+            copy_email_error: copyEmailError,
+          }).catch(() => undefined);
+        }
       } else {
         pdfError = pdf.error;
         console.error("Signed waiver PDF generation failed", {
@@ -220,6 +312,8 @@ export async function POST(request: Request) {
       pdfGenerated,
       pdfResult,
       pdfError,
+      copyEmailStatus,
+      copyEmailError,
     });
   } catch (error) {
     if (storedPath) {
