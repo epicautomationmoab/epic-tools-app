@@ -17,7 +17,7 @@ type GuestPortalRow = {
     model: string;
     quantity: number;
   }> | null;
- premier_adventure_assure: boolean | null;
+  premier_adventure_assure: boolean | null;
   adventure_assure_level: string | null;
   additional_waivers_url: string | null;
   mpwr_waiver_url: string | null;
@@ -57,6 +57,38 @@ function getSupabaseConfig() {
     url: normalizedUrl.replace(/\/+$/, ""),
     key,
   };
+}
+
+async function getEpicRentalAgreementUrl(
+  config: { url: string; key: string },
+  confirmationCode: string,
+) {
+  const params = new URLSearchParams({
+    select: "public_path,waiver_template_id,epic_waiver_templates!inner(business_line,document_type,is_active)",
+    confirmation_code: `eq.${confirmationCode}`,
+    session_status: "eq.active",
+    "epic_waiver_templates.business_line": "eq.rental",
+    "epic_waiver_templates.document_type": "eq.rental_terms_conditions",
+    "epic_waiver_templates.is_active": "eq.true",
+    order: "created_at.desc",
+    limit: "1",
+  });
+
+  const response = await fetch(
+    `${config.url}/rest/v1/epic_waiver_sessions?${params.toString()}`,
+    {
+      headers: {
+        apikey: config.key,
+        Authorization: `Bearer ${config.key}`,
+      },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) return null;
+
+  const sessions = (await response.json()) as Array<{ public_path: string | null }>;
+  return sessions[0]?.public_path ?? null;
 }
 
 export async function GET(
@@ -112,6 +144,14 @@ export async function GET(
       );
     }
 
+    const hasRental = rows.some(
+      (row) => row.business_line?.toLowerCase() === "rental",
+    );
+
+    const epicRentalAgreementUrl = hasRental
+      ? await getEpicRentalAgreementUrl(config, rows[0].confirmation_code)
+      : null;
+
     return NextResponse.json({
       reservation: {
         guestPortalToken: rows[0].guest_portal_token,
@@ -119,7 +159,8 @@ export async function GET(
         customerName: rows[0].customer_name,
         customerEmail: rows[0].customer_email,
         customerPhoneLastFour: rows[0].customer_phone_last_four,
-        additionalWaiversUrl: rows[0].additional_waivers_url,
+        additionalWaiversUrl:
+          epicRentalAgreementUrl ?? rows[0].additional_waivers_url,
         mpwrWaiverUrl: rows[0].mpwr_waiver_url
           ? `/api/guest/${encodeURIComponent(token)}/mpwr-waiver`
           : null,
