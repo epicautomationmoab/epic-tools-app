@@ -17,7 +17,7 @@ type GuestPortalRow = {
     model: string;
     quantity: number;
   }> | null;
- premier_adventure_assure: boolean | null;
+  premier_adventure_assure: boolean | null;
   adventure_assure_level: string | null;
   additional_waivers_url: string | null;
   mpwr_waiver_url: string | null;
@@ -40,6 +40,13 @@ type GuestPortalRow = {
   ohv_certificate_filename: string | null;
   ohv_certificate_uploaded_at: string | null;
 };
+
+type EpicWaiverSession = {
+  public_path: string;
+};
+
+const WAIVER_PREVIEW_ORIGIN =
+  "https://epic-tools-app-git-waiver-port-automation-4515s-projects.vercel.app";
 
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -112,6 +119,33 @@ export async function GET(
       );
     }
 
+    const sessionParams = new URLSearchParams({
+      select: "public_path",
+      confirmation_code: `eq.${rows[0].confirmation_code}`,
+      session_status: "eq.active",
+      expires_at: `gte.${new Date().toISOString()}`,
+      order: "created_at.desc",
+      limit: "1",
+    });
+
+    const sessionResponse = await fetch(
+      `${config.url}/rest/v1/epic_waiver_sessions?${sessionParams.toString()}`,
+      {
+        headers: {
+          apikey: config.key,
+          Authorization: `Bearer ${config.key}`,
+        },
+        cache: "no-store",
+      },
+    );
+
+    const sessions = sessionResponse.ok
+      ? ((await sessionResponse.json()) as EpicWaiverSession[])
+      : [];
+    const epicWaiverUrl = sessions[0]?.public_path
+      ? `${WAIVER_PREVIEW_ORIGIN}${sessions[0].public_path}`
+      : rows[0].additional_waivers_url;
+
     return NextResponse.json({
       reservation: {
         guestPortalToken: rows[0].guest_portal_token,
@@ -119,7 +153,7 @@ export async function GET(
         customerName: rows[0].customer_name,
         customerEmail: rows[0].customer_email,
         customerPhoneLastFour: rows[0].customer_phone_last_four,
-        additionalWaiversUrl: rows[0].additional_waivers_url,
+        additionalWaiversUrl: epicWaiverUrl,
         mpwrWaiverUrl: rows[0].mpwr_waiver_url
           ? `/api/guest/${encodeURIComponent(token)}/mpwr-waiver`
           : null,
