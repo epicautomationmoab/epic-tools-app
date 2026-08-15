@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 type Session = {
   confirmation_code: string;
   customer_name: string | null;
+  customer_phone: string | null;
   start_time: string | null;
   experience_name: string | null;
   experience_internal_name: string | null;
@@ -31,6 +32,16 @@ function dateValue() {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+}
+
+function formatPhone(value: string | null) {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, "");
+  const national = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  if (national.length === 10) {
+    return `(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}`;
+  }
+  return value.trim();
 }
 
 export default function WaiverPage() {
@@ -211,8 +222,9 @@ export default function WaiverPage() {
         minute: "2-digit",
       })
     : "—";
+  const reservingPartyPhone = formatPhone(session.customer_phone);
 
-  return <main className="waiver-page"><div className="waiver-shell"><div className="waiver-brand">Epic 4X4 Adventures</div><h1 className="waiver-title">Participant Waiver</h1><p className="waiver-subtitle">Please review each section carefully and complete all required acknowledgements.</p><div className="waiver-rule"/><article className="waiver-doc"><div className="waiver-reservation"><div><small>Reservation</small><h2>{session.confirmation_code}</h2></div><span className="waiver-pill">Active</span></div><div className="waiver-details"><div className="waiver-detail"><small>Primary Contact</small><strong>{session.customer_name || "—"}</strong></div><div className="waiver-detail"><small>Activity</small><strong>{activity}</strong></div><div className="waiver-detail"><small>Start Time</small><strong>{start}</strong></div></div>
+  return <main className="waiver-page"><div className="waiver-shell"><div className="waiver-brand">Epic 4X4 Adventures</div><h1 className="waiver-title">Participant Waiver</h1><p className="waiver-subtitle">Please review each section carefully and complete all required acknowledgements.</p><div className="waiver-rule"/><article className="waiver-doc"><div className="waiver-reservation"><div><small>Reservation</small><h2>{session.confirmation_code}</h2></div><span className="waiver-pill">Active</span></div><div className="waiver-details"><div className="waiver-detail"><small>Reserving Party</small><strong>{session.customer_name || "—"}</strong>{reservingPartyPhone ? <span>{reservingPartyPhone}</span> : null}</div><div className="waiver-detail"><small>Activity</small><strong>{activity}</strong></div><div className="waiver-detail"><small>Start Time</small><strong>{start}</strong></div></div>
   <section className="waiver-section"><div className="waiver-eyebrow">01 · Participant Information</div><h3>Adult Participant</h3><div className="waiver-name-grid"><label className="waiver-field">First name<input className="waiver-input" value={firstName} onChange={e => setFirstName(e.target.value)}/></label><label className="waiver-field waiver-mi-field">MI<input className="waiver-input" maxLength={1} value={middleInitial} onChange={e => setMiddleInitial(e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase())}/></label><label className="waiver-field">Last name<input className="waiver-input" value={lastName} onChange={e => setLastName(e.target.value)}/></label></div><div className="waiver-grid waiver-contact-grid"><label className="waiver-field">Email<input className="waiver-input" type="email" value={email} onChange={e => setEmail(e.target.value)}/></label><label className="waiver-field">Phone<input className="waiver-input" value={phone} onChange={e => setPhone(e.target.value)}/></label><label className="waiver-field">Date of birth<input className="waiver-input" type="date" value={dob} onChange={e => setDob(e.target.value)}/></label></div></section>
   <section className="waiver-section"><div className="waiver-eyebrow">02 · Participant Agreement</div><div className="waiver-legal" dangerouslySetInnerHTML={{__html: session.participant_agreement_html || ""}}/><label className="waiver-initial"><span>I have read and agree to the Participant Agreement.</span><input className="waiver-input" placeholder="Initials" maxLength={8} value={risk} onChange={e => setRisk(e.target.value)}/></label></section>
   <section className="waiver-section"><div className="waiver-eyebrow">03 · Headgear Warning</div><div className="waiver-legal" dangerouslySetInnerHTML={{__html: session.headgear_warning_html || ""}}/><label className="waiver-initial"><span>I have read and understand the Headgear Warning.</span><input className="waiver-input" placeholder="Initials" maxLength={8} value={helmet} onChange={e => setHelmet(e.target.value)}/></label></section>
