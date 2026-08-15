@@ -8,6 +8,7 @@ import PortalEmailEnhancer from "./PortalEmailEnhancer";
 import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
 import LogoutButton from "./LogoutButton";
 import SharedActionPinEnhancer from "./SharedActionPinEnhancer";
+import KioskHandoffEnhancer from "./KioskHandoffEnhancer";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -29,6 +30,17 @@ export default async function TeamReadinessPage() {
     error = err instanceof Error ? err.message : "Unable to load readiness rows.";
   }
 
+  const kioskReservations = rows.flatMap((row) =>
+    row.readiness_id
+      ? [
+          {
+            readinessId: row.readiness_id,
+            confirmationCode: row.confirmation_code,
+          },
+        ]
+      : [],
+  );
+
   return (
     <div className={styles.page}>
       <AutoRefresh />
@@ -36,6 +48,7 @@ export default async function TeamReadinessPage() {
       <PortalEmailEnhancer />
       <OhvDrawerEnhancer />
       <SharedActionPinEnhancer />
+      <KioskHandoffEnhancer reservations={kioskReservations} />
 
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
