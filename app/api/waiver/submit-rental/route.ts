@@ -55,7 +55,7 @@ async function deleteStoredSignature(url: string, key: string, storagePath: stri
 }
 
 async function generateSignedPdf(url: string, key: string, signatureId: string, confirmationCode: string, publicToken: string) {
-  const response = await fetch(`${url}/functions/v1/generate-epic-waiver-pdf`, {
+  const response = await fetch(`${url}/functions/v1/generate-epic-rental-terms-pdf`, {
     method: "POST",
     headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ signature_id: signatureId, confirmation_code: confirmationCode, public_token: publicToken }),
@@ -175,6 +175,8 @@ export async function POST(request: Request) {
             signerName: signerName(payload),
             pdf: pdfBytes,
             idempotencyKey: `rental-terms-copy/${signatureId}`,
+            documentTitle: "Rental Terms & Conditions",
+            filename: "Epic-4X4-Signed-Rental-Terms.pdf",
           });
           await updateCopyStatus(c.url, c.key, signatureId, {
             copy_email_status: "sent", copy_email_sent_at: new Date().toISOString(), copy_email_message_id: emailResult.messageId, copy_email_error: null,
