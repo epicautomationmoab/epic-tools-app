@@ -9,6 +9,7 @@ type SignedWaiver = {
   signedAt: string;
   copyEmailStatus: string | null;
   copyEmailSentAt: string | null;
+  isMinor?: boolean;
 };
 
 function portalTokenFromDrawer() {
@@ -26,6 +27,36 @@ function epicDocumentsSection() {
       return heading?.textContent?.trim().startsWith("Epic Documents");
     }) ?? null
   );
+}
+
+function normalizeName(value: string | null | undefined) {
+  return (value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function replaceNoLink(row: HTMLElement, href: string) {
+  const existingEpicLink = row.querySelector<HTMLAnchorElement>(
+    'a[data-epic-waiver-link="true"]',
+  );
+  if (existingEpicLink) {
+    existingEpicLink.href = href;
+    return;
+  }
+
+  const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    if (node.textContent?.trim() === "No link") {
+      const link = document.createElement("a");
+      link.href = href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "Open Waiver";
+      link.dataset.epicWaiverLink = "true";
+      node.parentNode?.replaceChild(link, node);
+      return;
+    }
+    node = walker.nextNode();
+  }
 }
 
 export default function SignedWaiverDrawerEnhancer() {
@@ -75,73 +106,29 @@ export default function SignedWaiverDrawerEnhancer() {
   }, [token]);
 
   useEffect(() => {
-    document.getElementById("epic-owned-waivers")?.remove();
-
     if (!token || !waivers.length) return;
 
-    const section = epicDocumentsSection();
-    if (!section) return;
+    const applyLinks = () => {
+      const section = epicDocumentsSection();
+      if (!section) return;
 
-    const block = document.createElement("div");
-    block.id = "epic-owned-waivers";
-    block.style.marginTop = "14px";
-    block.style.paddingTop = "14px";
-    block.style.borderTop = "1px solid #e3e7eb";
+      const rows = Array.from(section.querySelectorAll<HTMLElement>("div"));
+      for (const waiver of waivers) {
+        const targetName = normalizeName(waiver.signerName);
+        const row = rows.find((candidate) => {
+          const strong = candidate.querySelector(":scope > strong");
+          return normalizeName(strong?.textContent) === targetName;
+        });
 
-    const label = document.createElement("div");
-    label.textContent = "EPIC SIGNED WAIVERS";
-    label.style.fontSize = "11px";
-    label.style.fontWeight = "900";
-    label.style.letterSpacing = ".08em";
-    label.style.color = "#6b7280";
-    label.style.marginBottom = "9px";
-    block.appendChild(label);
+        if (!row) continue;
+        replaceNoLink(row, `/api/team/waivers/${waiver.id}/pdf`);
+      }
+    };
 
-    for (const waiver of waivers) {
-      const row = document.createElement("div");
-      row.style.display = "flex";
-      row.style.justifyContent = "space-between";
-      row.style.alignItems = "center";
-      row.style.gap = "12px";
-      row.style.padding = "10px 0";
-
-      const identity = document.createElement("div");
-      identity.style.minWidth = "0";
-
-      const name = document.createElement("strong");
-      name.textContent = waiver.signerName;
-      name.style.display = "block";
-      name.style.color = "#202733";
-
-      const detail = document.createElement("small");
-      const signedAt = new Date(waiver.signedAt).toLocaleString("en-US");
-      detail.textContent = `Epic waiver · Signed ${signedAt}${waiver.copyEmailStatus === "sent" ? " · Copy emailed" : ""}`;
-      detail.style.display = "block";
-      detail.style.marginTop = "3px";
-      detail.style.color = "#6b7280";
-
-      identity.append(name, detail);
-
-      const link = document.createElement("a");
-      link.href = `/api/team/waivers/${waiver.id}/pdf`;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = "View Signed Waiver";
-      link.style.flex = "0 0 auto";
-      link.style.textDecoration = "none";
-      link.style.background = "#202733";
-      link.style.color = "#fff";
-      link.style.borderRadius = "8px";
-      link.style.padding = "8px 11px";
-      link.style.fontSize = "12px";
-      link.style.fontWeight = "900";
-
-      row.append(identity, link);
-      block.appendChild(row);
-    }
-
-    section.appendChild(block);
-    return () => block.remove();
+    applyLinks();
+    const observer = new MutationObserver(applyLinks);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, [token, waivers]);
 
   return null;
