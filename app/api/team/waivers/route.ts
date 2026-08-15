@@ -21,6 +21,10 @@ type ReadinessLookup = {
   confirmation_code: string;
 };
 
+type PortalLookup = {
+  readiness_id: string;
+};
+
 type VisitLookup = {
   operational_reservation_id: string | null;
   confirmation_code: string;
@@ -57,15 +61,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const readinessId = request.nextUrl.searchParams.get("readiness_id")?.trim();
-  if (!readinessId) {
-    return NextResponse.json(
-      { error: "readiness_id is required." },
-      { status: 400 },
-    );
-  }
+  let readinessId = request.nextUrl.searchParams.get("readiness_id")?.trim() || "";
+  const portalToken = request.nextUrl.searchParams.get("token")?.trim() || "";
 
   try {
+    if (!readinessId && portalToken) {
+      const portalRows = await supabaseSelect<PortalLookup>(
+        "guest_portal_v",
+        new URLSearchParams({
+          select: "readiness_id",
+          guest_portal_token: `eq.${portalToken}`,
+          limit: "1",
+        }),
+        true,
+      );
+      readinessId = portalRows[0]?.readiness_id ?? "";
+    }
+
+    if (!readinessId) {
+      return NextResponse.json(
+        { error: "readiness_id or token is required." },
+        { status: 400 },
+      );
+    }
+
     const readinessRows = await supabaseSelect<ReadinessLookup>(
       "guest_readiness_operational",
       new URLSearchParams({
@@ -117,6 +136,7 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json({
+      readinessId,
       waivers: signatures.map((signature) => ({
         id: signature.id,
         signerName: signatureName(signature),
