@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import styles from "./KioskLookup.module.css";
 
 type ReservationMatch = {
@@ -14,6 +14,15 @@ type LookupResponse = {
   matches?: ReservationMatch[];
   error?: string;
 };
+
+type HandoffResponse = {
+  portalPath?: string;
+};
+
+const KIOSK_STORAGE_KEY = "epic-kiosk-id";
+const VALID_KIOSKS = new Set(
+  Array.from({ length: 7 }, (_, index) => `kiosk-${index + 1}`),
+);
 
 function formatVisitTime(value: string | null) {
   if (!value) {
@@ -44,6 +53,44 @@ export default function KioskPage() {
   const [error, setError] = useState("");
   const [matches, setMatches] = useState<ReservationMatch[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedKiosk = params.get("kiosk")?.trim().toLowerCase() ?? "";
+    let kioskId = window.localStorage.getItem(KIOSK_STORAGE_KEY)?.trim().toLowerCase() ?? "";
+
+    if (VALID_KIOSKS.has(requestedKiosk)) {
+      kioskId = requestedKiosk;
+      window.localStorage.setItem(KIOSK_STORAGE_KEY, kioskId);
+      window.history.replaceState({}, "", "/kiosk");
+    }
+
+    if (!VALID_KIOSKS.has(kioskId)) {
+      return;
+    }
+
+    const source = new EventSource(
+      `/api/kiosk/handoff-stream?kiosk=${encodeURIComponent(kioskId)}`,
+    );
+
+    const handleHandoff = (event: MessageEvent<string>) => {
+      try {
+        const data = JSON.parse(event.data) as HandoffResponse;
+        if (!data.portalPath) return;
+        source.close();
+        window.location.assign(data.portalPath);
+      } catch {
+        // Leave the existing manual lookup available if a handoff event is malformed.
+      }
+    };
+
+    source.addEventListener("handoff", handleHandoff as EventListener);
+
+    return () => {
+      source.removeEventListener("handoff", handleHandoff as EventListener);
+      source.close();
+    };
+  }, []);
 
   async function openReservation(
     event: FormEvent<HTMLFormElement>,
