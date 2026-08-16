@@ -670,9 +670,10 @@ export default function GuestPortalPage() {
                         </p>
 
                         <p className={styles.requirementCount}>
-                          {mpwr.received} of {mpwr.expected} participants
-                          complete
-                        </p>
+                       {mpwr.received} of {mpwr.expected} participants complete — Completed Polaris
+                       waivers may take up to 10 minutes to appear here. No need to submit again
+                       while we update your guest portal.       
+                       </p>
 
                         {mpwr.signers.length ? (
                           <div className={styles.signerList}>
