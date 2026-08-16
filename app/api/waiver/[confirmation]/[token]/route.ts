@@ -16,6 +16,50 @@ async function getJson(url: string, key: string) {
   return response.json();
 }
 
+function denverWallTimeToIso(value: string | null) {
+  if (!value) return value;
+
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?/,
+  );
+
+  if (!match) return value;
+
+  const [, year, month, day, hour, minute, rawSecond = "00"] = match;
+  const second = Number.parseFloat(rawSecond);
+  const wholeSecond = Math.floor(second);
+  const millisecond = Math.round((second - wholeSecond) * 1000);
+
+  const wallClockAsUtc = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      wholeSecond,
+      millisecond,
+    ),
+  );
+
+  const offsetName = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    timeZoneName: "longOffset",
+  })
+    .formatToParts(wallClockAsUtc)
+    .find((part) => part.type === "timeZoneName")?.value;
+
+  const offsetMatch = offsetName?.match(/^GMT([+-]\d{2}:\d{2})$/);
+  if (!offsetMatch) return value;
+
+  const seconds = String(wholeSecond).padStart(2, "0");
+  const fraction = millisecond
+    ? `.${String(millisecond).padStart(3, "0")}`
+    : "";
+
+  return `${year}-${month}-${day}T${hour}:${minute}:${seconds}${fraction}${offsetMatch[1]}`;
+}
+
 export async function GET(_request: Request, context: { params: Promise<{ confirmation: string; token: string }> }) {
   try {
     const { confirmation, token } = await context.params;
@@ -72,6 +116,7 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     return NextResponse.json({
       session: {
         ...session,
+        start_time: denverWallTimeToIso(session.start_time ?? null),
         customer_phone: customerPhone,
         business_line: businessLine || "tour",
         rental_terms_html: rentalTermsHtml,
