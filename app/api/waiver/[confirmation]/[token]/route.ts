@@ -80,6 +80,7 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     let businessLine: string | null = null;
     let rentalTermsHtml: string | null = null;
     let totalVehicleCount = 1;
+    let tourActivityLabel: string | null = null;
 
     const reservationParams = new URLSearchParams({
       select: "customer_phone",
@@ -100,6 +101,24 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
       rentalTermsHtml = businessLine === "rental" ? templates?.[0]?.html_body ?? null : null;
     }
 
+    if (businessLine === "tour") {
+      const tourVisitParams = new URLSearchParams({
+        select: "product_display_name,visit_start_time",
+        confirmation_code: `eq.${confirmation}`,
+        business_line: "eq.tour",
+        visit_status: "eq.active",
+        live_dashboard_visible: "eq.true",
+        order: "visit_start_time.asc",
+      });
+      const tourVisits = await getJson(`${c.url}/rest/v1/portal_patti_store_visits?${tourVisitParams.toString()}`, c.key);
+      if (Array.isArray(tourVisits) && tourVisits.length > 0) {
+        const activityNames = tourVisits
+          .map((visit) => String(visit.product_display_name || "").trim())
+          .filter(Boolean);
+        tourActivityLabel = [...new Set(activityNames)].join(" • ") || null;
+      }
+    }
+
     if (businessLine === "rental") {
       const readinessParams = new URLSearchParams({
         select: "total_vehicle_count",
@@ -117,6 +136,7 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
       session: {
         ...session,
         start_time: denverWallTimeToIso(session.start_time ?? null),
+        experience_name: businessLine === "tour" && tourActivityLabel ? tourActivityLabel : session.experience_name,
         customer_phone: customerPhone,
         business_line: businessLine || "tour",
         rental_terms_html: rentalTermsHtml,
