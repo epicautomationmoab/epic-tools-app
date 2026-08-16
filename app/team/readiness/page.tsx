@@ -9,6 +9,7 @@ import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
 import SignedWaiverDrawerEnhancer from "./SignedWaiverDrawerEnhancer";
 import LogoutButton from "./LogoutButton";
 import SharedActionPinEnhancer from "./SharedActionPinEnhancer";
+import AdventureAssureEnhancer from "./AdventureAssureEnhancer";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -38,6 +39,7 @@ export default async function TeamReadinessPage() {
       <OhvDrawerEnhancer />
       <SignedWaiverDrawerEnhancer />
       <SharedActionPinEnhancer />
+      <AdventureAssureEnhancer rows={rows} />
 
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
