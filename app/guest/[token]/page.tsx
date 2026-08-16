@@ -23,6 +23,7 @@ type Activity = {
   vehicleBreakdown: VehicleBreakdownItem[] | null;
   premierAdventureAssure: boolean | null;
   adventureAssureLevel: string | null;
+  epicDocumentUrl: string | null;
   ohvRequired: boolean | null;
   ohvCertificateUploaded: boolean | null;
   ohvCertificateFilename: string | null;
@@ -61,7 +62,6 @@ type PortalReservation = {
   customerName: string;
   customerEmail: string | null;
   customerPhoneLastFour: string | null;
-  additionalWaiversUrl: string | null;
   mpwrWaiverUrl: string | null;
   activities: Activity[];
   epicDocuments: EpicDocumentStatus[];
@@ -619,16 +619,16 @@ export default function GuestPortalPage() {
                         ) : null}
                       </div>
 
-                      {reservation.additionalWaiversUrl ? (
+                      {activity.epicDocumentUrl ? (
                         <a
                           className={styles.primaryButton}
-                          href={reservation.additionalWaiversUrl}
+                          href={activity.epicDocumentUrl}
                           target="_blank"
                           rel="noreferrer"
                         >
                           {isRental
-                          ? "Complete Terms & Conditions"
-                          : "Complete Tour Waivers"}
+                            ? "Complete Terms & Conditions"
+                            : "Complete Tour Waivers"}
                         </a>
                       ) : null}
                     </article>
@@ -716,7 +716,6 @@ export default function GuestPortalPage() {
                           rel="noreferrer"
                         >
                           Complete Polaris Waivers
-                          
                         </a>
                       ) : null}
                     </article>
