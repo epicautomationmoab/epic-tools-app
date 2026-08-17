@@ -10,7 +10,7 @@ export default function EmployeeSessionRefresher() {
 
     async function refresh() {
       try {
-        await fetch("/api/auth/refresh", {
+        await fetch("/api/auth/refresh-session", {
           method: "POST",
           credentials: "include",
           cache: "no-store",
