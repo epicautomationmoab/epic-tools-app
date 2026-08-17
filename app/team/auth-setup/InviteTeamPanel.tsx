@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AddEmployeeForm from "./AddEmployeeForm";
 
 type TeamProfile = {
   id: string;
@@ -39,6 +40,12 @@ export default function InviteTeamPanel() {
   useEffect(() => {
     void loadProfiles();
   }, []);
+
+  async function employeeCreated(name: string) {
+    setMessage(`${name} was added. You can now send their EpicTools invitation below.`);
+    setError("");
+    await loadProfiles();
+  }
 
   async function manageAuth(profile: TeamProfile, action: "invite" | "reset_password") {
     const key = `${action}:${profile.email}`;
@@ -82,6 +89,8 @@ export default function InviteTeamPanel() {
 
       {message ? <div style={{ padding: 12, marginBottom: 14, background: "#ecfdf3", borderRadius: 8 }}>{message}</div> : null}
       {error ? <div style={{ padding: 12, marginBottom: 14, background: "#fef3f2", color: "#b42318", borderRadius: 8 }}>{error}</div> : null}
+
+      <AddEmployeeForm onCreated={employeeCreated} />
 
       {loading ? (
         <p>Loading team profiles...</p>
