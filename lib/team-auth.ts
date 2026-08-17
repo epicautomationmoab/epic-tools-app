@@ -70,6 +70,40 @@ export async function listTeamProfiles() {
   );
 }
 
+export async function createTeamProfile(input: {
+  display_name: string;
+  email: string;
+  role: TeamProfile["role"];
+  tripworks_user_id?: number | string | null;
+  tripworks_full_name?: string | null;
+}) {
+  const displayName = input.display_name.trim();
+  const email = input.email.trim().toLowerCase();
+  const roles: TeamProfile["role"][] = ["admin", "manager", "agent", "workstation"];
+  if (!displayName) throw new Error("Employee name is required.");
+  if (!email || !email.includes("@")) throw new Error("A valid employee email is required.");
+  if (!roles.includes(input.role)) throw new Error("Select a valid EpicTools role.");
+  if (await getTeamProfileByEmail(email)) throw new Error("An EpicTools employee profile already exists for that email.");
+  const rawId = input.tripworks_user_id;
+  const tripworksUserId = rawId === undefined || rawId === null || rawId === "" ? null : Number(rawId);
+  if (tripworksUserId !== null && (!Number.isInteger(tripworksUserId) || tripworksUserId <= 0)) {
+    throw new Error("TripWorks User ID must be a positive whole number.");
+  }
+  const rows = await adminRest<TeamProfile[]>("team_profiles", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({
+      display_name: displayName,
+      email,
+      role: input.role,
+      active: true,
+      tripworks_user_id: tripworksUserId,
+      tripworks_full_name: input.tripworks_full_name?.trim() || displayName,
+    }),
+  });
+  return rows[0];
+}
+
 export async function listSupabaseAuthUsers() {
   const { url, key } = getConfig(true);
   const response = await fetch(`${url}/auth/v1/admin/users?page=1&per_page=100`, {
