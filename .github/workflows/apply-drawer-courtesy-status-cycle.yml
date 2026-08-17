@@ -1,0 +1,83 @@
+name: Apply drawer courtesy and status cycle changes
+
+on:
+  push:
+    branches:
+      - drawer-courtesy-status-cycle
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: drawer-courtesy-status-cycle
+          fetch-depth: 0
+
+      - name: Apply targeted readiness drawer changes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/team/readiness/ReadinessTable.tsx')
+          text = path.read_text()
+
+          replacements = []
+
+          old = '''  return handoffStatus;\n}\n\nfunction getSupabaseBrowserConfig() {'''
+          new = '''  return handoffStatus;\n}\n\nasync function clearHandoff(readinessId: string) {\n  return callReadinessRpc<boolean>(\n    "clear_epic_operational_handoff",\n    {\n      p_readiness_id: readinessId,\n      p_recorded_by: "EpicTools",\n    },\n  );\n}\n\nfunction getSupabaseBrowserConfig() {'''
+          replacements.append((old, new, 'clear handoff helper'))
+
+          old = '''  const [callOutcome, setCallOutcome] = useState("");\n  const [courtesyNotes, setCourtesyNotes] = useState("");\n\n  const [courtesySaving, setCourtesySaving] = useState(false);'''
+          new = '''  const [callOutcome, setCallOutcome] = useState("");\n  const [courtesyNotes, setCourtesyNotes] = useState("");\n  const [courtesyOpen, setCourtesyOpen] = useState(false);\n\n  const [courtesySaving, setCourtesySaving] = useState(false);'''
+          replacements.append((old, new, 'courtesy open state'))
+
+          old = '''    setCourtesyNotes("");\n    setCourtesyError("");\n    if ('''
+          new = '''    setCourtesyNotes("");\n    setCourtesyError("");\n    setCourtesyOpen(false);\n    if ('''
+          replacements.append((old, new, 'reset courtesy collapsed state'))
+
+          old = '''  async function saveHandoff() {\n    if (!selected?.readiness_id) {\n      setHandoffError("This reservation is missing its readiness ID.");\n      return;\n    }\n\n    const nextStatus =\n      selected.business_line === "tour"\n        ? "checked_in"\n        : selected.handoff_status === "rental_out"\n          ? "rental_returned"\n          : "rental_out";\n\n    setHandoffSaving(true);\n    setHandoffError("");\n\n    try {\n      await persistHandoff(selected.readiness_id, nextStatus);\n\n      setLocalRows((current) =>\n        current.map((row) =>\n          row.readiness_id === selected.readiness_id\n            ? { ...row, handoff_status: nextStatus }\n            : row,\n        ),\n      );\n\n      setSelected((current) =>\n        current ? { ...current, handoff_status: nextStatus } : current,\n      );\n    } catch (error) {\n      setHandoffError(\n        error instanceof Error\n          ? error.message\n          : "Unable to update reservation status.",\n      );\n    } finally {\n      setHandoffSaving(false);\n    }\n  }'''
+          new = '''  async function saveHandoff() {\n    if (!selected?.readiness_id) {\n      setHandoffError("This reservation is missing its readiness ID.");\n      return;\n    }\n\n    const nextStatus =\n      selected.business_line === "tour"\n        ? selected.handoff_status === "checked_in"\n          ? null\n          : "checked_in"\n        : selected.handoff_status === "rental_out"\n          ? "rental_returned"\n          : selected.handoff_status === "rental_returned"\n            ? null\n            : "rental_out";\n\n    setHandoffSaving(true);\n    setHandoffError("");\n\n    try {\n      if (nextStatus === null) {\n        await clearHandoff(selected.readiness_id);\n      } else {\n        await persistHandoff(selected.readiness_id, nextStatus);\n      }\n\n      setLocalRows((current) =>\n        current.map((row) =>\n          row.readiness_id === selected.readiness_id\n            ? { ...row, handoff_status: nextStatus }\n            : row,\n        ),\n      );\n\n      setSelected((current) =>\n        current ? { ...current, handoff_status: nextStatus } : current,\n      );\n    } catch (error) {\n      setHandoffError(\n        error instanceof Error\n          ? error.message\n          : "Unable to update reservation status.",\n      );\n    } finally {\n      setHandoffSaving(false);\n    }\n  }'''
+          replacements.append((old, new, 'reversible handoff cycle'))
+
+          old = '''            <section className={styles.handoffAction}>\n              {courtesyCompletion ? ('''
+          new = '''            <section className={styles.handoffAction}>\n              <button\n                type="button"\n                onClick={() => setCourtesyOpen((current) => !current)}\n                aria-expanded={courtesyOpen}\n                style={{\n                  width: "100%",\n                  border: 0,\n                  background: "transparent",\n                  padding: 0,\n                  display: "flex",\n                  alignItems: "center",\n                  justifyContent: "space-between",\n                  gap: 14,\n                  textAlign: "left",\n                  cursor: "pointer",\n                }}\n              >\n                <span>\n                  <strong>Courtesy Call</strong>\n                  <span className={styles.subLine}>\n                    {courtesyCompletion\n                      ? `Completed · ${courtesyCompletion.completedBy}`\n                      : "Not completed"}\n                  </span>\n                </span>\n                <span\n                  aria-hidden="true"\n                  style={{ color: "#6f7885", fontSize: 20, lineHeight: 1 }}\n                >\n                  {courtesyOpen ? "⌃" : "⌄"}\n                </span>\n              </button>\n\n              {courtesyOpen ? (\n                <div style={{ marginTop: 12 }}>\n              {courtesyCompletion ? ('''
+          replacements.append((old, new, 'collapsed courtesy header'))
+
+          old = '''                  <div className={styles.courtesyHeader}>\n                    <strong>Courtesy Call</strong>\n\n                    <p className={styles.subLine}>\n                      Prepare this guest before arrival.\n                    </p>\n                  </div>'''
+          new = '''                  <p className={styles.subLine} style={{ marginBottom: 12 }}>\n                    Prepare this guest before arrival.\n                  </p>'''
+          replacements.append((old, new, 'remove duplicate courtesy heading'))
+
+          old = '''                </>\n              )}\n            </section>\n\n            {selectedIsToday ? ('''
+          new = '''                </>\n              )}\n                </div>\n              ) : null}\n            </section>\n\n            {selectedIsToday ? ('''
+          replacements.append((old, new, 'close collapsed courtesy content'))
+
+          old = '''                  disabled={\n                    handoffSaving ||\n                    (selected.amount_due_cents ?? 0) > 0 ||\n                    selected.handoff_status === "checked_in" ||\n                    selected.handoff_status === "rental_returned"\n                  }'''
+          new = '''                  disabled={\n                    handoffSaving ||\n                    (selected.amount_due_cents ?? 0) > 0\n                  }'''
+          replacements.append((old, new, 'allow status correction'))
+
+          old = '''                  {handoffSaving\n                    ? "Saving..."\n                    : selected.business_line === "tour"\n                      ? selected.handoff_status === "checked_in"\n                        ? "Checked In"\n                        : "Checked In"\n                      : selected.handoff_status === "rental_out"\n                        ? "Rental Returned"\n                        : selected.handoff_status === "rental_returned"\n                          ? "Rental Returned"\n                          : "Rental Out"}'''
+          new = '''                  {handoffSaving\n                    ? "Saving..."\n                    : selected.business_line === "tour"\n                      ? selected.handoff_status === "checked_in"\n                        ? "Clear Checked In"\n                        : "Checked In"\n                      : selected.handoff_status === "rental_out"\n                        ? "Rental Returned"\n                        : selected.handoff_status === "rental_returned"\n                          ? "Clear Rental Status"\n                          : "Rental Out"}'''
+          replacements.append((old, new, 'cycle button labels'))
+
+          for old, new, label in replacements:
+              if old not in text:
+                  raise SystemExit(f'Missing expected snippet: {label}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text)
+
+          workflow = Path('.github/workflows/apply-drawer-courtesy-status-cycle.yml')
+          if workflow.exists():
+              workflow.unlink()
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/team/readiness/ReadinessTable.tsx .github/workflows/apply-drawer-courtesy-status-cycle.yml
+          git commit -m "Collapse courtesy call and make handoff status reversible"
+          git push origin HEAD:drawer-courtesy-status-cycle
