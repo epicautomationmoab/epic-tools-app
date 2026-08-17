@@ -1446,9 +1446,15 @@ await callReadinessRpc("manual_override_mpwr_information", {
                   cursor: "pointer",
                 }}
               >
-                <span>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                  }}
+                >
                   <strong>Courtesy Call</strong>
-                  <span className={styles.subLine}>
+                  <span className={styles.subLine} style={{ marginTop: 0 }}>
                     {courtesyCompletion
                       ? `Completed · ${courtesyCompletion.completedBy}`
                       : "Not completed"}
