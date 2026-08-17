@@ -1,0 +1,39 @@
+name: Validate drawer status cycle
+
+on:
+  push:
+    branches:
+      - drawer-courtesy-status-cycle
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: drawer-courtesy-status-cycle
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Remove one-shot workflow after successful validation
+        shell: bash
+        run: |
+          rm .github/workflows/validate-drawer-status-cycle.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/validate-drawer-status-cycle.yml
+          git commit -m "Remove one-shot drawer validation workflow"
+          git push origin HEAD:drawer-courtesy-status-cycle
