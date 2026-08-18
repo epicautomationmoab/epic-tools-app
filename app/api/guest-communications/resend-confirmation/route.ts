@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
     await recordManualAttempt(
       communication.id,
       recipientEmail,
-      profile?.displayName || profile?.email || "EpicTools",
+      profile?.display_name || profile?.email || "EpicTools",
       data.id,
     );
 
