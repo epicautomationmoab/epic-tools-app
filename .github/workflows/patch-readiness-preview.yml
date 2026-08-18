@@ -1,0 +1,67 @@
+name: Patch readiness preview
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/patch-readiness-preview.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix-readiness-row-colors
+          fetch-depth: 0
+
+      - name: Update operational action labels on preview branch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/team/readiness/ReadinessTable.tsx')
+          text = path.read_text()
+          old = '''                  {handoffSaving
+                    ? "Saving..."
+                    : selected.business_line === "tour"
+                      ? selected.handoff_status === "checked_in"
+                        ? "Clear Checked In"
+                        : "Checked In"
+                      : selected.handoff_status === "rental_out"
+                        ? "Rental Returned"
+                        : selected.handoff_status === "rental_returned"
+                          ? "Clear Rental Status"
+                          : "Rental Out"}'''
+          new = '''                  {handoffSaving
+                    ? "Saving..."
+                    : selected.business_line === "tour"
+                      ? selected.handoff_status === "checked_in"
+                        ? "Reset Tour Check-In"
+                        : "Check In Tour"
+                      : selected.handoff_status === "rental_out"
+                        ? "Return Rental"
+                        : selected.handoff_status === "rental_returned"
+                          ? "Reset Rental Status"
+                          : "Check Out Rental"}'''
+          if old not in text:
+              raise SystemExit('Operational button label block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git config user.name "epicautomationmoab"
+          git config user.email "actions@users.noreply.github.com"
+          git add app/team/readiness/ReadinessTable.tsx
+          git commit -m "Clarify operational action button labels"
+          git push origin HEAD:fix-readiness-row-colors
+
+      - name: Remove temporary workflow from main
+        run: |
+          git fetch origin main
+          git checkout main
+          rm .github/workflows/patch-readiness-preview.yml
+          git add .github/workflows/patch-readiness-preview.yml
+          git commit -m "Remove temporary readiness preview patch workflow"
+          git push origin main
