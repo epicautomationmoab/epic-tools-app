@@ -39,10 +39,21 @@ function setReactSelectValue(select: HTMLSelectElement, value: string) {
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function prepareHiddenIdentitySelect(select: HTMLSelectElement | null) {
+function hideIdentitySelect(select: HTMLSelectElement | null) {
   if (!select) return;
   const label = select.closest("label");
   if (label instanceof HTMLElement) label.style.display = "none";
+}
+
+function ensureIdentityOption(select: HTMLSelectElement, value: string) {
+  if (!Array.from(select.options).some((option) => option.value === value)) {
+    select.add(new Option(value, value));
+  }
+}
+
+function prepareSharedIdentitySelect(select: HTMLSelectElement | null) {
+  if (!select) return;
+  hideIdentitySelect(select);
 
   if (!Array.from(select.options).some((option) => option.value === PIN_REQUIRED_VALUE)) {
     select.add(new Option("PIN required", PIN_REQUIRED_VALUE));
@@ -51,9 +62,20 @@ function prepareHiddenIdentitySelect(select: HTMLSelectElement | null) {
   if (!select.value) setReactSelectValue(select, PIN_REQUIRED_VALUE);
 }
 
+function prepareAuthenticatedIdentitySelect(
+  select: HTMLSelectElement | null,
+  displayName: string,
+) {
+  if (!select || !displayName) return;
+  hideIdentitySelect(select);
+  ensureIdentityOption(select, displayName);
+  if (select.value !== displayName) setReactSelectValue(select, displayName);
+}
+
 export default function SharedActionPinEnhancer() {
   const [authChecked, setAuthChecked] = useState(false);
   const [sharedMode, setSharedMode] = useState(false);
+  const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
@@ -67,6 +89,7 @@ export default function SharedActionPinEnhancer() {
         const response = await fetch("/api/auth/me", { cache: "no-store" });
         const data = await response.json().catch(() => ({})) as { authenticated?: boolean; profile?: AuthProfile | null };
         const profile = data.authenticated ? data.profile ?? null : null;
+        setAuthProfile(profile);
         setSharedMode(!profile || profile.role === "workstation");
       } finally {
         setAuthChecked(true);
@@ -75,26 +98,30 @@ export default function SharedActionPinEnhancer() {
   }, []);
 
   useEffect(() => {
-    if (!authChecked || !sharedMode) return;
+    if (!authChecked) return;
 
-    function prepareSharedIdentityFields() {
+    function prepareIdentityFields() {
       for (const dialog of Array.from(document.querySelectorAll('[role="dialog"]'))) {
-        prepareHiddenIdentitySelect(findLabeledSelect(dialog, "Sent by"));
+        const select = findLabeledSelect(dialog, "Sent by");
+        if (sharedMode) prepareSharedIdentitySelect(select);
+        else prepareAuthenticatedIdentitySelect(select, authProfile?.display_name?.trim() || "");
       }
 
       for (const select of Array.from(document.querySelectorAll("select"))) {
         if (!(select instanceof HTMLSelectElement)) continue;
         const label = select.closest("label");
         const span = label?.querySelector("span");
-        if (span?.textContent?.trim() === "Completed by") prepareHiddenIdentitySelect(select);
+        if (span?.textContent?.trim() !== "Completed by") continue;
+        if (sharedMode) prepareSharedIdentitySelect(select);
+        else prepareAuthenticatedIdentitySelect(select, authProfile?.display_name?.trim() || "");
       }
     }
 
-    prepareSharedIdentityFields();
-    const observer = new MutationObserver(() => prepareSharedIdentityFields());
+    prepareIdentityFields();
+    const observer = new MutationObserver(() => prepareIdentityFields());
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [authChecked, sharedMode]);
+  }, [authChecked, sharedMode, authProfile?.display_name]);
 
   useEffect(() => {
     if (!authChecked || !sharedMode) return;
@@ -158,9 +185,7 @@ export default function SharedActionPinEnhancer() {
         if (!identitySelect) throw new Error("Unable to find the employee field for this courtesy call.");
       }
 
-      if (!Array.from(identitySelect.options).some((option) => option.value === verifiedName)) {
-        identitySelect.add(new Option(verifiedName, verifiedName));
-      }
+      ensureIdentityOption(identitySelect, verifiedName);
       setReactSelectValue(identitySelect, verifiedName);
 
       const button = pending.button;
