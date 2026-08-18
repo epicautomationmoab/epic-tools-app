@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Resend } from "resend";
 
 type ResendEvent = {
   type?: string;
@@ -6,7 +7,7 @@ type ResendEvent = {
   data?: {
     email_id?: string;
     to?: string[];
-    bounce?: { message?: string; type?: string };
+    bounce?: { message?: string; type?: string; subType?: string };
   };
 };
 
@@ -27,18 +28,38 @@ function headers(key: string) {
 }
 
 function failureDetail(event: ResendEvent) {
-  return event.data?.bounce?.message || event.data?.bounce?.type || null;
+  return event.data?.bounce?.message || event.data?.bounce?.subType || event.data?.bounce?.type || null;
 }
 
 function isFailure(type: string) {
-  return ["email.bounced", "email.failed", "email.suppressed", "email.complained"].includes(type);
+  return ["email.bounced", "email.failed", "email.suppressed"].includes(type);
+}
+
+async function verifyResendEvent(request: NextRequest) {
+  const payload = await request.text();
+  const id = request.headers.get("svix-id");
+  const timestamp = request.headers.get("svix-timestamp");
+  const signature = request.headers.get("svix-signature");
+  if (!id || !timestamp || !signature) throw new Error("Missing Resend webhook signature headers.");
+
+  const resend = new Resend(requiredEnv("RESEND_API_KEY"));
+  return resend.webhooks.verify({
+    payload,
+    headers: { id, timestamp, signature },
+    webhookSecret: requiredEnv("RESEND_WEBHOOK_SECRET"),
+  }) as ResendEvent;
 }
 
 export async function POST(request: NextRequest) {
+  let event: ResendEvent;
   try {
-    // Phase 1 is intentionally observational. Resend webhook signature verification
-    // will be enabled when the signing secret is configured in Vercel.
-    const event = (await request.json()) as ResendEvent;
+    event = await verifyResendEvent(request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid Resend webhook signature.";
+    return NextResponse.json({ ok: false, error: message }, { status: 401 });
+  }
+
+  try {
     const eventType = event.type?.trim();
     const messageId = event.data?.email_id?.trim();
     if (!eventType || !messageId) {
@@ -85,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (eventType === "email.delivered") {
-      await fetch(`${url}/rest/v1/guest_email_delivery_incidents?provider_message_id=eq.${encodeURIComponent(messageId)}&status=neq.resolved`, {
+      const resolveResponse = await fetch(`${url}/rest/v1/guest_email_delivery_incidents?provider_message_id=eq.${encodeURIComponent(messageId)}&status=neq.resolved`, {
         method: "PATCH",
         headers: { ...headers(key), Prefer: "return=minimal" },
         body: JSON.stringify({
@@ -96,6 +117,7 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         }),
       });
+      if (!resolveResponse.ok) throw new Error(`Unable to resolve delivery incident: ${await resolveResponse.text()}`);
     } else if (isFailure(eventType)) {
       const communicationParams = new URLSearchParams({
         select: "confirmation_code",
