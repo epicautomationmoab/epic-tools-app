@@ -298,6 +298,16 @@ async function persistHandoff(
   return handoffStatus;
 }
 
+async function clearHandoff(readinessId: string) {
+  return callReadinessRpc<boolean>(
+    "clear_epic_operational_handoff",
+    {
+      p_readiness_id: readinessId,
+      p_recorded_by: "EpicTools",
+    },
+  );
+}
+
 function getSupabaseBrowserConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -414,6 +424,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [locationDiscussed, setLocationDiscussed] = useState(false);
   const [callOutcome, setCallOutcome] = useState("");
   const [courtesyNotes, setCourtesyNotes] = useState("");
+  const [courtesyOpen, setCourtesyOpen] = useState(false);
 
   const [courtesySaving, setCourtesySaving] = useState(false);
   const [courtesyError, setCourtesyError] = useState("");
@@ -479,6 +490,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     setCallOutcome("");
     setCourtesyNotes("");
     setCourtesyError("");
+    setCourtesyOpen(false);
     if (
       selected.courtesy_call_completed &&
       selected.courtesy_call_completed_by &&
@@ -747,16 +759,24 @@ await callReadinessRpc("manual_override_mpwr_information", {
 
     const nextStatus =
       selected.business_line === "tour"
-        ? "checked_in"
+        ? selected.handoff_status === "checked_in"
+          ? null
+          : "checked_in"
         : selected.handoff_status === "rental_out"
           ? "rental_returned"
-          : "rental_out";
+          : selected.handoff_status === "rental_returned"
+            ? null
+            : "rental_out";
 
     setHandoffSaving(true);
     setHandoffError("");
 
     try {
-      await persistHandoff(selected.readiness_id, nextStatus);
+      if (nextStatus === null) {
+        await clearHandoff(selected.readiness_id);
+      } else {
+        await persistHandoff(selected.readiness_id, nextStatus);
+      }
 
       setLocalRows((current) =>
         current.map((row) =>
@@ -1409,6 +1429,47 @@ await callReadinessRpc("manual_override_mpwr_information", {
             ) : null}
 
             <section className={styles.handoffAction}>
+              <button
+                type="button"
+                onClick={() => setCourtesyOpen((current) => !current)}
+                aria-expanded={courtesyOpen}
+                style={{
+                  width: "100%",
+                  border: 0,
+                  background: "transparent",
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 14,
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                  }}
+                >
+                  <strong>Courtesy Call</strong>
+                  <span className={styles.subLine} style={{ marginTop: 0 }}>
+                    {courtesyCompletion
+                      ? `Completed · ${courtesyCompletion.completedBy}`
+                      : "Not completed"}
+                  </span>
+                </span>
+                <span
+                  aria-hidden="true"
+                  style={{ color: "#6f7885", fontSize: 20, lineHeight: 1 }}
+                >
+                  {courtesyOpen ? "⌃" : "⌄"}
+                </span>
+              </button>
+
+              {courtesyOpen ? (
+                <div style={{ marginTop: 12 }}>
               {courtesyCompletion ? (
                 <div className={styles.courtesyComplete}>
                   <div className={styles.courtesyCompleteTitle}>
@@ -1445,13 +1506,9 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 </div>
               ) : (
                 <>
-                  <div className={styles.courtesyHeader}>
-                    <strong>Courtesy Call</strong>
-
-                    <p className={styles.subLine}>
-                      Prepare this guest before arrival.
-                    </p>
-                  </div>
+                  <p className={styles.subLine} style={{ marginBottom: 12 }}>
+                    Prepare this guest before arrival.
+                  </p>
 
                   <div className={styles.courtesyForm}>
                     <label className={styles.courtesyField}>
@@ -1563,6 +1620,8 @@ await callReadinessRpc("manual_override_mpwr_information", {
                   </div>
                 </>
               )}
+                </div>
+              ) : null}
             </section>
 
             {selectedIsToday ? (
@@ -1572,9 +1631,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                   className={styles.handoffButton}
                   disabled={
                     handoffSaving ||
-                    (selected.amount_due_cents ?? 0) > 0 ||
-                    selected.handoff_status === "checked_in" ||
-                    selected.handoff_status === "rental_returned"
+                    (selected.amount_due_cents ?? 0) > 0
                   }
                   onClick={saveHandoff}
                 >
@@ -1582,12 +1639,12 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     ? "Saving..."
                     : selected.business_line === "tour"
                       ? selected.handoff_status === "checked_in"
-                        ? "Checked In"
+                        ? "Clear Checked In"
                         : "Checked In"
                       : selected.handoff_status === "rental_out"
                         ? "Rental Returned"
                         : selected.handoff_status === "rental_returned"
-                          ? "Rental Returned"
+                          ? "Clear Rental Status"
                           : "Rental Out"}
                 </button>
 
