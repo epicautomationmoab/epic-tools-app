@@ -34,6 +34,8 @@ type OperationalReservation = {
   trip_payload: Record<string, unknown> | null;
 };
 
+const POPUP_RECONCILIATION_WINDOW_MS = 30 * 60 * 1000;
+
 function creatorId(payload: Record<string, unknown> | null) {
   const creator = payload?.created_by_user_avatar;
   if (!creator || typeof creator !== "object") return null;
@@ -48,8 +50,12 @@ function quotedIn(values: string[]) {
 }
 
 export async function getCancellationPopupCandidates(tripworksUserId: number, since: Date) {
-  const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-  const effectiveSince = since > twoMinutesAgo ? since : twoMinutesAgo;
+  // TripWorks can arrive before the normalized Guest Readiness row is available.
+  // Keep retrying recent salesperson bookings long enough for normalization to catch up.
+  // The browser tracks readiness IDs it has already shown, so this wider reconciliation
+  // window repairs missed timing without creating duplicate popups for the user.
+  const reconciliationFloor = new Date(Date.now() - POPUP_RECONCILIATION_WINDOW_MS);
+  const effectiveSince = since > reconciliationFloor ? since : reconciliationFloor;
 
   const reservations = await supabaseSelect<OperationalReservation>(
     "operational_reservations",
@@ -57,7 +63,7 @@ export async function getCancellationPopupCandidates(tripworksUserId: number, si
       select: "confirmation_code,reserved_at,latest_payload,trip_payload",
       reserved_at: `gte.${effectiveSince.toISOString()}`,
       order: "reserved_at.asc",
-      limit: "100",
+      limit: "250",
     }),
   );
 
@@ -79,7 +85,7 @@ export async function getCancellationPopupCandidates(tripworksUserId: number, si
       select: "*",
       confirmation_code: quotedIn(matchingConfirmations),
       order: "visit_start_time.asc",
-      limit: "100",
+      limit: "250",
     }),
   );
 }

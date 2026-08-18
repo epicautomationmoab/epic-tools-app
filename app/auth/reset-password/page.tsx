@@ -19,8 +19,12 @@ export default function ResetPasswordPage() {
   const [accessToken, setAccessToken] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPin, setShowPin] = useState(false);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -46,20 +50,33 @@ export default function ResetPasswordPage() {
       setError("Passwords do not match.");
       return;
     }
+    if (!/^\d{4,6}$/.test(pin)) {
+      setError("Employee PIN must be 4 to 6 digits.");
+      return;
+    }
+    if (pin !== confirmPin) {
+      setError("PINs do not match.");
+      return;
+    }
 
     setSubmitting(true);
     try {
       const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ access_token: accessToken, password }),
+        body: JSON.stringify({
+          access_token: accessToken,
+          password,
+          pin,
+          confirm_pin: confirmPin,
+        }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Unable to reset password.");
+      if (!response.ok) throw new Error(payload.error || "Unable to reset password and PIN.");
       setSuccess(true);
       window.location.hash = "";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to reset password.");
+      setError(err instanceof Error ? err.message : "Unable to reset password and PIN.");
     } finally {
       setSubmitting(false);
     }
@@ -77,12 +94,12 @@ export default function ResetPasswordPage() {
 
         {success ? (
           <div style={{ marginTop: 24 }}>
-            <p style={{ color: "#067647", lineHeight: 1.5 }}>Your password has been updated. Your employee PIN has not changed.</p>
+            <p style={{ color: "#067647", lineHeight: 1.5 }}>Your password and employee PIN have been updated.</p>
             <a href="/employee-login" style={{ display: "block", textAlign: "center", marginTop: 18, padding: "12px 16px", borderRadius: 9, background: "#d5521d", color: "#fff", fontWeight: 800, textDecoration: "none" }}>Return to Login</a>
           </div>
         ) : (
           <form onSubmit={submit}>
-            <p style={{ textAlign: "center", color: "#667085", margin: "10px 0 24px", lineHeight: 1.45 }}>Choose a new password. Your existing employee PIN will stay the same.</p>
+            <p style={{ textAlign: "center", color: "#667085", margin: "10px 0 24px", lineHeight: 1.45 }}>Choose a new password and employee PIN. The PIN is used to identify you on shared EpicTools computers.</p>
             <div style={wrapStyle}>
               <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" autoComplete="new-password" required style={inputStyle} />
               <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"} style={eyeStyle}><EyeIcon open={showPassword} /></button>
@@ -91,8 +108,16 @@ export default function ResetPasswordPage() {
               <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm new password" autoComplete="new-password" required style={inputStyle} />
               <button type="button" onClick={() => setShowConfirmPassword((value) => !value)} aria-label={showConfirmPassword ? "Hide password" : "Show password"} style={eyeStyle}><EyeIcon open={showConfirmPassword} /></button>
             </div>
+            <div style={wrapStyle}>
+              <input type={showPin ? "text" : "password"} value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="New employee PIN (4–6 digits)" inputMode="numeric" autoComplete="off" required style={inputStyle} />
+              <button type="button" onClick={() => setShowPin((value) => !value)} aria-label={showPin ? "Hide PIN" : "Show PIN"} style={eyeStyle}><EyeIcon open={showPin} /></button>
+            </div>
+            <div style={wrapStyle}>
+              <input type={showConfirmPin ? "text" : "password"} value={confirmPin} onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Confirm employee PIN" inputMode="numeric" autoComplete="off" required style={inputStyle} />
+              <button type="button" onClick={() => setShowConfirmPin((value) => !value)} aria-label={showConfirmPin ? "Hide PIN" : "Show PIN"} style={eyeStyle}><EyeIcon open={showConfirmPin} /></button>
+            </div>
             {error ? <p style={{ color: "#b42318" }}>{error}</p> : null}
-            <button type="submit" disabled={submitting} style={{ width: "100%", height: 46, marginTop: 8, border: 0, borderRadius: 9, background: "#d5521d", color: "#fff", fontWeight: 800, cursor: submitting ? "wait" : "pointer" }}>{submitting ? "Updating..." : "Reset Password"}</button>
+            <button type="submit" disabled={submitting} style={{ width: "100%", height: 46, marginTop: 8, border: 0, borderRadius: 9, background: "#d5521d", color: "#fff", fontWeight: 800, cursor: submitting ? "wait" : "pointer" }}>{submitting ? "Updating..." : "Reset Password & PIN"}</button>
           </form>
         )}
       </div>
