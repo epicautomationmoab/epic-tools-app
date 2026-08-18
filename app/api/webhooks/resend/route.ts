@@ -88,6 +88,8 @@ export async function POST(request: NextRequest) {
       throw new Error(`Unable to record Resend event: ${await eventInsert.text()}`);
     }
 
+    // Manual resends are recorded as attempts. Initial/automatic sends store the
+    // Resend message ID directly on guest_communications, so support both paths.
     const attemptParams = new URLSearchParams({
       select: "id,communication_id",
       provider_message_id: `eq.${messageId}`,
@@ -97,11 +99,43 @@ export async function POST(request: NextRequest) {
       headers: headers(key),
       cache: "no-store",
     });
-    if (!attemptResponse.ok) throw new Error(`Unable to match Resend event: ${await attemptResponse.text()}`);
+    if (!attemptResponse.ok) throw new Error(`Unable to match Resend attempt: ${await attemptResponse.text()}`);
     const attempts = await attemptResponse.json() as Array<{ id: string; communication_id: string }>;
-    const attempt = attempts[0];
+    const attempt = attempts[0] ?? null;
 
-    if (!attempt) {
+    let communicationId = attempt?.communication_id ?? null;
+    let confirmationCode: string | null = null;
+
+    if (communicationId) {
+      const communicationParams = new URLSearchParams({
+        select: "id,confirmation_code",
+        id: `eq.${communicationId}`,
+        limit: "1",
+      });
+      const communicationResponse = await fetch(`${url}/rest/v1/guest_communications?${communicationParams}`, {
+        headers: headers(key),
+        cache: "no-store",
+      });
+      if (!communicationResponse.ok) throw new Error(`Unable to load communication: ${await communicationResponse.text()}`);
+      const communications = await communicationResponse.json() as Array<{ id: string; confirmation_code: string }>;
+      confirmationCode = communications[0]?.confirmation_code ?? null;
+    } else {
+      const communicationParams = new URLSearchParams({
+        select: "id,confirmation_code",
+        provider_message_id: `eq.${messageId}`,
+        limit: "1",
+      });
+      const communicationResponse = await fetch(`${url}/rest/v1/guest_communications?${communicationParams}`, {
+        headers: headers(key),
+        cache: "no-store",
+      });
+      if (!communicationResponse.ok) throw new Error(`Unable to match Resend communication: ${await communicationResponse.text()}`);
+      const communications = await communicationResponse.json() as Array<{ id: string; confirmation_code: string }>;
+      communicationId = communications[0]?.id ?? null;
+      confirmationCode = communications[0]?.confirmation_code ?? null;
+    }
+
+    if (!communicationId) {
       return NextResponse.json({ ok: true, matched: false });
     }
 
@@ -118,38 +152,23 @@ export async function POST(request: NextRequest) {
         }),
       });
       if (!resolveResponse.ok) throw new Error(`Unable to resolve delivery incident: ${await resolveResponse.text()}`);
-    } else if (isFailure(eventType)) {
-      const communicationParams = new URLSearchParams({
-        select: "confirmation_code",
-        id: `eq.${attempt.communication_id}`,
-        limit: "1",
+    } else if (isFailure(eventType) && confirmationCode) {
+      const incidentResponse = await fetch(`${url}/rest/v1/guest_email_delivery_incidents?on_conflict=provider_message_id`, {
+        method: "POST",
+        headers: { ...headers(key), Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify({
+          communication_id: communicationId,
+          attempt_id: attempt?.id ?? null,
+          confirmation_code: confirmationCode,
+          provider_message_id: messageId,
+          recipient_email: recipient,
+          failure_type: eventType,
+          failure_detail: failureDetail(event),
+          status: "open",
+          updated_at: new Date().toISOString(),
+        }),
       });
-      const communicationResponse = await fetch(`${url}/rest/v1/guest_communications?${communicationParams}`, {
-        headers: headers(key),
-        cache: "no-store",
-      });
-      if (!communicationResponse.ok) throw new Error(`Unable to load communication: ${await communicationResponse.text()}`);
-      const communications = await communicationResponse.json() as Array<{ confirmation_code: string }>;
-      const confirmationCode = communications[0]?.confirmation_code;
-
-      if (confirmationCode) {
-        const incidentResponse = await fetch(`${url}/rest/v1/guest_email_delivery_incidents?on_conflict=provider_message_id`, {
-          method: "POST",
-          headers: { ...headers(key), Prefer: "resolution=merge-duplicates,return=minimal" },
-          body: JSON.stringify({
-            communication_id: attempt.communication_id,
-            attempt_id: attempt.id,
-            confirmation_code: confirmationCode,
-            provider_message_id: messageId,
-            recipient_email: recipient,
-            failure_type: eventType,
-            failure_detail: failureDetail(event),
-            status: "open",
-            updated_at: new Date().toISOString(),
-          }),
-        });
-        if (!incidentResponse.ok) throw new Error(`Unable to record delivery incident: ${await incidentResponse.text()}`);
-      }
+      if (!incidentResponse.ok) throw new Error(`Unable to record delivery incident: ${await incidentResponse.text()}`);
     }
 
     return NextResponse.json({ ok: true, matched: true });
