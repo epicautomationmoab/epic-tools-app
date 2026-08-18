@@ -11,7 +11,7 @@ type CommunicationRow = {
   customer_email: string | null;
 };
 
-type ContactOverrideRow = {
+type ReadinessContactRow = {
   effective_email: string | null;
 };
 
@@ -142,12 +142,12 @@ async function loadEffectiveEmail(confirmationCode: string, fallback: string | n
     confirmation_code: `eq.${confirmationCode}`,
     limit: "1",
   });
-  const response = await fetch(`${config.url}/rest/v1/guest_contact_overrides?${params}`, {
+  const response = await fetch(`${config.url}/rest/v1/dashboard_guest_readiness_sot?${params}`, {
     headers: supabaseHeaders(config.key),
     cache: "no-store",
   });
   if (!response.ok) throw new Error(`Unable to load effective guest email: ${await response.text()}`);
-  const rows = (await response.json()) as ContactOverrideRow[];
+  const rows = (await response.json()) as ReadinessContactRow[];
   return rows[0]?.effective_email?.trim() || fallback?.trim() || null;
 }
 
