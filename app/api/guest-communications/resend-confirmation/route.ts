@@ -11,6 +11,10 @@ type CommunicationRow = {
   customer_email: string | null;
 };
 
+type ContactOverrideRow = {
+  effective_email: string | null;
+};
+
 type GuestPortalRow = {
   product_display_name: string;
   visit_start_time: string;
@@ -131,6 +135,46 @@ async function loadCommunication(confirmationCode: string) {
   return rows[0] ?? null;
 }
 
+async function loadEffectiveEmail(confirmationCode: string, fallback: string | null) {
+  const config = getSupabaseConfig();
+  const params = new URLSearchParams({
+    select: "effective_email",
+    confirmation_code: `eq.${confirmationCode}`,
+    limit: "1",
+  });
+  const response = await fetch(`${config.url}/rest/v1/guest_contact_overrides?${params}`, {
+    headers: supabaseHeaders(config.key),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Unable to load effective guest email: ${await response.text()}`);
+  const rows = (await response.json()) as ContactOverrideRow[];
+  return rows[0]?.effective_email?.trim() || fallback?.trim() || null;
+}
+
+async function recordManualAttempt(
+  communicationId: string,
+  recipientEmail: string,
+  requestedBy: string,
+  providerMessageId: string,
+) {
+  const config = getSupabaseConfig();
+  const response = await fetch(`${config.url}/rest/v1/guest_communication_attempts`, {
+    method: "POST",
+    headers: { ...supabaseHeaders(config.key), Prefer: "return=minimal" },
+    body: JSON.stringify({
+      communication_id: communicationId,
+      attempt_type: "manual",
+      recipient_email: recipientEmail,
+      status: "sent",
+      requested_by: requestedBy,
+      provider_message_id: providerMessageId,
+      sending_at: new Date().toISOString(),
+      sent_at: new Date().toISOString(),
+    }),
+  });
+  if (!response.ok) throw new Error(`Confirmation sent, but the resend audit could not be recorded: ${await response.text()}`);
+}
+
 async function loadGuestPortalRows(token: string) {
   const config = getSupabaseConfig();
   const params = new URLSearchParams({
@@ -168,7 +212,9 @@ export async function POST(request: NextRequest) {
     if (!communication) {
       return NextResponse.json({ error: "No confirmation communication exists for this booking." }, { status: 404 });
     }
-    if (!communication.customer_email) {
+
+    const recipientEmail = await loadEffectiveEmail(communication.confirmation_code, communication.customer_email);
+    if (!recipientEmail) {
       return NextResponse.json({ error: "The guest does not have an email address." }, { status: 409 });
     }
 
@@ -185,7 +231,7 @@ export async function POST(request: NextRequest) {
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
       from: requiredEnv("GUEST_EMAIL_FROM"),
-      to: communication.customer_email,
+      to: recipientEmail,
       bcc: requiredEnv("GUEST_EMAIL_BCC"),
       replyTo: requiredEnv("GUEST_EMAIL_REPLY_TO"),
       template: {
@@ -195,7 +241,7 @@ export async function POST(request: NextRequest) {
           CONFIRMATION_CODE: communication.confirmation_code,
           DIRECTIONS_URL: location.directionsUrl,
           GUEST_NAME: firstName(communication.customer_name),
-          INTENDED_RECIPIENT: communication.customer_email,
+          INTENDED_RECIPIENT: recipientEmail,
           LOCATION_SUMMARY: location.address,
           PORTAL_URL: portalUrl,
           READINESS_HEADLINE: readiness.headline,
@@ -208,10 +254,18 @@ export async function POST(request: NextRequest) {
     if (error) throw new Error(error.message);
     if (!data?.id) throw new Error("Resend did not return a message ID.");
 
+    const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+    await recordManualAttempt(
+      communication.id,
+      recipientEmail,
+      profile?.displayName || profile?.email || "EpicTools",
+      data.id,
+    );
+
     return NextResponse.json({
       ok: true,
       confirmationCode: communication.confirmation_code,
-      recipient: communication.customer_email,
+      recipient: recipientEmail,
       providerMessageId: data.id,
     });
   } catch (error) {
