@@ -163,7 +163,7 @@ async function recordManualAttempt(
     headers: { ...supabaseHeaders(config.key), Prefer: "return=minimal" },
     body: JSON.stringify({
       communication_id: communicationId,
-      attempt_type: "manual",
+      attempt_type: "manual_resend",
       recipient_email: recipientEmail,
       status: "sent",
       requested_by: requestedBy,
