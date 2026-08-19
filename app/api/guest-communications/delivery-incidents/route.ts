@@ -8,6 +8,7 @@ type ActionBody = {
   incidentId?: string;
   action?: IncidentAction;
   note?: string;
+  resolvedBy?: string;
 };
 
 function requiredEnv(name: string) {
@@ -120,12 +121,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "action must be claim, resolve, dismiss, or reopen." }, { status: 400 });
   }
 
+  const resolvedBy = body.resolvedBy?.trim();
+  const actionActor = action === "dismiss" && actor === "EpicTools workstation" && resolvedBy
+    ? resolvedBy
+    : actor;
+
   try {
     const { url, key } = getSupabaseConfig();
     const response = await fetch(`${url}/rest/v1/guest_email_delivery_incidents?id=eq.${encodeURIComponent(incidentId)}`, {
       method: "PATCH",
       headers: { ...supabaseHeaders(key), Prefer: "return=representation" },
-      body: JSON.stringify(patchForAction(action, actor, body.note)),
+      body: JSON.stringify(patchForAction(action, actionActor, body.note)),
     });
     if (!response.ok) throw new Error(`Unable to update delivery incident: ${await response.text()}`);
 
