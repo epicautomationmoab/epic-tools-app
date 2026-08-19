@@ -136,6 +136,7 @@ function applyDeliveryWarning(row: HTMLElement, waiver: SignedWaiver) {
   const strong = row.querySelector<HTMLElement>("strong");
   if (!strong) return;
   const failed = (waiver.copyEmailStatus || "").trim().toLowerCase() === "failed";
+  strong.classList.add(sourceStyles.epicDocumentDeliveryWarningTarget);
   strong.dataset.epicCopyEmailFailed = failed ? "true" : "false";
   strong.title = failed ? "Signed Epic document email was not delivered" : "";
 }
