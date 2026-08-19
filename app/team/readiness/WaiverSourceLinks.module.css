@@ -33,7 +33,7 @@
   vertical-align: middle;
 }
 
-:global(strong[data-epic-copy-email-failed="true"])::after {
+.epicDocumentDeliveryWarningTarget[data-epic-copy-email-failed="true"]::after {
   content: " ⚠";
   color: #c88a00;
   font-size: 0.62em;
