@@ -187,6 +187,10 @@ export default function HistoricalReadinessSearch() {
         <label className={styles.searchWrap} style={{ display: "block", maxWidth: "none" }}>
           <span className={styles.searchIcon} aria-hidden="true">⌕</span>
           <input
+            type="search"
+            name="previous-guest-search"
+            autoComplete="off"
+            inputMode="search"
             className={styles.search}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
