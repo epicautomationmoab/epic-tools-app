@@ -32,3 +32,11 @@
   line-height: 1;
   vertical-align: middle;
 }
+
+:global(strong[data-epic-copy-email-failed="true"])::after {
+  content: " ⚠";
+  color: #c88a00;
+  font-size: 0.62em;
+  line-height: 1;
+  vertical-align: 0.16em;
+}
