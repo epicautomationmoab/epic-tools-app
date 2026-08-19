@@ -4,11 +4,12 @@ import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import styles from "./readiness/ReadinessShell.module.css";
 
 type Props = {
-  active: "Guest Readiness" | "Previous Guest Lookup" | "Email Delivery" | "Manage Users";
+  active: "Guest Readiness" | "Tour Dispatch" | "Previous Guest Lookup" | "Email Delivery" | "Manage Users";
 };
 
 const baseNavItems = [
   { label: "Guest Readiness", href: "/team/readiness", external: false },
+  { label: "Tour Dispatch", href: "/team/tour-dispatch", external: false },
   { label: "Previous Guest Lookup", href: "/team/previous-guests", external: false },
   { label: "Email Delivery", href: "/team/email-delivery", external: false },
   { label: "Reservations", href: "https://epic4x4.tripworks.com", external: true },
