@@ -9,7 +9,7 @@ type AuthProfile = {
 
 type PendingAction = {
   button: HTMLButtonElement;
-  kind: "cancellation" | "courtesy";
+  kind: "cancellation" | "courtesy" | "dismiss-alert";
 };
 
 const PIN_REQUIRED_VALUE = "__EPIC_PIN_REQUIRED__";
@@ -18,6 +18,7 @@ function buttonAction(button: HTMLButtonElement): PendingAction["kind"] | null {
   const text = button.textContent?.trim() || "";
   if (text === "Send Agreement" || text === "Copy Link") return "cancellation";
   if (text === "Complete Courtesy Call") return "courtesy";
+  if (text === "Dismiss Alert") return "dismiss-alert";
   return null;
 }
 
@@ -62,10 +63,7 @@ function prepareSharedIdentitySelect(select: HTMLSelectElement | null) {
   if (!select.value) setReactSelectValue(select, PIN_REQUIRED_VALUE);
 }
 
-function prepareAuthenticatedIdentitySelect(
-  select: HTMLSelectElement | null,
-  displayName: string,
-) {
+function prepareAuthenticatedIdentitySelect(select: HTMLSelectElement | null, displayName: string) {
   if (!select || !displayName) return;
   hideIdentitySelect(select);
   ensureIdentityOption(select, displayName);
@@ -179,16 +177,19 @@ export default function SharedActionPinEnhancer() {
         const dialog = pending.button.closest('[role="dialog"]');
         identitySelect = findLabeledSelect(dialog, "Sent by");
         if (!identitySelect) throw new Error("Unable to find the employee field for this agreement.");
-      } else {
+      } else if (pending.kind === "courtesy") {
         const drawer = pending.button.closest("section")?.parentElement?.parentElement ?? pending.button.parentElement;
         identitySelect = findLabeledSelect(drawer, "Completed by");
         if (!identitySelect) throw new Error("Unable to find the employee field for this courtesy call.");
       }
 
-      ensureIdentityOption(identitySelect, verifiedName);
-      setReactSelectValue(identitySelect, verifiedName);
+      if (identitySelect) {
+        ensureIdentityOption(identitySelect, verifiedName);
+        setReactSelectValue(identitySelect, verifiedName);
+      }
 
       const button = pending.button;
+      if (pending.kind === "dismiss-alert") button.dataset.epicResolvedBy = verifiedName;
       setPending(null);
       setPin("");
       window.setTimeout(() => {
