@@ -48,12 +48,7 @@ function patchForAction(action: IncidentAction, actor: string, note?: string) {
   const now = new Date().toISOString();
 
   if (action === "claim") {
-    return {
-      status: "claimed",
-      claimed_by: actor,
-      claimed_at: now,
-      updated_at: now,
-    };
+    return { status: "claimed", claimed_by: actor, claimed_at: now, updated_at: now };
   }
 
   if (action === "resolve") {
@@ -77,16 +72,42 @@ function patchForAction(action: IncidentAction, actor: string, note?: string) {
   };
 }
 
+export async function GET(request: NextRequest) {
+  const actor = await getActor(request);
+  if (!actor) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+
+  try {
+    const { url, key } = getSupabaseConfig();
+    const params = new URLSearchParams({
+      select: "id,confirmation_code,recipient_email,failure_type,failure_detail,status,claimed_by,created_at,updated_at",
+      status: "neq.resolved",
+      order: "created_at.desc",
+      limit: "100",
+    });
+    const response = await fetch(`${url}/rest/v1/guest_email_delivery_incidents?${params}`, {
+      headers: supabaseHeaders(key),
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(`Unable to load delivery incidents: ${await response.text()}`);
+    const incidents = await response.json() as Array<{ confirmation_code: string }>;
+    return NextResponse.json({
+      activeCount: incidents.length,
+      confirmationCodes: [...new Set(incidents.map((incident) => incident.confirmation_code).filter(Boolean))],
+      incidents,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown delivery incident query error.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   const actor = await getActor(request);
   if (!actor) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   let body: ActionBody;
-  try {
-    body = (await request.json()) as ActionBody;
-  } catch {
-    return NextResponse.json({ error: "A JSON body is required." }, { status: 400 });
-  }
+  try { body = (await request.json()) as ActionBody; }
+  catch { return NextResponse.json({ error: "A JSON body is required." }, { status: 400 }); }
 
   const incidentId = body.incidentId?.trim();
   const action = body.action;
@@ -102,10 +123,7 @@ export async function POST(request: NextRequest) {
       headers: { ...supabaseHeaders(key), Prefer: "return=representation" },
       body: JSON.stringify(patchForAction(action, actor, body.note)),
     });
-
-    if (!response.ok) {
-      throw new Error(`Unable to update delivery incident: ${await response.text()}`);
-    }
+    if (!response.ok) throw new Error(`Unable to update delivery incident: ${await response.text()}`);
 
     const rows = await response.json() as Array<{
       id: string;
@@ -117,7 +135,6 @@ export async function POST(request: NextRequest) {
     }>;
     const incident = rows[0] ?? null;
     if (!incident) return NextResponse.json({ error: "Delivery incident not found." }, { status: 404 });
-
     return NextResponse.json({ ok: true, incident });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown delivery incident action error.";
