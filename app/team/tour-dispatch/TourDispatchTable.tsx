@@ -146,7 +146,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
         {status === "checkout_queued" && observationVisible ? <tr className={styles.observationRow}><td colSpan={7}><div className={styles.observationPanel}>
           <div><label>Actual vehicle # in MPWR<input value={observation.mpwrCar} onChange={(e) => updateObservation(key, "mpwrCar", e.target.value)} /></label></div>
           <div><label>Driver field<select value={observation.driver} onChange={(e) => updateObservation(key, "driver", e.target.value)}><option value="expected">Expected name</option><option value="different">Different name</option><option value="missing">Missing</option></select></label></div>
-          <div><label><input type="checkbox" checked={observation.unexpectedNames} onChange={(e) => updateObservation(key, "unexpectedNames", e.target.checked)} /> Unexpected names appeared in Driver dropdown</label></div>
+          <label className={styles.driverNamesCheck}><input type="checkbox" checked={observation.unexpectedNames} onChange={(e) => updateObservation(key, "unexpectedNames", e.target.checked)} /><span>Observed names not linked to this reservation in check-out driver dropdown.</span></label>
           <div className={styles.notesField}><label>Anything odd?<input value={observation.notes} onChange={(e) => updateObservation(key, "notes", e.target.value)} placeholder="Optional note" /></label></div>
           <button type="button" onClick={() => saveObservation(row)} disabled={busy}>{busy ? "Saving…" : "Save MPWR Result"}</button>
         </div></td></tr> : null}
