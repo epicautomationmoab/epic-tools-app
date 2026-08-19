@@ -10,17 +10,26 @@ type Incident = {
 
 type IncidentResponse = { incidents?: Incident[] };
 
+function normalizedText(element: Element | null) {
+  return element?.textContent?.replace(/\s+/g, " ").trim().toLowerCase() || "";
+}
+
 function findConfirmation(drawer: Element) {
-  for (const card of Array.from(drawer.querySelectorAll("div"))) {
-    if (card.querySelector("span")?.textContent?.trim() !== "Booking Confirmation") continue;
-    return card.querySelector("strong")?.textContent?.trim() || "";
+  for (const element of Array.from(drawer.querySelectorAll("*"))) {
+    if (normalizedText(element) !== "booking confirmation") continue;
+    const card = element.parentElement;
+    if (!card) continue;
+    const text = normalizedText(card);
+    const match = text.match(/booking confirmation\s+([a-z0-9-]+)/i);
+    if (match?.[1]) return match[1].toUpperCase();
   }
   return "";
 }
 
-function findEmailCard(drawer: Element) {
-  for (const card of Array.from(drawer.querySelectorAll("div"))) {
-    if (card.querySelector("span")?.textContent?.trim() === "Email") return card;
+function findEmailLabel(drawer: Element) {
+  for (const element of Array.from(drawer.querySelectorAll("*"))) {
+    const text = normalizedText(element);
+    if (text === "email" || text === "email ✎" || text === "email ✏") return element;
   }
   return null;
 }
@@ -51,25 +60,24 @@ export default function EmailDeliveryDrawerEnhancer() {
 
       const confirmationCode = findConfirmation(drawer);
       if (!confirmationCode) return;
-      const incident = incidents.find((item) => item.confirmation_code === confirmationCode && item.status !== "resolved");
+      const incident = incidents.find((item) => item.confirmation_code?.toUpperCase() === confirmationCode && item.status !== "resolved");
       if (!incident) return;
 
-      const emailCard = findEmailCard(drawer);
-      if (!emailCard || emailCard.querySelector("[data-email-delivery-caution]")) return;
+      const emailLabel = findEmailLabel(drawer);
+      if (!emailLabel || emailLabel.querySelector("[data-email-delivery-caution]")) return;
 
       const caution = document.createElement("span");
       caution.dataset.emailDeliveryCaution = "true";
-      caution.textContent = "⚠";
+      caution.textContent = " ⚠";
       caution.title = "Confirmation email delivery failed";
       caution.setAttribute("aria-label", "Confirmation email delivery failed");
-      caution.style.marginLeft = "7px";
       caution.style.color = "#d9a300";
       caution.style.fontSize = "18px";
+      caution.style.fontWeight = "700";
       caution.style.lineHeight = "1";
       caution.style.verticalAlign = "middle";
 
-      const label = emailCard.querySelector("span");
-      label?.appendChild(caution);
+      emailLabel.appendChild(caution);
     }
 
     void load();
