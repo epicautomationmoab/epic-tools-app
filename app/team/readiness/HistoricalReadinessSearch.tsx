@@ -236,7 +236,7 @@ export default function HistoricalReadinessSearch() {
                     <td><div className={styles.mainLine}>{row.customer_name}</div><div className={styles.subLine}>{formatPhone(row.customer_phone) || row.confirmation_code}</div></td>
                     <td><div className={styles.mainLine}>{row.product_display_name}</div>{row.rental_duration ? <div className={styles.subLine}>{row.rental_duration}</div> : null}</td>
                     <td>{row.total_vehicle_count ?? 0}</td>
-                    <td>{epicReceived}/{epicExpected}</td>
+                    <td>{epicReceived}/{epicExpected}<div className={styles.subLine}>{row.confirmation_code}</div></td>
                     <td>{mpwrExpected > 0 ? `${mpwrReceived}/${mpwrExpected}` : "N/A"}{row.mpwr_confirmation_number ? <div className={styles.subLine}>{row.mpwr_confirmation_number}</div> : null}</td>
                     <td>{(row.amount_due_cents ?? 0) > 0 ? `$${((row.amount_due_cents ?? 0) / 100).toFixed(2)}` : "$0"}</td>
                     <td>{row.courtesy_call_completed ? <><div className={styles.mainLine}>Completed</div><div className={styles.subLine}>{row.courtesy_call_completed_by || "Recorded"}</div></> : "—"}</td>
