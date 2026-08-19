@@ -1,15 +1,8 @@
 import Link from "next/link";
+import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
 import styles from "../readiness/ReadinessShell.module.css";
-
-const navItems = [
-  { label: "Guest Readiness", href: "/team/readiness", external: false },
-  { label: "Previous Guest Lookup", href: "/team/previous-guests", external: false },
-  { label: "Email Delivery", href: "/team/email-delivery", external: false },
-  { label: "Reservations", href: "https://epic4x4.tripworks.com", external: true },
-  { label: "MPWR", href: "https://mpwr-hq.poladv.com/orders", external: true },
-] as const;
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -91,25 +84,7 @@ export default async function EmailDeliveryPage() {
 
   return (
     <div className={styles.page}>
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>
-          <img src="/epic-logo.png" alt="Epic 4X4 Adventures" />
-        </div>
-
-        <nav className={styles.nav} aria-label="EpicTools navigation">
-          {navItems.map((item) => {
-            const className = item.label === "Email Delivery" ? styles.active : undefined;
-            const content = <><span aria-hidden="true">◇</span>{item.label}</>;
-            return item.external ? (
-              <a key={item.label} href={item.href} className={className} target="_blank" rel="noreferrer">{content}</a>
-            ) : (
-              <Link key={item.label} href={item.href} className={className}>{content}</Link>
-            );
-          })}
-        </nav>
-
-        <div className={styles.sidebarPhoto} />
-      </aside>
+      <TeamSidebar active="Email Delivery" />
 
       <main className={styles.main}>
         <header className={styles.topbar}>
