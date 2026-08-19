@@ -15,6 +15,10 @@ type MenuState = {
   width: number;
 } | null;
 
+type ReadinessRowWithBeltTire = ReadinessRow & {
+  belt_tire_protection?: boolean | null;
+};
+
 function formatWallTime(value: string) {
   const match = value.match(/\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/);
   if (!match) return value;
@@ -120,6 +124,84 @@ export default function AdventureAssureEnhancer({ rows }: { rows: ReadinessRow[]
   const [error, setError] = useState("");
 
   const liveRows = useMemo(() => rows, [rows]);
+
+  useEffect(() => {
+    function enhanceBeltTireColumn() {
+      for (const table of Array.from(document.querySelectorAll<HTMLTableElement>("table"))) {
+        const headers = Array.from(table.querySelectorAll<HTMLTableCellElement>("thead th"));
+        const assureIndex = headers.findIndex(
+          (header) => header.textContent?.trim() === "Adventure Assure",
+        );
+
+        if (assureIndex < 0) continue;
+
+        const assureHeader = headers[assureIndex];
+        let tireHeader = table.querySelector<HTMLTableCellElement>(
+          "thead th[data-belt-tire-column='true']",
+        );
+
+        if (!tireHeader) {
+          tireHeader = document.createElement("th");
+          tireHeader.dataset.beltTireColumn = "true";
+          tireHeader.setAttribute("aria-label", "Tire and Belt Damage Protection");
+          tireHeader.style.width = "34px";
+          tireHeader.style.minWidth = "34px";
+          tireHeader.style.paddingLeft = "2px";
+          tireHeader.style.paddingRight = "2px";
+          assureHeader.insertAdjacentElement("afterend", tireHeader);
+        }
+
+        for (const tableRow of Array.from(
+          table.querySelectorAll<HTMLTableRowElement>("tbody tr"),
+        )) {
+          let tireCell = tableRow.querySelector<HTMLTableCellElement>(
+            "td[data-belt-tire-column='true']",
+          );
+
+          if (!tireCell) {
+            const assureCell = tableRow.cells[assureIndex];
+            if (!assureCell) continue;
+
+            tireCell = document.createElement("td");
+            tireCell.dataset.beltTireColumn = "true";
+            tireCell.style.width = "34px";
+            tireCell.style.minWidth = "34px";
+            tireCell.style.paddingLeft = "2px";
+            tireCell.style.paddingRight = "2px";
+            tireCell.style.textAlign = "center";
+            tireCell.style.fontSize = "20px";
+            tireCell.style.lineHeight = "1";
+            tireCell.style.whiteSpace = "nowrap";
+            assureCell.insertAdjacentElement("afterend", tireCell);
+          }
+
+          const readinessRow = resolveReadinessRow(tableRow, liveRows) as
+            | ReadinessRowWithBeltTire
+            | null;
+          const desiredText = readinessRow?.belt_tire_protection === true ? "🛞" : "";
+
+          if (tireCell.textContent !== desiredText) {
+            tireCell.textContent = desiredText;
+          }
+
+          if (desiredText) {
+            tireCell.title = "Tire and Belt Damage Protection";
+            tireCell.setAttribute("aria-label", "Tire and Belt Damage Protection purchased");
+          } else {
+            tireCell.removeAttribute("title");
+            tireCell.removeAttribute("aria-label");
+          }
+        }
+      }
+    }
+
+    enhanceBeltTireColumn();
+
+    const observer = new MutationObserver(enhanceBeltTireColumn);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, [liveRows]);
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
