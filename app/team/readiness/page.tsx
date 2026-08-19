@@ -11,6 +11,7 @@ import LogoutButton from "./LogoutButton";
 import SharedActionPinEnhancer from "./SharedActionPinEnhancer";
 import AdventureAssureEnhancer from "./AdventureAssureEnhancer";
 import ContactSaveEnhancer from "./ContactSaveEnhancer";
+import EmailDeliveryAlert from "./EmailDeliveryAlert";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -52,21 +53,11 @@ export default async function TeamReadinessPage() {
         <nav className={styles.nav} aria-label="EpicTools navigation">
           {navItems.map((item) => {
             const className = item.label === "Guest Readiness" ? styles.active : undefined;
-            const content = (
-              <>
-                <span aria-hidden="true">◇</span>
-                {item.label}
-              </>
-            );
-
+            const content = <><span aria-hidden="true">◇</span>{item.label}</>;
             return item.external ? (
-              <a key={item.label} href={item.href} className={className} target="_blank" rel="noreferrer">
-                {content}
-              </a>
+              <a key={item.label} href={item.href} className={className} target="_blank" rel="noreferrer">{content}</a>
             ) : (
-              <Link key={item.label} href={item.href} className={className}>
-                {content}
-              </Link>
+              <Link key={item.label} href={item.href} className={className}>{content}</Link>
             );
           })}
         </nav>
@@ -76,9 +67,7 @@ export default async function TeamReadinessPage() {
             {agents.map((agent) => (
               <div className={styles.agentCard} key={agent}>
                 <div className={styles.agentTitle}>{agent}</div>
-                <div className={styles.agentStatus}>
-                  <span className={styles.onlineDot} />Online
-                </div>
+                <div className={styles.agentStatus}><span className={styles.onlineDot} />Online</div>
               </div>
             ))}
           </div>
@@ -87,11 +76,7 @@ export default async function TeamReadinessPage() {
 
       <main className={styles.main}>
         <header className={styles.topbar}>
-          <div className={styles.titleBlock}>
-            <h1>Guest Readiness</h1>
-            <HeaderClock />
-          </div>
-
+          <div className={styles.titleBlock}><h1>Guest Readiness</h1><HeaderClock /></div>
           <div className={styles.headerActions}>
             <div className={styles.sync}><LastSynced /></div>
             <Link className={styles.actionButton} href="/team/arrival-board">Arrival Board</Link>
@@ -102,6 +87,7 @@ export default async function TeamReadinessPage() {
 
         <section className={styles.content}>
           {error ? <div className={styles.error}>{error}</div> : null}
+          <EmailDeliveryAlert />
           <ReadinessTable rows={rows} />
         </section>
       </main>
