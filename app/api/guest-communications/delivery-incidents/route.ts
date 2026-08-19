@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
-type IncidentAction = "claim" | "resolve" | "reopen";
+type IncidentAction = "claim" | "resolve" | "dismiss" | "reopen";
 
 type ActionBody = {
   incidentId?: string;
@@ -51,12 +51,16 @@ function patchForAction(action: IncidentAction, actor: string, note?: string) {
     return { status: "claimed", claimed_by: actor, claimed_at: now, updated_at: now };
   }
 
-  if (action === "resolve") {
+  if (action === "resolve" || action === "dismiss") {
     return {
       status: "resolved",
       resolved_by: actor,
       resolved_at: now,
-      resolution_note: note?.trim() || "Resolved by EpicTools team member.",
+      resolution_note:
+        note?.trim() ||
+        (action === "dismiss"
+          ? "Acknowledged by team; no alternate email available."
+          : "Resolved by EpicTools team member."),
       updated_at: now,
     };
   }
@@ -112,8 +116,8 @@ export async function POST(request: NextRequest) {
   const incidentId = body.incidentId?.trim();
   const action = body.action;
   if (!incidentId) return NextResponse.json({ error: "incidentId is required." }, { status: 400 });
-  if (!action || !["claim", "resolve", "reopen"].includes(action)) {
-    return NextResponse.json({ error: "action must be claim, resolve, or reopen." }, { status: 400 });
+  if (!action || !["claim", "resolve", "dismiss", "reopen"].includes(action)) {
+    return NextResponse.json({ error: "action must be claim, resolve, dismiss, or reopen." }, { status: 400 });
   }
 
   try {
