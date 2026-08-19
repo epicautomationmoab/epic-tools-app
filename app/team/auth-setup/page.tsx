@@ -21,7 +21,7 @@ export default async function EmployeeAuthSetupPage() {
 
   return (
     <div className={styles.page}>
-      <TeamSidebar active="Manage Employees" />
+      <TeamSidebar active="Manage Users" />
       <main className={styles.main}>
         <InviteTeamPanel />
       </main>
