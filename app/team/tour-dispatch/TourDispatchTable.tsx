@@ -34,6 +34,18 @@ function formatTime(value: string) {
   return `${hour12}:${minute} ${suffix}`;
 }
 
+function isLockedStatus(status: string) {
+  return ["checkout_queued", "checking_out", "out"].includes(status);
+}
+
+function actionLabel(status: string, submitting: boolean) {
+  if (submitting) return "Queueing…";
+  if (status === "checkout_queued") return "Checkout Queued";
+  if (status === "checking_out") return "Checking Out…";
+  if (status === "out") return "Check In Vehicle";
+  return "Check Out Vehicle";
+}
+
 export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] }) {
   const initialDrafts = useMemo(() => {
     const map: Record<string, Draft> = {};
@@ -47,8 +59,15 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
     return map;
   }, [rows]);
 
+  const initialStatuses = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const row of rows) map[`${row.store_visit_id}:${row.vehicle_slot}`] = row.checkout_status;
+    return map;
+  }, [rows]);
+
   const [drafts, setDrafts] = useState(initialDrafts);
-  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [statuses, setStatuses] = useState(initialStatuses);
+  const [submittingKey, setSubmittingKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
 
   function update(key: string, field: keyof Draft, value: string) {
@@ -59,15 +78,23 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
     setMessages((current) => ({ ...current, [key]: "" }));
   }
 
-  async function save(row: TourDispatchRow) {
+  async function queueCheckout(row: TourDispatchRow) {
     const key = `${row.store_visit_id}:${row.vehicle_slot}`;
     const draft = drafts[key];
+    const status = statuses[key] ?? row.checkout_status;
+
+    if (status === "out") {
+      setMessages((current) => ({ ...current, [key]: "Check-in automation is not enabled yet." }));
+      return;
+    }
+    if (isLockedStatus(status)) return;
+
     if (!draft?.car.trim() || !draft.mileage.trim() || !draft.hours.trim()) {
       setMessages((current) => ({ ...current, [key]: "Enter car #, mileage, and hours." }));
       return;
     }
 
-    setSavingKey(key);
+    setSubmittingKey(key);
     setMessages((current) => ({ ...current, [key]: "" }));
     try {
       const response = await fetch("/api/team/tour-dispatch", {
@@ -82,15 +109,17 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
         }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error || "Unable to save vehicle assignment.");
-      setMessages((current) => ({ ...current, [key]: "Saved" }));
+      if (!response.ok) throw new Error(payload?.error || "Unable to queue vehicle checkout.");
+      const nextStatus = payload?.checkout_status || "checkout_queued";
+      setStatuses((current) => ({ ...current, [key]: nextStatus }));
+      setMessages((current) => ({ ...current, [key]: "Checkout queued" }));
     } catch (error) {
       setMessages((current) => ({
         ...current,
-        [key]: error instanceof Error ? error.message : "Unable to save vehicle assignment.",
+        [key]: error instanceof Error ? error.message : "Unable to queue vehicle checkout.",
       }));
     } finally {
-      setSavingKey(null);
+      setSubmittingKey(null);
     }
   }
 
@@ -109,7 +138,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
             <th>Car #</th>
             <th>Mileage</th>
             <th>Hours</th>
-            <th aria-label="Save" />
+            <th aria-label="Vehicle action" />
           </tr>
         </thead>
         <tbody>
@@ -118,6 +147,11 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
             const draft = drafts[key] ?? { car: "", mileage: "", hours: "" };
             const multiVehicle = row.total_vehicle_count > 1;
             const message = messages[key];
+            const status = statuses[key] ?? row.checkout_status;
+            const locked = isLockedStatus(status);
+            const submitting = submittingKey === key;
+            const isOut = status === "out";
+
             return (
               <tr key={key}>
                 <td>
@@ -126,12 +160,18 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
                 </td>
                 <td>{row.product_display_name}</td>
                 <td className={styles.time}>{formatTime(row.visit_start_time)}</td>
-                <td><input value={draft.car} onChange={(event) => update(key, "car", event.target.value)} inputMode="text" aria-label={`Car number for ${row.customer_name}`} /></td>
-                <td><input value={draft.mileage} onChange={(event) => update(key, "mileage", event.target.value)} inputMode="decimal" aria-label={`Mileage for ${row.customer_name}`} /></td>
-                <td><input value={draft.hours} onChange={(event) => update(key, "hours", event.target.value)} inputMode="decimal" aria-label={`Hours for ${row.customer_name}`} /></td>
+                <td><input value={draft.car} onChange={(event) => update(key, "car", event.target.value)} inputMode="text" disabled={locked} aria-label={`Car number for ${row.customer_name}`} /></td>
+                <td><input value={draft.mileage} onChange={(event) => update(key, "mileage", event.target.value)} inputMode="decimal" disabled={locked} aria-label={`Mileage for ${row.customer_name}`} /></td>
+                <td><input value={draft.hours} onChange={(event) => update(key, "hours", event.target.value)} inputMode="decimal" disabled={locked} aria-label={`Hours for ${row.customer_name}`} /></td>
                 <td className={styles.saveCell}>
-                  <button type="button" onClick={() => save(row)} disabled={savingKey === key}>{savingKey === key ? "Saving…" : "Save"}</button>
-                  {message ? <span className={message === "Saved" ? styles.saved : styles.error}>{message}</span> : null}
+                  <button
+                    type="button"
+                    onClick={() => queueCheckout(row)}
+                    disabled={submitting || (locked && !isOut)}
+                  >
+                    {actionLabel(status, submitting)}
+                  </button>
+                  {message ? <span className={message === "Checkout queued" ? styles.saved : styles.error}>{message}</span> : null}
                 </td>
               </tr>
             );
