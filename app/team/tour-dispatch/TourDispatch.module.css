@@ -20,7 +20,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 980px;
+  min-width: 1060px;
 }
 
 .table th {
@@ -49,15 +49,12 @@
   transition: background 120ms ease;
 }
 
-.table tbody tr:hover td {
+.table tbody tr:not(.observationRow):hover td {
   background: #f8fafb;
 }
 
-.table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.table input {
+.table input,
+.table select {
   width: 100%;
   min-width: 92px;
   height: 38px;
@@ -68,10 +65,16 @@
   background: #fffdfb;
 }
 
-.table input:focus {
+.table input:focus,
+.table select:focus {
   outline: 3px solid rgba(244, 119, 33, 0.14);
   border-color: #f47721;
   background: #fff;
+}
+
+.table input:disabled {
+  color: #47515a;
+  background: #f2f4f6;
 }
 
 .time {
@@ -104,11 +107,12 @@
 }
 
 .saveCell {
-  min-width: 130px;
+  min-width: 210px;
 }
 
-.saveCell button {
-  height: 36px;
+.saveCell button,
+.observationPanel button {
+  min-height: 36px;
   padding: 0 16px;
   border: 0;
   border-radius: 7px;
@@ -119,19 +123,39 @@
   box-shadow: 0 2px 6px rgba(180, 75, 11, 0.18);
 }
 
-.saveCell button:hover:not(:disabled) {
+.saveCell button:hover:not(:disabled),
+.observationPanel button:hover:not(:disabled) {
   background: #dc6618;
 }
 
-.saveCell button:disabled {
+.saveCell button:disabled,
+.observationPanel button:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+
+.secondaryButton {
+  background: #536371 !important;
+  box-shadow: none !important;
+}
+
+.secondaryButton:hover {
+  background: #3f4d59 !important;
+}
+
+.checkinButton {
+  background: #2f6a49 !important;
+  box-shadow: 0 2px 6px rgba(31, 89, 58, 0.16) !important;
+}
+
+.checkinButton:hover:not(:disabled) {
+  background: #25563b !important;
 }
 
 .saved,
 .error {
   display: block;
-  margin-top: 5px;
+  margin-top: 6px;
   font-size: 11px;
 }
 
@@ -142,7 +166,51 @@
 
 .error {
   color: #9b3030;
-  max-width: 180px;
+  max-width: 210px;
+}
+
+.statusPill {
+  display: inline-block;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #e8f3ec;
+  color: #285a3d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.observationRow td {
+  padding: 0;
+  background: #f4f7f9;
+  border-bottom: 1px solid #dce2e7;
+}
+
+.observationPanel {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(170px, 0.8fr) minmax(260px, 1.6fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px 18px 18px;
+  border-left: 4px solid #536371;
+}
+
+.observationPanel label {
+  display: block;
+  color: #53606b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.observationPanel label input,
+.observationPanel label select {
+  margin-top: 6px;
+  text-transform: none;
+}
+
+.notesField input {
+  min-width: 240px;
 }
 
 .empty {
@@ -153,4 +221,10 @@
   background: #fff;
   color: #69717d;
   text-align: center;
+}
+
+@media (max-width: 900px) {
+  .content { padding: 20px 16px 32px; }
+  .observationPanel { grid-template-columns: 1fr 1fr; }
+  .notesField { grid-column: 1 / -1; }
 }
