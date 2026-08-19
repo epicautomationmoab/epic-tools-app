@@ -1,0 +1,230 @@
+.content {
+  padding: 28px 32px 40px;
+}
+
+.intro {
+  margin-bottom: 18px;
+  color: #5f6670;
+  font-size: 14px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-top: 4px solid #f47721;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(20, 27, 34, 0.05);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1060px;
+}
+
+.table th {
+  text-align: left;
+  padding: 13px 14px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #54606c;
+  background: #eef1f4;
+  border-bottom: 1px solid #d8dde3;
+}
+
+.table th:nth-child(4),
+.table th:nth-child(5),
+.table th:nth-child(6) {
+  color: #a84d12;
+  background: #fff3e9;
+}
+
+.table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid #eceff2;
+  vertical-align: middle;
+  font-size: 14px;
+  transition: background 120ms ease;
+}
+
+.table tbody tr:not(.observationRow):hover td {
+  background: #f8fafb;
+}
+
+.table input,
+.table select {
+  width: 100%;
+  min-width: 92px;
+  height: 38px;
+  border: 1px solid #cbd1d8;
+  border-radius: 7px;
+  padding: 0 10px;
+  font: inherit;
+  background: #fffdfb;
+}
+
+.table input:focus,
+.table select:focus {
+  outline: 3px solid rgba(244, 119, 33, 0.14);
+  border-color: #f47721;
+  background: #fff;
+}
+
+.table input:disabled {
+  color: #47515a;
+  background: #f2f4f6;
+}
+
+.time {
+  white-space: nowrap;
+  font-weight: 700;
+  color: #30485b;
+}
+
+.time::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #f47721;
+  vertical-align: 1px;
+}
+
+.slot {
+  display: block;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #9b4a18;
+  background: #fff0e5;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.saveCell {
+  min-width: 210px;
+}
+
+.saveCell button,
+.observationPanel button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 7px;
+  background: #f47721;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(180, 75, 11, 0.18);
+}
+
+.saveCell button:hover:not(:disabled),
+.observationPanel button:hover:not(:disabled) {
+  background: #dc6618;
+}
+
+.saveCell button:disabled,
+.observationPanel button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.secondaryButton {
+  background: #536371 !important;
+  box-shadow: none !important;
+}
+
+.secondaryButton:hover {
+  background: #3f4d59 !important;
+}
+
+.checkinButton {
+  background: #2f6a49 !important;
+  box-shadow: 0 2px 6px rgba(31, 89, 58, 0.16) !important;
+}
+
+.checkinButton:hover:not(:disabled) {
+  background: #25563b !important;
+}
+
+.saved,
+.error {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.saved {
+  color: #2c6b46;
+  font-weight: 700;
+}
+
+.error {
+  color: #9b3030;
+  max-width: 210px;
+}
+
+.statusPill {
+  display: inline-block;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #e8f3ec;
+  color: #285a3d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.observationRow td {
+  padding: 0;
+  background: #f4f7f9;
+  border-bottom: 1px solid #dce2e7;
+}
+
+.observationPanel {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(170px, 0.8fr) minmax(260px, 1.6fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px 18px 18px;
+  border-left: 4px solid #536371;
+}
+
+.observationPanel label {
+  display: block;
+  color: #53606b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.observationPanel label input,
+.observationPanel label select {
+  margin-top: 6px;
+  text-transform: none;
+}
+
+.notesField input {
+  min-width: 240px;
+}
+
+.empty {
+  padding: 36px;
+  border: 1px dashed #cbd1d8;
+  border-top: 4px solid #f47721;
+  border-radius: 10px;
+  background: #fff;
+  color: #69717d;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .content { padding: 20px 16px 32px; }
+  .observationPanel { grid-template-columns: 1fr 1fr; }
+  .notesField { grid-column: 1 / -1; }
+}
