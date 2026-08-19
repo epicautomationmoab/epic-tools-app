@@ -1,17 +1,30 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import TeamSidebar from "../TeamSidebar";
 import InviteTeamPanel from "./InviteTeamPanel";
+import styles from "../readiness/ReadinessShell.module.css";
 
-export default function EmployeeAuthSetupPage() {
+export default async function EmployeeAuthSetupPage() {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("epic_access_token")?.value;
+  const profile = await getAuthenticatedTeamProfile(accessToken);
+  const previewToken = process.env.EPIC_PREVIEW_TOKEN;
+  const hasPreviewAccess = Boolean(
+    previewToken && cookieStore.get("epic_preview_access")?.value === previewToken,
+  );
+  const canManageEmployees = profile?.role === "admin" || profile?.role === "manager";
+
+  if (!canManageEmployees && !hasPreviewAccess) {
+    redirect("/team/readiness");
+  }
+
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f3f5f7",
-        padding: 32,
-        display: "flex",
-        justifyContent: "center",
-      }}
-    >
-      <InviteTeamPanel />
-    </main>
+    <div className={styles.page}>
+      <TeamSidebar active="Manage Employees" />
+      <main className={styles.main}>
+        <InviteTeamPanel />
+      </main>
+    </div>
   );
 }
