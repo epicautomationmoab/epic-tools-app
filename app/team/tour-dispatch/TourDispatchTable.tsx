@@ -19,12 +19,13 @@ export type TourDispatchRow = {
   checkin_status: string;
   mpwr_vehicle_number_observed: string | null;
   mpwr_driver_observation: string | null;
+  mpwr_driver_unexpected_names: boolean | null;
   mpwr_checkout_notes: string | null;
   manual_mpwr_checkout_confirmed_at: string | null;
 };
 
 type Draft = { car: string; mileage: string; hours: string };
-type ObservationDraft = { mpwrCar: string; driver: string; notes: string };
+type ObservationDraft = { mpwrCar: string; driver: string; unexpectedNames: boolean; notes: string };
 
 function keyFor(row: TourDispatchRow) { return `${row.store_visit_id}:${row.vehicle_slot}`; }
 function formatTime(value: string) {
@@ -41,7 +42,10 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
     car: row.vehicle_label ?? "", mileage: row.checkout_mileage == null ? "" : String(row.checkout_mileage), hours: row.checkout_engine_hours == null ? "" : String(row.checkout_engine_hours),
   }])), [rows]);
   const initialObservations = useMemo(() => Object.fromEntries(rows.map((row) => [keyFor(row), {
-    mpwrCar: row.mpwr_vehicle_number_observed ?? row.vehicle_label ?? "", driver: row.mpwr_driver_observation ?? "expected", notes: row.mpwr_checkout_notes ?? "",
+    mpwrCar: row.mpwr_vehicle_number_observed ?? row.vehicle_label ?? "",
+    driver: row.mpwr_driver_observation ?? "expected",
+    unexpectedNames: row.mpwr_driver_unexpected_names ?? false,
+    notes: row.mpwr_checkout_notes ?? "",
   }])), [rows]);
 
   const [drafts, setDrafts] = useState<Record<string, Draft>>(initialDrafts);
@@ -56,7 +60,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
     setDrafts((current) => ({ ...current, [key]: { ...current[key], [field]: value } }));
     setMessages((current) => ({ ...current, [key]: "" }));
   }
-  function updateObservation(key: string, field: keyof ObservationDraft, value: string) {
+  function updateObservation<K extends keyof ObservationDraft>(key: string, field: K, value: ObservationDraft[K]) {
     setObservations((current) => ({ ...current, [key]: { ...current[key], [field]: value } }));
     setMessages((current) => ({ ...current, [key]: "" }));
   }
@@ -85,7 +89,18 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
     if (!observation?.mpwrCar.trim() || !observation.driver) { setMessages((current) => ({ ...current, [key]: "Enter the MPWR car number and Driver result." })); return; }
     setBusyKey(key);
     try {
-      const response = await fetch("/api/team/tour-dispatch/observation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ store_visit_id: row.store_visit_id, vehicle_slot: row.vehicle_slot, mpwr_vehicle_number_observed: observation.mpwrCar.trim(), mpwr_driver_observation: observation.driver, mpwr_checkout_notes: observation.notes.trim() }) });
+      const response = await fetch("/api/team/tour-dispatch/observation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_visit_id: row.store_visit_id,
+          vehicle_slot: row.vehicle_slot,
+          mpwr_vehicle_number_observed: observation.mpwrCar.trim(),
+          mpwr_driver_observation: observation.driver,
+          mpwr_driver_unexpected_names: observation.unexpectedNames,
+          mpwr_checkout_notes: observation.notes.trim(),
+        }),
+      });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || "Unable to save MPWR result.");
       setStatuses((current) => ({ ...current, [key]: "out" })); setOpenObservation(null);
@@ -111,7 +126,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
   return <div className={styles.tableWrap}><table className={styles.table}>
     <thead><tr><th>Name</th><th>Activity</th><th>Time</th><th>Car #</th><th>Mileage</th><th>Hours</th><th aria-label="Vehicle action" /></tr></thead>
     <tbody>{rows.map((row) => {
-      const key = keyFor(row), draft = drafts[key] ?? { car: "", mileage: "", hours: "" }, observation = observations[key] ?? { mpwrCar: "", driver: "expected", notes: "" };
+      const key = keyFor(row), draft = drafts[key] ?? { car: "", mileage: "", hours: "" }, observation = observations[key] ?? { mpwrCar: "", driver: "expected", unexpectedNames: false, notes: "" };
       const status = statuses[key] ?? row.checkout_status, checkinStatus = checkinStatuses[key] ?? row.checkin_status, locked = departureLocked(status), busy = busyKey === key, observationVisible = openObservation === key, message = messages[key];
       return <Fragment key={key}>
         <tr>
@@ -131,6 +146,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
         {status === "checkout_queued" && observationVisible ? <tr className={styles.observationRow}><td colSpan={7}><div className={styles.observationPanel}>
           <div><label>Actual vehicle # in MPWR<input value={observation.mpwrCar} onChange={(e) => updateObservation(key, "mpwrCar", e.target.value)} /></label></div>
           <div><label>Driver field<select value={observation.driver} onChange={(e) => updateObservation(key, "driver", e.target.value)}><option value="expected">Expected name</option><option value="different">Different name</option><option value="missing">Missing</option></select></label></div>
+          <div><label><input type="checkbox" checked={observation.unexpectedNames} onChange={(e) => updateObservation(key, "unexpectedNames", e.target.checked)} /> Unexpected names appeared in Driver dropdown</label></div>
           <div className={styles.notesField}><label>Anything odd?<input value={observation.notes} onChange={(e) => updateObservation(key, "notes", e.target.value)} placeholder="Optional note" /></label></div>
           <button type="button" onClick={() => saveObservation(row)} disabled={busy}>{busy ? "Saving…" : "Save MPWR Result"}</button>
         </div></td></tr> : null}
