@@ -126,6 +126,30 @@ function applyRentalBadge(row: HTMLElement, waiver: SignedWaiver) {
   else row.appendChild(badge);
 }
 
+function applyDeliveryWarning(row: HTMLElement, waiver: SignedWaiver) {
+  const existing = row.querySelector<HTMLElement>('[data-epic-copy-email-warning="true"]');
+  const failed = ["failed", "bounced", "suppressed"].includes(
+    (waiver.copyEmailStatus || "").toLowerCase(),
+  );
+
+  if (!failed) {
+    existing?.remove();
+    return;
+  }
+
+  if (existing) return;
+  const warning = document.createElement("span");
+  warning.textContent = "⚠";
+  warning.title = "Signed Epic document email was not delivered";
+  warning.setAttribute("aria-label", "Signed Epic document email was not delivered");
+  warning.dataset.epicCopyEmailWarning = "true";
+  warning.classList.add(sourceStyles.epicDocumentDeliveryWarning);
+
+  const strong = row.querySelector(":scope > strong");
+  if (strong) strong.insertAdjacentElement("afterend", warning);
+  else row.prepend(warning);
+}
+
 export default function SignedWaiverDrawerEnhancer() {
   const [token, setToken] = useState<string | null>(null);
   const [waivers, setWaivers] = useState<SignedWaiver[]>([]);
@@ -190,6 +214,7 @@ export default function SignedWaiverDrawerEnhancer() {
         if (!row) continue;
         replaceNoLink(row, `/api/team/waivers/${waiver.id}/pdf`);
         applyRentalBadge(row, waiver);
+        applyDeliveryWarning(row, waiver);
       }
 
       styleSourceLinks(section);
