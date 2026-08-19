@@ -133,22 +133,11 @@ function applyRentalBadge(row: HTMLElement, waiver: SignedWaiver) {
 }
 
 function applyDeliveryWarning(row: HTMLElement, waiver: SignedWaiver) {
-  const existing = row.querySelector<HTMLElement>('[data-epic-copy-email-warning="true"]');
-  const failed = (waiver.copyEmailStatus || "").toLowerCase() === "failed";
-  if (!failed) {
-    existing?.remove();
-    return;
-  }
-  if (existing) return;
-  const warning = document.createElement("span");
-  warning.textContent = "⚠";
-  warning.title = "Signed Epic document email was not delivered";
-  warning.setAttribute("aria-label", "Signed Epic document email was not delivered");
-  warning.dataset.epicCopyEmailWarning = "true";
-  warning.classList.add(sourceStyles.epicDocumentDeliveryWarning);
   const strong = row.querySelector<HTMLElement>("strong");
-  if (strong) strong.insertAdjacentElement("afterend", warning);
-  else row.prepend(warning);
+  if (!strong) return;
+  const failed = (waiver.copyEmailStatus || "").trim().toLowerCase() === "failed";
+  strong.dataset.epicCopyEmailFailed = failed ? "true" : "false";
+  strong.title = failed ? "Signed Epic document email was not delivered" : "";
 }
 
 export default function SignedWaiverDrawerEnhancer() {
