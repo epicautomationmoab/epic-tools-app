@@ -13,6 +13,19 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
+function formatMoabTime(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(value));
+}
+
 async function getIncidents() {
   const { url, key } = getSupabaseConfig();
   const params = new URLSearchParams({ select: "*", order: "created_at.desc", limit: "100" });
@@ -94,7 +107,7 @@ export default async function EmailDeliveryPage() {
                   <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{guestNames.get(incident.confirmation_code)}</div>
                 ) : null}
                 <strong style={{ fontSize: 16 }}>{incident.confirmation_code}</strong>
-                <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{new Date(incident.created_at).toLocaleString()}</div>
+                <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatMoabTime(incident.created_at)}</div>
               </div>
 
               <div>
