@@ -96,10 +96,11 @@ export default function EmailDeliveryDrawerEnhancer() {
           dismissButton.disabled = true;
           dismissButton.textContent = "Dismissing...";
           try {
+            const resolvedBy = dismissButton.dataset.epicResolvedBy?.trim();
             const response = await fetch("/api/guest-communications/delivery-incidents", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ incidentId: incident.id, action: "dismiss" }),
+              body: JSON.stringify({ incidentId: incident.id, action: "dismiss", resolvedBy: resolvedBy || undefined }),
             });
             if (!response.ok) throw new Error(await response.text());
             incidents = incidents.filter((item) => item.id !== incident.id);
