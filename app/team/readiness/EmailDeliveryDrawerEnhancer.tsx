@@ -5,11 +5,7 @@ import { useEffect } from "react";
 type Incident = {
   id: string;
   confirmation_code: string;
-  recipient_email: string | null;
-  failure_type: string;
-  failure_detail: string | null;
   status: string;
-  claimed_by: string | null;
 };
 
 type IncidentResponse = { incidents?: Incident[] };
@@ -22,8 +18,11 @@ function findConfirmation(drawer: Element) {
   return "";
 }
 
-function label(type: string) {
-  return type.replace(/^email\./, "").replace(/_/g, " ");
+function findEmailCard(drawer: Element) {
+  for (const card of Array.from(drawer.querySelectorAll("div"))) {
+    if (card.querySelector("span")?.textContent?.trim() === "Email") return card;
+  }
+  return null;
 }
 
 export default function EmailDeliveryDrawerEnhancer() {
@@ -47,52 +46,30 @@ export default function EmailDeliveryDrawerEnhancer() {
       if (stopped) return;
       const drawer = document.querySelector('[role="dialog"]');
       if (!drawer) return;
+
+      drawer.querySelectorAll("[data-email-delivery-warning]").forEach((node) => node.remove());
+
       const confirmationCode = findConfirmation(drawer);
       if (!confirmationCode) return;
-
-      const existing = drawer.querySelector<HTMLElement>("[data-email-delivery-warning]");
       const incident = incidents.find((item) => item.confirmation_code === confirmationCode && item.status !== "resolved");
-      if (!incident) {
-        existing?.remove();
-        return;
-      }
-      if (existing?.dataset.incidentId === incident.id) return;
-      existing?.remove();
+      if (!incident) return;
 
-      const warning = document.createElement("div");
-      warning.dataset.emailDeliveryWarning = "true";
-      warning.dataset.incidentId = incident.id;
-      warning.style.margin = "0 20px 16px";
-      warning.style.padding = "13px 15px";
-      warning.style.border = "1px solid #efb7ae";
-      warning.style.borderRadius = "9px";
-      warning.style.background = "#fff1ef";
-      warning.style.color = "#7f2e25";
+      const emailCard = findEmailCard(drawer);
+      if (!emailCard || emailCard.querySelector("[data-email-delivery-caution]")) return;
 
-      const title = document.createElement("div");
-      title.textContent = "Confirmation Email — Delivery Failed";
-      title.style.fontWeight = "900";
-      title.style.marginBottom = "4px";
+      const caution = document.createElement("span");
+      caution.dataset.emailDeliveryCaution = "true";
+      caution.textContent = "⚠";
+      caution.title = "Confirmation email delivery failed";
+      caution.setAttribute("aria-label", "Confirmation email delivery failed");
+      caution.style.marginLeft = "7px";
+      caution.style.color = "#d9a300";
+      caution.style.fontSize = "18px";
+      caution.style.lineHeight = "1";
+      caution.style.verticalAlign = "middle";
 
-      const detail = document.createElement("div");
-      detail.textContent = incident.failure_detail || `${label(incident.failure_type)}: ${incident.recipient_email || "recipient unavailable"}`;
-      detail.style.fontSize = "12px";
-      detail.style.lineHeight = "1.45";
-
-      const hint = document.createElement("div");
-      hint.textContent = incident.status === "claimed" && incident.claimed_by
-        ? `Claimed by ${incident.claimed_by}. Correct the email below if needed, then resend the confirmation.`
-        : "Correct the email below if needed, then resend the confirmation.";
-      hint.style.fontSize = "12px";
-      hint.style.fontWeight = "750";
-      hint.style.marginTop = "6px";
-
-      warning.append(title, detail, hint);
-
-      const facts = Array.from(drawer.querySelectorAll("section")).find((section) =>
-        section.textContent?.includes("Booking Confirmation") && section.textContent?.includes("Email"),
-      );
-      if (facts) facts.insertAdjacentElement("afterend", warning);
+      const label = emailCard.querySelector("span");
+      label?.appendChild(caution);
     }
 
     void load();
