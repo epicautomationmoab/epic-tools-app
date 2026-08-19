@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
     const vehicleSlot = Number(body?.vehicle_slot);
     const mpwrVehicleNumberObserved = String(body?.mpwr_vehicle_number_observed ?? "").trim();
     const driverObservation = String(body?.mpwr_driver_observation ?? "").trim();
+    const unexpectedNames = Boolean(body?.mpwr_driver_unexpected_names);
     const notes = String(body?.mpwr_checkout_notes ?? "").trim();
 
     if (!storeVisitId || !Number.isInteger(vehicleSlot) || vehicleSlot < 1) {
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
       p_vehicle_slot: vehicleSlot,
       p_mpwr_vehicle_number_observed: mpwrVehicleNumberObserved,
       p_mpwr_driver_observation: driverObservation,
+      p_mpwr_driver_unexpected_names: unexpectedNames,
       p_mpwr_checkout_notes: notes,
       p_confirmed_by: profile?.display_name ?? "Epic Workstation",
     });
