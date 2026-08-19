@@ -4,7 +4,7 @@ import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import styles from "./readiness/ReadinessShell.module.css";
 
 type Props = {
-  active: "Guest Readiness" | "Previous Guest Lookup" | "Email Delivery" | "Manage Employees";
+  active: "Guest Readiness" | "Previous Guest Lookup" | "Email Delivery" | "Manage Users";
 };
 
 const baseNavItems = [
@@ -22,7 +22,7 @@ export default async function TeamSidebar({ active }: Props) {
   const canManageEmployees = profile?.role === "admin" || profile?.role === "manager";
 
   const navItems = canManageEmployees
-    ? [...baseNavItems, { label: "Manage Employees", href: "/team/auth-setup", external: false } as const]
+    ? [...baseNavItems, { label: "Manage Users", href: "/team/auth-setup", external: false } as const]
     : baseNavItems;
 
   return (
