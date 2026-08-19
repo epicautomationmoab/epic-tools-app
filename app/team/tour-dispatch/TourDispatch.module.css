@@ -12,6 +12,7 @@
   overflow-x: auto;
   background: #fff;
   border: 1px solid #dfe3e8;
+  border-top: 4px solid #f47721;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(20, 27, 34, 0.05);
 }
@@ -28,9 +29,16 @@
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #69717d;
-  background: #f6f7f9;
-  border-bottom: 1px solid #dfe3e8;
+  color: #54606c;
+  background: #eef1f4;
+  border-bottom: 1px solid #d8dde3;
+}
+
+.table th:nth-child(4),
+.table th:nth-child(5),
+.table th:nth-child(6) {
+  color: #a84d12;
+  background: #fff3e9;
 }
 
 .table td {
@@ -38,6 +46,11 @@
   border-bottom: 1px solid #eceff2;
   vertical-align: middle;
   font-size: 14px;
+  transition: background 120ms ease;
+}
+
+.table tbody tr:hover td {
+  background: #f8fafb;
 }
 
 .table tbody tr:last-child td {
@@ -52,25 +65,42 @@
   border-radius: 7px;
   padding: 0 10px;
   font: inherit;
-  background: #fff;
+  background: #fffdfb;
 }
 
 .table input:focus {
-  outline: 2px solid rgba(37, 50, 61, 0.16);
-  border-color: #596673;
+  outline: 3px solid rgba(244, 119, 33, 0.14);
+  border-color: #f47721;
+  background: #fff;
 }
 
 .time {
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 700;
+  color: #30485b;
+}
+
+.time::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #f47721;
+  vertical-align: 1px;
 }
 
 .slot {
   display: block;
-  margin-top: 3px;
-  color: #7b838c;
-  font-size: 12px;
-  font-weight: 500;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #9b4a18;
+  background: #fff0e5;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .saveCell {
@@ -82,10 +112,15 @@
   padding: 0 16px;
   border: 0;
   border-radius: 7px;
-  background: #2d3943;
+  background: #f47721;
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 2px 6px rgba(180, 75, 11, 0.18);
+}
+
+.saveCell button:hover:not(:disabled) {
+  background: #dc6618;
 }
 
 .saveCell button:disabled {
@@ -102,6 +137,7 @@
 
 .saved {
   color: #2c6b46;
+  font-weight: 700;
 }
 
 .error {
@@ -112,6 +148,7 @@
 .empty {
   padding: 36px;
   border: 1px dashed #cbd1d8;
+  border-top: 4px solid #f47721;
   border-radius: 10px;
   background: #fff;
   color: #69717d;
