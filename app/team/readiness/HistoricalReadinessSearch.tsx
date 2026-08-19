@@ -190,7 +190,7 @@ export default function HistoricalReadinessSearch() {
             className={styles.search}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by guest name, confirmation, phone, email, activity, or MPWR..."
+            placeholder="Search by guest name, confirmation, phone, email, or MPWR..."
             aria-label="Search previous guests"
           />
           {query ? (
