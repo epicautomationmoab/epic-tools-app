@@ -6,10 +6,15 @@ function requiredEnv(name: string) {
   return value;
 }
 
-async function getIncidents() {
+function getSupabaseConfig() {
   const rawUrl = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
   const url = (/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`).replace(/\/+$/, "");
   const key = requiredEnv("SUPABASE_SECRET_KEY");
+  return { url, key };
+}
+
+async function getIncidents() {
+  const { url, key } = getSupabaseConfig();
   const params = new URLSearchParams({ select: "*", order: "created_at.desc", limit: "100" });
   const response = await fetch(`${url}/rest/v1/guest_email_delivery_incidents?${params}`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -27,11 +32,33 @@ async function getIncidents() {
   }>>;
 }
 
+async function getGuestNames(confirmationCodes: string[]) {
+  if (!confirmationCodes.length) return new Map<string, string>();
+
+  const { url, key } = getSupabaseConfig();
+  const quotedCodes = confirmationCodes.map((code) => `"${code.replace(/"/g, "\\\"")}"`).join(",");
+  const params = new URLSearchParams({
+    select: "confirmation_code,customer_name",
+    confirmation_code: `in.(${quotedCodes})`,
+    communication_type: "eq.initial_guest_portal",
+  });
+  const response = await fetch(`${url}/rest/v1/guest_communications?${params}`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Unable to load guest names: ${await response.text()}`);
+
+  const rows = (await response.json()) as Array<{ confirmation_code: string; customer_name: string | null }>;
+  return new Map(rows.filter((row) => row.customer_name?.trim()).map((row) => [row.confirmation_code, row.customer_name!.trim()]));
+}
+
 export default async function EmailDeliveryPage() {
   let incidents: Awaited<ReturnType<typeof getIncidents>> = [];
+  let guestNames = new Map<string, string>();
   let error = "";
   try {
     incidents = await getIncidents();
+    guestNames = await getGuestNames([...new Set(incidents.map((incident) => incident.confirmation_code))]);
   } catch (err) {
     error = err instanceof Error ? err.message : "Unable to load email delivery problems.";
   }
@@ -63,6 +90,9 @@ export default async function EmailDeliveryPage() {
           ) : active.map((incident) => (
             <article key={incident.id} style={{ display: "grid", gridTemplateColumns: "170px minmax(300px, 1fr) auto", gap: 24, alignItems: "center", padding: "22px 20px", borderBottom: "1px solid #eef0f2" }}>
               <div>
+                {guestNames.get(incident.confirmation_code) ? (
+                  <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{guestNames.get(incident.confirmation_code)}</div>
+                ) : null}
                 <strong style={{ fontSize: 16 }}>{incident.confirmation_code}</strong>
                 <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{new Date(incident.created_at).toLocaleString()}</div>
               </div>
