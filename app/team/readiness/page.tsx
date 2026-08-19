@@ -16,6 +16,7 @@ import styles from "./ReadinessShell.module.css";
 
 const navItems = [
   { label: "Guest Readiness", href: "/team/readiness", external: false },
+  { label: "Email Delivery", href: "/team/email-delivery", external: false },
   { label: "Reservations", href: "https://epic4x4.tripworks.com", external: true },
   { label: "MPWR", href: "https://mpwr-hq.poladv.com/orders", external: true },
 ] as const;
