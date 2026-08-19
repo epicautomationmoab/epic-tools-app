@@ -78,8 +78,10 @@ export default function InviteTeamPanel() {
     }
   }
 
+  const cellStyle = { padding: "12px 14px", borderBottom: "1px solid #f2f4f7", verticalAlign: "middle" as const };
+
   return (
-    <div style={{ width: "100%", maxWidth: 980 }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ marginBottom: 8 }}>EpicTools Employee Auth Setup</h1>
         <p style={{ margin: 0, color: "#667085" }}>
@@ -95,12 +97,19 @@ export default function InviteTeamPanel() {
       {loading ? (
         <p>Loading team profiles...</p>
       ) : (
-        <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #e4e7ec", borderRadius: 12 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div style={{ background: "#fff", border: "1px solid #e4e7ec", borderRadius: 12, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: "26%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "14%" }} />
+              <col style={{ width: "27%" }} />
+              <col style={{ width: "21%" }} />
+            </colgroup>
             <thead>
-              <tr>
+              <tr style={{ background: "#f2f2f3" }}>
                 {['Profile', 'Role', 'TripWorks ID', 'Auth status', 'Account action'].map((label) => (
-                  <th key={label} style={{ textAlign: "left", padding: 12, borderBottom: "1px solid #e4e7ec" }}>{label}</th>
+                  <th key={label} style={{ textAlign: "left", padding: "12px 14px", borderBottom: "1px solid #e4e7ec", color: "#666", fontSize: 12, textTransform: "uppercase", letterSpacing: ".02em" }}>{label}</th>
                 ))}
               </tr>
             </thead>
@@ -111,13 +120,13 @@ export default function InviteTeamPanel() {
                 const isWorkstation = profile.role === "workstation";
                 return (
                   <tr key={profile.id}>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
+                    <td style={cellStyle}>
                       <strong>{profile.display_name}</strong><br />
-                      <span style={{ color: "#667085" }}>{profile.email}</span>
+                      <span style={{ color: "#667085", overflowWrap: "anywhere" }}>{profile.email}</span>
                     </td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.role}</td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>{profile.tripworks_user_id ?? "—"}</td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
+                    <td style={cellStyle}>{profile.role}</td>
+                    <td style={cellStyle}>{profile.tripworks_user_id ?? "—"}</td>
+                    <td style={cellStyle}>
                       {isWorkstation
                         ? "Shared workstation"
                         : profile.user_id
@@ -136,7 +145,7 @@ export default function InviteTeamPanel() {
                         </div>
                       ) : null}
                     </td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f2f4f7" }}>
+                    <td style={cellStyle}>
                       {isWorkstation ? (
                         <span style={{ color: "#667085" }}>Managed separately</span>
                       ) : profile.user_id ? (
@@ -144,16 +153,16 @@ export default function InviteTeamPanel() {
                           type="button"
                           disabled={!profile.active || Boolean(workingKey)}
                           onClick={() => void manageAuth(profile, "reset_password")}
-                          style={{ border: "1px solid #d0d5dd", borderRadius: 8, padding: "9px 14px", background: "#fff", color: "#344054", fontWeight: 700, cursor: workingKey ? "wait" : "pointer" }}
+                          style={{ border: "1px solid #d0d5dd", borderRadius: 8, padding: "9px 12px", background: "#fff", color: "#344054", fontWeight: 700, cursor: workingKey ? "wait" : "pointer", whiteSpace: "nowrap", maxWidth: "100%" }}
                         >
-                          {workingKey === resetKey ? "Sending..." : "Send password reset"}
+                          {workingKey === resetKey ? "Sending..." : "Reset password"}
                         </button>
                       ) : (
                         <button
                           type="button"
                           disabled={!profile.active || Boolean(workingKey)}
                           onClick={() => void manageAuth(profile, "invite")}
-                          style={{ border: 0, borderRadius: 8, padding: "9px 14px", background: "#d5521d", color: "#fff", fontWeight: 700, cursor: workingKey ? "wait" : "pointer" }}
+                          style={{ border: 0, borderRadius: 8, padding: "9px 12px", background: "#d5521d", color: "#fff", fontWeight: 700, cursor: workingKey ? "wait" : "pointer", whiteSpace: "nowrap", maxWidth: "100%" }}
                         >
                           {workingKey === inviteKey
                             ? "Sending..."
