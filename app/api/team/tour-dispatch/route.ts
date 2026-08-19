@@ -92,15 +92,21 @@ export async function POST(request: NextRequest) {
     });
 
     const queued = result?.[0];
-    if (!queued?.job_id) {
+    if (!queued?.job_id || !queued?.dispatch_id) {
       throw new Error("Checkout job was not created.");
     }
+
+    const checkinJobId = await supabaseRpc<string>("prepare_tour_vehicle_checkin_shadow", {
+      p_dispatch_id: queued.dispatch_id,
+    });
 
     return NextResponse.json({
       ok: true,
       dispatch_id: queued.dispatch_id,
-      job_id: queued.job_id,
+      checkout_job_id: queued.job_id,
+      checkin_job_id: checkinJobId,
       checkout_status: queued.checkout_status,
+      checkin_status: "prepared",
     });
   } catch (error) {
     console.error("Tour dispatch checkout queue failed", error);
