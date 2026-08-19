@@ -25,11 +25,17 @@ export default function EmailDeliveryAlert() {
       }
     }
 
+    function handleIncidentsChanged() {
+      void load();
+    }
+
     void load();
     const timer = window.setInterval(load, 60_000);
+    window.addEventListener("email-delivery-incidents-changed", handleIncidentsChanged);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
+      window.removeEventListener("email-delivery-incidents-changed", handleIncidentsChanged);
     };
   }, []);
 
