@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ReadinessTable from "./ReadinessTable";
+import HistoricalReadinessSearch from "./HistoricalReadinessSearch";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
 import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
@@ -92,6 +93,7 @@ export default async function TeamReadinessPage() {
         <section className={styles.content}>
           {error ? <div className={styles.error}>{error}</div> : null}
           <EmailDeliveryAlert />
+          <HistoricalReadinessSearch />
           <ReadinessTable rows={rows} />
         </section>
       </main>
