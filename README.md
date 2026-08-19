@@ -9,6 +9,16 @@ First hosted app for Epic 4x4 guest readiness tools.
 - `/kiosk` - guest kiosk gateway placeholder
 - `/visit/[token]` - guest portal placeholder
 
+## Guest Readiness Architecture
+
+Technical architecture and the current Guest Readiness / MPWR data path are documented in [`docs/guest-readiness-architecture.md`](docs/guest-readiness-architecture.md).
+
+The staff readiness page currently reads from:
+
+- `guest_readiness_with_handoff_v`
+
+That view is built on the app-facing readiness layer and `guest_readiness_operational`. Do not infer production behavior from the existence of old Supabase functions, trigger functions, tables, or columns; verify the live frontend caller and active database path before changing automation.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env.local` for local development:
@@ -17,11 +27,6 @@ Copy `.env.example` to `.env.local` for local development:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
-
-The app reads:
-
-- `guest_readiness_dashboard_scan_document_links_v3`
-- `guest_arrival_board_v`
 
 ## Cancellation Agreement
 
