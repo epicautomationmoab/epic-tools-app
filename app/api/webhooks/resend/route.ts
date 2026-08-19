@@ -35,6 +35,12 @@ function isFailure(type: string) {
   return ["email.bounced", "email.failed", "email.suppressed"].includes(type);
 }
 
+function copyEmailStatus(type: string) {
+  if (type === "email.delivered") return "sent";
+  if (isFailure(type)) return "failed";
+  return null;
+}
+
 function time(value: string | null | undefined) {
   const parsed = value ? Date.parse(value) : NaN;
   return Number.isFinite(parsed) ? parsed : 0;
@@ -108,6 +114,42 @@ export async function POST(request: NextRequest) {
       throw new Error(`Unable to record Resend event: ${await eventInsert.text()}`);
     }
 
+    const latest = await latestRecordedEvent(url, key, messageId);
+    const isLatestEvent = !latest || time(eventAt) >= time(latest.event_at);
+    if (!isLatestEvent) {
+      return NextResponse.json({ ok: true, matched: true, stateChanged: false, reason: "older_event" });
+    }
+
+    const epicCopyParams = new URLSearchParams({
+      select: "id",
+      copy_email_message_id: `eq.${messageId}`,
+      limit: "1",
+    });
+    const epicCopyResponse = await fetch(`${url}/rest/v1/epic_waiver_signatures?${epicCopyParams}`, {
+      headers: headers(key),
+      cache: "no-store",
+    });
+    if (!epicCopyResponse.ok) throw new Error(`Unable to match Epic document copy email: ${await epicCopyResponse.text()}`);
+    const epicCopies = await epicCopyResponse.json() as Array<{ id: string }>;
+    const epicCopy = epicCopies[0] ?? null;
+
+    if (epicCopy) {
+      const status = copyEmailStatus(eventType);
+      if (status) {
+        const response = await fetch(`${url}/rest/v1/epic_waiver_signatures?id=eq.${encodeURIComponent(epicCopy.id)}`, {
+          method: "PATCH",
+          headers: { ...headers(key), Prefer: "return=minimal" },
+          body: JSON.stringify({
+            copy_email_status: status,
+            copy_email_error: isFailure(eventType) ? failureDetail(event) : null,
+            updated_at: new Date().toISOString(),
+          }),
+        });
+        if (!response.ok) throw new Error(`Unable to update Epic document copy delivery status: ${await response.text()}`);
+      }
+      return NextResponse.json({ ok: true, matched: true, source: "epic_document_copy", stateChanged: Boolean(status) });
+    }
+
     const attemptParams = new URLSearchParams({
       select: "id,communication_id",
       provider_message_id: `eq.${messageId}`,
@@ -139,14 +181,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!communicationId) return NextResponse.json({ ok: true, matched: false });
-
-    // Replays and provider retries can arrive out of order. State must reflect the
-    // newest Resend event by event_at, not whichever webhook request arrived last.
-    const latest = await latestRecordedEvent(url, key, messageId);
-    const isLatestEvent = !latest || time(eventAt) >= time(latest.event_at);
-    if (!isLatestEvent) {
-      return NextResponse.json({ ok: true, matched: true, stateChanged: false, reason: "older_event" });
-    }
 
     if (eventType === "email.delivered") {
       const response = await fetch(`${url}/rest/v1/guest_email_delivery_incidents?provider_message_id=eq.${encodeURIComponent(messageId)}&status=neq.resolved`, {

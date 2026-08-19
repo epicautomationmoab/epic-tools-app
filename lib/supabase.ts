@@ -47,6 +47,11 @@ export type ReadinessRow = {
     is_minor_or_child?: boolean | null;
     is_waiver_adult?: boolean | null;
   }> | null;
+  epic_document_delivery_failures?: Array<{
+    name: string;
+    email?: string | null;
+    error?: string | null;
+  }> | null;
   mpwr_waivers: Array<{
     name: string;
     email?: string | null;
@@ -118,6 +123,10 @@ export async function getReadinessRows() {
   const rows = await fetchView<ReadinessRow>("guest_readiness_with_handoff_v", params);
   const confirmationCodes = [...new Set(rows.map((row) => row.confirmation_code).filter((code): code is string => Boolean(code)))];
   const portalTokenByConfirmationCode = new Map<string, string>();
+  const epicDocumentDeliveryFailuresByConfirmationCode = new Map<
+    string,
+    Array<{ name: string; email?: string | null; error?: string | null }>
+  >();
 
   for (let index = 0; index < confirmationCodes.length; index += 100) {
     const batch = confirmationCodes.slice(index, index + 100);
@@ -127,21 +136,51 @@ export async function getReadinessRows() {
       confirmation_code: `in.(${quotedCodes})`,
       limit: "1000",
     });
-    const portalRows = await fetchView<{ confirmation_code: string; guest_portal_token: string | null }>(
-      "guest_portal_v",
-      portalParams,
-      true,
-    );
+    const failedEpicDocParams = new URLSearchParams({
+      select: "confirmation_code,signer_full_name,signer_email,copy_email_error",
+      confirmation_code: `in.(${quotedCodes})`,
+      copy_email_status: "eq.failed",
+      limit: "1000",
+    });
+    const [portalRows, failedEpicDocs] = await Promise.all([
+      fetchView<{ confirmation_code: string; guest_portal_token: string | null }>(
+        "guest_portal_v",
+        portalParams,
+        true,
+      ),
+      fetchView<{
+        confirmation_code: string;
+        signer_full_name: string;
+        signer_email: string | null;
+        copy_email_error: string | null;
+      }>("epic_waiver_signatures", failedEpicDocParams, true),
+    ]);
 
     for (const portalRow of portalRows) {
       if (portalRow.confirmation_code && portalRow.guest_portal_token && !portalTokenByConfirmationCode.has(portalRow.confirmation_code)) {
         portalTokenByConfirmationCode.set(portalRow.confirmation_code, portalRow.guest_portal_token);
       }
     }
+
+    for (const failedEpicDoc of failedEpicDocs) {
+      if (!failedEpicDoc.confirmation_code || !failedEpicDoc.signer_full_name) continue;
+      const failures = epicDocumentDeliveryFailuresByConfirmationCode.get(failedEpicDoc.confirmation_code) ?? [];
+      failures.push({
+        name: failedEpicDoc.signer_full_name,
+        email: failedEpicDoc.signer_email,
+        error: failedEpicDoc.copy_email_error,
+      });
+      epicDocumentDeliveryFailuresByConfirmationCode.set(failedEpicDoc.confirmation_code, failures);
+    }
   }
 
   return rows
-    .map((row) => ({ ...row, guest_portal_token: portalTokenByConfirmationCode.get(row.confirmation_code) ?? null }))
+    .map((row) => ({
+      ...row,
+      guest_portal_token: portalTokenByConfirmationCode.get(row.confirmation_code) ?? null,
+      epic_document_delivery_failures:
+        epicDocumentDeliveryFailuresByConfirmationCode.get(row.confirmation_code) ?? [],
+    }))
     .sort((a, b) => a.visit_start_time.localeCompare(b.visit_start_time) || a.customer_name.localeCompare(b.customer_name));
 }
 
