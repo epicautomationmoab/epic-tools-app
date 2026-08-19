@@ -67,5 +67,8 @@ export async function supabaseRpc<T>(name: string, body: Record<string, unknown>
     cache: "no-store",
   });
   if (!response.ok) throw new Error((await response.text()) || `Unable to run ${name}.`);
-  return (await response.json()) as T;
+
+  const text = await response.text();
+  if (!text.trim()) return undefined as T;
+  return JSON.parse(text) as T;
 }
