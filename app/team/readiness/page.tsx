@@ -44,7 +44,7 @@ export default async function TeamReadinessPage() {
       <EmailDeliveryDrawerEnhancer />
       <ReservationDeepLinkEnhancer />
       <OhvDrawerEnhancer />
-      <SignedWaiverDrawerEnhancer />
+      <SignedWaiverDrawerEnhancer rows={rows} />
       <SharedActionPinEnhancer />
       <AdventureAssureEnhancer rows={rows} />
       <ContactSaveEnhancer />
