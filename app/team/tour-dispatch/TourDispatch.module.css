@@ -187,10 +187,10 @@
 
 .observationPanel {
   display: grid;
-  grid-template-columns: minmax(160px, 0.7fr) minmax(170px, 0.8fr) minmax(260px, 1.6fr) auto;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(170px, 0.8fr) minmax(210px, 1fr) minmax(240px, 1.25fr) auto;
   gap: 12px;
   align-items: end;
-  padding: 16px 18px 18px;
+  padding: 14px 18px 16px;
   border-left: 4px solid #536371;
 }
 
@@ -209,8 +209,32 @@
   text-transform: none;
 }
 
+.driverNamesCheck {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 7px;
+  max-width: 230px;
+  font-size: 10px !important;
+  line-height: 1.25;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.driverNamesCheck input[type="checkbox"] {
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+  margin: 1px 0 0 !important;
+  padding: 0;
+}
+
+.driverNamesCheck span {
+  display: block;
+  max-width: 205px;
+}
+
 .notesField input {
-  min-width: 240px;
+  min-width: 220px;
 }
 
 .empty {
@@ -226,5 +250,6 @@
 @media (max-width: 900px) {
   .content { padding: 20px 16px 32px; }
   .observationPanel { grid-template-columns: 1fr 1fr; }
+  .driverNamesCheck,
   .notesField { grid-column: 1 / -1; }
 }
