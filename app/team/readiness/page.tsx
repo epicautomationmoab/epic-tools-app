@@ -1,6 +1,5 @@
 import Link from "next/link";
 import ReadinessTable from "./ReadinessTable";
-import HistoricalReadinessSearch from "./HistoricalReadinessSearch";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
 import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
@@ -20,12 +19,11 @@ import styles from "./ReadinessShell.module.css";
 
 const navItems = [
   { label: "Guest Readiness", href: "/team/readiness", external: false },
+  { label: "Previous Guest Lookup", href: "/team/previous-guests", external: false },
   { label: "Email Delivery", href: "/team/email-delivery", external: false },
   { label: "Reservations", href: "https://epic4x4.tripworks.com", external: true },
   { label: "MPWR", href: "https://mpwr-hq.poladv.com/orders", external: true },
 ] as const;
-
-const agents = ["MPWR Agent", "Waiver Agent", "Portal Agent"] as const;
 
 export default async function TeamReadinessPage() {
   let rows: ReadinessRow[] = [];
@@ -67,16 +65,7 @@ export default async function TeamReadinessPage() {
           })}
         </nav>
 
-        <div className={styles.sidebarPhoto}>
-          <div className={styles.agentStack}>
-            {agents.map((agent) => (
-              <div className={styles.agentCard} key={agent}>
-                <div className={styles.agentTitle}>{agent}</div>
-                <div className={styles.agentStatus}><span className={styles.onlineDot} />Online</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <div className={styles.sidebarPhoto} />
       </aside>
 
       <main className={styles.main}>
@@ -93,7 +82,6 @@ export default async function TeamReadinessPage() {
         <section className={styles.content}>
           {error ? <div className={styles.error}>{error}</div> : null}
           <EmailDeliveryAlert />
-          <HistoricalReadinessSearch />
           <ReadinessTable rows={rows} />
         </section>
       </main>
