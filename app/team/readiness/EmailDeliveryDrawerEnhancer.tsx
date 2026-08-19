@@ -27,9 +27,17 @@ function findConfirmation(drawer: Element) {
 }
 
 function findEmailLabel(drawer: Element) {
-  for (const element of Array.from(drawer.querySelectorAll("*"))) {
+  const editButton = drawer.querySelector('button[aria-label="Edit email"]');
+  if (editButton) {
+    const label = editButton.closest("span");
+    if (label) return label;
+  }
+
+  for (const element of Array.from(drawer.querySelectorAll("span"))) {
     const text = normalizedText(element);
-    if (text === "email" || text === "email ✎" || text === "email ✏") return element;
+    if (text.startsWith("email") && element.querySelector('button[aria-label="Edit email"]')) {
+      return element;
+    }
   }
   return null;
 }
@@ -56,21 +64,24 @@ export default function EmailDeliveryDrawerEnhancer() {
       const drawer = document.querySelector('[role="dialog"]');
       if (!drawer) return;
 
-      drawer.querySelectorAll("[data-email-delivery-warning]").forEach((node) => node.remove());
+      drawer.querySelectorAll("[data-email-delivery-caution]").forEach((node) => node.remove());
 
       const confirmationCode = findConfirmation(drawer);
       if (!confirmationCode) return;
-      const incident = incidents.find((item) => item.confirmation_code?.toUpperCase() === confirmationCode && item.status !== "resolved");
+      const incident = incidents.find(
+        (item) => item.confirmation_code?.toUpperCase() === confirmationCode && item.status !== "resolved",
+      );
       if (!incident) return;
 
       const emailLabel = findEmailLabel(drawer);
-      if (!emailLabel || emailLabel.querySelector("[data-email-delivery-caution]")) return;
+      if (!emailLabel) return;
 
       const caution = document.createElement("span");
       caution.dataset.emailDeliveryCaution = "true";
-      caution.textContent = " ⚠";
+      caution.textContent = "⚠";
       caution.title = "Confirmation email delivery failed";
       caution.setAttribute("aria-label", "Confirmation email delivery failed");
+      caution.style.marginLeft = "7px";
       caution.style.color = "#d9a300";
       caution.style.fontSize = "18px";
       caution.style.fontWeight = "700";
