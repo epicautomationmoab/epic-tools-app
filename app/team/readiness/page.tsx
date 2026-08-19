@@ -13,6 +13,7 @@ import AdventureAssureEnhancer from "./AdventureAssureEnhancer";
 import ContactSaveEnhancer from "./ContactSaveEnhancer";
 import EmailDeliveryAlert from "./EmailDeliveryAlert";
 import EmailDeliveryDrawerEnhancer from "./EmailDeliveryDrawerEnhancer";
+import ReservationDeepLinkEnhancer from "./ReservationDeepLinkEnhancer";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -41,6 +42,7 @@ export default async function TeamReadinessPage() {
       <AutoCancellationPopupWatcher />
       <PortalEmailEnhancer />
       <EmailDeliveryDrawerEnhancer />
+      <ReservationDeepLinkEnhancer />
       <OhvDrawerEnhancer />
       <SignedWaiverDrawerEnhancer />
       <SharedActionPinEnhancer />
