@@ -21,3 +21,14 @@
   line-height: 1.2;
   letter-spacing: 0.01em;
 }
+
+.epicDocumentDeliveryWarning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 7px;
+  color: #c88a00;
+  font-size: 15px;
+  line-height: 1;
+  vertical-align: middle;
+}
