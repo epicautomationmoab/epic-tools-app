@@ -25,13 +25,13 @@ type Draft = {
 };
 
 function formatTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/Denver",
-  }).format(date);
+  const match = value.match(/(?:T|\s)(\d{2}):(\d{2})/);
+  if (!match) return value;
+  const hour24 = Number(match[1]);
+  const minute = match[2];
+  const suffix = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 || 12;
+  return `${hour12}:${minute} ${suffix}`;
 }
 
 export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] }) {
