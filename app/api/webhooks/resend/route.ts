@@ -36,10 +36,8 @@ function isFailure(type: string) {
 }
 
 function copyEmailStatus(type: string) {
-  if (type === "email.delivered") return "delivered";
-  if (type === "email.bounced") return "bounced";
-  if (type === "email.failed") return "failed";
-  if (type === "email.suppressed") return "suppressed";
+  if (type === "email.delivered") return "sent";
+  if (isFailure(type)) return "failed";
   return null;
 }
 
