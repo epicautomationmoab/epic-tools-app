@@ -8,7 +8,6 @@ import LastSynced from "./LastSynced";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
 import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
 import SignedWaiverDrawerEnhancer from "./SignedWaiverDrawerEnhancer";
-import GuestFormDrawerEnhancer from "./GuestFormDrawerEnhancer";
 import LogoutButton from "./LogoutButton";
 import SharedActionPinEnhancer from "./SharedActionPinEnhancer";
 import AdventureAssureEnhancer from "./AdventureAssureEnhancer";
@@ -37,7 +36,6 @@ export default async function TeamReadinessPage() {
       <EmailDeliveryDrawerEnhancer />
       <ReservationDeepLinkEnhancer />
       <OhvDrawerEnhancer />
-      <GuestFormDrawerEnhancer />
       <SignedWaiverDrawerEnhancer rows={rows} />
       <SharedActionPinEnhancer />
       <AdventureAssureEnhancer rows={rows} />
