@@ -97,21 +97,25 @@ export default function GuestFormDrawerEnhancer() {
     const row = actionRow();
     if (!token || !businessLine || !row) return;
 
+    const resolvedToken = token;
+    const resolvedBusinessLine = businessLine;
+    const resolvedRow = row;
+
     async function setup() {
       try {
-        const portalResponse = await fetch(`/api/guest/${encodeURIComponent(token)}`, { cache: "no-store" });
+        const portalResponse = await fetch(`/api/guest/${encodeURIComponent(resolvedToken)}`, { cache: "no-store" });
         const portal = await portalResponse.json() as PortalResponse & { error?: string };
         if (!portalResponse.ok || !portal.reservation) throw new Error(portal.error || "Unable to resolve reservation.");
 
-        const activity = bestActivityMatch(portal.reservation.activities, businessLine);
+        const activity = bestActivityMatch(portal.reservation.activities, resolvedBusinessLine);
         if (!activity || cancelled) return;
 
         const tasksResponse = await fetch(`/api/team/guest-forms/list?readinessId=${encodeURIComponent(activity.readinessId)}`, { cache: "no-store" });
         const tasksData = await tasksResponse.json() as { tasks?: GuestFormTask[]; error?: string };
         if (!tasksResponse.ok) throw new Error(tasksData.error || "Unable to load portal forms.");
 
-        const templateKey = businessLine === "rental" ? "pet_acknowledgment" : "minor_driver_authorization";
-        const label = businessLine === "rental" ? "🦮 Pet" : "🧍 Teen Driver";
+        const templateKey = resolvedBusinessLine === "rental" ? "pet_acknowledgment" : "minor_driver_authorization";
+        const label = resolvedBusinessLine === "rental" ? "🦮 Pet" : "🧍 Teen Driver";
         const task = (tasksData.tasks ?? []).find((item) => item.templateKey === templateKey && item.task_status !== "cancelled");
 
         const button = document.createElement("button");
@@ -137,7 +141,7 @@ export default function GuestFormDrawerEnhancer() {
           button.style.cursor = "default";
         } else {
           button.textContent = label;
-          button.title = businessLine === "rental" ? "Add Pet Acknowledgment to My Epic Reservation" : "Add Teen Driver Authorization to My Epic Reservation";
+          button.title = resolvedBusinessLine === "rental" ? "Add Pet Acknowledgment to My Epic Reservation" : "Add Teen Driver Authorization to My Epic Reservation";
           button.onclick = async () => {
             const original = button.textContent;
             button.disabled = true;
@@ -164,7 +168,7 @@ export default function GuestFormDrawerEnhancer() {
           };
         }
 
-        row.appendChild(button);
+        resolvedRow.appendChild(button);
       } catch (error) {
         console.error("Guest form quick add unavailable", error);
       }
