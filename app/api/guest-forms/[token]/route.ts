@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
+import { getServerSupabaseConfig, serverSupabaseHeaders, supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
 
 type Template = {
   id: string;
@@ -53,6 +53,19 @@ async function loadTemplate(id: string) {
     limit: "1",
   }));
   return rows[0] ?? null;
+}
+
+async function generateSignedPdf(submissionId: string) {
+  const { url } = getServerSupabaseConfig();
+  const response = await fetch(`${url}/functions/v1/generate-epic-guest-form-pdf`, {
+    method: "POST",
+    headers: serverSupabaseHeaders(),
+    body: JSON.stringify({ submission_id: submissionId }),
+    cache: "no-store",
+  });
+  const text = await response.text();
+  if (!response.ok) return { ok: false as const, error: text.slice(0, 500) };
+  return { ok: true as const, result: JSON.parse(text) as { storage_path?: string; sha256?: string; bytes?: number } };
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ token: string }> }) {
@@ -121,7 +134,20 @@ export async function POST(request: Request, context: { params: Promise<{ token:
         recorded_by: "guest_portal",
       });
     }
-    return NextResponse.json({ ok: true, documentId: submission.document_id, submissionId: submission.id });
+
+    const pdf = await generateSignedPdf(submission.id);
+    if (!pdf.ok) {
+      console.error("Guest form PDF generation failed", { submissionId: submission.id, documentId: submission.document_id, error: pdf.error });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      documentId: submission.document_id,
+      submissionId: submission.id,
+      pdfGenerated: pdf.ok,
+      pdf: pdf.ok ? pdf.result : null,
+      pdfError: pdf.ok ? null : pdf.error,
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to submit form." }, { status: 500 });
   }
