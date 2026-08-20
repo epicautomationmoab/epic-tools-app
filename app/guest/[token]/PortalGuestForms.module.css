@@ -57,6 +57,17 @@
   box-shadow: 0 8px 20px rgba(32, 36, 40, 0.08);
 }
 
+.completedTask {
+  border-color: #cfe7d7;
+  background: #f4fbf6;
+}
+
+.completedTask:hover {
+  transform: none;
+  border-color: #cfe7d7;
+  box-shadow: none;
+}
+
 .taskText {
   display: grid;
   gap: 3px;
@@ -72,14 +83,23 @@
   font-size: 12px;
 }
 
-.action {
+.action,
+.completeBadge {
   flex: 0 0 auto;
   padding: 8px 11px;
   border-radius: 999px;
-  background: #db5e25;
-  color: white;
   font-size: 12px;
   font-weight: 800;
+}
+
+.action {
+  background: #db5e25;
+  color: white;
+}
+
+.completeBadge {
+  background: #dff3e5;
+  color: #16713a;
 }
 
 @media (max-width: 640px) {
