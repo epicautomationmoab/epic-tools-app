@@ -78,13 +78,7 @@ function findCancellationCard(drawer: Element) {
     const text = node.textContent?.trim();
     return text === "Cancellation Policy Acknowledgement" || text === "Cancellation Policy Acknowledgment";
   });
-  if (!heading) return null;
-  let current: HTMLElement | null = heading;
-  while (current && current.parentElement !== drawer) {
-    if (current.parentElement?.querySelector("button")) current = current.parentElement;
-    else break;
-  }
-  return current ?? heading;
+  return heading?.closest("section") as HTMLElement | null;
 }
 
 function makeSignedFormRow(actionName: string, documentUrl: string) {
