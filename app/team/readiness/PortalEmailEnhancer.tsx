@@ -72,10 +72,25 @@ function bestActivityMatch(activities: PortalActivity[], businessLine: string, d
   return candidates.find((activity) => drawerText.includes(activity.productDisplayName.toLowerCase())) ?? candidates[0] ?? null;
 }
 
+function findCancellationCard(drawer: Element) {
+  const nodes = Array.from(drawer.querySelectorAll<HTMLElement>("h1,h2,h3,h4,strong,p,div"));
+  const heading = nodes.find((node) => {
+    const text = node.textContent?.trim();
+    return text === "Cancellation Policy Acknowledgement" || text === "Cancellation Policy Acknowledgment";
+  });
+  if (!heading) return null;
+  let current: HTMLElement | null = heading;
+  while (current && current.parentElement !== drawer) {
+    if (current.parentElement?.querySelector("button")) current = current.parentElement;
+    else break;
+  }
+  return current ?? heading;
+}
+
 function makeSignedFormRow(actionName: string, documentUrl: string) {
   const row = document.createElement("div");
   row.id = "guest-form-signed-row";
-  row.style.marginTop = "10px";
+  row.style.margin = "10px 0 12px";
   row.style.padding = "10px 12px";
   row.style.border = "1px solid #cfe7d6";
   row.style.borderRadius = "10px";
@@ -85,6 +100,8 @@ function makeSignedFormRow(actionName: string, documentUrl: string) {
   row.style.justifyContent = "space-between";
   row.style.gap = "12px";
   row.style.fontSize = "12px";
+  row.style.width = "100%";
+  row.style.boxSizing = "border-box";
 
   const status = document.createElement("span");
   status.textContent = `✓ ${actionName} complete`;
@@ -99,6 +116,7 @@ function makeSignedFormRow(actionName: string, documentUrl: string) {
   link.style.fontWeight = "850";
   link.style.color = "#1f67b1";
   link.style.textDecoration = "none";
+  link.style.whiteSpace = "nowrap";
 
   row.append(status, link);
   return row;
@@ -178,8 +196,6 @@ export default function PortalEmailEnhancer() {
         styleIconButton(formButton);
         resendButton.insertAdjacentElement("afterend", formButton);
 
-        const actionRow = portalLink.parentElement;
-
         const applyTaskState = async () => {
           if (!document.body.contains(drawer) || !document.body.contains(formButton)) return;
           const tasksResponse = await fetch(`/api/team/guest-forms/list?readinessId=${encodeURIComponent(activity.readinessId)}`, { cache: "no-store" });
@@ -192,33 +208,39 @@ export default function PortalEmailEnhancer() {
           formButton.disabled = false;
           formButton.style.opacity = "1";
           formButton.style.cursor = "pointer";
+          formButton.style.background = "#fff";
+          formButton.style.borderColor = "#c8d0d7";
+          formButton.textContent = icon;
 
           if (existing?.task_status === "completed") {
-            formButton.textContent = `✓${icon}`;
             formButton.title = existing.pdfReady ? `View signed ${actionName}` : `${actionName} completed`;
             formButton.setAttribute("aria-label", existing.pdfReady ? `View signed ${actionName}` : `${actionName} completed`);
+            formButton.style.background = "#f2fbf5";
+            formButton.style.borderColor = "#a9d8b8";
             if (existing.pdfReady && existing.documentUrl) {
               formButton.onclick = () => window.open(existing.documentUrl!, "_blank", "noopener,noreferrer");
-              if (actionRow) actionRow.insertAdjacentElement("afterend", makeSignedFormRow(actionName, existing.documentUrl));
+              const signedRow = makeSignedFormRow(actionName, existing.documentUrl);
+              const cancellationCard = findCancellationCard(drawer);
+              if (cancellationCard?.parentElement) cancellationCard.parentElement.insertBefore(signedRow, cancellationCard);
             } else {
               formButton.disabled = true;
-              formButton.style.opacity = "0.65";
+              formButton.style.opacity = "0.72";
               formButton.style.cursor = "default";
             }
             return;
           }
 
           if (existing) {
-            formButton.textContent = `✓${icon}`;
             formButton.title = `${actionName} is in My Epic Reservation`;
             formButton.setAttribute("aria-label", `${actionName} already added to guest portal`);
+            formButton.style.background = "#f7faf8";
+            formButton.style.borderColor = "#cfe7d6";
             formButton.disabled = true;
-            formButton.style.opacity = "0.65";
+            formButton.style.opacity = "0.78";
             formButton.style.cursor = "default";
             return;
           }
 
-          formButton.textContent = icon;
           formButton.title = `Add ${actionName} to My Epic Reservation`;
           formButton.setAttribute("aria-label", `Add ${actionName} to guest portal`);
           formButton.onclick = async () => {
