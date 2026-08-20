@@ -71,7 +71,10 @@ function validateTemplateFields(template: Template, formData: Record<string, str
 
   if (!dob || !today) return "Please enter a valid date of birth.";
   if (dob.getTime() > today.getTime()) return "Date of birth cannot be in the future.";
-  if (ageOnDate(dob, today) >= 18) return "Teen Driver Authorization is only for drivers under 18.";
+
+  const age = ageOnDate(dob, today);
+  if (age < 16) return "Teen drivers must be at least 16 years old.";
+  if (age >= 18) return "Teen Driver Authorization is only for drivers age 16 or 17.";
 
   if (!expiration) return "Please enter a valid driver's license expiration date.";
   if (expiration.getTime() < today.getTime()) return "The driver's license is expired. A current driver's license is required.";
