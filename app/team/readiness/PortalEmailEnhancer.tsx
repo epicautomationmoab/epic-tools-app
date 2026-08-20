@@ -72,6 +72,38 @@ function bestActivityMatch(activities: PortalActivity[], businessLine: string, d
   return candidates.find((activity) => drawerText.includes(activity.productDisplayName.toLowerCase())) ?? candidates[0] ?? null;
 }
 
+function makeSignedFormRow(actionName: string, documentUrl: string) {
+  const row = document.createElement("div");
+  row.id = "guest-form-signed-row";
+  row.style.marginTop = "10px";
+  row.style.padding = "10px 12px";
+  row.style.border = "1px solid #cfe7d6";
+  row.style.borderRadius = "10px";
+  row.style.background = "#f2fbf5";
+  row.style.display = "flex";
+  row.style.alignItems = "center";
+  row.style.justifyContent = "space-between";
+  row.style.gap = "12px";
+  row.style.fontSize = "12px";
+
+  const status = document.createElement("span");
+  status.textContent = `✓ ${actionName} complete`;
+  status.style.fontWeight = "800";
+  status.style.color = "#18713b";
+
+  const link = document.createElement("a");
+  link.href = documentUrl;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = "View Signed Form";
+  link.style.fontWeight = "850";
+  link.style.color = "#1f67b1";
+  link.style.textDecoration = "none";
+
+  row.append(status, link);
+  return row;
+}
+
 export default function PortalEmailEnhancer() {
   useEffect(() => {
     const timers = new Map<Element, number>();
@@ -146,6 +178,8 @@ export default function PortalEmailEnhancer() {
         styleIconButton(formButton);
         resendButton.insertAdjacentElement("afterend", formButton);
 
+        const actionRow = portalLink.parentElement;
+
         const applyTaskState = async () => {
           if (!document.body.contains(drawer) || !document.body.contains(formButton)) return;
           const tasksResponse = await fetch(`/api/team/guest-forms/list?readinessId=${encodeURIComponent(activity.readinessId)}`, { cache: "no-store" });
@@ -153,6 +187,7 @@ export default function PortalEmailEnhancer() {
           const tasksData = (await tasksResponse.json()) as { tasks?: GuestFormTask[] };
           const existing = (tasksData.tasks ?? []).find((task) => task.templateKey === templateKey && task.task_status !== "cancelled");
 
+          drawer.querySelector("#guest-form-signed-row")?.remove();
           formButton.onclick = null;
           formButton.disabled = false;
           formButton.style.opacity = "1";
@@ -164,6 +199,7 @@ export default function PortalEmailEnhancer() {
             formButton.setAttribute("aria-label", existing.pdfReady ? `View signed ${actionName}` : `${actionName} completed`);
             if (existing.pdfReady && existing.documentUrl) {
               formButton.onclick = () => window.open(existing.documentUrl!, "_blank", "noopener,noreferrer");
+              if (actionRow) actionRow.insertAdjacentElement("afterend", makeSignedFormRow(actionName, existing.documentUrl));
             } else {
               formButton.disabled = true;
               formButton.style.opacity = "0.65";
