@@ -15,32 +15,42 @@ type GuestFormTask = {
   completed_at: string | null;
 };
 
-function portalLinkFromDrawer() {
-  return document.querySelector<HTMLAnchorElement>('a[href^="/guest/"]');
-}
+type PortalActivity = {
+  readinessId: string;
+  businessLine: string;
+  productDisplayName: string;
+  visitStartTime: string;
+};
+
+type PortalResponse = {
+  reservation?: { activities?: PortalActivity[] };
+  error?: string;
+};
 
 function portalTokenFromDrawer() {
-  const link = portalLinkFromDrawer();
+  const link = document.querySelector<HTMLAnchorElement>('[role="dialog"] a[href^="/guest/"]');
   const match = link?.getAttribute("href")?.match(/^\/guest\/([^/?#]+)/);
   return match?.[1] ?? null;
 }
 
-function readinessIdFromDrawer() {
+function drawerSummary() {
   const drawer = document.querySelector<HTMLElement>('[role="dialog"]');
   if (!drawer) return null;
-  const row = Array.from(document.querySelectorAll<HTMLTableRowElement>("tbody tr")).find((candidate) => {
-    const guest = candidate.querySelector("td:nth-child(2) div")?.textContent?.trim();
-    const heading = drawer.querySelector("h2")?.textContent?.trim();
-    return Boolean(guest && heading && guest === heading);
-  });
-  return row?.getAttribute("data-readiness-id") ?? null;
+  const text = drawer.textContent ?? "";
+  const businessLine = text.includes("Adventure AssureTour") || text.includes("Adventure Assure Tour") ? "tour" : "rental";
+  const title = drawer.querySelector("header p:last-of-type")?.textContent ?? "";
+  return { businessLine, title };
 }
 
-function businessLineFromDrawer() {
-  const cards = Array.from(document.querySelectorAll<HTMLElement>("[role=dialog] div"));
-  const assure = cards.find((card) => card.querySelector(":scope > span")?.textContent?.trim() === "Adventure Assure");
-  const value = assure?.querySelector(":scope > strong")?.textContent?.trim();
-  return value === "Tour" ? "tour" : value ? "rental" : null;
+function normalize(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function chooseActivity(activities: PortalActivity[], line: string, drawerText: string) {
+  const sameLine = activities.filter((activity) => activity.businessLine?.toLowerCase() === line);
+  if (sameLine.length <= 1) return sameLine[0] ?? null;
+  const haystack = normalize(drawerText);
+  return sameLine.find((activity) => haystack.includes(normalize(activity.productDisplayName))) ?? sameLine[0] ?? null;
 }
 
 function insertionPoint() {
@@ -59,6 +69,7 @@ function statusLabel(task: GuestFormTask | undefined) {
 }
 
 export default function GuestFormDrawerEnhancer() {
+  const [portalToken, setPortalToken] = useState<string | null>(null);
   const [readinessId, setReadinessId] = useState<string | null>(null);
   const [businessLine, setBusinessLine] = useState<string | null>(null);
   const [tasks, setTasks] = useState<GuestFormTask[]>([]);
@@ -68,18 +79,43 @@ export default function GuestFormDrawerEnhancer() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const sync = () => {
-      const token = portalTokenFromDrawer();
-      setBusinessLine(token ? businessLineFromDrawer() : null);
-      const drawer = document.querySelector<HTMLElement>('[role="dialog"]');
-      const direct = drawer?.getAttribute("data-readiness-id") ?? null;
-      setReadinessId(token ? direct || readinessIdFromDrawer() : null);
-    };
+    const sync = () => setPortalToken(portalTokenFromDrawer());
     sync();
     const observer = new MutationObserver(sync);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!portalToken) {
+      setReadinessId(null);
+      setBusinessLine(null);
+      setTasks([]);
+      return;
+    }
+
+    let cancelled = false;
+    const summary = drawerSummary();
+    if (!summary) return;
+
+    fetch(`/api/guest/${encodeURIComponent(portalToken)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json() as PortalResponse;
+        if (!response.ok || !data.reservation) throw new Error(data.error || "Unable to resolve guest portal.");
+        return data.reservation.activities ?? [];
+      })
+      .then((activities) => {
+        if (cancelled) return;
+        const activity = chooseActivity(activities, summary.businessLine, summary.title);
+        setReadinessId(activity?.readinessId ?? null);
+        setBusinessLine(activity?.businessLine?.toLowerCase() ?? null);
+      })
+      .catch((caught) => {
+        if (!cancelled) setError(caught instanceof Error ? caught.message : "Unable to resolve guest portal.");
+      });
+
+    return () => { cancelled = true; };
+  }, [portalToken]);
 
   async function loadTasks(id: string) {
     setLoading(true);
