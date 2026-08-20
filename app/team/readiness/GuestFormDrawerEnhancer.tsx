@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type GuestFormTask = {
   id: string;
   task_status: string;
   templateKey: string | null;
-  documentId: string | null;
   pdfReady: boolean;
   documentUrl: string | null;
 };
@@ -15,7 +14,6 @@ type PortalActivity = {
   readinessId: string;
   businessLine: string;
   productDisplayName: string;
-  visitStartTime: string;
 };
 
 type PortalResponse = {
@@ -28,8 +26,7 @@ function portalLinkFromDrawer() {
 }
 
 function portalTokenFromDrawer() {
-  const link = portalLinkFromDrawer();
-  const match = link?.getAttribute("href")?.match(/^\/guest\/([^/?#]+)/);
+  const match = portalLinkFromDrawer()?.getAttribute("href")?.match(/^\/guest\/([^/?#]+)/);
   return match?.[1] ?? null;
 }
 
@@ -47,8 +44,13 @@ function drawerText() {
 }
 
 function actionRow() {
-  const portalLink = portalLinkFromDrawer();
-  return portalLink?.parentElement ?? null;
+  return portalLinkFromDrawer()?.parentElement ?? null;
+}
+
+function drawerKey() {
+  const token = portalTokenFromDrawer();
+  const line = businessLineFromDrawer();
+  return token && line ? `${token}|${line}` : "";
 }
 
 function buttonStyle(button: HTMLButtonElement) {
@@ -69,19 +71,23 @@ function buttonStyle(button: HTMLButtonElement) {
 function bestActivityMatch(activities: PortalActivity[], businessLine: string) {
   const candidates = activities.filter((activity) => activity.businessLine.toLowerCase() === businessLine);
   if (candidates.length <= 1) return candidates[0] ?? null;
-
   const text = drawerText().toLowerCase();
-  const byName = candidates.filter((activity) => text.includes(activity.productDisplayName.toLowerCase()));
-  if (byName.length === 1) return byName[0];
-
-  return byName[0] ?? candidates[0] ?? null;
+  return candidates.find((activity) => text.includes(activity.productDisplayName.toLowerCase())) ?? candidates[0] ?? null;
 }
 
 export default function GuestFormDrawerEnhancer() {
-  const [version, setVersion] = useState(0);
+  const [key, setKey] = useState("");
+  const lastKey = useRef("");
 
   useEffect(() => {
-    const sync = () => setVersion((value) => value + 1);
+    const sync = () => {
+      const next = drawerKey();
+      if (next !== lastKey.current) {
+        lastKey.current = next;
+        setKey(next);
+      }
+    };
+    sync();
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
@@ -89,13 +95,12 @@ export default function GuestFormDrawerEnhancer() {
 
   useEffect(() => {
     let cancelled = false;
-    const existing = document.getElementById("guest-form-quick-add");
-    if (existing) existing.remove();
+    document.getElementById("guest-form-quick-add")?.remove();
 
     const token = portalTokenFromDrawer();
     const businessLine = businessLineFromDrawer();
     const row = actionRow();
-    if (!token || !businessLine || !row) return;
+    if (!key || !token || !businessLine || !row) return;
 
     const resolvedToken = token;
     const resolvedBusinessLine = businessLine;
@@ -124,7 +129,7 @@ export default function GuestFormDrawerEnhancer() {
         buttonStyle(button);
 
         if (task?.task_status === "completed") {
-          button.textContent = task.pdfReady ? `✓ ${label.replace(/^\S+\s/, "")}` : `✓ ${label}`;
+          button.textContent = `✓ ${label}`;
           button.title = "Completed";
           if (task.pdfReady && task.documentUrl) {
             button.onclick = () => window.open(task.documentUrl!, "_blank", "noopener,noreferrer");
@@ -141,7 +146,9 @@ export default function GuestFormDrawerEnhancer() {
           button.style.cursor = "default";
         } else {
           button.textContent = label;
-          button.title = resolvedBusinessLine === "rental" ? "Add Pet Acknowledgment to My Epic Reservation" : "Add Teen Driver Authorization to My Epic Reservation";
+          button.title = resolvedBusinessLine === "rental"
+            ? "Add Pet Acknowledgment to My Epic Reservation"
+            : "Add Teen Driver Authorization to My Epic Reservation";
           button.onclick = async () => {
             const original = button.textContent;
             button.disabled = true;
@@ -158,7 +165,6 @@ export default function GuestFormDrawerEnhancer() {
               button.textContent = `${label} ✓`;
               button.title = "Added to My Epic Reservation";
               button.style.opacity = "1";
-              window.setTimeout(() => setVersion((value) => value + 1), 300);
             } catch (error) {
               window.alert(error instanceof Error ? error.message : "Unable to add form to portal.");
               button.textContent = original;
@@ -179,7 +185,7 @@ export default function GuestFormDrawerEnhancer() {
       cancelled = true;
       document.getElementById("guest-form-quick-add")?.remove();
     };
-  }, [version]);
+  }, [key]);
 
   return null;
 }
