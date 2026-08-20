@@ -17,9 +17,7 @@ type GuestFormTask = {
   openUrl: string | null;
 };
 
-type PortalPayload = {
-  reservation?: { guestForms?: GuestFormTask[] };
-};
+type FormsPayload = { tasks?: GuestFormTask[] };
 
 export default function PortalGuestForms() {
   const token = useParams<{ token: string }>()?.token;
@@ -31,12 +29,12 @@ export default function PortalGuestForms() {
 
     const load = async () => {
       try {
-        const response = await fetch(`/api/guest/${encodeURIComponent(token)}`, { cache: "no-store" });
+        const response = await fetch(`/api/guest/${encodeURIComponent(token)}/guest-forms`, { cache: "no-store" });
         if (!response.ok) return;
-        const data = (await response.json()) as PortalPayload;
-        if (!cancelled) setTasks(data.reservation?.guestForms ?? []);
+        const data = (await response.json()) as FormsPayload;
+        if (!cancelled) setTasks(data.tasks ?? []);
       } catch {
-        // The main portal remains usable even if supplemental forms cannot be loaded.
+        // Supplemental forms must never block the reservation portal.
       }
     };
 
@@ -48,8 +46,6 @@ export default function PortalGuestForms() {
     };
   }, [token]);
 
-  if (!tasks.length) return null;
-
   const outstanding = tasks.filter((task) => task.status !== "completed");
   if (!outstanding.length) return null;
 
@@ -59,7 +55,6 @@ export default function PortalGuestForms() {
         <span className={styles.kicker}>Added to your reservation</span>
         <strong>{outstanding.length === 1 ? "One additional item needs your attention" : `${outstanding.length} additional items need your attention`}</strong>
       </div>
-
       <div className={styles.tasks}>
         {outstanding.map((task) => (
           <a className={styles.task} href={task.openUrl ?? "#"} key={task.taskId}>
