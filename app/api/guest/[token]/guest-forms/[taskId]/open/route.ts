@@ -41,8 +41,9 @@ export async function GET(
     if (["cancelled", "expired"].includes(task.task_status)) {
       return NextResponse.json({ error: "This form is no longer available." }, { status: 410 });
     }
+    const portalPath = `/guest/${encodeURIComponent(token)}`;
     if (task.task_status === "completed") {
-      return NextResponse.redirect(new URL(`/guest/${encodeURIComponent(token)}`, request.url), 302);
+      return NextResponse.redirect(new URL(portalPath, request.url), 302);
     }
     if (task.expires_at && new Date(task.expires_at).getTime() <= Date.now()) {
       await supabasePatch("guest_form_tasks", new URLSearchParams({ id: `eq.${task.id}` }), {
@@ -58,7 +59,9 @@ export async function GET(
       updated_at: new Date().toISOString(),
     });
 
-    return NextResponse.redirect(new URL(`/form/${rawToken}`, request.url), 302);
+    const formUrl = new URL(`/form/${rawToken}`, request.url);
+    formUrl.searchParams.set("return", portalPath);
+    return NextResponse.redirect(formUrl, 302);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to open this form." },
