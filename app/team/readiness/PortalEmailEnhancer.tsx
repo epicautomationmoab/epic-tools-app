@@ -45,14 +45,24 @@ function styleSecondaryButton(button: HTMLButtonElement) {
   button.style.display = "inline-flex";
   button.style.alignItems = "center";
   button.style.justifyContent = "center";
-  button.style.marginLeft = "10px";
-  button.style.padding = "10px 14px";
+  button.style.marginLeft = "8px";
+  button.style.padding = "10px 12px";
   button.style.border = "1px solid #c8d0d7";
   button.style.borderRadius = "8px";
   button.style.background = "#fff";
   button.style.color = "#26313b";
   button.style.fontWeight = "850";
   button.style.cursor = "pointer";
+}
+
+function styleIconButton(button: HTMLButtonElement) {
+  styleSecondaryButton(button);
+  button.style.width = "42px";
+  button.style.height = "42px";
+  button.style.padding = "0";
+  button.style.fontSize = "20px";
+  button.style.lineHeight = "1";
+  button.style.flex = "0 0 42px";
 }
 
 function bestActivityMatch(activities: PortalActivity[], businessLine: string, drawer: Element) {
@@ -129,17 +139,19 @@ export default function PortalEmailEnhancer() {
         const tasksData = (await tasksResponse.json()) as { tasks?: GuestFormTask[] };
 
         const templateKey = businessLine === "rental" ? "pet_acknowledgment" : "minor_driver_authorization";
-        const label = businessLine === "rental" ? "🦮 Pet" : "🧍 Teen Driver";
+        const icon = businessLine === "rental" ? "🦮" : "🧍";
+        const actionName = businessLine === "rental" ? "Pet Acknowledgment" : "Teen Driver Authorization";
         const existing = (tasksData.tasks ?? []).find((task) => task.templateKey === templateKey && task.task_status !== "cancelled");
 
         const formButton = document.createElement("button");
         formButton.type = "button";
         formButton.id = "guest-form-quick-add";
-        styleSecondaryButton(formButton);
+        styleIconButton(formButton);
 
         if (existing?.task_status === "completed") {
-          formButton.textContent = `✓ ${label}`;
-          formButton.title = "Completed";
+          formButton.textContent = `✓${icon}`;
+          formButton.title = `${actionName} completed`;
+          formButton.setAttribute("aria-label", `${actionName} completed`);
           if (existing.pdfReady && existing.documentUrl) {
             formButton.onclick = () => window.open(existing.documentUrl!, "_blank", "noopener,noreferrer");
           } else {
@@ -148,20 +160,20 @@ export default function PortalEmailEnhancer() {
             formButton.style.cursor = "default";
           }
         } else if (existing) {
-          formButton.textContent = `${label} ✓`;
-          formButton.title = "Already in My Epic Reservation";
+          formButton.textContent = `✓${icon}`;
+          formButton.title = `${actionName} is already in My Epic Reservation`;
+          formButton.setAttribute("aria-label", `${actionName} already added to guest portal`);
           formButton.disabled = true;
           formButton.style.opacity = "0.65";
           formButton.style.cursor = "default";
         } else {
-          formButton.textContent = label;
-          formButton.title = businessLine === "rental"
-            ? "Add Pet Acknowledgment to My Epic Reservation"
-            : "Add Teen Driver Authorization to My Epic Reservation";
+          formButton.textContent = icon;
+          formButton.title = `Add ${actionName} to My Epic Reservation`;
+          formButton.setAttribute("aria-label", `Add ${actionName} to guest portal`);
           formButton.onclick = async () => {
             const original = formButton.textContent;
             formButton.disabled = true;
-            formButton.textContent = "Adding...";
+            formButton.textContent = "…";
             formButton.style.opacity = "0.65";
             try {
               const response = await fetch("/api/team/guest-forms/create", {
@@ -171,8 +183,9 @@ export default function PortalEmailEnhancer() {
               });
               const result = (await response.json()) as { error?: string };
               if (!response.ok) throw new Error(result.error || "Unable to add form to portal.");
-              formButton.textContent = `${label} ✓`;
-              formButton.title = "Added to My Epic Reservation";
+              formButton.textContent = `✓${icon}`;
+              formButton.title = `${actionName} added to My Epic Reservation`;
+              formButton.setAttribute("aria-label", `${actionName} added to guest portal`);
               formButton.style.opacity = "1";
             } catch (error) {
               window.alert(error instanceof Error ? error.message : "Unable to add form to portal.");
