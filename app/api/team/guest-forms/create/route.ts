@@ -40,9 +40,11 @@ export async function POST(request: NextRequest) {
       task_status: "not.in.(expired,cancelled)",
       limit: "1",
     }));
-    if (existing[0]) return NextResponse.json({ error: `An active ${template.template_name} task already exists for this reservation.` }, { status: 409 });
+    if (existing[0]) return NextResponse.json({ error: `${template.template_name} is already in this guest portal.` }, { status: 409 });
 
-    const rawToken = randomBytes(24).toString("hex");
+    // The guest reaches this form through their existing reservation portal.
+    // A one-time task token is still initialized here and rotated whenever the portal opens the form.
+    const initialToken = randomBytes(24).toString("hex");
     const expiryDays = Math.max(1, Math.min(body.expiresInDays ?? 30, 180));
     const expiresAt = new Date(Date.now() + expiryDays * 86400000).toISOString();
     const task = await supabaseInsert<{ id: string }>("guest_form_tasks", {
@@ -50,23 +52,22 @@ export async function POST(request: NextRequest) {
       store_visit_id: readiness.source_store_visit_id,
       confirmation_code: readiness.confirmation_code,
       template_id: template.id,
-      public_token_hash: hashToken(rawToken),
+      public_token_hash: hashToken(initialToken),
       expires_at: expiresAt,
       assigned_guest_name: readiness.customer_name,
       assigned_guest_email: readiness.customer_email,
       created_by: profile.display_name,
-      metadata: { created_by_profile_id: profile.id },
+      metadata: { created_by_profile_id: profile.id, delivery_mode: "guest_portal" },
     });
 
-    const origin = request.nextUrl.origin;
     return NextResponse.json({
       ok: true,
       taskId: task.id,
       templateName: template.template_name,
-      publicUrl: `${origin}/form/${rawToken}`,
+      portalAdded: true,
       expiresAt,
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to create guest form task." }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to add guest form to portal." }, { status: 500 });
   }
 }
