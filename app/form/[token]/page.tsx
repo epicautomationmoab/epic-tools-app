@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import styles from "./GuestForm.module.css";
 
 type Field = { key: string; label: string; type: string; required?: boolean };
@@ -72,6 +72,9 @@ function SignaturePad({ onChange }: { onChange: (value: string | null) => void }
 
 export default function GuestFormPage() {
   const token = useParams<{ token: string }>()?.token;
+  const searchParams = useSearchParams();
+  const returnPath = searchParams.get("return");
+  const safeReturnPath = returnPath?.startsWith("/guest/") ? returnPath : null;
   const [payload, setPayload] = useState<FormPayload | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [signature, setSignature] = useState<string | null>(null);
@@ -126,7 +129,8 @@ export default function GuestFormPage() {
     {!loading && error && !payload ? <div className={`${styles.message} ${styles.error}`}>{error}</div> : null}
     {!loading && payload && complete ? <div className={styles.complete}>
       <div className={styles.check}>✓</div><h1>Thank you</h1><p>Your {payload.template.form_title} has been recorded.</p>
-      <p>Reservation <strong>{payload.task.confirmation_code}</strong></p>{documentId ? <small>Document ID: {documentId}</small> : null}<small>You may close this page.</small>
+      <p>Reservation <strong>{payload.task.confirmation_code}</strong></p>{documentId ? <small>Document ID: {documentId}</small> : null}
+      {safeReturnPath ? <a className={styles.submit} href={safeReturnPath}>Return to My Epic Reservation</a> : <small>You may close this page.</small>}
     </div> : null}
     {!loading && payload && !complete ? <form className={styles.form} onSubmit={submit}>
       <p className={styles.eyebrow}>Reservation {payload.task.confirmation_code}</p>
