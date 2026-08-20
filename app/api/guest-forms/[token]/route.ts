@@ -36,6 +36,49 @@ function clientIp(request: Request) {
     || null;
 }
 
+function parseDateOnly(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function denverDateOnly() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function ageOnDate(dob: Date, asOf: Date) {
+  let age = asOf.getUTCFullYear() - dob.getUTCFullYear();
+  const beforeBirthday = asOf.getUTCMonth() < dob.getUTCMonth()
+    || (asOf.getUTCMonth() === dob.getUTCMonth() && asOf.getUTCDate() < dob.getUTCDate());
+  if (beforeBirthday) age -= 1;
+  return age;
+}
+
+function validateTemplateFields(template: Template, formData: Record<string, string>) {
+  if (template.template_key !== "minor_driver_authorization") return null;
+
+  const dob = parseDateOnly(String(formData.minor_dob || ""));
+  const expiration = parseDateOnly(String(formData.license_expiration_date || ""));
+  const today = parseDateOnly(denverDateOnly());
+
+  if (!dob || !today) return "Please enter a valid date of birth.";
+  if (dob.getTime() > today.getTime()) return "Date of birth cannot be in the future.";
+  if (ageOnDate(dob, today) >= 18) return "Teen Driver Authorization is only for drivers under 18.";
+
+  if (!expiration) return "Please enter a valid driver's license expiration date.";
+  if (expiration.getTime() < today.getTime()) return "The driver's license is expired. A current driver's license is required.";
+
+  return null;
+}
+
 async function loadTask(token: string) {
   const rows = await supabaseSelect<Task>("guest_form_tasks", new URLSearchParams({
     select: "id,readiness_id,confirmation_code,task_status,expires_at,assigned_guest_name,template_id,opened_at",
@@ -107,6 +150,10 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     for (const field of template.fields_schema) {
       if (field.required && !String(formData[field.key] ?? "").trim()) return NextResponse.json({ error: `${field.label} is required.` }, { status: 400 });
     }
+
+    const validationError = validateTemplateFields(template, formData);
+    if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+
     if (body.agreed !== true) return NextResponse.json({ error: "You must acknowledge the agreement before signing." }, { status: 400 });
     if (template.requires_signature && !body.signatureDataUrl?.startsWith("data:image/png;base64,")) return NextResponse.json({ error: "Please sign in the signature box." }, { status: 400 });
     const signerName = body.signerName?.trim() || String(formData.renter_full_name || `${formData.guardian_first_name || ""} ${formData.guardian_last_name || ""}`).trim();
@@ -126,13 +173,17 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     const now = new Date().toISOString();
     await supabasePatch("guest_form_tasks", new URLSearchParams({ id: `eq.${task.id}` }), { task_status: "completed", completed_at: now, updated_at: now });
     if (task.readiness_id) {
-      await supabaseInsert("epic_reservation_events", {
-        readiness_id: task.readiness_id,
-        event_type: "guest_form_completed",
-        event_notes: `${template.template_name} completed`,
-        event_data: { task_id: task.id, template_key: template.template_key, submission_id: submission.id, document_id: submission.document_id },
-        recorded_by: "guest_portal",
-      });
+      try {
+        await supabaseInsert("epic_reservation_events", {
+          readiness_id: task.readiness_id,
+          event_type: "guest_form_completed",
+          event_notes: `${template.template_name} completed`,
+          event_data: { task_id: task.id, template_key: template.template_key, submission_id: submission.id, document_id: submission.document_id },
+          recorded_by: "guest_portal",
+        });
+      } catch (eventError) {
+        console.error("Unable to write guest form reservation event", eventError);
+      }
     }
 
     const pdf = await generateSignedPdf(submission.id);
