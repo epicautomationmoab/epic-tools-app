@@ -74,6 +74,8 @@ function bestActivityMatch(activities: PortalActivity[], businessLine: string, d
 
 export default function PortalEmailEnhancer() {
   useEffect(() => {
+    const timers = new Map<Element, number>();
+
     async function enhance() {
       const portalLink = document.querySelector<HTMLAnchorElement>('a[href^="/guest/"]');
       if (!portalLink || portalLink.dataset.emailEnhanced === "true") return;
@@ -134,44 +136,56 @@ export default function PortalEmailEnhancer() {
         const activity = bestActivityMatch(portal.reservation?.activities ?? [], businessLine, drawer);
         if (!activity) return;
 
-        const tasksResponse = await fetch(`/api/team/guest-forms/list?readinessId=${encodeURIComponent(activity.readinessId)}`, { cache: "no-store" });
-        if (!tasksResponse.ok) return;
-        const tasksData = (await tasksResponse.json()) as { tasks?: GuestFormTask[] };
-
         const templateKey = businessLine === "rental" ? "pet_acknowledgment" : "minor_driver_authorization";
         const icon = businessLine === "rental" ? "🦮" : "🧍";
         const actionName = businessLine === "rental" ? "Pet Acknowledgment" : "Teen Driver Authorization";
-        const existing = (tasksData.tasks ?? []).find((task) => task.templateKey === templateKey && task.task_status !== "cancelled");
 
         const formButton = document.createElement("button");
         formButton.type = "button";
         formButton.id = "guest-form-quick-add";
         styleIconButton(formButton);
+        resendButton.insertAdjacentElement("afterend", formButton);
 
-        if (existing?.task_status === "completed") {
-          formButton.textContent = `✓${icon}`;
-          formButton.title = `${actionName} completed`;
-          formButton.setAttribute("aria-label", `${actionName} completed`);
-          if (existing.pdfReady && existing.documentUrl) {
-            formButton.onclick = () => window.open(existing.documentUrl!, "_blank", "noopener,noreferrer");
-          } else {
+        const applyTaskState = async () => {
+          if (!document.body.contains(drawer) || !document.body.contains(formButton)) return;
+          const tasksResponse = await fetch(`/api/team/guest-forms/list?readinessId=${encodeURIComponent(activity.readinessId)}`, { cache: "no-store" });
+          if (!tasksResponse.ok) return;
+          const tasksData = (await tasksResponse.json()) as { tasks?: GuestFormTask[] };
+          const existing = (tasksData.tasks ?? []).find((task) => task.templateKey === templateKey && task.task_status !== "cancelled");
+
+          formButton.onclick = null;
+          formButton.disabled = false;
+          formButton.style.opacity = "1";
+          formButton.style.cursor = "pointer";
+
+          if (existing?.task_status === "completed") {
+            formButton.textContent = `✓${icon}`;
+            formButton.title = existing.pdfReady ? `View signed ${actionName}` : `${actionName} completed`;
+            formButton.setAttribute("aria-label", existing.pdfReady ? `View signed ${actionName}` : `${actionName} completed`);
+            if (existing.pdfReady && existing.documentUrl) {
+              formButton.onclick = () => window.open(existing.documentUrl!, "_blank", "noopener,noreferrer");
+            } else {
+              formButton.disabled = true;
+              formButton.style.opacity = "0.65";
+              formButton.style.cursor = "default";
+            }
+            return;
+          }
+
+          if (existing) {
+            formButton.textContent = `✓${icon}`;
+            formButton.title = `${actionName} is in My Epic Reservation`;
+            formButton.setAttribute("aria-label", `${actionName} already added to guest portal`);
             formButton.disabled = true;
             formButton.style.opacity = "0.65";
             formButton.style.cursor = "default";
+            return;
           }
-        } else if (existing) {
-          formButton.textContent = `✓${icon}`;
-          formButton.title = `${actionName} is already in My Epic Reservation`;
-          formButton.setAttribute("aria-label", `${actionName} already added to guest portal`);
-          formButton.disabled = true;
-          formButton.style.opacity = "0.65";
-          formButton.style.cursor = "default";
-        } else {
+
           formButton.textContent = icon;
           formButton.title = `Add ${actionName} to My Epic Reservation`;
           formButton.setAttribute("aria-label", `Add ${actionName} to guest portal`);
           formButton.onclick = async () => {
-            const original = formButton.textContent;
             formButton.disabled = true;
             formButton.textContent = "…";
             formButton.style.opacity = "0.65";
@@ -183,29 +197,40 @@ export default function PortalEmailEnhancer() {
               });
               const result = (await response.json()) as { error?: string };
               if (!response.ok) throw new Error(result.error || "Unable to add form to portal.");
-              formButton.textContent = `✓${icon}`;
-              formButton.title = `${actionName} added to My Epic Reservation`;
-              formButton.setAttribute("aria-label", `${actionName} added to guest portal`);
-              formButton.style.opacity = "1";
+              await applyTaskState();
             } catch (error) {
               window.alert(error instanceof Error ? error.message : "Unable to add form to portal.");
-              formButton.textContent = original;
               formButton.disabled = false;
+              formButton.textContent = icon;
               formButton.style.opacity = "1";
             }
           };
-        }
+        };
 
-        resendButton.insertAdjacentElement("afterend", formButton);
+        await applyTaskState();
+        const timer = window.setInterval(() => void applyTaskState(), 8000);
+        timers.set(drawer, timer);
       } catch (error) {
         console.error("Guest form quick action unavailable", error);
       }
     }
 
     void enhance();
-    const observer = new MutationObserver(() => void enhance());
+    const observer = new MutationObserver(() => {
+      for (const [drawer, timer] of timers) {
+        if (!document.body.contains(drawer)) {
+          window.clearInterval(timer);
+          timers.delete(drawer);
+        }
+      }
+      void enhance();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      for (const timer of timers.values()) window.clearInterval(timer);
+      timers.clear();
+    };
   }, []);
 
   return null;
