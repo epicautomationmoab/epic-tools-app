@@ -55,7 +55,6 @@ export async function GET(
     const rawToken = randomBytes(24).toString("hex");
     await supabasePatch("guest_form_tasks", new URLSearchParams({ id: `eq.${task.id}` }), {
       public_token_hash: hashToken(rawToken),
-      metadata: { portal_opened: true, portal_token_access: true },
       updated_at: new Date().toISOString(),
     });
 
