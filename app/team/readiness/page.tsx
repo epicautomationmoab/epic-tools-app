@@ -1,7 +1,6 @@
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
 import ReadinessTable from "./ReadinessTable";
-import ActiveRentalsPanel from "./ActiveRentalsPanel";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
 import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
@@ -64,7 +63,6 @@ export default async function TeamReadinessPage() {
         <section className={styles.content}>
           {error ? <div className={styles.error}>{error}</div> : null}
           <EmailDeliveryAlert />
-          <ActiveRentalsPanel rows={rows} />
           <ReadinessTable rows={rows} />
         </section>
       </main>
