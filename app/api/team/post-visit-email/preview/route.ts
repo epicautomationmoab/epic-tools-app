@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
       signerName: signer.signer_full_name,
       businessLine: job.business_line,
       sendMode,
+      brandAssetBase: `${request.nextUrl.origin}/api/brand/post-visit`,
     });
 
     return new NextResponse(html, {
