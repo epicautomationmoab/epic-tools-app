@@ -48,28 +48,40 @@ function ensureRail(drawer: Element) {
     actionContainer.appendChild(rail);
   }
 
-  for (const selector of ICON_ORDER) {
-    const icon = drawer.querySelector<HTMLElement>(selector);
-    if (!icon) continue;
-    rail.appendChild(icon);
-    icon.style.marginLeft = "0";
-  }
+  const desiredIcons = ICON_ORDER
+    .map((selector) => drawer.querySelector<HTMLElement>(selector))
+    .filter((icon): icon is HTMLElement => Boolean(icon));
+  const orderedIcons = Array.from(rail.children)
+    .filter((child): child is HTMLElement => child instanceof HTMLElement && ICON_ORDER.some((selector) => child.matches(selector)));
 
-  for (const child of Array.from(rail.children) as HTMLElement[]) {
-    child.style.marginLeft = "0";
+  const orderAlreadyCorrect = desiredIcons.length === orderedIcons.length
+    && desiredIcons.every((icon, index) => icon === orderedIcons[index] && icon.parentElement === rail);
+
+  if (!orderAlreadyCorrect) {
+    for (const icon of desiredIcons) {
+      rail.appendChild(icon);
+      icon.style.marginLeft = "0";
+    }
   }
 }
 
 export default function ReservationActionRailEnhancer() {
   useEffect(() => {
+    let scheduled = false;
     const enhance = () => {
+      scheduled = false;
       for (const drawer of Array.from(document.querySelectorAll('[role="dialog"]'))) {
         ensureRail(drawer);
       }
     };
+    const scheduleEnhance = () => {
+      if (scheduled) return;
+      scheduled = true;
+      window.requestAnimationFrame(enhance);
+    };
 
-    enhance();
-    const observer = new MutationObserver(enhance);
+    scheduleEnhance();
+    const observer = new MutationObserver(scheduleEnhance);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
