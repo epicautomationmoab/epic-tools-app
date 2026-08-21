@@ -21,14 +21,48 @@ type SignerRow = {
   signed_at: string;
 };
 
+function htmlResponse(html: string) {
+  return new NextResponse(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Robots-Tag": "noindex, nofollow",
+    },
+  });
+}
+
 export async function GET(request: NextRequest) {
   const actor = await getGuestFormsActor(request);
   if (!actor) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
   try {
+    const sample = request.nextUrl.searchParams.get("sample")?.trim().toLowerCase();
+    if (sample) {
+      if (sample !== "tour" && sample !== "rental") {
+        return NextResponse.json({ error: "sample must be tour or rental." }, { status: 400 });
+      }
+
+      const modeParam = request.nextUrl.searchParams.get("mode")?.trim().toLowerCase();
+      const sendMode = modeParam === "thank_you_only" ? "thank_you_only" : "review_request";
+      const name = request.nextUrl.searchParams.get("name")?.trim() || "Simon Guest";
+
+      return htmlResponse(
+        renderPostVisitEmailHtml({
+          signerName: name,
+          businessLine: sample,
+          sendMode,
+          brandAssetBase: `${request.nextUrl.origin}/api/brand/post-visit`,
+        }),
+      );
+    }
+
     const confirmationCode = request.nextUrl.searchParams.get("confirmationCode")?.trim().toUpperCase();
     if (!confirmationCode) {
-      return NextResponse.json({ error: "confirmationCode is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "confirmationCode is required unless sample=tour or sample=rental is provided." },
+        { status: 400 },
+      );
     }
 
     const [jobs, preferences, signers] = await Promise.all([
@@ -74,21 +108,14 @@ export async function GET(request: NextRequest) {
     }
 
     const sendMode = preferences[0]?.send_mode ?? "review_request";
-    const html = renderPostVisitEmailHtml({
-      signerName: signer.signer_full_name,
-      businessLine: job.business_line,
-      sendMode,
-      brandAssetBase: `${request.nextUrl.origin}/api/brand/post-visit`,
-    });
-
-    return new NextResponse(html, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-store",
-        "X-Robots-Tag": "noindex, nofollow",
-      },
-    });
+    return htmlResponse(
+      renderPostVisitEmailHtml({
+        signerName: signer.signer_full_name,
+        businessLine: job.business_line,
+        sendMode,
+        brandAssetBase: `${request.nextUrl.origin}/api/brand/post-visit`,
+      }),
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to render post-visit email preview." },
