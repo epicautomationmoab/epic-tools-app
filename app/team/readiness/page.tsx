@@ -7,6 +7,7 @@ import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
 import LastSynced from "./LastSynced";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
 import DamageAcknowledgmentEnhancer from "./DamageAcknowledgmentEnhancer";
+import PostVisitReviewToggleEnhancer from "./PostVisitReviewToggleEnhancer";
 import ReservationActionRailEnhancer from "./ReservationActionRailEnhancer";
 import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
 import SignedWaiverDrawerEnhancer from "./SignedWaiverDrawerEnhancer";
@@ -36,6 +37,7 @@ export default async function TeamReadinessPage() {
       <AutoCancellationPopupWatcher />
       <PortalEmailEnhancer />
       <DamageAcknowledgmentEnhancer />
+      <PostVisitReviewToggleEnhancer />
       <ReservationActionRailEnhancer />
       <EmailDeliveryDrawerEnhancer />
       <ReservationDeepLinkEnhancer />
