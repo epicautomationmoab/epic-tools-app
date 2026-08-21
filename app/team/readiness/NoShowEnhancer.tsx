@@ -189,9 +189,14 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
         else drawer.appendChild(section);
       }
 
+      const isNoShow = noShowIds.current.has(readinessId);
+      const desiredState = isNoShow ? "no-show" : "not-no-show";
+      if (section.dataset.noShowState === desiredState && section.childElementCount > 0) {
+        return;
+      }
+      section.dataset.noShowState = desiredState;
       section.replaceChildren();
 
-      const isNoShow = noShowIds.current.has(readinessId);
       const wrap = document.createElement("div");
       wrap.style.display = "flex";
       wrap.style.alignItems = "center";
@@ -205,7 +210,9 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
       title.style.fontSize = "14px";
 
       const detail = document.createElement("span");
-      detail.textContent = isNoShow ? "This guest is marked NO SHOW." : "Guest has not been marked as a no-show.";
+      detail.textContent = isNoShow
+        ? "This guest is marked NO SHOW."
+        : "Guest has not been marked as a no-show.";
       detail.style.display = "block";
       detail.style.marginTop = "3px";
       detail.style.fontSize = "12px";
@@ -234,13 +241,15 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
           await setNoShow(readinessId, !isNoShow);
           if (isNoShow) noShowIds.current.delete(readinessId);
           else noShowIds.current.add(readinessId);
+          section!.dataset.noShowState = "";
           enhanceRows();
           enhanceDrawer();
           router.refresh();
         } catch (error) {
           button.disabled = false;
           button.textContent = isNoShow ? "Clear No Show" : "Mark No Show";
-          detail.textContent = error instanceof Error ? error.message : "Unable to update no-show status.";
+          detail.textContent =
+            error instanceof Error ? error.message : "Unable to update no-show status.";
           detail.style.color = "#b42318";
         }
       });
