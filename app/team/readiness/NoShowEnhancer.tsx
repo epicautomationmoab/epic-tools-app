@@ -181,12 +181,13 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
         section.style.borderRadius = "12px";
         section.style.background = "#fff";
 
-        const notesHeading = Array.from(drawer.querySelectorAll("h3")).find(
-          (heading) => heading.textContent?.trim() === "Important Notes",
-        );
-        const notesSection = notesHeading?.closest("section");
-        if (notesSection) notesSection.insertAdjacentElement("beforebegin", section);
-        else drawer.appendChild(section);
+        const manualMpwr = drawer.querySelector<HTMLElement>("details");
+        const manualMpwrSection = manualMpwr?.closest("section");
+        if (manualMpwrSection) {
+          manualMpwrSection.insertAdjacentElement("afterend", section);
+        } else {
+          drawer.appendChild(section);
+        }
       }
 
       const isNoShow = noShowIds.current.has(readinessId);
