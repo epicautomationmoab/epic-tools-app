@@ -41,6 +41,7 @@ function styleButton(button: HTMLButtonElement) {
   button.style.display = "inline-flex";
   button.style.alignItems = "center";
   button.style.justifyContent = "center";
+  button.style.position = "relative";
   button.style.marginLeft = "0";
   button.style.width = "42px";
   button.style.height = "42px";
@@ -49,16 +50,37 @@ function styleButton(button: HTMLButtonElement) {
   button.style.borderRadius = "8px";
   button.style.background = "#fff";
   button.style.color = "#26313b";
-  button.style.fontSize = "18px";
   button.style.lineHeight = "1";
   button.style.cursor = "pointer";
   button.style.flex = "0 0 42px";
 }
 
+function renderNoReviewIcon(button: HTMLButtonElement) {
+  button.replaceChildren();
+
+  const star = document.createElement("span");
+  star.textContent = "★";
+  star.setAttribute("aria-hidden", "true");
+  star.style.fontSize = "22px";
+  star.style.lineHeight = "1";
+
+  const ban = document.createElement("span");
+  ban.textContent = "🚫";
+  ban.setAttribute("aria-hidden", "true");
+  ban.style.position = "absolute";
+  ban.style.right = "2px";
+  ban.style.bottom = "2px";
+  ban.style.fontSize = "15px";
+  ban.style.lineHeight = "1";
+  ban.style.pointerEvents = "none";
+
+  button.append(star, ban);
+}
+
 function applyMode(button: HTMLButtonElement, mode: "review_request" | "thank_you_only") {
   const suppressed = mode === "thank_you_only";
   button.dataset.sendMode = mode;
-  button.textContent = "★";
+  renderNoReviewIcon(button);
   button.style.background = suppressed ? "#b42318" : "#fff";
   button.style.borderColor = suppressed ? "#b42318" : "#c8d0d7";
   button.style.color = suppressed ? "#fff" : "#26313b";
@@ -74,7 +96,13 @@ export default function PostVisitReviewToggleEnhancer() {
     let stopped = false;
 
     async function enhanceDrawer(drawer: Element) {
-      if (drawer.querySelector("#post-visit-review-toggle")) return;
+      const existingButtons = Array.from(drawer.querySelectorAll<HTMLButtonElement>("#post-visit-review-toggle"));
+      if (existingButtons.length) {
+        for (const duplicate of existingButtons.slice(1)) duplicate.remove();
+        return;
+      }
+      if ((drawer as HTMLElement).dataset.postVisitToggleEnhancing === "true") return;
+
       const portalLink = drawer.querySelector<HTMLAnchorElement>('a[href^="/guest/"]');
       if (!portalLink) return;
       const portalToken = portalTokenFromLink(portalLink);
@@ -85,48 +113,55 @@ export default function PostVisitReviewToggleEnhancer() {
       const rail = drawer.querySelector<HTMLElement>("#reservation-action-rail");
       if (!rail) return;
 
-      const portalResponse = await fetch(`/api/guest/${encodeURIComponent(portalToken)}`, { cache: "no-store" });
-      if (!portalResponse.ok || stopped || !document.body.contains(drawer)) return;
-      const portal = (await portalResponse.json()) as PortalPayload;
-      const activity = bestActivityMatch(portal.reservation?.activities ?? [], businessLine, drawer);
-      if (!activity) return;
-
-      const button = document.createElement("button");
-      button.type = "button";
-      button.id = "post-visit-review-toggle";
-      styleButton(button);
-      applyMode(button, "review_request");
-      rail.appendChild(button);
-
+      (drawer as HTMLElement).dataset.postVisitToggleEnhancing = "true";
       try {
-        const response = await fetch(`/api/team/post-visit-email/preference?readinessId=${encodeURIComponent(activity.readinessId)}`, { cache: "no-store" });
-        const data = (await response.json()) as PreferencePayload;
-        if (response.ok && data.sendMode) applyMode(button, data.sendMode);
-      } catch {
-        // Default remains review_request if the preference cannot be read.
-      }
+        const portalResponse = await fetch(`/api/guest/${encodeURIComponent(portalToken)}`, { cache: "no-store" });
+        if (!portalResponse.ok || stopped || !document.body.contains(drawer)) return;
+        const portal = (await portalResponse.json()) as PortalPayload;
+        const activity = bestActivityMatch(portal.reservation?.activities ?? [], businessLine, drawer);
+        if (!activity) return;
 
-      button.addEventListener("click", async () => {
-        const current = button.dataset.sendMode === "thank_you_only" ? "thank_you_only" : "review_request";
-        const next = current === "thank_you_only" ? "review_request" : "thank_you_only";
-        button.disabled = true;
-        button.style.opacity = "0.6";
+        if (drawer.querySelector("#post-visit-review-toggle")) return;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.id = "post-visit-review-toggle";
+        styleButton(button);
+        applyMode(button, "review_request");
+        rail.appendChild(button);
+
         try {
-          const response = await fetch("/api/team/post-visit-email/preference", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ readinessId: activity.readinessId, confirmationCode, sendMode: next }),
-          });
+          const response = await fetch(`/api/team/post-visit-email/preference?readinessId=${encodeURIComponent(activity.readinessId)}`, { cache: "no-store" });
           const data = (await response.json()) as PreferencePayload;
-          if (!response.ok) throw new Error(data.error || "Unable to update post-visit email preference.");
-          applyMode(button, next);
-        } catch (error) {
-          window.alert(error instanceof Error ? error.message : "Unable to update post-visit email preference.");
-        } finally {
-          button.disabled = false;
-          button.style.opacity = "1";
+          if (response.ok && data.sendMode) applyMode(button, data.sendMode);
+        } catch {
+          // Default remains review_request if the preference cannot be read.
         }
-      });
+
+        button.addEventListener("click", async () => {
+          const current = button.dataset.sendMode === "thank_you_only" ? "thank_you_only" : "review_request";
+          const next = current === "thank_you_only" ? "review_request" : "thank_you_only";
+          button.disabled = true;
+          button.style.opacity = "0.6";
+          try {
+            const response = await fetch("/api/team/post-visit-email/preference", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ readinessId: activity.readinessId, confirmationCode, sendMode: next }),
+            });
+            const data = (await response.json()) as PreferencePayload;
+            if (!response.ok) throw new Error(data.error || "Unable to update post-visit email preference.");
+            applyMode(button, next);
+          } catch (error) {
+            window.alert(error instanceof Error ? error.message : "Unable to update post-visit email preference.");
+          } finally {
+            button.disabled = false;
+            button.style.opacity = "1";
+          }
+        });
+      } finally {
+        delete (drawer as HTMLElement).dataset.postVisitToggleEnhancing;
+      }
     }
 
     const enhance = () => {
