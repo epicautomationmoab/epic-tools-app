@@ -173,6 +173,14 @@ export async function POST(request: Request, context: { params: Promise<{ token:
       signer_user_agent: request.headers.get("user-agent") ?? null,
     });
 
+    if (template.template_key === "damage_acknowledgment") {
+      await supabasePatch(
+        "guest_form_attachments",
+        new URLSearchParams({ task_id: `eq.${task.id}`, submission_id: "is.null" }),
+        { submission_id: submission.id },
+      );
+    }
+
     const now = new Date().toISOString();
     await supabasePatch("guest_form_tasks", new URLSearchParams({ id: `eq.${task.id}` }), { task_status: "completed", completed_at: now, updated_at: now });
     if (task.readiness_id) {
