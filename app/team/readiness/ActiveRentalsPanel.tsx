@@ -56,16 +56,6 @@ async function markRentalReturned(readinessId: string) {
   }
 }
 
-async function closeWithoutThankYou(readinessId: string) {
-  const response = await fetch("/api/team/active-rentals/close-no-thanks", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ readinessId }),
-  });
-  const body = (await response.json().catch(() => ({}))) as { error?: string };
-  if (!response.ok) throw new Error(body.error || "Unable to close held-over rental.");
-}
-
 export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
   const [returnedIds, setReturnedIds] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -73,12 +63,11 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
 
   const heldOverRows = rows.filter((row) => row.readiness_id && !returnedIds.has(row.readiness_id));
 
-  async function complete(readinessId: string, skipThankYou: boolean) {
+  async function complete(readinessId: string) {
     setError("");
     setSavingId(readinessId);
     try {
-      if (skipThankYou) await closeWithoutThankYou(readinessId);
-      else await markRentalReturned(readinessId);
+      await markRentalReturned(readinessId);
       setReturnedIds((current) => new Set(current).add(readinessId));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to mark rental returned.");
@@ -109,7 +98,7 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
             const readinessId = row.readiness_id!;
             const saving = savingId === readinessId;
             return (
-              <div key={readinessId} style={{ display: "grid", gridTemplateColumns: "minmax(180px,1.2fr) minmax(170px,1fr) minmax(155px,.8fr) minmax(300px,auto)", gap: 14, alignItems: "center", padding: "12px 14px", borderTop: index === 0 ? "none" : "1px solid #eef1f4", background: "#fff" }}>
+              <div key={readinessId} style={{ display: "grid", gridTemplateColumns: "minmax(180px,1.2fr) minmax(170px,1fr) minmax(155px,.8fr) auto", gap: 14, alignItems: "center", padding: "12px 14px", borderTop: index === 0 ? "none" : "1px solid #eef1f4", background: "#fff" }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 900, color: "#202733", fontSize: 14 }}>{row.customer_name}</div>
                   <div style={{ marginTop: 3, color: "#6b7280", fontSize: 12 }}>{row.confirmation_code}</div>
@@ -126,25 +115,14 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
                   <div style={{ marginTop: 3, fontSize: 11, color: "#7a7f87" }}>Status: {row.handoff_status || "No handoff recorded"}</div>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => complete(readinessId, true)}
-                    title="Temporary historical cleanup: mark returned without sending a post-visit thank-you email"
-                    style={{ border: "1px solid #c9ced6", borderRadius: 8, background: "#fff", color: "#4b5563", padding: "9px 12px", fontWeight: 800, fontSize: 12, cursor: saving ? "wait" : "pointer", whiteSpace: "nowrap" }}
-                  >
-                    Close — No Thank You
-                  </button>
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => complete(readinessId, false)}
-                    style={{ border: "1px solid #b10707", borderRadius: 8, background: saving ? "#f3d6d6" : "#b10707", color: "#fff", padding: "9px 13px", fontWeight: 900, fontSize: 12, cursor: saving ? "wait" : "pointer", whiteSpace: "nowrap" }}
-                  >
-                    {saving ? "Saving…" : "Rental Returned"}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => complete(readinessId)}
+                  style={{ border: "1px solid #b10707", borderRadius: 8, background: saving ? "#f3d6d6" : "#b10707", color: "#fff", padding: "9px 13px", fontWeight: 900, fontSize: 12, cursor: saving ? "wait" : "pointer", whiteSpace: "nowrap" }}
+                >
+                  {saving ? "Saving…" : "Rental Returned"}
+                </button>
               </div>
             );
           })}
