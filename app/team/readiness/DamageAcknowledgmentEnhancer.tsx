@@ -142,8 +142,13 @@ export default function DamageAcknowledgmentEnhancer() {
             if (existing.pdfReady && existing.documentUrl) {
               button.onclick = () => window.open(existing.documentUrl!, "_blank", "noopener,noreferrer");
               const row = makeSignedRow(existing.documentUrl);
+              const guestRow = drawer.querySelector<HTMLElement>("#guest-form-signed-row");
               const cancellationCard = findCancellationCard(drawer);
-              if (cancellationCard?.parentElement) cancellationCard.parentElement.insertBefore(row, cancellationCard);
+              if (guestRow?.parentElement) {
+                guestRow.insertAdjacentElement("afterend", row);
+              } else if (cancellationCard?.parentElement) {
+                cancellationCard.parentElement.insertBefore(row, cancellationCard);
+              }
             } else {
               button.disabled = true;
               button.style.opacity = "0.72";
