@@ -85,7 +85,7 @@ export function renderPostVisitEmailHtml(input: {
           </div>
           <div style="border-top:3px solid #b10707;padding:18px 30px 22px;text-align:center;font-size:12px;line-height:1.6;color:#6b7280">
             <strong style="color:#202733">Epic 4X4 Adventures</strong><br />
-            435-220-2200 &nbsp;•&nbsp; 1041 S. Main Street, Moab, UT 84532 &nbsp;•&nbsp; 11860 S. Highway 191, Moab, UT 84532
+            435-220-2700 &nbsp;•&nbsp; Moab, Utah 84532
           </div>
         </div>
       </div>
