@@ -45,20 +45,23 @@ function reviewBlock() {
     </div>`;
 }
 
-export async function sendPostVisitEmail(input: {
-  email: string;
+export function renderPostVisitEmailHtml(input: {
   signerName: string;
   businessLine: "tour" | "rental";
   sendMode: "review_request" | "thank_you_only";
-  confirmationCode: string;
-  recipientKey: string;
 }) {
-  const resend = new Resend(requiredEnv("RESEND_API_KEY"));
   const greetingName = escapeHtml(firstName(input.signerName));
   const experienceCopy = escapeHtml(experienceParagraph(input.businessLine));
   const review = input.sendMode === "review_request" ? reviewBlock() : "";
 
-  const html = `
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Thank you for choosing Epic 4X4 Adventures</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f5f2ed">
     <div style="margin:0;padding:32px 14px;background:#f5f2ed;font-family:Arial,Helvetica,sans-serif;color:#222">
       <div style="max-width:620px;margin:0 auto">
         <div style="background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow:hidden">
@@ -86,7 +89,21 @@ export async function sendPostVisitEmail(input: {
           </div>
         </div>
       </div>
-    </div>`;
+    </div>
+  </body>
+</html>`;
+}
+
+export async function sendPostVisitEmail(input: {
+  email: string;
+  signerName: string;
+  businessLine: "tour" | "rental";
+  sendMode: "review_request" | "thank_you_only";
+  confirmationCode: string;
+  recipientKey: string;
+}) {
+  const resend = new Resend(requiredEnv("RESEND_API_KEY"));
+  const html = renderPostVisitEmailHtml(input);
 
   const { data, error } = await resend.emails.send(
     {
