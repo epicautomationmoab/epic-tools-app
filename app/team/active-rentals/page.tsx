@@ -4,7 +4,8 @@ import AutoRefresh from "../readiness/AutoRefresh";
 import HeaderClock from "../readiness/HeaderClock";
 import LastSynced from "../readiness/LastSynced";
 import LogoutButton from "../readiness/LogoutButton";
-import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
+import { getHeldOverRentals } from "./data";
+import type { ReadinessRow } from "@/lib/supabase";
 import styles from "../readiness/ReadinessShell.module.css";
 
 export default async function ActiveRentalsPage() {
@@ -12,9 +13,9 @@ export default async function ActiveRentalsPage() {
   let error = "";
 
   try {
-    rows = await getReadinessRows();
+    rows = await getHeldOverRentals();
   } catch (err) {
-    error = err instanceof Error ? err.message : "Unable to load active rentals.";
+    error = err instanceof Error ? err.message : "Unable to load held-over rentals.";
   }
 
   return (
