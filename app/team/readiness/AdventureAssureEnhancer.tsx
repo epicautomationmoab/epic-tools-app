@@ -231,7 +231,20 @@ export default function AdventureAssureEnhancer({ rows }: { rows: ReadinessRow[]
 
       const badge = cell.querySelector("span");
       const currentText = badge?.textContent?.trim();
-      if (currentText !== "Standard" && currentText !== "Premier") {
+      if (!badge || (currentText !== "Standard" && currentText !== "Premier")) {
+        setMenu(null);
+        return;
+      }
+
+      const rect = badge.getBoundingClientRect();
+      const hitPadding = 4;
+      const withinBadgeHitArea =
+        event.clientX >= rect.left - hitPadding &&
+        event.clientX <= rect.right + hitPadding &&
+        event.clientY >= rect.top - hitPadding &&
+        event.clientY <= rect.bottom + hitPadding;
+
+      if (!withinBadgeHitArea) {
         setMenu(null);
         return;
       }
@@ -245,7 +258,6 @@ export default function AdventureAssureEnhancer({ rows }: { rows: ReadinessRow[]
       event.preventDefault();
       event.stopPropagation();
 
-      const rect = (badge ?? cell).getBoundingClientRect();
       setError("");
       setMenu({
         readinessId: readinessRow.readiness_id,
