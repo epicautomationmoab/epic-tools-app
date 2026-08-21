@@ -177,6 +177,7 @@ export async function getReadinessRows() {
   return rows
     .map((row) => ({
       ...row,
+      handoff_status: row.handoff_status === "tour_returned" ? "checked_in" : row.handoff_status,
       guest_portal_token: portalTokenByConfirmationCode.get(row.confirmation_code) ?? null,
       epic_document_delivery_failures:
         epicDocumentDeliveryFailuresByConfirmationCode.get(row.confirmation_code) ?? [],
