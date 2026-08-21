@@ -2,7 +2,10 @@
 
 import { useEffect } from "react";
 
-const ICON_SELECTORS = ["#guest-form-quick-add", "#damage-acknowledgment-quick-add"];
+const ICON_ORDER = [
+  "#guest-form-quick-add",
+  "#damage-acknowledgment-quick-add",
+];
 
 function ensureRail(drawer: Element) {
   const portalLink = drawer.querySelector<HTMLAnchorElement>('a[href^="/guest/"]');
@@ -45,9 +48,9 @@ function ensureRail(drawer: Element) {
     actionContainer.appendChild(rail);
   }
 
-  for (const selector of ICON_SELECTORS) {
+  for (const selector of ICON_ORDER) {
     const icon = drawer.querySelector<HTMLElement>(selector);
-    if (!icon || icon.parentElement === rail) continue;
+    if (!icon) continue;
     rail.appendChild(icon);
     icon.style.marginLeft = "0";
   }
