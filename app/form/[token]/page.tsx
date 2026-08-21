@@ -124,7 +124,7 @@ export default function GuestFormPage() {
   }
 
   return <main className={styles.page}><section className={styles.card}>
-    <header className={styles.header}><img src="/epic-logo.png" alt="Epic 4X4 Adventures" /></header>
+    <header className={styles.header}><img src="/epic-logo-black.png" alt="Epic 4X4 Adventures" /></header>
     {loading ? <div className={styles.message}>Opening your form…</div> : null}
     {!loading && error && !payload ? <div className={`${styles.message} ${styles.error}`}>{error}</div> : null}
     {!loading && payload && complete ? <div className={styles.complete}>
