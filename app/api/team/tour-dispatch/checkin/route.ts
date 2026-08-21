@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const storeVisitId = String(body?.store_visit_id ?? "").trim();
     const vehicleSlot = Number(body?.vehicle_slot);
+    const actorName = profile?.display_name ?? "Epic Workstation";
 
     if (!storeVisitId || !Number.isInteger(vehicleSlot) || vehicleSlot < 1) {
       return NextResponse.json({ error: "Invalid tour vehicle slot." }, { status: 400 });
@@ -27,13 +28,18 @@ export async function POST(request: NextRequest) {
     const result = await supabaseRpc<ReleaseResult[]>("release_tour_vehicle_checkin_shadow", {
       p_store_visit_id: storeVisitId,
       p_vehicle_slot: vehicleSlot,
-      p_released_by: profile?.display_name ?? "Epic Workstation",
+      p_released_by: actorName,
     });
 
     const released = result?.[0];
     if (!released?.job_id) throw new Error("Prepared Axel In package was not released.");
 
-    return NextResponse.json({ ok: true, ...released });
+    const tourReturned = await supabaseRpc<boolean>("mark_tour_returned_if_all_checkins_released", {
+      p_store_visit_id: storeVisitId,
+      p_recorded_by: actorName,
+    });
+
+    return NextResponse.json({ ok: true, ...released, tour_returned: Boolean(tourReturned) });
   } catch (error) {
     console.error("Tour dispatch check-in shadow release failed", error);
     return NextResponse.json(
