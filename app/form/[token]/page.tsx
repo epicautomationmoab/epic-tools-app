@@ -90,6 +90,24 @@ function formatVisit(value: string) {
   }
 }
 
+async function readJsonResponse<T extends { error?: string }>(response: Response, fallback: string) {
+  const text = await response.text();
+  let data: T | null = null;
+  try {
+    data = text ? JSON.parse(text) as T : null;
+  } catch {
+    if (!response.ok) {
+      if (response.status === 413 || /request entity too large/i.test(text)) {
+        throw new Error("That photo is too large to upload. Please choose a smaller photo.");
+      }
+      throw new Error(fallback);
+    }
+    throw new Error(fallback);
+  }
+  if (!response.ok) throw new Error(data?.error || fallback);
+  return data ?? ({} as T);
+}
+
 export default function GuestFormPage() {
   const token = useParams<{ token: string }>()?.token;
   const searchParams = useSearchParams();
@@ -102,6 +120,7 @@ export default function GuestFormPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [photoUploadProgress, setPhotoUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [complete, setComplete] = useState(false);
   const [documentId, setDocumentId] = useState("");
@@ -111,8 +130,8 @@ export default function GuestFormPage() {
     if (!token) return;
     fetch(`/api/guest-forms/${encodeURIComponent(token)}`, { cache: "no-store" })
       .then(async response => {
-        const data = await response.json() as FormPayload & { error?: string };
-        if (!response.ok || !data.template) throw new Error(data.error || "Unable to open form.");
+        const data = await readJsonResponse<FormPayload & { error?: string }>(response, "Unable to open form.");
+        if (!data.template) throw new Error("Unable to open form.");
         setPayload(data);
         if (data.task.task_status === "completed") setComplete(true);
       })
@@ -124,8 +143,8 @@ export default function GuestFormPage() {
     if (!token || payload?.template.template_key !== "damage_acknowledgment") return;
     fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, { cache: "no-store" })
       .then(async response => {
-        const data = await response.json() as { attachments?: Attachment[] };
-        if (response.ok) setAttachments(data.attachments ?? []);
+        const data = await readJsonResponse<{ attachments?: Attachment[]; error?: string }>(response, "Unable to load photos.");
+        setAttachments(data.attachments ?? []);
       })
       .catch(() => undefined);
   }, [token, payload?.template.template_key]);
@@ -140,19 +159,30 @@ export default function GuestFormPage() {
 
   async function uploadPhotos(files: FileList | null) {
     if (!token || !files?.length) return;
+    const selected = Array.from(files);
+    if (attachments.length + selected.length > 10) {
+      setError(`You may attach up to 10 photos. ${10 - attachments.length} more can be added.`);
+      return;
+    }
+
     setUploadingPhotos(true);
+    setPhotoUploadProgress({ done: 0, total: selected.length });
     setError("");
     try {
-      const body = new FormData();
-      for (const file of Array.from(files)) body.append("photos", file);
-      const response = await fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, { method: "POST", body });
-      const data = await response.json() as { attachments?: Attachment[]; error?: string };
-      if (!response.ok) throw new Error(data.error || "Unable to upload photos.");
-      setAttachments(current => [...current, ...(data.attachments ?? [])]);
+      for (let index = 0; index < selected.length; index += 1) {
+        const file = selected[index];
+        const body = new FormData();
+        body.append("photos", file);
+        const response = await fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, { method: "POST", body });
+        const data = await readJsonResponse<{ attachments?: Attachment[]; error?: string }>(response, `Unable to upload ${file.name || "photo"}.`);
+        setAttachments(current => [...current, ...(data.attachments ?? [])]);
+        setPhotoUploadProgress({ done: index + 1, total: selected.length });
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to upload photos.");
     } finally {
       setUploadingPhotos(false);
+      setPhotoUploadProgress(null);
     }
   }
 
@@ -170,8 +200,7 @@ export default function GuestFormPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ formData: values, signerName, signatureDataUrl: signature, agreed }),
       });
-      const data = await response.json() as { error?: string; documentId?: string };
-      if (!response.ok) throw new Error(data.error || "Unable to submit form.");
+      const data = await readJsonResponse<{ error?: string; documentId?: string }>(response, "Unable to submit form.");
       setDocumentId(data.documentId || "");
       setComplete(true);
     } catch (caught) {
@@ -247,11 +276,17 @@ export default function GuestFormPage() {
             Take Photo<input type="file" accept="image/*" capture="environment" disabled={uploadingPhotos} onChange={event => { void uploadPhotos(event.target.files); event.currentTarget.value = ""; }} style={{ display: "none" }} />
           </label>
         </div>
-        <p style={{ margin: "10px 0 0", fontSize: 13, color: attachments.length ? "#18713b" : "#6b7280", fontWeight: attachments.length ? 700 : 500 }}>{uploadingPhotos ? "Uploading photo…" : attachments.length ? `${attachments.length} photo${attachments.length === 1 ? "" : "s"} attached` : "No photos attached"}</p>
+        <p style={{ margin: "10px 0 0", fontSize: 13, color: attachments.length ? "#18713b" : "#6b7280", fontWeight: attachments.length ? 700 : 500 }}>
+          {uploadingPhotos && photoUploadProgress
+            ? `Uploading photo ${Math.min(photoUploadProgress.done + 1, photoUploadProgress.total)} of ${photoUploadProgress.total}…`
+            : attachments.length
+              ? `${attachments.length} photo${attachments.length === 1 ? "" : "s"} attached`
+              : "No photos attached"}
+        </p>
       </section> : null}
 
       <div className={styles.agreement} dangerouslySetInnerHTML={{ __html: payload.template.agreement_html }} />
-      <label className={styles.agree}><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>I have read and understand this acknowledgment and the next steps described above.</span></label>
+      <label className={styles.agree}><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>{isDamageAcknowledgment ? "I have read and understand this acknowledgment and the next steps described above." : "I have read and understand this agreement and voluntarily accept its terms."}</span></label>
       {payload.template.requires_signature ? <SignaturePad onChange={setSignature} /> : null}
       {error ? <p className={styles.formError}>{error}</p> : null}
       <button className={styles.submit} type="submit" disabled={submitting || uploadingPhotos}>{submitting ? "Submitting…" : uploadingPhotos ? "Uploading Photo…" : "Sign & Submit"}</button>
