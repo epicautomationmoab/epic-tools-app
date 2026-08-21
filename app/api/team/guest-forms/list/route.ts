@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import { getGuestFormsActor } from "@/lib/workstation-auth";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
 
 type TaskRow = {
@@ -22,8 +22,8 @@ type SubmissionRow = { id: string; task_id: string; document_id: string; signed_
 
 export async function GET(request: NextRequest) {
   try {
-    const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
-    if (!profile) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    const actor = await getGuestFormsActor(request);
+    if (!actor) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
     if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
 
