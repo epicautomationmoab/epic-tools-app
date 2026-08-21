@@ -10,7 +10,7 @@ type Template = {
   form_title: string;
   form_description: string | null;
   agreement_html: string;
-  fields_schema: Array<{ key: string; label: string; type: string; required?: boolean }>;
+  fields_schema: Array<{ key: string; label: string; type: string; required?: boolean; options?: string[] }>;
   requires_signature: boolean;
 };
 
@@ -23,6 +23,16 @@ type Task = {
   assigned_guest_name: string | null;
   template_id: string;
   opened_at: string | null;
+};
+
+type ReservationContext = {
+  customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
+  visit_start_time: string;
+  product_display_name: string;
+  adventure_assure_level: string | null;
+  vehicle_breakdown: Array<{ model?: string; quantity?: number }> | null;
 };
 
 function hashToken(token: string) {
@@ -101,6 +111,16 @@ async function loadTemplate(id: string) {
   return rows[0] ?? null;
 }
 
+async function loadReservationContext(readinessId: string | null) {
+  if (!readinessId) return null;
+  const rows = await supabaseSelect<ReservationContext>("guest_readiness_operational", new URLSearchParams({
+    select: "customer_name,customer_email,customer_phone,visit_start_time,product_display_name,adventure_assure_level,vehicle_breakdown",
+    readiness_id: `eq.${readinessId}`,
+    limit: "1",
+  }));
+  return rows[0] ?? null;
+}
+
 async function generateSignedPdf(submissionId: string) {
   const { url } = getServerSupabaseConfig();
   const response = await fetch(`${url}/functions/v1/generate-epic-guest-form-pdf`, {
@@ -131,7 +151,8 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       await supabasePatch("guest_form_tasks", new URLSearchParams({ id: `eq.${task.id}` }), { task_status: "opened", opened_at: task.opened_at ?? now, updated_at: now });
       task.task_status = "opened";
     }
-    return NextResponse.json({ task, template });
+    const reservation = template.template_key === "damage_acknowledgment" ? await loadReservationContext(task.readiness_id) : null;
+    return NextResponse.json({ task, template, reservation });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load form." }, { status: 500 });
   }
@@ -159,7 +180,10 @@ export async function POST(request: Request, context: { params: Promise<{ token:
 
     if (body.agreed !== true) return NextResponse.json({ error: "You must acknowledge the agreement before signing." }, { status: 400 });
     if (template.requires_signature && !body.signatureDataUrl?.startsWith("data:image/png;base64,")) return NextResponse.json({ error: "Please sign in the signature box." }, { status: 400 });
-    const signerName = body.signerName?.trim() || String(formData.renter_full_name || `${formData.guardian_first_name || ""} ${formData.guardian_last_name || ""}`).trim();
+    const signerName = body.signerName?.trim()
+      || String(formData.renter_full_name || `${formData.guardian_first_name || ""} ${formData.guardian_last_name || ""}`).trim()
+      || task.assigned_guest_name?.trim()
+      || "";
     if (!signerName) return NextResponse.json({ error: "Signer name is required." }, { status: 400 });
 
     const documentId = `EPIC-${new Date().getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`;
