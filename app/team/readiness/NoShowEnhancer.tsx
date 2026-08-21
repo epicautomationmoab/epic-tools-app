@@ -100,7 +100,6 @@ async function setNoShow(readinessId: string, isNoShow: boolean) {
 function styleBadge(badge: HTMLElement) {
   badge.style.display = "inline-flex";
   badge.style.alignItems = "center";
-  badge.style.marginLeft = "8px";
   badge.style.padding = "2px 7px";
   badge.style.borderRadius = "999px";
   badge.style.background = "#f9ded9";
@@ -110,7 +109,6 @@ function styleBadge(badge: HTMLElement) {
   badge.style.fontWeight = "900";
   badge.style.letterSpacing = ".04em";
   badge.style.lineHeight = "1.4";
-  badge.style.verticalAlign = "middle";
   badge.style.whiteSpace = "nowrap";
 }
 
@@ -144,21 +142,26 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
         if (!row?.readiness_id) continue;
 
         const guestCell = tableRow.cells[1];
-        const mainLine = guestCell?.firstElementChild as HTMLElement | null;
-        if (!mainLine) continue;
+        if (!guestCell) continue;
 
-        let badge = mainLine.querySelector<HTMLElement>("[data-no-show-badge='true']");
+        let badgeWrap = guestCell.querySelector<HTMLElement>("[data-no-show-badge-wrap='true']");
         const shouldShow = noShowIds.current.has(row.readiness_id);
 
-        if (shouldShow && !badge) {
-          badge = document.createElement("span");
+        if (shouldShow && !badgeWrap) {
+          badgeWrap = document.createElement("div");
+          badgeWrap.dataset.noShowBadgeWrap = "true";
+          badgeWrap.style.marginTop = "3px";
+          badgeWrap.style.lineHeight = "1";
+
+          const badge = document.createElement("span");
           badge.dataset.noShowBadge = "true";
           badge.textContent = "NO SHOW";
           badge.title = "Guest marked as a no-show";
           styleBadge(badge);
-          mainLine.appendChild(badge);
-        } else if (!shouldShow && badge) {
-          badge.remove();
+          badgeWrap.appendChild(badge);
+          guestCell.appendChild(badgeWrap);
+        } else if (!shouldShow && badgeWrap) {
+          badgeWrap.remove();
         }
       }
     }
