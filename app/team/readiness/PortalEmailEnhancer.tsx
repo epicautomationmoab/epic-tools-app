@@ -209,8 +209,8 @@ export default function PortalEmailEnhancer() {
           if (existing?.task_status === "completed") {
             formButton.title = existing.pdfReady ? `View signed ${actionName}` : `${actionName} completed`;
             formButton.setAttribute("aria-label", existing.pdfReady ? `View signed ${actionName}` : `${actionName} completed`);
-            formButton.style.background = "#f2fbf5";
-            formButton.style.borderColor = "#a9d8b8";
+            formButton.style.background = "#e7f7ec";
+            formButton.style.borderColor = "#86c99d";
             if (existing.pdfReady && existing.documentUrl) {
               formButton.onclick = () => window.open(existing.documentUrl!, "_blank", "noopener,noreferrer");
               const signedRow = makeSignedFormRow(actionName, existing.documentUrl);
@@ -218,7 +218,7 @@ export default function PortalEmailEnhancer() {
               if (cancellationCard?.parentElement) cancellationCard.parentElement.insertBefore(signedRow, cancellationCard);
             } else {
               formButton.disabled = true;
-              formButton.style.opacity = "0.72";
+              formButton.style.opacity = "0.82";
               formButton.style.cursor = "default";
             }
             return;
@@ -227,10 +227,10 @@ export default function PortalEmailEnhancer() {
           if (existing) {
             formButton.title = `${actionName} is in My Epic Reservation`;
             formButton.setAttribute("aria-label", `${actionName} already added to guest portal`);
-            formButton.style.background = "#f7faf8";
-            formButton.style.borderColor = "#cfe7d6";
+            formButton.style.background = "#eef9f1";
+            formButton.style.borderColor = "#9ccfac";
             formButton.disabled = true;
-            formButton.style.opacity = "0.78";
+            formButton.style.opacity = "1";
             formButton.style.cursor = "default";
             return;
           }
