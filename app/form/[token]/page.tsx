@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import styles from "./GuestForm.module.css";
 
-type Field = { key: string; label: string; type: string; required?: boolean };
+type Field = { key: string; label: string; type: string; required?: boolean; options?: string[] };
 type FormPayload = {
   task: { confirmation_code: string; task_status: string; assigned_guest_name: string | null };
   template: { template_key: string; form_title: string; form_description: string | null; agreement_html: string; fields_schema: Field[]; requires_signature: boolean };
 };
+
+type Attachment = { id: string; original_filename: string | null; content_type: string | null; byte_size: number | null };
 
 function SignaturePad({ onChange }: { onChange: (value: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -81,6 +83,8 @@ export default function GuestFormPage() {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [complete, setComplete] = useState(false);
   const [documentId, setDocumentId] = useState("");
   const [error, setError] = useState("");
@@ -98,15 +102,51 @@ export default function GuestFormPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  useEffect(() => {
+    if (!token || payload?.template.template_key !== "damage_acknowledgment") return;
+    fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, { cache: "no-store" })
+      .then(async response => {
+        const data = await response.json() as { attachments?: Attachment[] };
+        if (response.ok) setAttachments(data.attachments ?? []);
+      })
+      .catch(() => undefined);
+  }, [token, payload?.template.template_key]);
+
+  function setMultiValue(fieldKey: string, option: string, checked: boolean) {
+    setValues(current => {
+      const selected = new Set((current[fieldKey] || "").split(" | ").filter(Boolean));
+      if (checked) selected.add(option); else selected.delete(option);
+      return { ...current, [fieldKey]: Array.from(selected).join(" | ") };
+    });
+  }
+
+  async function uploadPhotos(files: FileList | null) {
+    if (!token || !files?.length) return;
+    setUploadingPhotos(true);
+    setError("");
+    try {
+      const body = new FormData();
+      for (const file of Array.from(files)) body.append("photos", file);
+      const response = await fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, { method: "POST", body });
+      const data = await response.json() as { attachments?: Attachment[]; error?: string };
+      if (!response.ok) throw new Error(data.error || "Unable to upload photos.");
+      setAttachments(current => [...current, ...(data.attachments ?? [])]);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to upload photos.");
+    } finally {
+      setUploadingPhotos(false);
+    }
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!token || !payload) return;
     setSubmitting(true);
     setError("");
     try {
-      const signerName = payload.template.template_key === "pet_acknowledgment"
-        ? values.renter_full_name
-        : `${values.guardian_first_name || ""} ${values.guardian_last_name || ""}`.trim();
+      const signerName = payload.template.template_key === "minor_driver_authorization"
+        ? `${values.guardian_first_name || ""} ${values.guardian_last_name || ""}`.trim()
+        : values.renter_full_name;
       const response = await fetch(`/api/guest-forms/${encodeURIComponent(token)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -123,6 +163,8 @@ export default function GuestFormPage() {
     }
   }
 
+  const isDamageAcknowledgment = payload?.template.template_key === "damage_acknowledgment";
+
   return <main className={styles.page}><section className={styles.card}>
     <header className={styles.header}><img src="/epic-logo.png" alt="Epic 4X4 Adventures" /></header>
     {loading ? <div className={styles.message}>Opening your form…</div> : null}
@@ -135,15 +177,54 @@ export default function GuestFormPage() {
     {!loading && payload && !complete ? <form className={styles.form} onSubmit={submit}>
       <p className={styles.eyebrow}>Reservation {payload.task.confirmation_code}</p>
       <h1>{payload.template.form_title}</h1>{payload.template.form_description ? <p className={styles.description}>{payload.template.form_description}</p> : null}
-      <div className={styles.fields}>{payload.template.fields_schema.map(field => <label key={field.key}>
-        <span>{field.label}{field.required ? " *" : ""}</span>
-        <input type={field.type === "date" ? "date" : "text"} value={values[field.key] || ""} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} />
-      </label>)}</div>
+      <div className={styles.fields}>{payload.template.fields_schema.map(field => {
+        const value = values[field.key] || "";
+        if (field.type === "textarea") return <label key={field.key}>
+          <span>{field.label}{field.required ? " *" : ""}</span>
+          <textarea value={value} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} rows={5} style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cfd6de", borderRadius: 9, padding: 12, font: "inherit", resize: "vertical" }} />
+        </label>;
+        if (field.type === "select") return <label key={field.key}>
+          <span>{field.label}{field.required ? " *" : ""}</span>
+          <select value={value} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} style={{ width: "100%", height: 46, border: "1px solid #cfd6de", borderRadius: 9, padding: "0 10px", font: "inherit", background: "#fff" }}>
+            <option value="">Select…</option>{(field.options ?? []).map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>;
+        if (field.type === "multicheck") {
+          const selected = new Set(value.split(" | ").filter(Boolean));
+          return <fieldset key={field.key} style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend style={{ fontWeight: 700, marginBottom: 8 }}>{field.label}{field.required ? " *" : ""}</legend>
+            <div style={{ display: "grid", gap: 8 }}>{(field.options ?? []).map(option => <label key={option} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", border: "1px solid #d9dee4", borderRadius: 9, background: selected.has(option) ? "#f2fbf5" : "#fff" }}>
+              <input type="checkbox" checked={selected.has(option)} onChange={event => setMultiValue(field.key, option, event.target.checked)} />
+              <span>{option}</span>
+            </label>)}</div>
+            {field.required ? <input tabIndex={-1} aria-hidden="true" value={value} onChange={() => undefined} required style={{ position: "absolute", opacity: 0, width: 1, height: 1 }} /> : null}
+          </fieldset>;
+        }
+        return <label key={field.key}>
+          <span>{field.label}{field.required ? " *" : ""}</span>
+          <input type={field.type === "date" ? "date" : "text"} value={value} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} />
+        </label>;
+      })}</div>
+
+      {isDamageAcknowledgment ? <section style={{ marginTop: 22, padding: 16, border: "1px solid #d9dee4", borderRadius: 12, background: "#fafbfc" }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Photos <span style={{ fontWeight: 500, color: "#6b7280" }}>(optional)</span></h2>
+        <p style={{ margin: "6px 0 14px", color: "#5d6670", lineHeight: 1.45 }}>You may upload or take photos you would like included with this acknowledgment. Epic will separately document the vehicle damage.</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 42, padding: "0 14px", border: "1px solid #c8d0d7", borderRadius: 9, background: "#fff", fontWeight: 800, cursor: uploadingPhotos ? "wait" : "pointer" }}>
+            Choose Photos<input type="file" accept="image/*" multiple disabled={uploadingPhotos} onChange={event => { void uploadPhotos(event.target.files); event.currentTarget.value = ""; }} style={{ display: "none" }} />
+          </label>
+          <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 42, padding: "0 14px", border: "1px solid #c8d0d7", borderRadius: 9, background: "#fff", fontWeight: 800, cursor: uploadingPhotos ? "wait" : "pointer" }}>
+            Take Photo<input type="file" accept="image/*" capture="environment" disabled={uploadingPhotos} onChange={event => { void uploadPhotos(event.target.files); event.currentTarget.value = ""; }} style={{ display: "none" }} />
+          </label>
+        </div>
+        <p style={{ margin: "10px 0 0", fontSize: 13, color: attachments.length ? "#18713b" : "#6b7280", fontWeight: attachments.length ? 700 : 500 }}>{uploadingPhotos ? "Uploading photo…" : attachments.length ? `${attachments.length} photo${attachments.length === 1 ? "" : "s"} attached` : "No photos attached"}</p>
+      </section> : null}
+
       <div className={styles.agreement} dangerouslySetInnerHTML={{ __html: payload.template.agreement_html }} />
-      <label className={styles.agree}><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>I have read and understand this agreement and voluntarily accept its terms.</span></label>
+      <label className={styles.agree}><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>I have read and understand this acknowledgment and the next steps described above.</span></label>
       {payload.template.requires_signature ? <SignaturePad onChange={setSignature} /> : null}
       {error ? <p className={styles.formError}>{error}</p> : null}
-      <button className={styles.submit} type="submit" disabled={submitting}>{submitting ? "Submitting…" : "Sign & Submit"}</button>
+      <button className={styles.submit} type="submit" disabled={submitting || uploadingPhotos}>{submitting ? "Submitting…" : uploadingPhotos ? "Uploading Photo…" : "Sign & Submit"}</button>
       <p className={styles.privacy}>Your signature, submission time, IP address, and device information are recorded with your reservation.</p>
     </form> : null}
   </section></main>;
