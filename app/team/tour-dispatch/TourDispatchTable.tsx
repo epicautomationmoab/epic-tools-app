@@ -114,10 +114,12 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
     try {
       const response = await fetch("/api/team/tour-dispatch/checkin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ store_visit_id: row.store_visit_id, vehicle_slot: row.vehicle_slot }) });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error || "Unable to release Axel In shadow package.");
+      if (!response.ok) throw new Error(payload?.error || "Unable to record vehicle return.");
       setCheckinStatuses((current) => ({ ...current, [key]: "checkin_queued" }));
-      setMessages((current) => ({ ...current, [key]: "Axel In shadow package released — no MPWR automation ran." }));
-    } catch (error) { setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to release check-in." })); }
+      const axelNote = payload?.axel_ready ? " Axel In package released." : " Axel In is pending.";
+      const tourNote = payload?.tour_returned ? " Tour is returned." : "";
+      setMessages((current) => ({ ...current, [key]: `Vehicle return recorded.${axelNote}${tourNote}` }));
+    } catch (error) { setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to record vehicle return." })); }
     finally { setBusyKey(null); }
   }
 
@@ -138,8 +140,8 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
           <td className={styles.saveCell}>
             {!locked ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Preparing…" : "Check Out Vehicle"}</button> : null}
             {status === "checkout_queued" ? <button type="button" className={styles.secondaryButton} onClick={() => setOpenObservation(observationVisible ? null : key)}>{observationVisible ? "Close MPWR Check" : "Record MPWR Check"}</button> : null}
-            {status === "out" && checkinStatus !== "checkin_queued" ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Releasing…" : "Check In Vehicle"}</button> : null}
-            {checkinStatus === "checkin_queued" ? <span className={styles.statusPill}>Axel In Shadow Ready</span> : null}
+            {status === "out" && checkinStatus !== "checkin_queued" ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
+            {checkinStatus === "checkin_queued" ? <span className={styles.statusPill}>Vehicle Returned</span> : null}
             {message ? <span className={message.includes("Unable") || message.includes("Enter ") ? styles.error : styles.saved}>{message}</span> : null}
           </td>
         </tr>
