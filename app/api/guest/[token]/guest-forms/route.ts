@@ -17,6 +17,7 @@ type TemplateRow = {
   form_title: string;
   form_description: string | null;
 };
+type SubmissionRow = { id: string; task_id: string; signed_pdf_storage_path: string | null };
 
 function getConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -64,11 +65,17 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       id: `in.(${templateIds.join(",")})`,
       is_active: "eq.true",
     }));
+    const submissions = await select<SubmissionRow>("guest_form_submissions", new URLSearchParams({
+      select: "id,task_id,signed_pdf_storage_path",
+      task_id: `in.(${tasks.map((task) => task.id).join(",")})`,
+    }));
     const templateById = new Map(templates.map((template) => [template.id, template]));
+    const submissionByTask = new Map(submissions.map((submission) => [submission.task_id, submission]));
 
     return NextResponse.json({
       tasks: tasks.map((task) => {
         const template = templateById.get(task.template_id);
+        const submission = submissionByTask.get(task.id);
         return {
           taskId: task.id,
           readinessId: task.readiness_id,
@@ -80,9 +87,10 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
           templateName: template?.template_name ?? null,
           title: template?.form_title ?? template?.template_name ?? "Required Form",
           description: template?.form_description ?? null,
-          openUrl: task.task_status === "completed"
-            ? null
-            : `/api/guest/${encodeURIComponent(token)}/guest-forms/${encodeURIComponent(task.id)}/open`,
+          openUrl: task.task_status === "completed" ? null : `/api/guest/${encodeURIComponent(token)}/guest-forms/${encodeURIComponent(task.id)}/open`,
+          documentUrl: task.task_status === "completed" && submission?.signed_pdf_storage_path
+            ? `/api/guest/${encodeURIComponent(token)}/guest-forms/${encodeURIComponent(task.id)}/document`
+            : null,
         };
       }),
     });
