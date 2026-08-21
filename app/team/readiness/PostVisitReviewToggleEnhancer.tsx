@@ -49,7 +49,6 @@ function styleButton(button: HTMLButtonElement) {
   button.style.border = "1px solid #c8d0d7";
   button.style.borderRadius = "8px";
   button.style.background = "#fff";
-  button.style.color = "#26313b";
   button.style.lineHeight = "1";
   button.style.cursor = "pointer";
   button.style.flex = "0 0 42px";
@@ -63,6 +62,7 @@ function renderNoReviewIcon(button: HTMLButtonElement) {
   star.setAttribute("aria-hidden", "true");
   star.style.fontSize = "22px";
   star.style.lineHeight = "1";
+  star.style.color = "#FFC107";
 
   const ban = document.createElement("span");
   ban.textContent = "🚫";
@@ -83,7 +83,6 @@ function applyMode(button: HTMLButtonElement, mode: "review_request" | "thank_yo
   renderNoReviewIcon(button);
   button.style.background = suppressed ? "#b42318" : "#fff";
   button.style.borderColor = suppressed ? "#b42318" : "#c8d0d7";
-  button.style.color = suppressed ? "#fff" : "#26313b";
   button.title = suppressed
     ? "Thank You Only — review request suppressed. Click to restore review ask."
     : "Send Thank You + Review Request. Click to suppress the review ask.";
