@@ -8,9 +8,15 @@ function hashToken(token: string) {
 }
 
 function allowedBusinessLine(templateKey: string) {
-  if (templateKey === "pet_acknowledgment") return "rental";
+  if (templateKey === "pet_acknowledgment" || templateKey === "damage_acknowledgment") return "rental";
   if (templateKey === "minor_driver_authorization") return "tour";
   return null;
+}
+
+function templateLabel(templateKey: string) {
+  if (templateKey === "pet_acknowledgment") return "Pet Acknowledgment";
+  if (templateKey === "damage_acknowledgment") return "Vehicle Damage Acknowledgment";
+  return "Teen Driver Authorization";
 }
 
 export async function POST(request: NextRequest) {
@@ -38,8 +44,7 @@ export async function POST(request: NextRequest) {
     const requiredLine = allowedBusinessLine(body.templateKey);
     const actualLine = readiness.business_line?.trim().toLowerCase();
     if (requiredLine && actualLine !== requiredLine) {
-      const label = body.templateKey === "pet_acknowledgment" ? "Pet Acknowledgment" : "Teen Driver Authorization";
-      return NextResponse.json({ error: `${label} can only be added to ${requiredLine} reservations.` }, { status: 400 });
+      return NextResponse.json({ error: `${templateLabel(body.templateKey)} can only be added to ${requiredLine} reservations.` }, { status: 400 });
     }
 
     const templateRows = await supabaseSelect<{ id: string; template_key: string; template_name: string }>("guest_form_templates", new URLSearchParams({

@@ -15,6 +15,7 @@ type GuestFormTask = {
   title: string;
   description: string | null;
   openUrl: string | null;
+  documentUrl: string | null;
 };
 
 type FormsPayload = { tasks?: GuestFormTask[] };
@@ -78,7 +79,15 @@ export default function PortalGuestForms() {
           </a>
         ))}
 
-        {completed.map((task) => (
+        {completed.map((task) => task.documentUrl ? (
+          <a className={`${styles.task} ${styles.completedTask}`} href={task.documentUrl} target="_blank" rel="noopener noreferrer" key={task.taskId}>
+            <span className={styles.taskText}>
+              <strong>{task.title}</strong>
+              <small>{task.completedAt ? `Completed ${new Date(task.completedAt).toLocaleDateString()}` : "Completed"}</small>
+            </span>
+            <span className={styles.action}>View Signed Form</span>
+          </a>
+        ) : (
           <div className={`${styles.task} ${styles.completedTask}`} key={task.taskId}>
             <span className={styles.taskText}>
               <strong>{task.title}</strong>

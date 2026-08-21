@@ -4,11 +4,23 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import styles from "./GuestForm.module.css";
 
-type Field = { key: string; label: string; type: string; required?: boolean };
+type Field = { key: string; label: string; type: string; required?: boolean; options?: string[] };
+type ReservationContext = {
+  customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
+  visit_start_time: string;
+  product_display_name: string;
+  adventure_assure_level: string | null;
+  vehicle_breakdown: Array<{ model?: string; quantity?: number }> | null;
+};
 type FormPayload = {
   task: { confirmation_code: string; task_status: string; assigned_guest_name: string | null };
   template: { template_key: string; form_title: string; form_description: string | null; agreement_html: string; fields_schema: Field[]; requires_signature: boolean };
+  reservation?: ReservationContext | null;
 };
+
+type Attachment = { id: string; original_filename: string | null; content_type: string | null; byte_size: number | null };
 
 function SignaturePad({ onChange }: { onChange: (value: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -70,6 +82,26 @@ function SignaturePad({ onChange }: { onChange: (value: string | null) => void }
   </div>;
 }
 
+function formatVisit(value: string) {
+  try {
+    return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+async function readJsonResponse<T extends { error?: string }>(response: Response, fallback: string) {
+  const text = await response.text();
+  let data: T | null = null;
+  try {
+    data = text ? JSON.parse(text) as T : null;
+  } catch {
+    throw new Error(fallback);
+  }
+  if (!response.ok) throw new Error(data?.error || fallback);
+  return data ?? ({} as T);
+}
+
 export default function GuestFormPage() {
   const token = useParams<{ token: string }>()?.token;
   const searchParams = useSearchParams();
@@ -81,6 +113,10 @@ export default function GuestFormPage() {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [photoUploadProgress, setPhotoUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [photoNotice, setPhotoNotice] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [complete, setComplete] = useState(false);
   const [documentId, setDocumentId] = useState("");
   const [error, setError] = useState("");
@@ -89,8 +125,8 @@ export default function GuestFormPage() {
     if (!token) return;
     fetch(`/api/guest-forms/${encodeURIComponent(token)}`, { cache: "no-store" })
       .then(async response => {
-        const data = await response.json() as FormPayload & { error?: string };
-        if (!response.ok || !data.template) throw new Error(data.error || "Unable to open form.");
+        const data = await readJsonResponse<FormPayload & { error?: string }>(response, "Unable to open form.");
+        if (!data.template) throw new Error("Unable to open form.");
         setPayload(data);
         if (data.task.task_status === "completed") setComplete(true);
       })
@@ -98,22 +134,100 @@ export default function GuestFormPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  useEffect(() => {
+    if (!token || payload?.template.template_key !== "damage_acknowledgment") return;
+    fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, { cache: "no-store" })
+      .then(async response => {
+        const data = await readJsonResponse<{ attachments?: Attachment[]; error?: string }>(response, "Unable to load photos.");
+        setAttachments(data.attachments ?? []);
+      })
+      .catch(() => undefined);
+  }, [token, payload?.template.template_key]);
+
+  function setMultiValue(fieldKey: string, option: string, checked: boolean) {
+    setValues(current => {
+      const selected = new Set((current[fieldKey] || "").split(" | ").filter(Boolean));
+      if (checked) selected.add(option); else selected.delete(option);
+      return { ...current, [fieldKey]: Array.from(selected).join(" | ") };
+    });
+  }
+
+  async function uploadOnePhoto(file: File) {
+    if (!token) throw new Error("Form token is missing.");
+    const prepareResponse = await fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "prepare", filename: file.name, contentType: file.type, byteSize: file.size }),
+    });
+    const prepared = await readJsonResponse<{ error?: string; uploadUrl?: string; storagePath?: string }>(prepareResponse, `Unable to prepare ${file.name || "photo"} for upload.`);
+    if (!prepared.uploadUrl || !prepared.storagePath) throw new Error("Photo upload could not be prepared.");
+
+    const uploadBody = new FormData();
+    uploadBody.append("cacheControl", "3600");
+    uploadBody.append("", file);
+    const storageResponse = await fetch(prepared.uploadUrl, {
+      method: "PUT",
+      headers: { "x-upsert": "false" },
+      body: uploadBody,
+    });
+    if (!storageResponse.ok) throw new Error(`Unable to upload ${file.name || "photo"}. Please try again.`);
+
+    const completeResponse = await fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "complete", storagePath: prepared.storagePath, filename: file.name, contentType: file.type, byteSize: file.size }),
+    });
+    const completed = await readJsonResponse<{ error?: string; attachment?: Attachment }>(completeResponse, `Unable to finish attaching ${file.name || "photo"}.`);
+    if (!completed.attachment) throw new Error("Photo uploaded but could not be attached to the form.");
+    return completed.attachment;
+  }
+
+  async function uploadPhotos(files: FileList | null) {
+    if (!token || !files?.length) return;
+    const remainingSlots = Math.max(10 - attachments.length, 0);
+    if (remainingSlots === 0) {
+      setPhotoNotice("10 photos are already attached.");
+      return;
+    }
+
+    const chosen = Array.from(files);
+    const selected = chosen.slice(0, remainingSlots);
+    const ignored = chosen.length - selected.length;
+
+    setUploadingPhotos(true);
+    setPhotoUploadProgress({ done: 0, total: selected.length });
+    setError("");
+    setPhotoNotice(ignored > 0 ? `${ignored} extra photo${ignored === 1 ? " was" : "s were"} not added because the limit is 10.` : "");
+
+    try {
+      for (let index = 0; index < selected.length; index += 1) {
+        const attachment = await uploadOnePhoto(selected[index]);
+        setAttachments(current => [...current, attachment]);
+        setPhotoUploadProgress({ done: index + 1, total: selected.length });
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to upload photos.");
+    } finally {
+      setUploadingPhotos(false);
+      setPhotoUploadProgress(null);
+    }
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!token || !payload) return;
     setSubmitting(true);
     setError("");
     try {
-      const signerName = payload.template.template_key === "pet_acknowledgment"
-        ? values.renter_full_name
-        : `${values.guardian_first_name || ""} ${values.guardian_last_name || ""}`.trim();
+      const signerName = payload.template.template_key === "minor_driver_authorization"
+        ? `${values.guardian_first_name || ""} ${values.guardian_last_name || ""}`.trim()
+        : payload.reservation?.customer_name || payload.task.assigned_guest_name || values.renter_full_name;
       const response = await fetch(`/api/guest-forms/${encodeURIComponent(token)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ formData: values, signerName, signatureDataUrl: signature, agreed }),
       });
-      const data = await response.json() as { error?: string; documentId?: string };
-      if (!response.ok) throw new Error(data.error || "Unable to submit form.");
+      const data = await readJsonResponse<{ error?: string; documentId?: string }>(response, "Unable to submit form.");
       setDocumentId(data.documentId || "");
       setComplete(true);
     } catch (caught) {
@@ -122,6 +236,9 @@ export default function GuestFormPage() {
       setSubmitting(false);
     }
   }
+
+  const isDamageAcknowledgment = payload?.template.template_key === "damage_acknowledgment";
+  const reservation = payload?.reservation;
 
   return <main className={styles.page}><section className={styles.card}>
     <header className={styles.header}><img src="/epic-logo-black.png" alt="Epic 4X4 Adventures" /></header>
@@ -135,15 +252,72 @@ export default function GuestFormPage() {
     {!loading && payload && !complete ? <form className={styles.form} onSubmit={submit}>
       <p className={styles.eyebrow}>Reservation {payload.task.confirmation_code}</p>
       <h1>{payload.template.form_title}</h1>{payload.template.form_description ? <p className={styles.description}>{payload.template.form_description}</p> : null}
-      <div className={styles.fields}>{payload.template.fields_schema.map(field => <label key={field.key}>
-        <span>{field.label}{field.required ? " *" : ""}</span>
-        <input type={field.type === "date" ? "date" : "text"} value={values[field.key] || ""} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} />
-      </label>)}</div>
+
+      {isDamageAcknowledgment && reservation ? <section style={{ margin: "18px 0 22px", padding: 14, border: "1px solid #d9dee4", borderRadius: 12, background: "#f8fafc" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>RENTER</small><div style={{ fontWeight: 800 }}>{reservation.customer_name}</div></div>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>RESERVATION</small><div style={{ fontWeight: 800 }}>{payload.task.confirmation_code}</div></div>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>RENTAL</small><div style={{ fontWeight: 800 }}>{reservation.product_display_name}</div></div>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>DATE / TIME</small><div style={{ fontWeight: 800 }}>{formatVisit(reservation.visit_start_time)}</div></div>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>ADVENTURE ASSURE</small><div style={{ fontWeight: 900, color: "#9a431f" }}>{reservation.adventure_assure_level || "Not listed"}</div></div>
+        </div>
+      </section> : null}
+
+      <div className={styles.fields}>{payload.template.fields_schema.map(field => {
+        const value = values[field.key] || "";
+        if (field.type === "textarea") return <label key={field.key}>
+          <span>{field.label}{field.required ? " *" : ""}</span>
+          <textarea value={value} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} rows={4} style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cfd6de", borderRadius: 9, padding: 12, font: "inherit", resize: "vertical" }} />
+        </label>;
+        if (field.type === "select") return <label key={field.key}>
+          <span>{field.label}{field.required ? " *" : ""}</span>
+          <select value={value} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} style={{ width: "100%", height: 46, border: "1px solid #cfd6de", borderRadius: 9, padding: "0 10px", font: "inherit", background: "#fff" }}>
+            <option value="">Select…</option>{(field.options ?? []).map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>;
+        if (field.type === "multicheck") {
+          const selectedValues = new Set(value.split(" | ").filter(Boolean));
+          return <fieldset key={field.key} style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend style={{ fontWeight: 700, marginBottom: 8 }}>{field.label}{field.required ? " *" : ""}</legend>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 7 }}>{(field.options ?? []).map(option => <label key={option} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 36, padding: "6px 9px", border: "1px solid #d9dee4", borderRadius: 8, background: selectedValues.has(option) ? "#f2fbf5" : "#fff", cursor: "pointer" }}>
+              <input type="checkbox" checked={selectedValues.has(option)} onChange={event => setMultiValue(field.key, option, event.target.checked)} style={{ width: 16, height: 16, margin: 0, flex: "0 0 16px" }} />
+              <span style={{ fontSize: 14, fontWeight: 700 }}>{option}</span>
+            </label>)}</div>
+            {field.required ? <input tabIndex={-1} aria-hidden="true" value={value} onChange={() => undefined} required style={{ position: "absolute", opacity: 0, width: 1, height: 1 }} /> : null}
+          </fieldset>;
+        }
+        return <label key={field.key}>
+          <span>{field.label}{field.required ? " *" : ""}</span>
+          <input type={field.type === "date" ? "date" : "text"} value={value} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} />
+        </label>;
+      })}</div>
+
+      {isDamageAcknowledgment ? <section style={{ marginTop: 22, padding: 16, border: "1px solid #d9dee4", borderRadius: 12, background: "#fafbfc" }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Photos <span style={{ fontWeight: 500, color: "#6b7280" }}>(optional)</span></h2>
+        <p style={{ margin: "6px 0 14px", color: "#5d6670", lineHeight: 1.45 }}>You may upload or take photos you would like included with this acknowledgment. Epic will separately document the vehicle damage.</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 42, padding: "0 14px", border: "1px solid #c8d0d7", borderRadius: 9, background: "#fff", fontWeight: 800, cursor: uploadingPhotos ? "wait" : "pointer" }}>
+            Choose Photos<input type="file" accept="image/*" multiple disabled={uploadingPhotos || attachments.length >= 10} onChange={event => { void uploadPhotos(event.target.files); event.currentTarget.value = ""; }} style={{ display: "none" }} />
+          </label>
+          <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 42, padding: "0 14px", border: "1px solid #c8d0d7", borderRadius: 9, background: "#fff", fontWeight: 800, cursor: uploadingPhotos ? "wait" : "pointer" }}>
+            Take Photo<input type="file" accept="image/*" capture="environment" disabled={uploadingPhotos || attachments.length >= 10} onChange={event => { void uploadPhotos(event.target.files); event.currentTarget.value = ""; }} style={{ display: "none" }} />
+          </label>
+        </div>
+        <p style={{ margin: "10px 0 0", fontSize: 13, color: attachments.length ? "#18713b" : "#6b7280", fontWeight: attachments.length ? 700 : 500 }}>
+          {uploadingPhotos && photoUploadProgress
+            ? `Uploading photo ${Math.min(photoUploadProgress.done + 1, photoUploadProgress.total)} of ${photoUploadProgress.total}…`
+            : attachments.length
+              ? `${attachments.length} photo${attachments.length === 1 ? "" : "s"} attached`
+              : "No photos attached"}
+        </p>
+        {photoNotice ? <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6b7280" }}>{photoNotice}</p> : null}
+      </section> : null}
+
       <div className={styles.agreement} dangerouslySetInnerHTML={{ __html: payload.template.agreement_html }} />
-      <label className={styles.agree}><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>I have read and understand this agreement and voluntarily accept its terms.</span></label>
+      <label className={styles.agree}><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>{isDamageAcknowledgment ? "I have read and understand this acknowledgment and the next steps described above." : "I have read and understand this agreement and voluntarily accept its terms."}</span></label>
       {payload.template.requires_signature ? <SignaturePad onChange={setSignature} /> : null}
       {error ? <p className={styles.formError}>{error}</p> : null}
-      <button className={styles.submit} type="submit" disabled={submitting}>{submitting ? "Submitting…" : "Sign & Submit"}</button>
+      <button className={styles.submit} type="submit" disabled={submitting || uploadingPhotos}>{submitting ? "Submitting…" : uploadingPhotos ? "Uploading Photo…" : "Sign & Submit"}</button>
       <p className={styles.privacy}>Your signature, submission time, IP address, and device information are recorded with your reservation.</p>
     </form> : null}
   </section></main>;

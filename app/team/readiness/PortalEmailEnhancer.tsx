@@ -214,8 +214,13 @@ export default function PortalEmailEnhancer() {
             if (existing.pdfReady && existing.documentUrl) {
               formButton.onclick = () => window.open(existing.documentUrl!, "_blank", "noopener,noreferrer");
               const signedRow = makeSignedFormRow(actionName, existing.documentUrl);
+              const damageRow = drawer.querySelector<HTMLElement>("#damage-acknowledgment-signed-row");
               const cancellationCard = findCancellationCard(drawer);
-              if (cancellationCard?.parentElement) cancellationCard.parentElement.insertBefore(signedRow, cancellationCard);
+              if (damageRow?.parentElement) {
+                damageRow.parentElement.insertBefore(signedRow, damageRow);
+              } else if (cancellationCard?.parentElement) {
+                cancellationCard.parentElement.insertBefore(signedRow, cancellationCard);
+              }
             } else {
               formButton.disabled = true;
               formButton.style.opacity = "0.82";
