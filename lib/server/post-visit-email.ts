@@ -27,7 +27,7 @@ const DEFAULT_BRAND_ASSET_BASE = "https://epictools.app/api/brand/post-visit";
 
 function experienceParagraph(businessLine: "tour" | "rental") {
   if (businessLine === "tour") {
-    return "We loved having you out on the trail with us. Every group brings its own energy to the experience, and we hope the scenery, the terrain, the laughs, and the moments along the way gave you something you’ll remember long after the dust settles.";
+    return "We loved having you out on the trail with us. We hope the scenery, the terrain, the laughs, and the moments along the way gave you something you’ll remember long after the dust settles.";
   }
 
   return "We hope your time behind the wheel gave you the freedom to explore Moab your way and made for a day worth remembering. There’s nothing quite like seeing this place from the trail, and we’re glad we got to be part of your adventure.";
@@ -90,13 +90,13 @@ export function renderPostVisitEmailHtml(input: {
             <h1 style="margin:0 0 22px;font-size:30px;line-height:1.2;color:#202733">It’s our guests who make us Epic.</h1>
             <p style="margin:0 0 16px;font-size:16px;line-height:1.65;color:#3a3a3a">Hi ${greetingName},</p>
             <p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#3a3a3a">
-              Thank you for choosing <strong>Epic 4X4 Adventures</strong> for your Moab adventure. We’re grateful you chose to spend part of your trip with us, and we hope your experience was everything you imagined — and maybe a little more.
+              Thank you for choosing <strong>Epic 4X4 Adventures</strong> for your Moab adventure. We’re grateful you chose to spend part of your trip with us, and we hope your experience was everything you imagined — and more.
             </p>
             <p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#3a3a3a">${experienceCopy}</p>
             ${review}
             ${socialBlock(brandAssetBase)}
             <p style="margin:0 0 8px;font-size:16px;line-height:1.65;color:#3a3a3a">
-              Thank you again for choosing Epic 4X4 Adventures. We hope this won’t be your last adventure with us, and we’d love to welcome you back to Moab someday.
+              Thank you again for choosing Epic 4X4 Adventures. We hope this won’t be your last adventure with us. We’d love to welcome you back to Moab soon.
             </p>
           </div>
           <div style="border-top:3px solid #b10707;padding:18px 30px 22px;text-align:center;font-size:12px;line-height:1.6;color:#6b7280">
