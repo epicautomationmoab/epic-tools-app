@@ -1,22 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
-
-function mountainDateKey(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-function visitDateKey(value: string) {
-  return value.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? "";
-}
 
 function formatStart(value: string) {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
@@ -83,33 +68,21 @@ async function markRentalReturned(readinessId: string) {
 }
 
 export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
-  const today = mountainDateKey();
-  const initialRows = useMemo(
-    () =>
-      rows.filter(
-        (row) =>
-          row.business_line === "rental" &&
-          row.handoff_status === "rental_out" &&
-          visitDateKey(row.visit_start_time) < today,
-      ),
-    [rows, today],
-  );
   const [returnedIds, setReturnedIds] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const activeRows = initialRows.filter(
+  const heldOverRows = rows.filter(
     (row) => row.readiness_id && !returnedIds.has(row.readiness_id),
   );
 
   return (
     <section
-      aria-label="Active Rentals"
+      aria-label="Held-Over Rentals"
       style={{
-        marginBottom: 18,
-        border: "1px solid #e6c55c",
+        border: "1px solid #d9dee6",
         borderRadius: 12,
-        background: "#fffdf4",
+        background: "#fff",
         overflow: "hidden",
         boxShadow: "0 1px 4px rgba(0,0,0,.04)",
       }}
@@ -120,17 +93,17 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
           alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
-          padding: "12px 14px",
-          borderBottom: "1px solid #efe2ad",
-          background: "#fff9df",
+          padding: "14px 16px",
+          borderBottom: "1px solid #e7ebf0",
+          background: "#f8fafc",
         }}
       >
         <div>
-          <div style={{ fontSize: 15, fontWeight: 900, color: "#202733" }}>
-            Active Rentals
+          <div style={{ fontSize: 16, fontWeight: 900, color: "#202733" }}>
+            Held-Over Rentals
           </div>
           <div style={{ marginTop: 2, fontSize: 12, color: "#6b7280" }}>
-            Rentals from a prior day that are still out
+            Prior-day rentals not marked Rental Returned
           </div>
         </div>
         <div
@@ -141,13 +114,13 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
             borderRadius: 999,
             display: "grid",
             placeItems: "center",
-            background: activeRows.length ? "#ffc107" : "#eceff3",
+            background: heldOverRows.length ? "#ffc107" : "#eceff3",
             color: "#202733",
             fontWeight: 900,
             fontSize: 13,
           }}
         >
-          {activeRows.length}
+          {heldOverRows.length}
         </div>
       </div>
 
@@ -157,13 +130,13 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
         </div>
       ) : null}
 
-      {activeRows.length === 0 ? (
-        <div style={{ padding: "13px 14px", color: "#7a7f87", fontSize: 13 }}>
-          No carryover rentals are currently out.
+      {heldOverRows.length === 0 ? (
+        <div style={{ padding: "14px 16px", color: "#7a7f87", fontSize: 13 }}>
+          No held-over rentals.
         </div>
       ) : (
         <div>
-          {activeRows.map((row, index) => {
+          {heldOverRows.map((row, index) => {
             const readinessId = row.readiness_id!;
             return (
               <div
@@ -174,7 +147,7 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
                   gap: 14,
                   alignItems: "center",
                   padding: "12px 14px",
-                  borderTop: index === 0 ? "none" : "1px solid #f0ead3",
+                  borderTop: index === 0 ? "none" : "1px solid #eef1f4",
                   background: "#fff",
                 }}
               >
@@ -197,11 +170,14 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 900, color: "#8a6a00", textTransform: "uppercase", letterSpacing: ".04em" }}>
-                    Out since
+                  <div style={{ fontSize: 11, fontWeight: 900, color: "#6b7280", textTransform: "uppercase", letterSpacing: ".04em" }}>
+                    Rental date
                   </div>
                   <div style={{ marginTop: 3, fontSize: 13, fontWeight: 800, color: "#343a46" }}>
                     {formatStart(row.visit_start_time)}
+                  </div>
+                  <div style={{ marginTop: 3, fontSize: 11, color: "#7a7f87" }}>
+                    Status: {row.handoff_status || "No handoff recorded"}
                   </div>
                 </div>
 
