@@ -21,12 +21,12 @@ export default async function ActiveRentalsPage() {
   return (
     <div className={styles.page}>
       <AutoRefresh />
-      <TeamSidebar active="Active Rentals" />
+      <TeamSidebar active="Held-Over Rentals" />
 
       <main className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.titleBlock}>
-            <h1>Active Rentals</h1>
+            <h1>Held-Over Rentals</h1>
             <HeaderClock />
           </div>
           <div className={styles.headerActions}>
