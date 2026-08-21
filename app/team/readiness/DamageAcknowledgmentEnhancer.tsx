@@ -91,12 +91,13 @@ export default function DamageAcknowledgmentEnhancer() {
     async function enhance() {
       const portalLink = document.querySelector<HTMLAnchorElement>('a[href^="/guest/"]');
       if (!portalLink) return;
-      const drawer = portalLink.closest('[role="dialog"]');
-      if (!drawer || drawer.querySelector("#damage-acknowledgment-quick-add")) return;
+      const drawer = portalLink.closest('[role="dialog"]') as HTMLElement | null;
+      if (!drawer || drawer.querySelector("#damage-acknowledgment-quick-add") || drawer.dataset.damageAcknowledgmentEnhancing === "true") return;
       if (findBusinessLine(drawer) !== "rental") return;
       const portalToken = portalTokenFromLink(portalLink);
       if (!portalToken) return;
 
+      drawer.dataset.damageAcknowledgmentEnhancing = "true";
       try {
         const portalResponse = await fetch(`/api/guest/${encodeURIComponent(portalToken)}`, { cache: "no-store" });
         if (!portalResponse.ok) return;
@@ -107,7 +108,7 @@ export default function DamageAcknowledgmentEnhancer() {
         const anchor = drawer.querySelector<HTMLButtonElement>("#guest-form-quick-add")
           ?? Array.from(drawer.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Resend Confirmation Email")
           ?? null;
-        if (!anchor) return;
+        if (!anchor || drawer.querySelector("#damage-acknowledgment-quick-add")) return;
 
         const button = document.createElement("button");
         button.type = "button";
@@ -187,6 +188,8 @@ export default function DamageAcknowledgmentEnhancer() {
         timers.set(drawer, timer);
       } catch (error) {
         console.error("Damage acknowledgment action unavailable", error);
+      } finally {
+        delete drawer.dataset.damageAcknowledgmentEnhancing;
       }
     }
 
