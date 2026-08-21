@@ -7,7 +7,7 @@ import styles from "./readiness/ReadinessShell.module.css";
 type Props = {
   active:
     | "Guest Readiness"
-    | "Active Rentals"
+    | "Held-Over Rentals"
     | "Tour Dispatch"
     | "Previous Guest Lookup"
     | "Email Delivery"
@@ -16,7 +16,7 @@ type Props = {
 
 const baseNavItems = [
   { label: "Guest Readiness", href: "/team/readiness", external: false },
-  { label: "Active Rentals", href: "/team/active-rentals", external: false },
+  { label: "Held-Over Rentals", href: "/team/active-rentals", external: false },
   { label: "Tour Dispatch", href: "/team/tour-dispatch", external: false },
   { label: "Previous Guest Lookup", href: "/team/previous-guests", external: false },
   { label: "Email Delivery", href: "/team/email-delivery", external: false },
@@ -50,9 +50,9 @@ export default async function TeamSidebar({ active }: Props) {
             <>
               <span aria-hidden="true">◇</span>
               <span style={{ flex: 1 }}>{item.label}</span>
-              {item.label === "Active Rentals" && activeRentalCount > 0 ? (
+              {item.label === "Held-Over Rentals" && activeRentalCount > 0 ? (
                 <span
-                  aria-label={`${activeRentalCount} active rental${activeRentalCount === 1 ? "" : "s"}`}
+                  aria-label={`${activeRentalCount} held-over rental${activeRentalCount === 1 ? "" : "s"}`}
                   style={{
                     minWidth: 22,
                     height: 22,
