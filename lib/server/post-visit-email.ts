@@ -54,7 +54,7 @@ function socialBlock(brandAssetBase: string) {
   return `
     <p style="margin:22px 0 18px;font-size:16px;line-height:1.65;color:#3a3a3a">
       We’d also love to stay connected. Follow us on
-      <a href="${FACEBOOK_URL}" style="color:#b10707;font-weight:700;text-decoration:none;white-space:nowrap"><img src="${brandAssetBase}/facebook" alt="" width="18" height="18" style="display:inline-block;width:18px;height:18px;margin:0 5px 0 4px;border:0;vertical-align:-4px" />Facebook</a>
+      <a href="${FACEBOOK_URL}" style="color:#b10707;font-weight:700;text-decoration:none;white-space:nowrap"><img src="${brandAssetBase}/facebook-fixed" alt="" width="18" height="18" style="display:inline-block;width:18px;height:18px;margin:0 5px 0 4px;border:0;vertical-align:-4px" />Facebook</a>
       and
       <a href="${INSTAGRAM_URL}" style="color:#b10707;font-weight:700;text-decoration:none;white-space:nowrap"><img src="${brandAssetBase}/instagram" alt="" width="18" height="18" style="display:inline-block;width:18px;height:18px;margin:0 5px 0 4px;border:0;vertical-align:-4px" />Instagram</a>
       for trail photos, Moab adventures, and the latest from Epic.
