@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 const ICON_ORDER = [
   "#guest-form-quick-add",
+  "#post-visit-review-toggle",
   "#damage-acknowledgment-quick-add",
 ];
 
