@@ -5,9 +5,19 @@ import { useParams, useSearchParams } from "next/navigation";
 import styles from "./GuestForm.module.css";
 
 type Field = { key: string; label: string; type: string; required?: boolean; options?: string[] };
+type ReservationContext = {
+  customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
+  visit_start_time: string;
+  product_display_name: string;
+  adventure_assure_level: string | null;
+  vehicle_breakdown: Array<{ model?: string; quantity?: number }> | null;
+};
 type FormPayload = {
   task: { confirmation_code: string; task_status: string; assigned_guest_name: string | null };
   template: { template_key: string; form_title: string; form_description: string | null; agreement_html: string; fields_schema: Field[]; requires_signature: boolean };
+  reservation?: ReservationContext | null;
 };
 
 type Attachment = { id: string; original_filename: string | null; content_type: string | null; byte_size: number | null };
@@ -70,6 +80,14 @@ function SignaturePad({ onChange }: { onChange: (value: string | null) => void }
     <div className={styles.signatureHeading}><strong>Signature</strong><button type="button" onClick={clear}>Clear</button></div>
     <canvas ref={canvasRef} className={styles.signaturePad} onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} />
   </div>;
+}
+
+function formatVisit(value: string) {
+  try {
+    return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+  } catch {
+    return value;
+  }
 }
 
 export default function GuestFormPage() {
@@ -146,7 +164,7 @@ export default function GuestFormPage() {
     try {
       const signerName = payload.template.template_key === "minor_driver_authorization"
         ? `${values.guardian_first_name || ""} ${values.guardian_last_name || ""}`.trim()
-        : values.renter_full_name;
+        : payload.reservation?.customer_name || payload.task.assigned_guest_name || values.renter_full_name;
       const response = await fetch(`/api/guest-forms/${encodeURIComponent(token)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -164,6 +182,7 @@ export default function GuestFormPage() {
   }
 
   const isDamageAcknowledgment = payload?.template.template_key === "damage_acknowledgment";
+  const reservation = payload?.reservation;
 
   return <main className={styles.page}><section className={styles.card}>
     <header className={styles.header}><img src="/epic-logo.png" alt="Epic 4X4 Adventures" /></header>
@@ -177,11 +196,22 @@ export default function GuestFormPage() {
     {!loading && payload && !complete ? <form className={styles.form} onSubmit={submit}>
       <p className={styles.eyebrow}>Reservation {payload.task.confirmation_code}</p>
       <h1>{payload.template.form_title}</h1>{payload.template.form_description ? <p className={styles.description}>{payload.template.form_description}</p> : null}
+
+      {isDamageAcknowledgment && reservation ? <section style={{ margin: "18px 0 22px", padding: 14, border: "1px solid #d9dee4", borderRadius: 12, background: "#f8fafc" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>RENTER</small><div style={{ fontWeight: 800 }}>{reservation.customer_name}</div></div>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>RESERVATION</small><div style={{ fontWeight: 800 }}>{payload.task.confirmation_code}</div></div>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>RENTAL</small><div style={{ fontWeight: 800 }}>{reservation.product_display_name}</div></div>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>DATE / TIME</small><div style={{ fontWeight: 800 }}>{formatVisit(reservation.visit_start_time)}</div></div>
+          <div><small style={{ color: "#6b7280", fontWeight: 800 }}>ADVENTURE ASSURE</small><div style={{ fontWeight: 900, color: "#9a431f" }}>{reservation.adventure_assure_level || "Not listed"}</div></div>
+        </div>
+      </section> : null}
+
       <div className={styles.fields}>{payload.template.fields_schema.map(field => {
         const value = values[field.key] || "";
         if (field.type === "textarea") return <label key={field.key}>
           <span>{field.label}{field.required ? " *" : ""}</span>
-          <textarea value={value} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} rows={5} style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cfd6de", borderRadius: 9, padding: 12, font: "inherit", resize: "vertical" }} />
+          <textarea value={value} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} required={field.required} rows={4} style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cfd6de", borderRadius: 9, padding: 12, font: "inherit", resize: "vertical" }} />
         </label>;
         if (field.type === "select") return <label key={field.key}>
           <span>{field.label}{field.required ? " *" : ""}</span>
@@ -193,9 +223,9 @@ export default function GuestFormPage() {
           const selected = new Set(value.split(" | ").filter(Boolean));
           return <fieldset key={field.key} style={{ border: 0, padding: 0, margin: 0 }}>
             <legend style={{ fontWeight: 700, marginBottom: 8 }}>{field.label}{field.required ? " *" : ""}</legend>
-            <div style={{ display: "grid", gap: 8 }}>{(field.options ?? []).map(option => <label key={option} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", border: "1px solid #d9dee4", borderRadius: 9, background: selected.has(option) ? "#f2fbf5" : "#fff" }}>
-              <input type="checkbox" checked={selected.has(option)} onChange={event => setMultiValue(field.key, option, event.target.checked)} />
-              <span>{option}</span>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 7 }}>{(field.options ?? []).map(option => <label key={option} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 36, padding: "6px 9px", border: "1px solid #d9dee4", borderRadius: 8, background: selected.has(option) ? "#f2fbf5" : "#fff", cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.has(option)} onChange={event => setMultiValue(field.key, option, event.target.checked)} style={{ width: 16, height: 16, margin: 0, flex: "0 0 16px" }} />
+              <span style={{ fontSize: 14, fontWeight: 700 }}>{option}</span>
             </label>)}</div>
             {field.required ? <input tabIndex={-1} aria-hidden="true" value={value} onChange={() => undefined} required style={{ position: "absolute", opacity: 0, width: 1, height: 1 }} /> : null}
           </fieldset>;
