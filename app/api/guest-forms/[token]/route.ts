@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { sendWaiverCopyEmail, waiverEmailConfigured } from "@/lib/server/waiver-email";
 import { getServerSupabaseConfig, serverSupabaseHeaders, supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
 
 type Template = {
@@ -21,6 +22,7 @@ type Task = {
   task_status: string;
   expires_at: string | null;
   assigned_guest_name: string | null;
+  assigned_guest_email: string | null;
   template_id: string;
   opened_at: string | null;
 };
@@ -94,7 +96,7 @@ function validateTemplateFields(template: Template, formData: Record<string, str
 
 async function loadTask(token: string) {
   const rows = await supabaseSelect<Task>("guest_form_tasks", new URLSearchParams({
-    select: "id,readiness_id,confirmation_code,task_status,expires_at,assigned_guest_name,template_id,opened_at",
+    select: "id,readiness_id,confirmation_code,task_status,expires_at,assigned_guest_name,assigned_guest_email,template_id,opened_at",
     public_token_hash: `eq.${hashToken(token)}`,
     limit: "1",
   }));
@@ -132,6 +134,58 @@ async function generateSignedPdf(submissionId: string) {
   const text = await response.text();
   if (!response.ok) return { ok: false as const, error: text.slice(0, 500) };
   return { ok: true as const, result: JSON.parse(text) as { storage_path?: string; sha256?: string; bytes?: number } };
+}
+
+async function downloadSignedPdf(storagePath: string) {
+  const { url } = getServerSupabaseConfig();
+  const encodedPath = storagePath.split("/").map(encodeURIComponent).join("/");
+  const response = await fetch(`${url}/storage/v1/object/authenticated/epic-legal-documents/${encodedPath}`, {
+    headers: serverSupabaseHeaders(),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Unable to retrieve signed form PDF: ${(await response.text()).slice(0, 300)}`);
+  return Buffer.from(await response.arrayBuffer());
+}
+
+async function emailDamageAcknowledgmentCopy(input: {
+  submissionId: string;
+  task: Task;
+  signerName: string;
+  storagePath: string;
+}) {
+  await supabasePatch("guest_form_submissions", new URLSearchParams({ id: `eq.${input.submissionId}` }), {
+    copy_email_status: "pending",
+    copy_email_error: null,
+  });
+
+  try {
+    if (!waiverEmailConfigured()) throw new Error("Signed form email delivery is not configured.");
+    const email = input.task.assigned_guest_email?.trim();
+    if (!email) throw new Error("Guest email address is missing.");
+    const pdfBytes = await downloadSignedPdf(input.storagePath);
+    const emailResult = await sendWaiverCopyEmail({
+      email,
+      signerName: input.signerName,
+      pdf: pdfBytes,
+      idempotencyKey: `damage-acknowledgment-copy/${input.submissionId}`,
+      documentTitle: "Vehicle Damage Acknowledgment and Next Steps",
+      filename: `Epic-4X4-Vehicle-Damage-Acknowledgment-${input.task.confirmation_code}.pdf`,
+    });
+    await supabasePatch("guest_form_submissions", new URLSearchParams({ id: `eq.${input.submissionId}` }), {
+      copy_email_status: "sent",
+      copy_email_sent_at: new Date().toISOString(),
+      copy_email_message_id: emailResult.messageId,
+      copy_email_error: null,
+    });
+    return { status: "sent" as const, error: null };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to email signed form copy.";
+    await supabasePatch("guest_form_submissions", new URLSearchParams({ id: `eq.${input.submissionId}` }), {
+      copy_email_status: "failed",
+      copy_email_error: message,
+    }).catch(() => undefined);
+    return { status: "failed" as const, error: message };
+  }
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ token: string }> }) {
@@ -226,6 +280,19 @@ export async function POST(request: Request, context: { params: Promise<{ token:
       console.error("Guest form PDF generation failed", { submissionId: submission.id, documentId: submission.document_id, error: pdf.error });
     }
 
+    let copyEmailStatus: "sent" | "failed" | null = null;
+    let copyEmailError: string | null = null;
+    if (template.template_key === "damage_acknowledgment" && pdf.ok && pdf.result.storage_path) {
+      const copy = await emailDamageAcknowledgmentCopy({
+        submissionId: submission.id,
+        task,
+        signerName,
+        storagePath: pdf.result.storage_path,
+      });
+      copyEmailStatus = copy.status;
+      copyEmailError = copy.error;
+    }
+
     return NextResponse.json({
       ok: true,
       documentId: submission.document_id,
@@ -233,6 +300,8 @@ export async function POST(request: Request, context: { params: Promise<{ token:
       pdfGenerated: pdf.ok,
       pdf: pdf.ok ? pdf.result : null,
       pdfError: pdf.ok ? null : pdf.error,
+      copyEmailStatus,
+      copyEmailError,
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to submit form." }, { status: 500 });
