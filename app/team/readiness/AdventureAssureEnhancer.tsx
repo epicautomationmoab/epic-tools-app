@@ -224,14 +224,23 @@ export default function AdventureAssureEnhancer({ rows }: { rows: ReadinessRow[]
         (header) => header.textContent?.trim() === "Adventure Assure",
       );
 
-      if (assureIndex < 0 || cell.cellIndex !== assureIndex) return;
+      if (assureIndex < 0 || cell.cellIndex !== assureIndex) {
+        setMenu(null);
+        return;
+      }
 
       const badge = cell.querySelector("span");
       const currentText = badge?.textContent?.trim();
-      if (currentText !== "Standard" && currentText !== "Premier") return;
+      if (currentText !== "Standard" && currentText !== "Premier") {
+        setMenu(null);
+        return;
+      }
 
       const readinessRow = resolveReadinessRow(tableRow, liveRows);
-      if (!readinessRow?.readiness_id) return;
+      if (!readinessRow?.readiness_id) {
+        setMenu(null);
+        return;
+      }
 
       event.preventDefault();
       event.stopPropagation();
@@ -248,8 +257,18 @@ export default function AdventureAssureEnhancer({ rows }: { rows: ReadinessRow[]
       });
     }
 
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenu(null);
+      }
+    }
+
     document.addEventListener("click", handleClick, true);
-    return () => document.removeEventListener("click", handleClick, true);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("click", handleClick, true);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [liveRows]);
 
   async function chooseLevel(level: Level) {
