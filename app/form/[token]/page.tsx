@@ -121,6 +121,7 @@ export default function GuestFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [photoUploadProgress, setPhotoUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [photoNotice, setPhotoNotice] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [complete, setComplete] = useState(false);
   const [documentId, setDocumentId] = useState("");
@@ -159,15 +160,21 @@ export default function GuestFormPage() {
 
   async function uploadPhotos(files: FileList | null) {
     if (!token || !files?.length) return;
-    const selected = Array.from(files);
-    if (attachments.length + selected.length > 10) {
-      setError(`You may attach up to 10 photos. ${10 - attachments.length} more can be added.`);
+    const remainingSlots = Math.max(10 - attachments.length, 0);
+    if (remainingSlots === 0) {
+      setPhotoNotice("10 photos are already attached.");
       return;
     }
+
+    const chosen = Array.from(files);
+    const selected = chosen.slice(0, remainingSlots);
+    const ignored = chosen.length - selected.length;
 
     setUploadingPhotos(true);
     setPhotoUploadProgress({ done: 0, total: selected.length });
     setError("");
+    setPhotoNotice(ignored > 0 ? `${ignored} extra photo${ignored === 1 ? " was" : "s were"} not added because the limit is 10.` : "");
+
     try {
       for (let index = 0; index < selected.length; index += 1) {
         const file = selected[index];
@@ -249,11 +256,11 @@ export default function GuestFormPage() {
           </select>
         </label>;
         if (field.type === "multicheck") {
-          const selected = new Set(value.split(" | ").filter(Boolean));
+          const selectedValues = new Set(value.split(" | ").filter(Boolean));
           return <fieldset key={field.key} style={{ border: 0, padding: 0, margin: 0 }}>
             <legend style={{ fontWeight: 700, marginBottom: 8 }}>{field.label}{field.required ? " *" : ""}</legend>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 7 }}>{(field.options ?? []).map(option => <label key={option} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 36, padding: "6px 9px", border: "1px solid #d9dee4", borderRadius: 8, background: selected.has(option) ? "#f2fbf5" : "#fff", cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.has(option)} onChange={event => setMultiValue(field.key, option, event.target.checked)} style={{ width: 16, height: 16, margin: 0, flex: "0 0 16px" }} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 7 }}>{(field.options ?? []).map(option => <label key={option} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 36, padding: "6px 9px", border: "1px solid #d9dee4", borderRadius: 8, background: selectedValues.has(option) ? "#f2fbf5" : "#fff", cursor: "pointer" }}>
+              <input type="checkbox" checked={selectedValues.has(option)} onChange={event => setMultiValue(field.key, option, event.target.checked)} style={{ width: 16, height: 16, margin: 0, flex: "0 0 16px" }} />
               <span style={{ fontSize: 14, fontWeight: 700 }}>{option}</span>
             </label>)}</div>
             {field.required ? <input tabIndex={-1} aria-hidden="true" value={value} onChange={() => undefined} required style={{ position: "absolute", opacity: 0, width: 1, height: 1 }} /> : null}
@@ -270,10 +277,10 @@ export default function GuestFormPage() {
         <p style={{ margin: "6px 0 14px", color: "#5d6670", lineHeight: 1.45 }}>You may upload or take photos you would like included with this acknowledgment. Epic will separately document the vehicle damage.</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 42, padding: "0 14px", border: "1px solid #c8d0d7", borderRadius: 9, background: "#fff", fontWeight: 800, cursor: uploadingPhotos ? "wait" : "pointer" }}>
-            Choose Photos<input type="file" accept="image/*" multiple disabled={uploadingPhotos} onChange={event => { void uploadPhotos(event.target.files); event.currentTarget.value = ""; }} style={{ display: "none" }} />
+            Choose Photos<input type="file" accept="image/*" multiple disabled={uploadingPhotos || attachments.length >= 10} onChange={event => { void uploadPhotos(event.target.files); event.currentTarget.value = ""; }} style={{ display: "none" }} />
           </label>
           <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 42, padding: "0 14px", border: "1px solid #c8d0d7", borderRadius: 9, background: "#fff", fontWeight: 800, cursor: uploadingPhotos ? "wait" : "pointer" }}>
-            Take Photo<input type="file" accept="image/*" capture="environment" disabled={uploadingPhotos} onChange={event => { void uploadPhotos(event.target.files); event.currentTarget.value = ""; }} style={{ display: "none" }} />
+            Take Photo<input type="file" accept="image/*" capture="environment" disabled={uploadingPhotos || attachments.length >= 10} onChange={event => { void uploadPhotos(event.target.files); event.currentTarget.value = ""; }} style={{ display: "none" }} />
           </label>
         </div>
         <p style={{ margin: "10px 0 0", fontSize: 13, color: attachments.length ? "#18713b" : "#6b7280", fontWeight: attachments.length ? 700 : 500 }}>
@@ -283,6 +290,7 @@ export default function GuestFormPage() {
               ? `${attachments.length} photo${attachments.length === 1 ? "" : "s"} attached`
               : "No photos attached"}
         </p>
+        {photoNotice ? <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6b7280" }}>{photoNotice}</p> : null}
       </section> : null}
 
       <div className={styles.agreement} dangerouslySetInnerHTML={{ __html: payload.template.agreement_html }} />
