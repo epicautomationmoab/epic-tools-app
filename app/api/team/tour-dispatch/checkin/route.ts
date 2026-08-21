@@ -5,7 +5,7 @@ import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workst
 
 type ReleaseResult = {
   dispatch_id: string;
-  job_id: string;
+  job_id: string | null;
   checkin_status: string;
 };
 
@@ -32,18 +32,25 @@ export async function POST(request: NextRequest) {
     });
 
     const released = result?.[0];
-    if (!released?.job_id) throw new Error("Prepared Axel In package was not released.");
+    if (!released?.dispatch_id || released.checkin_status !== "checkin_queued") {
+      throw new Error("Vehicle return was not recorded.");
+    }
 
     const tourReturned = await supabaseRpc<boolean>("mark_tour_returned_if_all_checkins_released", {
       p_store_visit_id: storeVisitId,
       p_recorded_by: actorName,
     });
 
-    return NextResponse.json({ ok: true, ...released, tour_returned: Boolean(tourReturned) });
+    return NextResponse.json({
+      ok: true,
+      ...released,
+      axel_ready: Boolean(released.job_id),
+      tour_returned: Boolean(tourReturned),
+    });
   } catch (error) {
-    console.error("Tour dispatch check-in shadow release failed", error);
+    console.error("Tour dispatch vehicle return failed", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to release Axel In shadow package." },
+      { error: error instanceof Error ? error.message : "Unable to record vehicle return." },
       { status: 500 },
     );
   }
