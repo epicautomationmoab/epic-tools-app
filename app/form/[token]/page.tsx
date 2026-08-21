@@ -96,12 +96,6 @@ async function readJsonResponse<T extends { error?: string }>(response: Response
   try {
     data = text ? JSON.parse(text) as T : null;
   } catch {
-    if (!response.ok) {
-      if (response.status === 413 || /request entity too large/i.test(text)) {
-        throw new Error("That photo is too large to upload. Please choose a smaller photo.");
-      }
-      throw new Error(fallback);
-    }
     throw new Error(fallback);
   }
   if (!response.ok) throw new Error(data?.error || fallback);
@@ -158,6 +152,36 @@ export default function GuestFormPage() {
     });
   }
 
+  async function uploadOnePhoto(file: File) {
+    if (!token) throw new Error("Form token is missing.");
+    const prepareResponse = await fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "prepare", filename: file.name, contentType: file.type, byteSize: file.size }),
+    });
+    const prepared = await readJsonResponse<{ error?: string; uploadUrl?: string; storagePath?: string }>(prepareResponse, `Unable to prepare ${file.name || "photo"} for upload.`);
+    if (!prepared.uploadUrl || !prepared.storagePath) throw new Error("Photo upload could not be prepared.");
+
+    const uploadBody = new FormData();
+    uploadBody.append("cacheControl", "3600");
+    uploadBody.append("", file);
+    const storageResponse = await fetch(prepared.uploadUrl, {
+      method: "PUT",
+      headers: { "x-upsert": "false" },
+      body: uploadBody,
+    });
+    if (!storageResponse.ok) throw new Error(`Unable to upload ${file.name || "photo"}. Please try again.`);
+
+    const completeResponse = await fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "complete", storagePath: prepared.storagePath, filename: file.name, contentType: file.type, byteSize: file.size }),
+    });
+    const completed = await readJsonResponse<{ error?: string; attachment?: Attachment }>(completeResponse, `Unable to finish attaching ${file.name || "photo"}.`);
+    if (!completed.attachment) throw new Error("Photo uploaded but could not be attached to the form.");
+    return completed.attachment;
+  }
+
   async function uploadPhotos(files: FileList | null) {
     if (!token || !files?.length) return;
     const remainingSlots = Math.max(10 - attachments.length, 0);
@@ -177,12 +201,8 @@ export default function GuestFormPage() {
 
     try {
       for (let index = 0; index < selected.length; index += 1) {
-        const file = selected[index];
-        const body = new FormData();
-        body.append("photos", file);
-        const response = await fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, { method: "POST", body });
-        const data = await readJsonResponse<{ attachments?: Attachment[]; error?: string }>(response, `Unable to upload ${file.name || "photo"}.`);
-        setAttachments(current => [...current, ...(data.attachments ?? [])]);
+        const attachment = await uploadOnePhoto(selected[index]);
+        setAttachments(current => [...current, attachment]);
         setPhotoUploadProgress({ done: index + 1, total: selected.length });
       }
     } catch (caught) {
