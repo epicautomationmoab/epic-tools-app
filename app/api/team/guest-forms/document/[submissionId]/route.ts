@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import { getGuestFormsActor } from "@/lib/workstation-auth";
 import { getServerSupabaseConfig, serverSupabaseHeaders, supabaseSelect } from "@/lib/server/supabase-rest";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ submissionId: string }> }) {
   try {
-    const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
-    if (!profile) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    const actor = await getGuestFormsActor(request);
+    if (!actor) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
     const { submissionId } = await context.params;
     const rows = await supabaseSelect<{ document_id: string; signed_pdf_storage_path: string | null }>(
