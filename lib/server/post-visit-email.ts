@@ -23,6 +23,7 @@ const GOOGLE_REVIEW_URL = "https://g.page/r/CSyp1o_uusOTEAE/review";
 const TRIPADVISOR_REVIEW_URL = "https://www.tripadvisor.com/UserReviewEdit-g60724-d20358842-Epic_4X4_Adventures-Moab_Utah.html";
 const FACEBOOK_URL = "https://www.facebook.com/epic4x4adventures";
 const INSTAGRAM_URL = "https://www.instagram.com/epic4x4adventures/";
+const BRAND_ASSET_BASE = "https://team.myepicreservation.com/api/brand/post-visit";
 
 function experienceParagraph(businessLine: "tour" | "rental") {
   if (businessLine === "tour") {
@@ -35,14 +36,29 @@ function experienceParagraph(businessLine: "tour" | "rental") {
 function reviewBlock() {
   return `
     <div style="margin:28px 0 24px;padding:22px;border:1px solid #ead7d2;border-radius:14px;background:#fffaf8">
-      <p style="margin:0 0 16px;font-size:16px;line-height:1.65;color:#3a3a3a">
+      <p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#3a3a3a">
         If you enjoyed your experience, we’d be grateful if you took a moment to share it with others. Reviews on Google and TripAdvisor help future guests choose their Moab adventure and mean a great deal to our team.
       </p>
       <div style="font-size:0">
-        <a href="${GOOGLE_REVIEW_URL}" style="display:inline-block;margin:0 10px 10px 0;padding:11px 18px;border-radius:8px;background:#4285f4;color:#fff;font-size:14px;font-weight:800;text-decoration:none">Review on Google</a>
-        <a href="${TRIPADVISOR_REVIEW_URL}" style="display:inline-block;margin:0 0 10px;padding:11px 18px;border-radius:8px;background:#34e0a1;color:#111;font-size:14px;font-weight:800;text-decoration:none">Review on TripAdvisor</a>
+        <a href="${GOOGLE_REVIEW_URL}" style="display:inline-block;vertical-align:top;margin:0 10px 10px 0;padding:10px 16px;border:1px solid #d8dde6;border-radius:9px;background:#ffffff;color:#202124;font-size:14px;font-weight:800;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+          <img src="${BRAND_ASSET_BASE}/google" alt="Google" width="20" height="20" style="display:inline-block;width:20px;height:20px;margin:0 9px 0 0;border:0;vertical-align:-5px" />Review on Google
+        </a>
+        <a href="${TRIPADVISOR_REVIEW_URL}" style="display:inline-block;vertical-align:top;margin:0 0 10px;padding:10px 16px;border:1px solid #b9dfd2;border-radius:9px;background:#ffffff;color:#111111;font-size:14px;font-weight:800;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+          <img src="${BRAND_ASSET_BASE}/tripadvisor" alt="TripAdvisor" width="31" height="20" style="display:inline-block;width:31px;height:20px;margin:0 9px 0 0;border:0;vertical-align:-5px;object-fit:contain" />Review on TripAdvisor
+        </a>
       </div>
     </div>`;
+}
+
+function socialBlock() {
+  return `
+    <p style="margin:22px 0 18px;font-size:16px;line-height:1.65;color:#3a3a3a">
+      We’d also love to stay connected. Follow us on
+      <a href="${FACEBOOK_URL}" style="color:#b10707;font-weight:700;text-decoration:none;white-space:nowrap"><img src="${BRAND_ASSET_BASE}/facebook" alt="" width="18" height="18" style="display:inline-block;width:18px;height:18px;margin:0 5px 0 4px;border:0;vertical-align:-4px" />Facebook</a>
+      and
+      <a href="${INSTAGRAM_URL}" style="color:#b10707;font-weight:700;text-decoration:none;white-space:nowrap"><img src="${BRAND_ASSET_BASE}/instagram" alt="" width="18" height="18" style="display:inline-block;width:18px;height:18px;margin:0 5px 0 4px;border:0;vertical-align:-4px" />Instagram</a>
+      for trail photos, Moab adventures, and the latest from Epic.
+    </p>`;
 }
 
 export function renderPostVisitEmailHtml(input: {
@@ -76,9 +92,7 @@ export function renderPostVisitEmailHtml(input: {
             </p>
             <p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#3a3a3a">${experienceCopy}</p>
             ${review}
-            <p style="margin:22px 0 18px;font-size:16px;line-height:1.65;color:#3a3a3a">
-              We’d also love to stay connected. Follow us on <a href="${FACEBOOK_URL}" style="color:#b10707;font-weight:700;text-decoration:none">Facebook</a> and <a href="${INSTAGRAM_URL}" style="color:#b10707;font-weight:700;text-decoration:none">Instagram</a> for trail photos, Moab adventures, and the latest from Epic.
-            </p>
+            ${socialBlock()}
             <p style="margin:0 0 8px;font-size:16px;line-height:1.65;color:#3a3a3a">
               Thank you again for choosing Epic 4X4 Adventures. We hope this won’t be your last adventure with us, and we’d love to welcome you back to Moab someday.
             </p>
