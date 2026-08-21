@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import { getGuestFormsActor } from "@/lib/workstation-auth";
 import { supabaseInsert, supabaseSelect } from "@/lib/server/supabase-rest";
 
 function hashToken(token: string) {
@@ -15,8 +15,8 @@ function allowedBusinessLine(templateKey: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
-    if (!profile) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    const actor = await getGuestFormsActor(request);
+    if (!actor) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     const body = await request.json() as { readinessId?: string; templateKey?: string; expiresInDays?: number };
     if (!body.readinessId || !body.templateKey) return NextResponse.json({ error: "readinessId and templateKey are required." }, { status: 400 });
 
@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
       expires_at: expiresAt,
       assigned_guest_name: readiness.customer_name,
       assigned_guest_email: readiness.customer_email,
-      created_by: profile.display_name,
-      metadata: { created_by_profile_id: profile.id, delivery_mode: "guest_portal", business_line: actualLine },
+      created_by: actor.actorName,
+      metadata: { created_by_profile_id: actor.actorId, delivery_mode: "guest_portal", business_line: actualLine, workstation: actor.profile === null },
     });
 
     return NextResponse.json({
