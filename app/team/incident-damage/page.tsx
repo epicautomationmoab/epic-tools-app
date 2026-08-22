@@ -32,10 +32,11 @@ function formatDate(value: string | null) {
 export default async function IncidentDamagePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; beacon?: string }>;
 }) {
   const params = await searchParams;
   const q = params.q?.trim().toUpperCase() ?? "";
+  const beaconMode = params.beacon === "1";
   let reservation: Reservation | null = null;
 
   if (q) {
@@ -55,6 +56,17 @@ export default async function IncidentDamagePage({
     borderRadius: 14,
     padding: 18,
     background: "rgba(255,255,255,.04)",
+  } as const;
+
+  const inputStyle = {
+    minHeight: 44,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,.18)",
+    background: "rgba(0,0,0,.18)",
+    color: "inherit",
+    padding: "0 13px",
+    fontSize: 16,
+    fontWeight: 700,
   } as const;
 
   return (
@@ -85,21 +97,72 @@ export default async function IncidentDamagePage({
                   defaultValue={q}
                   placeholder="Confirmation number"
                   autoComplete="off"
-                  style={{
-                    flex: "1 1 280px",
-                    minHeight: 44,
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,.18)",
-                    background: "rgba(0,0,0,.18)",
-                    color: "inherit",
-                    padding: "0 13px",
-                    fontSize: 16,
-                    fontWeight: 700,
-                  }}
+                  style={{ ...inputStyle, flex: "1 1 280px" }}
                 />
                 <button className={styles.actionButton} type="submit">Find</button>
               </form>
+
+              {!reservation ? (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.10)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontWeight: 800 }}>Beacon activation?</div>
+                    <div style={{ opacity: .68, fontSize: 13 }}>You do not need to know the reservation to begin.</div>
+                  </div>
+                  <Link
+                    className={styles.actionButton}
+                    href="/team/incident-damage?beacon=1"
+                    style={{ borderColor: "rgba(181,36,36,.55)", fontWeight: 900 }}
+                  >
+                    Beacon Activated
+                  </Link>
+                </div>
+              ) : null}
             </div>
+
+            {beaconMode && !reservation ? (
+              <div style={{ ...cardStyle, borderColor: "rgba(181,36,36,.35)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: ".08em", opacity: .68, textTransform: "uppercase" }}>
+                      Beacon Activation Response
+                    </div>
+                    <h2 style={{ margin: "5px 0 4px" }}>Begin without a reservation</h2>
+                    <div style={{ opacity: .72 }}>Capture the incoming activation first. We will identify the vehicle and reservation from the beacon information.</div>
+                  </div>
+                  <Link className={styles.actionButton} href="/team/incident-damage">Cancel</Link>
+                </div>
+
+                <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
+                  <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+                    Caller / Agency
+                    <input style={inputStyle} placeholder="NOAA, Dispatch, SAR..." />
+                  </label>
+                  <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+                    Caller Callback
+                    <input style={inputStyle} placeholder="Phone number" />
+                  </label>
+                  <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+                    Beacon ID
+                    <input style={inputStyle} placeholder="Beacon ID" autoCapitalize="characters" />
+                  </label>
+                  <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+                    Coordinates
+                    <input style={inputStyle} placeholder="Latitude / Longitude" />
+                  </label>
+                </div>
+
+                <label style={{ display: "grid", gap: 6, fontWeight: 800, marginTop: 12 }}>
+                  Other location information
+                  <input style={{ ...inputStyle, width: "100%" }} placeholder="Trail, landmark, dispatch notes..." />
+                </label>
+
+                <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+                  <button className={styles.actionButton} type="button" disabled title="Saving the beacon case is the next build step">
+                    Begin Beacon Incident
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             {q && !reservation ? (
               <div style={{ ...cardStyle, borderColor: "rgba(255,193,7,.45)" }}>
@@ -157,7 +220,7 @@ export default async function IncidentDamagePage({
                     <div style={cardStyle}>
                       <h3 style={{ marginTop: 0 }}>Beacon Activation</h3>
                       <p style={{ opacity: .75, minHeight: 48 }}>Begin the structured NOAA / PLB response workflow and Incident Commander process.</p>
-                      <button className={styles.actionButton} type="button" disabled title="Beacon workflow is built after the case foundation">Start Beacon Response</button>
+                      <Link className={styles.actionButton} href="/team/incident-damage?beacon=1">Start Beacon Response</Link>
                     </div>
                   </div>
                 </div>
