@@ -1,0 +1,87 @@
+{
+  "vehicle_family": "2026 RZR XP S 1000 Ultimate",
+  "finish": "Stealth Gray",
+  "reference_sets": {
+    "crew": {
+      "model_code": "Z26NMY99A4",
+      "status": "usable_with_one_provisional_interior_view",
+      "official_views": [
+        {
+          "key": "front_three_quarter",
+          "source_filename": "2026-rzr-xps1000ultimate-crew-us-stealthgray-cgi-Front3q-Z26NMY99A4",
+          "use": "primary exterior damage mapper",
+          "priority": "primary"
+        },
+        {
+          "key": "front",
+          "source_filename": "2026-rzr-xps1000ultimate-crew-us-stealthgray-cgi-Front-Z26NMY99A4",
+          "use": "front body, bumper, suspension and wheel mapping",
+          "priority": "secondary"
+        },
+        {
+          "key": "rear",
+          "source_filename": "2026-rzr-xps1000ultimate-crew-us-stealthgray-cgi-Rear-Z26NMY99A4",
+          "use": "rear body, suspension, exhaust and drivetrain mapping",
+          "priority": "secondary"
+        },
+        {
+          "key": "top_down",
+          "source_filename": "2026-rzr-xps1000sport-crew-us-stealthgray-cgi-TopDown-Z26NMX99A4",
+          "use": "provisional cabin, seat, floor and cargo navigation",
+          "priority": "provisional",
+          "warning": "Sport Crew image, not Ultimate Crew. Use only for broad spatial navigation, never trim-specific part selection."
+        }
+      ],
+      "hunt_next": [
+        {
+          "view": "driver_side_profile",
+          "priority": 1,
+          "reason": "Best single view for doors, rocker, front/rear quarter, wheels and side suspension."
+        },
+        {
+          "view": "rear_three_quarter",
+          "priority": 2,
+          "reason": "Improves rear quarter, rear fender, cargo box and rear suspension selection."
+        },
+        {
+          "view": "cockpit_dash_closeup",
+          "priority": 3,
+          "reason": "Needed for dash, Ride Command, steering, console and storage hotspots."
+        },
+        {
+          "view": "ultimate_crew_top_down",
+          "priority": 4,
+          "reason": "Replaces provisional Sport Crew top-down image."
+        },
+        {
+          "view": "underbody_or_skid_view",
+          "priority": 5,
+          "reason": "Would materially improve skid plate, frame, prop shaft and undercarriage routing."
+        },
+        {
+          "view": "passenger_side_profile",
+          "priority": 6,
+          "reason": "Nice to have, but not required because side can be resolved by Driver/Passenger state from one profile image."
+        }
+      ]
+    },
+    "two_seat": {
+      "model_code": "Z26NEY99A4",
+      "status": "separate_reference_set_required",
+      "available_views": [
+        {
+          "key": "front_three_quarter",
+          "source_filename": "2026-rzr-xps1000ultimate-us-stealthgray-cgi-Front3q-Z26NEY99A4",
+          "use": "starter image only"
+        }
+      ],
+      "note": "Do not mix two-seat reference imagery into the Crew mapper. Build a separate reference set and verify parts-fitment differences before binding schematics."
+    }
+  },
+  "asset_policy": {
+    "preferred_derivative": "WebLarge_JPG",
+    "retain_original_zip_off_repo": true,
+    "do_not_store_tiff_in_app_repo": true,
+    "reason": "WebLarge JPG is sufficient for mapping while keeping app payload reasonable."
+  }
+}

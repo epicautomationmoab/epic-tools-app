@@ -73,9 +73,15 @@ export default function PortalGuestForms() {
           <a className={styles.task} href={task.openUrl ?? "#"} key={task.taskId}>
             <span className={styles.taskText}>
               <strong>{task.title}</strong>
-              <small>{task.assignedGuestName ? `For ${task.assignedGuestName}` : "Please complete this form"}</small>
+              <small>
+                {task.status === "in_progress"
+                  ? "Draft saved — continue where you left off"
+                  : task.assignedGuestName
+                    ? `For ${task.assignedGuestName}`
+                    : "Please complete this form"}
+              </small>
             </span>
-            <span className={styles.action}>Complete</span>
+            <span className={styles.action}>{task.status === "in_progress" ? "Resume" : "Complete"}</span>
           </a>
         ))}
 

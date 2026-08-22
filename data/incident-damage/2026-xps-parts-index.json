@@ -1,0 +1,133 @@
+{
+  "vehicle":{"year":2026,"model":"RZR XP S 4 1000 Ultimate","model_codes":["Z26NMY99A4","Z26NMY99B4","Z26NMY99A6","Z26NMY99B6"]},
+  "purpose":"Reference-number to part-number index for clickable damage schematics",
+  "assemblies":{
+    "body_doors_front":{"assembly_id":"255383","name":"BODY, DOORS, FRONT","drive_file_id":"1Im9CcM59BBorIDOu2p2CtkwukJqaoxC5","parts":[
+      {"ref":"1","part_number":"5459367-804","description":"DOOR SKIN,LH,MIC,STLTH GR","quantity":1,"side":"LH","variant_codes":["A4","B4"],"finish":"STEALTH GRAY NON-METALLIC"},
+      {"ref":"1","part_number":"5459367-902","description":"DOOR SKIN,LH,MIC,SD DUNE","quantity":1,"side":"LH","variant_codes":["A6","B6"],"finish":"SAND DUNE NON-METALLIC"},
+      {"ref":"2","part_number":"5459368-804","description":"DOOR SKIN,RH,MIC,STLTH GR","quantity":1,"side":"RH","variant_codes":["A4","B4"],"finish":"STEALTH GRAY NON-METALLIC"},
+      {"ref":"2","part_number":"5459368-902","description":"DOOR SKIN,RH,MIC,SD DUNE","quantity":1,"side":"RH","variant_codes":["A6","B6"],"finish":"SAND DUNE NON-METALLIC"},
+      {"ref":"3","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+      {"ref":"4","part_number":"5459363-070","description":"PANEL-DOOR,INNER,LH,MP,FRT,BLK","quantity":1,"side":"LH"},
+      {"ref":"5","part_number":"5459364-070","description":"PANEL-DOOR,INNER,RH,MP,FRT,BLK","quantity":1,"side":"RH"},
+      {"ref":"6","part_number":"7518936","description":"SCR-M6X1X16 TR/TX-M","quantity":10},
+      {"ref":"7","part_number":"5272538-458","description":"STAMPING-DOOR FRAME,LH,BLK","quantity":1,"side":"LH"},
+      {"ref":"8","part_number":"5272539-458","description":"STAMPING-DOOR FRAME,RH,BLK","quantity":1,"side":"RH"},
+      {"ref":"9","part_number":"7082759","description":"ASM-LATCH,RTRY,2 STG,LH","quantity":1,"side":"LH"},
+      {"ref":"10","part_number":"7082760","description":"ASM-LATCH,RTRY,2 STG,RH","quantity":1,"side":"RH"},
+      {"ref":"11","part_number":"2639143","description":"ASM-ACTUATOR DOOR,LH","quantity":1,"side":"LH"},
+      {"ref":"12","part_number":"2639144","description":"ASM-ACTUATOR DOOR,RH","quantity":1,"side":"RH"},
+      {"ref":"13","part_number":"5459359-070","description":"DOOR CAP,LH,BLK","quantity":1,"side":"LH"},
+      {"ref":"14","part_number":"5459360-070","description":"DOOR CAP,RH,BLK","quantity":1,"side":"RH"},
+      {"ref":"15","part_number":"7519045","description":"SCR-TX TRUSS-#14X3/4, HI/LO ZBK","quantity":18},
+      {"ref":"16","part_number":"7519063","description":"SCREW-TXBH-M6X1.0X12 8.8 ZPB D20","quantity":4},
+      {"ref":"17","part_number":"5450592","description":"BUSHING, DOOR, PIVOT","quantity":8},
+      {"ref":"18","part_number":"7519997","description":"SCR-TXTH-M8X1.25X20 8.8 ZB3 P3","quantity":8},
+      {"ref":"19","part_number":"7527956","description":"SCR-TXWH-M5X0.8X40 10.9 ZTB SP","quantity":4},
+      {"ref":"20","part_number":"5270635","description":"BRACKET, DOOR, HINGE","quantity":4},
+      {"ref":"21","part_number":"7517255","description":"SCREW-FLHD-M5X0.8X12 10.9 P&O","quantity":4},
+      {"ref":"22","part_number":"5454637","description":"CLIP-DOOR LATCH","quantity":2},
+      {"ref":"23","part_number":"5522386-1329","description":"SEAL-WTHRSTRP,1329MM","quantity":2},
+      {"ref":"24","part_number":"7082973","description":"CABLE-DOOR,FRONT","quantity":2},
+      {"ref":"25","part_number":"7519297","description":"SCREW-HXFLG,M6X1.0X25,10.9","quantity":4},
+      {"ref":"26","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":10},
+      {"ref":"27","part_number":"7662310","description":"CLIP-NYLON, C, FIR-TREE","quantity":2}
+    ]},
+    "body_doors_rear":{"assembly_id":"255384","name":"BODY, DOORS, REAR","drive_file_id":"1I48ZgqPiCl_w45LV8ZuXhlyYJ-tNL4yX","parts":[
+      {"ref":"1","part_number":"5465028-804","description":"DOOR-SKIN,REAR,LH,MIC,STLTH GR","quantity":1,"side":"LH","variant_codes":["A4","B4"],"finish":"STEALTH GRAY NON-METALLIC"},
+      {"ref":"1","part_number":"5465028-902","description":"DOOR-SKIN,REAR,LH,MIC,SD DN","quantity":1,"side":"LH","variant_codes":["A6","B6"],"finish":"SAND DUNE NON-METALLIC"},
+      {"ref":"2","part_number":"5465029-804","description":"DOOR-SKIN,REAR,RH,MIC,STLTH GR","quantity":1,"side":"RH","variant_codes":["A4","B4"],"finish":"STEALTH GRAY NON-METALLIC"},
+      {"ref":"2","part_number":"5465029-902","description":"DOOR-SKIN,REAR,RH,MIC,SD DN","quantity":1,"side":"RH","variant_codes":["A6","B6"],"finish":"SAND DUNE NON-METALLIC"},
+      {"ref":"3","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+      {"ref":"4","part_number":"5465030-070","description":"PANEL-DOOR,REAR,LH,BLK","quantity":1,"side":"LH"},
+      {"ref":"5","part_number":"5465031-070","description":"PANEL-DOOR,REAR,RH,BLK","quantity":1,"side":"RH"},
+      {"ref":"6","part_number":"7518936","description":"SCR-M6X1X16 TR/TX-M","quantity":8},
+      {"ref":"7","part_number":"7082403","description":"CLIP-EDGE, 1-3mm THICKNESS","quantity":10},
+      {"ref":"8","part_number":"5417634","description":"BUMPER-DOOR,REAR","quantity":2},
+      {"ref":"9","part_number":"5450592","description":"BUSHING, DOOR, PIVOT","quantity":8},
+      {"ref":"10","part_number":"7519997","description":"SCR-TXTH-M8X1.25X20 8.8 ZB3 P3","quantity":8},
+      {"ref":"11","part_number":"7527956","description":"SCR-TXWH-M5X0.8X40 10.9 ZTB SP","quantity":4},
+      {"ref":"12","part_number":"7517255","description":"SCREW-FLHD-M5X0.8X12 10.9 P&O","quantity":4},
+      {"ref":"13","part_number":"7519297","description":"SCREW-HXFLG,M6X1.0X25,10.9","quantity":4},
+      {"ref":"14","part_number":"5272988-458","description":"STAMPING-DOOR FRAME,MP,LH,BLK","quantity":1,"side":"LH"},
+      {"ref":"15","part_number":"5272989-458","description":"STAMPING-DOOR FRAME,MP,RH,BLK","quantity":1,"side":"RH"},
+      {"ref":"16","part_number":"2639143","description":"ASM-ACTUATOR DOOR,LH","quantity":1,"side":"LH"},
+      {"ref":"17","part_number":"2639144","description":"ASM-ACTUATOR DOOR,RH","quantity":1,"side":"RH"},
+      {"ref":"18","part_number":"7519063","description":"SCREW-TXBH-M6X1.0X12 8.8 ZPB D20","quantity":4},
+      {"ref":"19","part_number":"7082760","description":"ASM-LATCH,RTRY,2 STG,RH","quantity":1,"side":"RH"},
+      {"ref":"20","part_number":"7082759","description":"ASM-LATCH,RTRY,2 STG,LH","quantity":1,"side":"LH"},
+      {"ref":"21","part_number":"7082935","description":"CABLE-DOOR,REAR","quantity":2},
+      {"ref":"22","part_number":"5522386-1020","description":"SEAL-WHTRSTRP,1020MM","quantity":2},
+      {"ref":"23","part_number":"7519045","description":"SCR-TX TRUSS-#14X3/4, HI/LO ZBK","quantity":20},
+      {"ref":"24","part_number":"1027692-458","description":"WELD-REAR STRIKER BRKT,LH,BLK","quantity":1,"side":"LH"},
+      {"ref":"25","part_number":"1027693-458","description":"WELD-REAR STRIKER BRKT,RH,BLK","quantity":1,"side":"RH"},
+      {"ref":"26","part_number":"7547307","description":"NUT-WELD,M6X1,PROJECTION","quantity":6},
+      {"ref":"27","part_number":"7519112","description":"SCREW-TXTH-M6X1.0X20 T40 ZPB","quantity":6},
+      {"ref":"28","part_number":"1026372","description":"WELD-DOOR HINGE,REAR","quantity":4}
+    ]},
+    "wheels_front":{"assembly_id":"255459","name":"WHEELS, FRONT","drive_file_id":"176OrYiCwkmuqYT32q3MHa5u4IKGWnFGz","parts":[
+      {"ref":"1","part_number":"5419239","description":"TIRE-TREKKER,RADIAL,32X10R15","quantity":2},
+      {"ref":"2","part_number":"1525534-744","description":"RIM-15X7,CAST,MFB","quantity":2},
+      {"ref":"3","part_number":"1521982","description":"VALVE-RIM","quantity":2},
+      {"ref":"4","part_number":"7547816","description":"NUT-WHEEL,M12X1.5,TAPERED,BLK","quantity":10},
+      {"ref":"5","part_number":"1525535-744","description":"CAP-RIM 5 LUG,MFB","quantity":2},
+      {"ref":"6","part_number":"7528297","description":"SCR-SH-M6X1.0X12 10.9 ZNB","quantity":10}
+    ]},
+    "wheels_rear":{"assembly_id":"255460","name":"WHEELS, REAR","drive_file_id":"1e7xx2SQRx5PCdy8d4XxknvtFLT2HKo0Y","parts":[
+      {"ref":"1","part_number":"5419239","description":"TIRE-TREKKER,RADIAL,32X10R15","quantity":2},
+      {"ref":"2","part_number":"1525534-744","description":"RIM-15X7,CAST,MFB","quantity":2},
+      {"ref":"3","part_number":"1521982","description":"VALVE-RIM","quantity":2},
+      {"ref":"4","part_number":"7547816","description":"NUT-WHEEL,M12X1.5,TAPERED,BLK","quantity":10},
+      {"ref":"5","part_number":"1525535-744","description":"CAP-RIM 5 LUG,MFB","quantity":2},
+      {"ref":"6","part_number":"7528297","description":"SCR-SH-M6X1.0X12 10.9 ZNB","quantity":10}
+    ]},
+    "suspension_front_carrier_hub":{"assembly_id":"255449","name":"SUSPENSION, FRONT CARRIER AND HUB","drive_file_id":"1fBBtIRUy0yyzFnVWyvPjaB4n2b9ol8Hf","parts":[
+      {"ref":"1","part_number":"1525112","description":"ASM-WHEEL HUB","quantity":2,"includes_refs":["2"]},
+      {"ref":"1","part_number":"5143999","description":"HUB-WHEEL(MACH),28T [NO STUDS]","quantity":2},
+      {"ref":"2","part_number":"7519753","description":"STUD-WHEEL,M12-1.5","quantity":10},
+      {"ref":"3","part_number":"5144976","description":"KNUCKLE-FRONT,LH(MACH)","quantity":1,"side":"LH"},
+      {"ref":"3","part_number":"5144977","description":"KNUCKLE-FRONT,RH(MACH)","quantity":1,"side":"RH"},
+      {"ref":"3","part_number":"1525636","description":"ASM-KNUCKLE BEARING,FRT,LH","quantity":1,"side":"LH","includes_refs":["4","5"]},
+      {"ref":"3","part_number":"1525637","description":"ASM-KNUCKLE BEARING,FRT,RH","quantity":1,"side":"RH","includes_refs":["4","5"]},
+      {"ref":"4","part_number":"3514924","description":"BEARING-BALL,SEALED,44X72X33.1","quantity":1},
+      {"ref":"4","part_number":"3515090","description":"BEARING-WHEEL,HD,44X72X33.1MM","quantity":2,"option":"HD"},
+      {"ref":"5","part_number":"7710780","description":"RING-RETAINING,2.835,INTERNAL","quantity":2},
+      {"ref":"6","part_number":"7557146","description":"WSHR-LOAD,21X45,5-5.6","quantity":2},
+      {"ref":"7","part_number":"7547949","description":"NUT-CASTLE-M20X1.5 ZFS","quantity":2},
+      {"ref":"8","part_number":"7661404","description":"PIN-COTTER 1/8X1 1/2-Y","quantity":2}
+    ]},
+    "suspension_rear_carrier_hub":{"assembly_id":"255454","name":"SUSPENSION, REAR CARRIER AND HUB","drive_file_id":"1h06p_QxsxKpoOLw59JF7-h0U85g97Z0g","parts":[
+      {"ref":"1","part_number":"1525112","description":"ASM-WHEEL HUB","quantity":2,"includes_refs":["2"]},
+      {"ref":"1","part_number":"5143999","description":"HUB-WHEEL(MACH),28T [NO STUDS]","quantity":2},
+      {"ref":"2","part_number":"7519753","description":"STUD-WHEEL,M12-1.5","quantity":10},
+      {"ref":"3","part_number":"1525677","description":"ASM-CARRIER BEARING,RR,LH","quantity":1,"side":"LH","includes_refs":["4","5"]},
+      {"ref":"3","part_number":"5145231","description":"CARRIER-BEARING,WHEEL,LH(MACH)","quantity":2,"side":"LH"},
+      {"ref":"3","part_number":"1525678","description":"ASM-CARRIER BEARING,RR,RH","quantity":1,"side":"RH","includes_refs":["4","5"]},
+      {"ref":"3","part_number":"5145232","description":"CARRIER-BEARING,WHEEL,RH(MACH)","quantity":1,"side":"RH"},
+      {"ref":"4","part_number":"3515824","description":"BEARING-BALL,SEALED,44X72X33.1","quantity":2},
+      {"ref":"5","part_number":"7710780","description":"RING-RETAINING,2.835,INTERNAL","quantity":2},
+      {"ref":"6","part_number":"7557146","description":"WSHR-LOAD,21X45,5-5.6","quantity":2},
+      {"ref":"7","part_number":"7547949","description":"NUT-CASTLE-M20X1.5 ZFS","quantity":2},
+      {"ref":"8","part_number":"7661404","description":"PIN-COTTER 1/8X1 1/2-Y","quantity":2}
+    ]},
+    "engine_waterpump":{"assembly_id":"255441","name":"ENGINE, WATERPUMP ASSEMBLY","drive_file_id":"1FwN97UA-XKcUhcIIlpUkyH6a3JouxxAO","parts":[
+      {"ref":"assembly","part_number":"1205014","description":"ASM, WATERPUMP","quantity":1,"includes":"all"},{"ref":"1","part_number":"5633651","description":"IMPELLER-WATERPUMP","quantity":1},{"ref":"2","part_number":"7520485","description":"SCREW-WATERPUMP","quantity":1},{"ref":"3","part_number":"7556978","description":"WASHER-IMPELLER","quantity":1},{"ref":"4","part_number":"3610272","description":"SEAL-WATERPUMP SHAFT,WATER","quantity":1},{"ref":"5","part_number":"3610273","description":"SEAL-WATERPUMP SHAFT,OIL","quantity":1},{"ref":"6","part_number":"7556980","description":"WASHER-WATERPUMP","quantity":1},{"ref":"7","part_number":"5140683","description":"SHAFT-WATERPUMP","quantity":1},{"ref":"8","part_number":"5415946","description":"O-RING,WATERPUMP","quantity":1},{"ref":"9","part_number":"7556979","description":"WASHER-CLAWED","quantity":1}
+    ]},
+    "engine_ignition_coil_sparkplugs":{"assembly_id":"255431","name":"ENGINE, IGNITION COIL AND SPARKPLUGS","drive_file_id":"16ceJXqL0G8YeeHfA_hhLA4BNPyBxxUXW","parts":[
+      {"ref":"1","part_number":"7519297","description":"SCREW-HXFLG,M6X1.0X25,10.9","quantity":2},{"ref":"2","part_number":"5459396","description":"CVR-SPARK PLUG WIRE,2 BOLT","quantity":1},{"ref":"3","part_number":"4081405","description":"WIRE-SPARKPLUG,MAG","quantity":1},{"ref":"4","part_number":"4080762","description":"WIRE-SPARKPLUG,PTO","quantity":1},{"ref":"5","part_number":"3022662","description":"SPARK PLUG-10 MM","quantity":2}
+    ]},
+    "engine_starter":{"assembly_id":"255436","name":"ENGINE, STARTER","drive_file_id":"1ltB3Rm16p2uBPSo7wqyEwtIcURAg8hqw","parts":[
+      {"ref":"1","part_number":"1204884","description":"ASM-SPRAG CLUTCH,HUB,STARTER","quantity":1},{"ref":"2","part_number":"1208774","description":"ASM-GEAR,STARTER,CRANK","quantity":1},{"ref":"3","part_number":"3024038","description":"ASM-TLG","quantity":1},{"ref":"4","part_number":"3022416","description":"PIN-TQ,LIMIT,GEAR","quantity":1},{"ref":"5","part_number":"4014548","description":"STARTER-9T,CW","quantity":1},{"ref":"6","part_number":"7517431","description":"SCREW-M6X1.0X14.0,HX/SOC/CP-Y/D","quantity":3},{"ref":"7","part_number":"7519237","description":"STUD-DOUBLE,END,M6X1.0X25/10","quantity":1},{"ref":"8","part_number":"7519297","description":"SCREW-HXFLG,M6X1.0X25,10.9","quantity":1}
+    ]},
+    "suspension_front_stabilizer":{"assembly_id":"255453","name":"SUSPENSION, FRONT STABILIZER BAR","drive_file_id":"1C4CH03mZw-6qV1wANSe-a7MfLbs8GJb6","parts":[
+      {"ref":"1","part_number":"1544048","description":"ASM-LINK STABILIZER BAR,157MM","quantity":2},{"ref":"2","part_number":"5342085","description":"BAR-STABILIZER","quantity":1},{"ref":"3","part_number":"5456438","description":"BUSHING-SWAY BAR","quantity":4},{"ref":"4","part_number":"5639761","description":"BRKT-SWAY BAR","quantity":2},{"ref":"5","part_number":"7521334-65","description":"SCR-HXFL-M12X1.75X65 10.9 ZFB","quantity":4},{"ref":"6","part_number":"7548030","description":"NUT-HXFL-M12X1.75 8 ZTB NYL","quantity":4},{"ref":"7","part_number":"7521332-30","description":"SCR-HXFL-M8X1.25X30 10.9 ZFB","quantity":4},{"ref":"8","part_number":"7548028","description":"NUT-HXFL-M8X1.25 8 ZTB NYL","quantity":4}
+    ]},
+    "suspension_rear_trailing_arms":{"assembly_id":"255457","name":"SUSPENSION, REAR TRAILING ARMS","drive_file_id":"1W4hfC6ZHGLXaHuzom_5iKdkteerMeqzx","parts":[
+      {"ref":"1","part_number":"1545170-458","description":"ASM-TRL ARM,LH,BLK","quantity":1,"side":"LH"},{"ref":"2","part_number":"1545171-458","description":"ASM-TRL ARM,RH,BLK","quantity":1,"side":"RH"},{"ref":"3","part_number":"7082253","description":"BEARING-SPHERICAL","quantity":10},{"ref":"4","part_number":"1545207-458","description":"ASM-RADIUS ROD,UPR,BLK","quantity":2},{"ref":"5","part_number":"1545208-458","description":"ASM-RADIUS ROD,LWR,BLK","quantity":2},{"ref":"6","part_number":"5262630-458","description":"PLATE-REAR,BOLT BRACE,M.BLK","quantity":1},{"ref":"7","part_number":"7521334-105","description":"SCR-HXFL-M12X1.75X105 10.9 ZFB","quantity":2},{"ref":"8","part_number":"7521334-120","description":"SCR-HXFL-M12X1.75X120 10.9 ZFB","quantity":2},{"ref":"9","part_number":"7521334-65","description":"SCR-HXFL-M12X1.75X65 10.9 ZFB","quantity":6},{"ref":"10","part_number":"7548030","description":"NUT-HXFL-M12X1.75 8 ZTB NYL","quantity":10},{"ref":"11","part_number":"7557236","description":"WSHR-FLAT-M12X2.5 ZTB","quantity":10},{"ref":"12","part_number":"7521333-75","description":"SCR-HXFL-M10X1.5X75 10.9 ZFB","quantity":8},{"ref":"13","part_number":"7558716","description":"WSHR-FLAT-M10X2.5 LARGE ZTB","quantity":8},{"ref":"14","part_number":"7548029","description":"NUT-HXFL-M10X1.5 8 ZTB NYL","quantity":8}
+    ]},
+    "drivetrain_main_gearcase_mounting":{"assembly_id":"255412","name":"DRIVE TRAIN, MAIN GEARCASE MOUNTING","drive_file_id":"1GcPYYjwmyNXLbtnioVyN33vKgpBts0Xq","parts":[
+      {"ref":"1","part_number":"1333430","description":"MOUNT, ISOLATOR","quantity":1},{"ref":"2","part_number":"7519097","description":"SCREW-HH M8X1.25X45 8.8 ZOD","quantity":3},{"ref":"3","part_number":"7547030","description":"NUT-5/16-PAL-Y","quantity":3},{"ref":"4","part_number":"7547332","description":"NUT- M8X1.25, FLG, NYLOC-OLIVE D","quantity":3},{"ref":"5","part_number":"2522474","description":"VENT-TRANS,FORMED","quantity":1},{"ref":"6","part_number":"5453464","description":"FITTING-VENT LINE,90","quantity":1},{"ref":"7","part_number":"5418014","description":"O-RING,28.17X3.53,VITON,60A","quantity":2},{"ref":"8","part_number":"7547333","description":"NUT-HXFL M10X1.25 8 ZTB NYL","quantity":1},{"ref":"9","part_number":"7670116","description":"CLIP, ROUTING, .472 B.D., HINGED","quantity":1},{"ref":"10","part_number":"7081033","description":"CABLE-TIE,7-46MM,DUAL-LOOP","quantity":1},{"ref":"11","part_number":"7519286","description":"SCR-HXFL-M10X1.25X75 10.9 ZOD","quantity":1},{"ref":"12","part_number":"7081432","description":"CLAMP-HOSE, 17/32, GREEN","quantity":1}
+    ]}
+  },
+  "status":"high_frequency_damage_parts_index_in_progress"
+}

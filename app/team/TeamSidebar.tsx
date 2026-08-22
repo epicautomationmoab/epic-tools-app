@@ -9,6 +9,7 @@ type Props = {
     | "Guest Readiness"
     | "Held-Over Rentals"
     | "Tour Dispatch"
+    | "Incident & Damage"
     | "Previous Guest Lookup"
     | "Email Delivery"
     | "Manage Users";
@@ -18,6 +19,7 @@ const baseNavItems = [
   { label: "Guest Readiness", href: "/team/readiness", external: false },
   { label: "Held-Over Rentals", href: "/team/active-rentals", external: false },
   { label: "Tour Dispatch", href: "/team/tour-dispatch", external: false },
+  { label: "Incident & Damage", href: "/team/incident-damage", external: false },
   { label: "Previous Guest Lookup", href: "/team/previous-guests", external: false },
   { label: "Email Delivery", href: "/team/email-delivery", external: false },
   { label: "Reservations", href: "https://epic4x4.tripworks.com", external: true },
