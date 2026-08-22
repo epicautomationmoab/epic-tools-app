@@ -30,6 +30,10 @@ type HandoffRow = {
   updated_at: string;
 };
 
+type NoShowRow = {
+  readiness_id: string;
+};
+
 function supabaseServerConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SECRET_KEY?.trim();
@@ -75,8 +79,18 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
     order: "updated_at.desc",
     limit: "1000",
   });
-  const handoffs = await fetchJson<HandoffRow>("epic_operational_handoffs", handoffParams);
+  const noShowParams = new URLSearchParams({
+    select: "readiness_id",
+    readiness_id: `in.(${quotedIds})`,
+    limit: "1000",
+  });
 
+  const [handoffs, noShows] = await Promise.all([
+    fetchJson<HandoffRow>("epic_operational_handoffs", handoffParams),
+    fetchJson<NoShowRow>("epic_no_show_status", noShowParams),
+  ]);
+
+  const noShowReadinessIds = new Set(noShows.map((row) => row.readiness_id));
   const latestHandoffByReadinessId = new Map<string, HandoffRow>();
   for (const handoff of handoffs) {
     if (!latestHandoffByReadinessId.has(handoff.readiness_id)) {
@@ -87,6 +101,7 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
   return readinessRows
     .filter((row) => {
       if (!row.readiness_id) return true;
+      if (noShowReadinessIds.has(row.readiness_id)) return false;
       return latestHandoffByReadinessId.get(row.readiness_id)?.handoff_status !== "rental_returned";
     })
     .map((row) => ({
