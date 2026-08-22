@@ -144,13 +144,13 @@ export default function PreliminaryAssessmentClient({ caseId, items, initialAsse
             </div>
             <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
               <strong>{money(subtotal)}</strong>
-              <div style={{ fontSize: 12, opacity: .58 }}>{assessment ? assessment.assessment_status : "not assessed"} {open ? "▲" : "▼"}</div>
+              <div style={{ fontSize: 12, opacity: .58 }}>{assessment ? assessment.assessment_status : "pending"} {open ? "▲" : "▼"}</div>
             </div>
           </button>
 
           {open ? <div style={{ padding: "0 18px 18px", display: "grid", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10 }}>
-              <label style={{ display: "grid", gap: 5, fontWeight: 800 }}>Likely action<select style={input} value={draft.recommendedAction} onChange={event => updateDraft(item.id, { recommendedAction: event.target.value as Draft["recommendedAction"] })}><option value="unknown">Not sure yet</option><option value="inspect">Inspect</option><option value="repair">Repair</option><option value="replace">Replace</option></select></label>
+              <label style={{ display: "grid", gap: 5, fontWeight: 800 }}>Likely action<select style={input} value={draft.recommendedAction} onChange={event => updateDraft(item.id, { recommendedAction: event.target.value as Draft["recommendedAction"] })}><option value="unknown">Undetermined</option><option value="inspect">Inspect</option><option value="repair">Repair</option><option value="replace">Replace</option></select></label>
               <label style={{ display: "grid", gap: 5, fontWeight: 800 }}>Confidence<select style={input} value={draft.confidence} onChange={event => updateDraft(item.id, { confidence: event.target.value as Draft["confidence"] })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, marginTop: 24 }}><input type="checkbox" checked={draft.teardownRequired} onChange={event => updateDraft(item.id, { teardownRequired: event.target.checked })} /> Teardown / deeper inspection needed</label>
             </div>
