@@ -6,6 +6,11 @@ const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 
 export default function EmployeeSessionRefresher() {
   useEffect(() => {
+    // Authentication upkeep only belongs on protected team pages. Running it
+    // on /employee-login or /workstation-login can turn an unauthenticated
+    // login page into a self-redirect loop and grow the ?next= URL forever.
+    if (!window.location.pathname.startsWith("/team")) return;
+
     let stopped = false;
     let redirecting = false;
 
