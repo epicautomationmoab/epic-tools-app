@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Temporary while the incident/damage mapper moves from prototype references
+  // to model-specific fleet assets. The old reference URLs were cached by the
+  // Next image optimizer across deployments, so direct image delivery ensures
+  // a reference-set change is visible immediately. We can return to optimized
+  // images once the model resolver uses model-specific asset URLs.
+  images: {
+    unoptimized: true,
+  },
   async rewrites() {
     return {
       beforeFiles: [
