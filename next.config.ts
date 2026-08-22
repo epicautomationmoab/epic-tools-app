@@ -7,15 +7,15 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         {
           source: "/incident-damage/rzr-reference/front-three-quarter.jpg",
-          destination: "https://cdn1.polaris.com/globalassets/rzr/2026/model/model-pages/rzr-pro-r/update/01-overview-/03-pillar-1/rzr-pro-r-my26-7b4d-pillar-01-a-xxs.jpg?v=dff57d8b",
+          destination: "https://cdnmedia.endeavorsuite.com/images/organizations/b0d40c90-8d82-4557-899e-bec74a5860d7/inventory/13902516/WebLarge_JPG-2026-rzr-xps1000ultimate-crew-us-stealthgray-cgi-Front3q-Z26NMY99A4.jpg",
         },
         {
           source: "/incident-damage/rzr-reference/front.jpg",
-          destination: "https://cdpcdn.dx1app.com/products/USA/PO/2026/UTILVEH/UTILSPRT/RZR_PRO_R_4_ULTIMATE/49/SUPER_GRAPHITE/2000000003.jpg",
+          destination: "https://cdnmedia.endeavorsuite.com/images/organizations/b0d40c90-8d82-4557-899e-bec74a5860d7/inventory/13902516/WebLarge_JPG-2026-rzr-xps1000ultimate-crew-us-stealthgray-cgi-Front-Z26NMY99A4.jpg",
         },
         {
           source: "/incident-damage/rzr-reference/rear.jpg",
-          destination: "https://cdpcdn.dx1app.com/products/USA/PO/2026/UTILVEH/UTILSPRT/RZR_PRO_R_ULTIMATE/50/INDY_RED/2000000004.jpg",
+          destination: "https://cdnmedia.endeavorsuite.com/images/organizations/b0d40c90-8d82-4557-899e-bec74a5860d7/inventory/13902516/WebLarge_JPG-2026-rzr-xps1000ultimate-crew-us-stealthgray-cgi-Rear-Z26NMY99A4.jpg",
         },
         {
           source: "/incident-damage/rzr-reference/interior.jpg",
