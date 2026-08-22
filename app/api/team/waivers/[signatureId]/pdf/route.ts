@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import { getGuestFormsActor } from "@/lib/workstation-auth";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
 
 function hasPreviewAccess(request: NextRequest) {
@@ -11,9 +11,8 @@ function hasPreviewAccess(request: NextRequest) {
 }
 
 async function authorized(request: NextRequest) {
-  const accessToken = request.cookies.get("epic_access_token")?.value;
-  const profile = await getAuthenticatedTeamProfile(accessToken);
-  return Boolean(profile || hasPreviewAccess(request));
+  const actor = await getGuestFormsActor(request);
+  return Boolean(actor || hasPreviewAccess(request));
 }
 
 function supabaseConfig() {
