@@ -64,17 +64,31 @@ function firstName(fullName: string) {
   return fullName.trim().split(/\s+/)[0] || "Guest";
 }
 
+// TripWorks visit_start_time is a local wall-clock value stored in a timestamptz-shaped field.
+// Preserve its date/time components instead of applying a UTC -> Mountain conversion.
 function formatVisitTime(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::\d{2})?/);
+  if (!match) throw new Error(`Invalid visit start time: ${value}`);
+
+  const [, year, month, day, hour, minute] = match;
+  const wallTime = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)));
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+  }).format(wallTime);
+
+  const zoneProbe = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 18, 0));
+  const zoneName = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
     timeZoneName: "short",
-  }).format(new Date(value));
+  }).formatToParts(zoneProbe).find((part) => part.type === "timeZoneName")?.value ?? "MT";
+
+  return `${formatted} ${zoneName}`;
 }
 
 function buildReservationSummary(rows: GuestPortalRow[]) {
