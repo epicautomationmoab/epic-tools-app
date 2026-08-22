@@ -4,6 +4,7 @@ import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
 import styles from "../readiness/ReadinessShell.module.css";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
+import CreateDamageCaseCard from "./CreateDamageCaseCard";
 
 type Reservation = {
   id: string;
@@ -210,12 +211,12 @@ export default async function IncidentDamagePage({
                     <div style={cardStyle}>
                       <h3 style={{ marginTop: 0 }}>Returned With Damage</h3>
                       <p style={{ opacity: .75, minHeight: 48 }}>Guest returned normally, but the vehicle has damage that needs documentation and repair follow-up.</p>
-                      <button className={styles.actionButton} type="button" disabled title="Case creation is the next build step">Create Damage Case</button>
+                      <CreateDamageCaseCard confirmationCode={reservation.confirmation_code} />
                     </div>
                     <div style={cardStyle}>
                       <h3 style={{ marginTop: 0 }}>On-Trail Problem / Recovery</h3>
                       <p style={{ opacity: .75, minHeight: 48 }}>Guest, guide, or staff reports a trail problem requiring intake, support, recovery, or incident documentation.</p>
-                      <button className={styles.actionButton} type="button" disabled title="Case creation is the next build step">Start Trail Response</button>
+                      <button className={styles.actionButton} type="button" disabled title="Trail response wiring comes after the damage documentation path">Start Trail Response</button>
                     </div>
                     <div style={cardStyle}>
                       <h3 style={{ marginTop: 0 }}>Beacon Activation</h3>
