@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ cas
     const workflow = await loadWorkflow(caseId);
     if (!workflow) return NextResponse.json({ error: "Damage documentation workflow not found." }, { status: 404 });
     const items = await supabaseSelect("operational_case_damage_items", new URLSearchParams({
-      select: "id,item_order,area_component,description,disposition,possible_hidden_damage,internal_notes,created_at,updated_at",
+      select: "id,item_order,area_component,description,disposition,possible_hidden_damage,internal_notes,category,view_key,hotspot_key,created_at,updated_at",
       case_id: `eq.${caseId}`,
       workflow_id: `eq.${workflow.id}`,
       order: "item_order.asc,created_at.asc",
@@ -57,6 +57,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ca
       disposition?: "inspect" | "repair" | "replace" | "unknown";
       possibleHiddenDamage?: boolean;
       internalNotes?: string;
+      category?: "exterior" | "interior" | "undercarriage" | "mechanical" | "other";
+      viewKey?: string | null;
+      hotspotKey?: string | null;
     };
 
     const now = new Date().toISOString();
@@ -94,6 +97,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ca
         disposition: body.disposition ?? "unknown",
         possible_hidden_damage: body.possibleHiddenDamage ?? false,
         internal_notes: body.internalNotes?.trim() || null,
+        category: body.category ?? "exterior",
+        view_key: body.viewKey?.trim() || null,
+        hotspot_key: body.hotspotKey?.trim() || null,
         created_by: actor.actorName,
       });
       return NextResponse.json({ ok: true, item });
@@ -115,6 +121,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ca
         disposition: body.disposition ?? "unknown",
         possible_hidden_damage: body.possibleHiddenDamage ?? false,
         internal_notes: body.internalNotes?.trim() || null,
+        category: body.category ?? "exterior",
+        view_key: body.viewKey?.trim() || null,
+        hotspot_key: body.hotspotKey?.trim() || null,
         updated_at: now,
       });
       return NextResponse.json({ ok: true });
