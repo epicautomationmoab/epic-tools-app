@@ -5,6 +5,7 @@ import LogoutButton from "../../../readiness/LogoutButton";
 import styles from "../../../readiness/ReadinessShell.module.css";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
 import DamageDocumentationClient from "./DamageDocumentationClient";
+import PreliminaryAssessmentClient from "./PreliminaryAssessmentClient";
 
 type CaseRow = {
   id: string;
@@ -42,6 +43,9 @@ type DamageItem = {
   disposition: string | null;
   possible_hidden_damage: boolean;
   internal_notes: string | null;
+  category: string | null;
+  view_key: string | null;
+  hotspot_key: string | null;
 };
 
 type Evidence = {
@@ -52,6 +56,21 @@ type Evidence = {
   content_type: string | null;
   byte_size: number | null;
   uploaded_at: string;
+};
+
+type Assessment = {
+  id: string;
+  damage_item_id: string;
+  assessment_status: string;
+  recommended_action: string;
+  parts_estimate: number | string;
+  labor_hours: number | string | null;
+  labor_rate: number | string | null;
+  labor_estimate: number | string;
+  miscellaneous_estimate: number | string;
+  confidence: string;
+  teardown_required: boolean;
+  assessment_notes: string | null;
 };
 
 export default async function DamageCasePage({ params }: { params: Promise<{ caseId: string }> }) {
@@ -86,7 +105,7 @@ export default async function DamageCasePage({ params }: { params: Promise<{ cas
   const workflow = workflows[0] ?? null;
 
   const items = workflow ? await supabaseSelect<DamageItem>("operational_case_damage_items", new URLSearchParams({
-    select: "id,item_order,area_component,description,disposition,possible_hidden_damage,internal_notes",
+    select: "id,item_order,area_component,description,disposition,possible_hidden_damage,internal_notes,category,view_key,hotspot_key",
     case_id: `eq.${caseId}`,
     workflow_id: `eq.${workflow.id}`,
     order: "item_order.asc,created_at.asc",
@@ -96,6 +115,12 @@ export default async function DamageCasePage({ params }: { params: Promise<{ cas
     select: "id,damage_item_id,photo_slot,original_filename,content_type,byte_size,uploaded_at",
     case_id: `eq.${caseId}`,
     source_type: "eq.staff_damage_documentation",
+    order: "created_at.asc",
+  }));
+
+  const assessments = await supabaseSelect<Assessment>("operational_case_damage_assessments", new URLSearchParams({
+    select: "id,damage_item_id,assessment_status,recommended_action,parts_estimate,labor_hours,labor_rate,labor_estimate,miscellaneous_estimate,confidence,teardown_required,assessment_notes",
+    case_id: `eq.${caseId}`,
     order: "created_at.asc",
   }));
 
@@ -135,19 +160,26 @@ export default async function DamageCasePage({ params }: { params: Promise<{ cas
           </div>
         </header>
         <section className={styles.content}>
-          <DamageDocumentationClient
-            caseId={caseRow.id}
-            confirmationCode={caseRow.confirmation_code}
-            vehicleNumber={caseRow.vehicle_number}
-            caseStatus={caseRow.status}
-            openedBy={caseRow.opened_by}
-            openingNote={typeof caseRow.metadata?.opening_note === "string" ? caseRow.metadata.opening_note : ""}
-            reservation={reservation}
-            workflow={workflow}
-            initialItems={items}
-            initialEvidence={evidence}
-            guestAcknowledgmentStatus={guestAcknowledgmentStatus}
-          />
+          <div style={{ display: "grid", gap: 18 }}>
+            <DamageDocumentationClient
+              caseId={caseRow.id}
+              confirmationCode={caseRow.confirmation_code}
+              vehicleNumber={caseRow.vehicle_number}
+              caseStatus={caseRow.status}
+              openedBy={caseRow.opened_by}
+              openingNote={typeof caseRow.metadata?.opening_note === "string" ? caseRow.metadata.opening_note : ""}
+              reservation={reservation}
+              workflow={workflow}
+              initialItems={items}
+              initialEvidence={evidence}
+              guestAcknowledgmentStatus={guestAcknowledgmentStatus}
+            />
+            <PreliminaryAssessmentClient
+              caseId={caseRow.id}
+              items={items}
+              initialAssessments={assessments}
+            />
+          </div>
         </section>
       </main>
     </div>
