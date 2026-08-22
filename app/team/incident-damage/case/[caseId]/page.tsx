@@ -4,7 +4,7 @@ import HeaderClock from "../../../readiness/HeaderClock";
 import LogoutButton from "../../../readiness/LogoutButton";
 import styles from "../../../readiness/ReadinessShell.module.css";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
-import DamageDocumentationClient from "./DamageDocumentationClient";
+import DamageDocumentationV2Client from "./DamageDocumentationV2Client";
 import PreliminaryAssessmentClient from "./PreliminaryAssessmentClient";
 
 type CaseRow = {
@@ -161,7 +161,7 @@ export default async function DamageCasePage({ params }: { params: Promise<{ cas
         </header>
         <section className={styles.content}>
           <div style={{ display: "grid", gap: 18 }}>
-            <DamageDocumentationClient
+            <DamageDocumentationV2Client
               caseId={caseRow.id}
               confirmationCode={caseRow.confirmation_code}
               vehicleNumber={caseRow.vehicle_number}
