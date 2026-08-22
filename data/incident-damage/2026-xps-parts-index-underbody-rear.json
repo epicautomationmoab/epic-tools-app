@@ -1,0 +1,118 @@
+{
+  "vehicle": {
+    "year": 2026,
+    "model": "RZR XP S 4 1000 Ultimate",
+    "supported_model_codes": ["Z26NMY99A4", "Z26NMY99B4"],
+    "finish": "STEALTH GRAY NON-METALLIC"
+  },
+  "assemblies": {
+    "chassis_main_frame_skids": {
+      "assembly_id": "255403",
+      "name": "CHASSIS, MAIN FRAME AND SKID PLATES",
+      "drive_file_id": "17XliK5aGg91mt3BYgHpKr9HK5MlopdfX",
+      "parts": [
+        {"ref":"1","part_number":"1028663-458","description":"WELD-FRAME MAIN,MP,72,BLK","quantity":1},
+        {"ref":"2","part_number":"5466371-070","description":"SKID PLATE-MID,MP,BLK","quantity":1},
+        {"ref":"3","part_number":"5466531-070","description":"PLATE-SKID,FRONT,MP,BLK","quantity":1},
+        {"ref":"4","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":10},
+        {"ref":"5","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":6},
+        {"ref":"6","part_number":"5466296-070","description":"PLATE-SKID,REAR","quantity":1},
+        {"ref":"7","part_number":"7518529","description":"SCR-M6X1.0X20,HXHD,FLG,TDFM,BK","quantity":23},
+        {"ref":"8","part_number":"7556065","description":"WASHER-SKID PLATE","quantity":24},
+        {"ref":"9","part_number":"1026957-329","description":"WELD-SEAT BASE,FRT,MP,BLK","quantity":1},
+        {"ref":"10","part_number":"1026483-329","description":"BRKT-SEAT SUPPORT,FRT,MP,ECOAT","quantity":2},
+        {"ref":"11","part_number":"7518555","description":"SCR-TFHFL-M8X1.25X20 CHS ZOD","quantity":4},
+        {"ref":"12","part_number":"7518934","description":"SCR-M10X1.5X25-8.8 HFS ZOD","quantity":4},
+        {"ref":"13","part_number":"5274852-329","description":"BRKT-CLOSE OFF SUPPORT,ECOAT","quantity":1},
+        {"ref":"14","part_number":"5457593-070","description":"COVER-SCM,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"15","part_number":"5457594-070","description":"COVER-TANK,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"16","part_number":"1026958-329","description":"WELD-SEAT BASE,REAR,MP,BLK","quantity":1},
+        {"ref":"17","part_number":"7518474","description":"SCR-HXFL-M10X1.5X55 8.8 ZY3","quantity":2},
+        {"ref":"18","part_number":"7519071","description":"SCR-M10X1.5X25 8.8 HXFL ZOD","quantity":6,"valid_to":"2025-09-26"},
+        {"ref":"18","part_number":"7521333-20","description":"SCR-HXFL-M10X1.5X20 10.9 ZFB","quantity":6,"valid_from":"2025-09-26"},
+        {"ref":"19","part_number":"1026695-458","description":"WELD-BOLSTER,LH,REAR,BLK","quantity":1,"side":"LH"},
+        {"ref":"20","part_number":"1026696-458","description":"WELD-BOLSTER,RH,REAR,BLK","quantity":1,"side":"RH"},
+        {"ref":"21","part_number":"7518450","description":"BOLT-M8X1.25X20,HXHDFLG,W/PTCH","quantity":2},
+        {"ref":"22","part_number":"7519956","description":"SCR-HXFL-M10X1.25X55 10.9 RIE","quantity":2},
+        {"ref":"23","part_number":"7547333","description":"NUT-HXFL M10X1.25 8 ZTB NYL","quantity":4},
+        {"ref":"24","part_number":"7519285","description":"SCR-HXFL-M10X1.25X55 10.9 ZOD","quantity":2},
+        {"ref":"25","part_number":"7661855","description":"RIVET-TUFLOK,.315-.325X.787","quantity":4},
+        {"ref":"26","part_number":"2637771","description":"ASM-GRAB BAR","quantity":1},
+        {"ref":"27","part_number":"5457427","description":"BUSHING-GRAB BAR,UPPER","quantity":2},
+        {"ref":"28","part_number":"5457511","description":"NUT-GRAB BAR","quantity":1},
+        {"ref":"29","part_number":"5457512","description":"CAP,GRAB BAR LEVER","quantity":1},
+        {"ref":"30","part_number":"5457891","description":"BUSHING-GRAB BAR,LOWER","quantity":2},
+        {"ref":"31","part_number":"5459039","description":"LEVER,GRAB BAR","quantity":1},
+        {"ref":"32","part_number":"7521309","description":"ROD-GRAB BAR THREADED","quantity":1},
+        {"ref":"34","part_number":"7663047","description":"PIN-GRAB BAR","quantity":1},
+        {"ref":"35","part_number":"1028894-831","description":"WELD-FRT,BUMPER,SHDW BRONZE","quantity":1}
+      ]
+    },
+    "body_rear_bumper": {
+      "assembly_id": "255389",
+      "name": "BODY, REAR BUMPER",
+      "drive_file_id": "1EfOCMKAyoxr0WBp00fHzrWDAwzM3-6Ti",
+      "parts": [
+        {"ref":"1","part_number":"2638281-070","description":"ASM-REAR FASCIA,BLK","quantity":1,"includes_refs":["2","13"]},
+        {"ref":"2","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+        {"ref":"3","part_number":"5269679-329","description":"BRKT-REAR FASCIA,LWR,ECOAT","quantity":1},
+        {"ref":"4","part_number":"7518936","description":"SCR-M6X1X16 TR/TX-M","quantity":3},
+        {"ref":"5","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":"AR"},
+        {"ref":"6","part_number":"5273135-329","description":"BRKT-REAR FASCIA,SUPT,ECOAT","quantity":1},
+        {"ref":"7","part_number":"7528105","description":"SCR-TXTH-M8X1.25X20 8.8 ZTB SP","quantity":2},
+        {"ref":"8","part_number":"5272082-329","description":"BRKT-SPT, REAR FASCIA,LH,ECOAT","quantity":1,"side":"LH"},
+        {"ref":"9","part_number":"5272083-329","description":"BRKT-SPT, REAR FASCIA,RH,ECOAT","quantity":1,"side":"RH"},
+        {"ref":"10","part_number":"5271998-329","description":"BRKT-SPT,REAR FENDER,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"11","part_number":"5271999-329","description":"BRKT-SPT,REAR FENDER,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"12","part_number":"7519997","description":"SCR-TXTH-M8X1.25X20 8.8 ZB3 P3","quantity":2},
+        {"ref":"13","part_number":"5815458","description":"SHIELD-HEAT,REAR-FASCIA","quantity":1}
+      ]
+    },
+    "body_rear_closeoff": {
+      "assembly_id": "255390",
+      "name": "BODY, REAR CLOSEOFF",
+      "drive_file_id": "1H-7ZV50O4CcNxWoLYMLebbXIZIJjgb6d",
+      "parts": [
+        {"ref":"1","part_number":"2638763","description":"ASM-REAR UPPER CLOSEOUT","quantity":1,"includes_refs":["9"]},
+        {"ref":"2","part_number":"5456556-070","description":"PANEL,ENGINE ACCESS,BLK","quantity":1},
+        {"ref":"3","part_number":"5456550-070","description":"UNDERSEAT CLOSEOUT,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"4","part_number":"5456551-070","description":"UNDERSEAT CLOSEOUT,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"5","part_number":"5456574-070","description":"CENTER CONSOLE,REAR,BLK","quantity":1},
+        {"ref":"6","part_number":"5456554-070","description":"CLOSEOUT,REAR,LWR,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"7","part_number":"5459428-070","description":"CLOSEOUT,REAR,LWR,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"8","part_number":"5457970","description":"COVER-COOLANT ACCESS","quantity":1},
+        {"ref":"9","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+        {"ref":"10","part_number":"7661855","description":"RIVET-TUFLOK,.315-.325X.787","quantity":"AR"},
+        {"ref":"11","part_number":"7662384","description":"STUD-1/4 TURN,NYLON","quantity":4},
+        {"ref":"12","part_number":"7710933","description":"CLIP-1/4 TURN","quantity":4},
+        {"ref":"13","part_number":"7710919","description":"CLIP-RETAINER,1/4 TURN","quantity":4},
+        {"ref":"14","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":"AR"}
+      ]
+    },
+    "body_rear_rack": {
+      "assembly_id": "255392",
+      "name": "BODY, REAR RACK",
+      "drive_file_id": "1dLcmB7YnJS_MaCpUlo0iKaGvuZEnlN2V",
+      "parts": [
+        {"ref":"1","part_number":"2638107","description":"ASM-CARGO BOX,CMP MLD","quantity":1,"includes_refs":["4","5","6","9","10","11"]},
+        {"ref":"2","part_number":"5456546-070","description":"BOX-SIDE,LH-BLACK","quantity":1,"side":"LH"},
+        {"ref":"3","part_number":"5456547-070","description":"BOX-SIDE,RH-BLACK","quantity":1,"side":"RH"},
+        {"ref":"4","part_number":"7081195","description":"RING,TIEDOWN 700087","quantity":4},
+        {"ref":"5","part_number":"7519728","description":"SCR-TXBH-M8X1.25X25 8.8 ZB","quantity":4},
+        {"ref":"6","part_number":"7547317","description":"NUT-M8X1.25,HXFLG,NYLON INS","quantity":4},
+        {"ref":"7","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":"AR"},
+        {"ref":"8","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+        {"ref":"9","part_number":"5268567","description":"SHIELD-HEAT,TUB","quantity":1},
+        {"ref":"10","part_number":"5272828","description":"SHIELD-BOX,REAR","quantity":1},
+        {"ref":"11","part_number":"7519060","description":"SCR-#14X1/2 PHPN HILO STL ZNC","quantity":4},
+        {"ref":"12","part_number":"7558749","description":"WASHER-STEPPED","quantity":2},
+        {"ref":"13","part_number":"7528105","description":"SCR-TXTH-M8X1.25X20 8.8 ZTB SP","quantity":2}
+      ]
+    }
+  },
+  "catalog_policy": {
+    "side_mapping": "Driver=LH; Passenger=RH",
+    "build_date_resolution": "Resolve Polaris date splits by vehicle build date and surface Pending when build date is unknown."
+  },
+  "status": "ready_for_ui_binding"
+}
