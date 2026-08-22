@@ -1,7 +1,7 @@
 create table if not exists public.operational_cases (
   id uuid primary key default gen_random_uuid(),
   operational_reservation_id uuid references public.operational_reservations(id) on delete set null,
-  confirmation_code text not null,
+  confirmation_code text,
   business_line text,
   case_type text not null check (case_type in ('returned_damage','trail_response','beacon_activation','other')),
   status text not null default 'open' check (status in ('open','active_response','follow_up','closed')),
