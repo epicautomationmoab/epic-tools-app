@@ -1,0 +1,175 @@
+{
+  "vehicle": {
+    "year": 2026,
+    "model": "RZR XP S 4 1000 Ultimate",
+    "model_codes": ["Z26NMY99A4", "Z26NMY99B4", "Z26NMY99A6", "Z26NMY99B6"]
+  },
+  "source_folder": "Google Drive XP S schematic folder",
+  "assemblies": [
+    {
+      "key": "accessory_front_bumper",
+      "name": "ACCESSORY, BUMPER AND RELATED",
+      "drive_file_id": "1Rp2uF_8SRBFK3MZAbvMcgQpJIOnaQf8i",
+      "assembly_id": "255378",
+      "areas": ["front_body", "front_bumper"]
+    },
+    {
+      "key": "body_center_console",
+      "name": "BODY, CENTER CONSOLE",
+      "drive_file_id": "1U_fX4u6zyLWmM8iSx6Ch8EhL3yoHVO_v",
+      "assembly_id": "255379",
+      "areas": ["interior", "center_console"]
+    },
+    {
+      "key": "body_dash",
+      "name": "BODY, DASH",
+      "drive_file_id": "1EvOI7QHtShtbl58jkb6wltZKzDWfj17v",
+      "assembly_id": "255380",
+      "areas": ["interior", "dash"]
+    },
+    {
+      "key": "body_dash_storage",
+      "name": "BODY, DASH STORAGE",
+      "drive_file_id": "1upusCJDxdLEnw3do4EaWLvFqFfd28PTF",
+      "assembly_id": "255381",
+      "areas": ["interior", "dash", "storage"]
+    },
+    {
+      "key": "body_decals",
+      "name": "BODY, DECALS",
+      "drive_file_id": "1gplP5L1zo1mwX4SUFMUsNEzo8YWzUbtk",
+      "assembly_id": "255382",
+      "areas": ["front_body", "hood", "front_door", "rear_door", "rear_quarter"]
+    },
+    {
+      "key": "body_doors_front",
+      "name": "BODY, DOORS, FRONT",
+      "drive_file_id": "1Im9CcM59BBorIDOu2p2CtkwukJqaoxC5",
+      "assembly_id": "255383",
+      "areas": ["front_door"]
+    },
+    {
+      "key": "body_doors_rear",
+      "name": "BODY, DOORS, REAR",
+      "drive_file_id": "1I48ZgqPiCl_w45LV8ZuXhlyYJ-tNL4yX",
+      "assembly_id": "255384",
+      "areas": ["rear_door"]
+    },
+    {
+      "key": "body_floor",
+      "name": "BODY, FLOOR",
+      "drive_file_id": "1QiVmPVVA4L7bQiAf8zQTgzC-7IwBaNxb",
+      "assembly_id": "255385",
+      "areas": ["interior", "floor", "undercarriage"]
+    },
+    {
+      "key": "body_front_fascia_grille_flares",
+      "name": "BODY, FRONT FACIA, GRILLE, AND FLARES",
+      "drive_file_id": "1Ts1QWRj6Djhkmj6MNT_rZcU8SpjDyHNK",
+      "assembly_id": "255386",
+      "areas": ["front_body", "front_fender"]
+    },
+    {
+      "key": "body_grab_bar_passenger",
+      "name": "BODY, GRAB BAR, PASSENGER",
+      "drive_file_id": "1CDO2kvE5R-UcvW4b69SOXJs0ldwtRCDq",
+      "assembly_id": "255387",
+      "areas": ["interior", "passenger_grab_bar"]
+    },
+    {
+      "key": "body_hood",
+      "name": "BODY, HOOD",
+      "drive_file_id": "1JSV-FjgXZWtAlPr4n--lJc_QAlmJtGFE",
+      "assembly_id": "255388",
+      "areas": ["hood", "front_body"]
+    },
+    {
+      "key": "body_rear_bumper",
+      "name": "BODY, REAR BUMPER",
+      "drive_file_id": "1EfOCMKAyoxr0WBp00fHzrWDAwzM3-6Ti",
+      "assembly_id": "255389",
+      "areas": ["rear_body", "rear_bumper"]
+    },
+    {
+      "key": "body_rear_closeoff",
+      "name": "BODY, REAR CLOSEOFF",
+      "drive_file_id": "1H-7ZV50O4CcNxWoLYMLebbXIZIJjgb6d",
+      "assembly_id": "255390",
+      "areas": ["rear_body", "underseat", "engine_access"]
+    },
+    {
+      "key": "body_rear_fenders_bezels",
+      "name": "BODY, REAR FENDERS AND BEZELS",
+      "drive_file_id": "1fnPrRuk43LotT5gBOobaubDuoVSXkkji",
+      "assembly_id": "255391",
+      "areas": ["rear_quarter", "rear_fender", "intake"]
+    },
+    {
+      "key": "body_rear_rack",
+      "name": "BODY, REAR RACK",
+      "drive_file_id": "1dLcmB7YnJS_MaCpUlo0iKaGvuZEnlN2V",
+      "assembly_id": "255392",
+      "areas": ["rear_body", "cargo_box"]
+    },
+    {
+      "key": "body_rocker_panels",
+      "name": "BODY, ROCKER PANELS",
+      "drive_file_id": "1R1qM7uy9kH3pLZiTcZ7JXg121ITDH2El",
+      "assembly_id": "255393",
+      "areas": ["rocker", "side_body"]
+    },
+    {
+      "key": "body_roof",
+      "name": "BODY, ROOF",
+      "drive_file_id": "17kaebKpkdXYgW91EGPhB5V8rrg-eI1GU",
+      "assembly_id": "255394",
+      "areas": ["roof", "rops"]
+    },
+    {
+      "key": "body_seat_front",
+      "name": "BODY, SEAT ASM. AND SLIDER, FRONT",
+      "drive_file_id": "1pQiAvK4vhAppY2a-JlGOKknKhVCIqkDn",
+      "assembly_id": "255395",
+      "areas": ["interior", "seat"]
+    }
+  ],
+  "damage_area_bundles": {
+    "front_body": [
+      "accessory_front_bumper",
+      "body_front_fascia_grille_flares",
+      "body_hood",
+      "body_decals"
+    ],
+    "front_door": [
+      "body_doors_front",
+      "body_decals",
+      "body_rocker_panels"
+    ],
+    "rear_door": [
+      "body_doors_rear",
+      "body_decals",
+      "body_rocker_panels"
+    ],
+    "rear_quarter": [
+      "body_rear_fenders_bezels",
+      "body_rear_bumper",
+      "body_rear_rack",
+      "body_decals"
+    ],
+    "interior_dash": [
+      "body_dash",
+      "body_dash_storage",
+      "body_center_console",
+      "body_grab_bar_passenger"
+    ],
+    "interior_seat_floor": [
+      "body_seat_front",
+      "body_floor",
+      "body_rear_closeoff"
+    ],
+    "roof_rops": [
+      "body_roof"
+    ]
+  },
+  "status": "body_catalog_in_progress"
+}
