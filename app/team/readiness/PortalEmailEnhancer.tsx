@@ -65,6 +65,96 @@ function styleIconButton(button: HTMLButtonElement) {
   button.style.flex = "0 0 42px";
 }
 
+function confirmResendEmail(guestName: string) {
+  return new Promise<boolean>((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.setAttribute("role", "presentation");
+    Object.assign(overlay.style, {
+      position: "fixed",
+      inset: "0",
+      zIndex: "10000",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "20px",
+      background: "rgba(15, 23, 42, 0.42)",
+    });
+
+    const modal = document.createElement("div");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "resend-confirmation-title");
+    Object.assign(modal.style, {
+      width: "min(420px, 100%)",
+      boxSizing: "border-box",
+      borderRadius: "16px",
+      background: "#fff",
+      boxShadow: "0 24px 64px rgba(15, 23, 42, 0.28)",
+      padding: "22px",
+      color: "#1f2937",
+    });
+
+    const title = document.createElement("h3");
+    title.id = "resend-confirmation-title";
+    title.textContent = "Resend Confirmation Email?";
+    Object.assign(title.style, { margin: "0 0 8px", fontSize: "20px", lineHeight: "1.25" });
+
+    const message = document.createElement("p");
+    message.textContent = `Send the full confirmation email to ${guestName}?`;
+    Object.assign(message.style, { margin: "0", color: "#59636e", fontSize: "15px", lineHeight: "1.45" });
+
+    const actions = document.createElement("div");
+    Object.assign(actions.style, { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "22px" });
+
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    styleSecondaryButton(cancel);
+    cancel.style.marginLeft = "0";
+
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.textContent = "Resend Email";
+    Object.assign(confirm.style, {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "10px 14px",
+      border: "1px solid #d85a1f",
+      borderRadius: "8px",
+      background: "#d85a1f",
+      color: "#fff",
+      fontWeight: "850",
+      cursor: "pointer",
+    });
+
+    let settled = false;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener("keydown", onKeyDown);
+      overlay.remove();
+      resolve(value);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") finish(false);
+    };
+
+    cancel.addEventListener("click", () => finish(false));
+    confirm.addEventListener("click", () => finish(true));
+    overlay.addEventListener("mousedown", (event) => {
+      if (event.target === overlay) finish(false);
+    });
+    document.addEventListener("keydown", onKeyDown);
+
+    actions.append(cancel, confirm);
+    modal.append(title, message, actions);
+    overlay.append(modal);
+    document.body.append(overlay);
+    confirm.focus();
+  });
+}
+
 function bestActivityMatch(activities: PortalActivity[], businessLine: string, drawer: Element) {
   const candidates = activities.filter((activity) => activity.businessLine?.toLowerCase() === businessLine);
   if (candidates.length <= 1) return candidates[0] ?? null;
@@ -140,7 +230,7 @@ export default function PortalEmailEnhancer() {
       styleSecondaryButton(resendButton);
 
       resendButton.addEventListener("click", async () => {
-        const confirmed = window.confirm(`Resend the full confirmation email to ${guestName}?`);
+        const confirmed = await confirmResendEmail(guestName);
         if (!confirmed) return;
         const originalText = resendButton.textContent;
         resendButton.disabled = true;
