@@ -1,0 +1,1 @@
+RZR reference images used by the Incident & Damage mapper prototype. Exterior and interior views are model-reference images supplied during workflow design. Hotspots are UI overlays; these images are not repair schematics.
