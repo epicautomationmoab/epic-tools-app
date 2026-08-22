@@ -42,17 +42,41 @@ create index if not exists operational_case_workflows_case_id_idx
 create index if not exists operational_case_workflows_guest_form_task_id_idx
   on public.operational_case_workflows(guest_form_task_id);
 
+create table if not exists public.operational_case_damage_items (
+  id uuid primary key default gen_random_uuid(),
+  case_id uuid not null references public.operational_cases(id) on delete cascade,
+  workflow_id uuid references public.operational_case_workflows(id) on delete set null,
+  item_order integer not null default 0,
+  area_component text,
+  description text,
+  disposition text check (disposition is null or disposition in ('inspect','repair','replace','unknown')),
+  possible_hidden_damage boolean not null default false,
+  internal_notes text,
+  created_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists operational_case_damage_items_case_id_idx
+  on public.operational_case_damage_items(case_id);
+create index if not exists operational_case_damage_items_workflow_id_idx
+  on public.operational_case_damage_items(workflow_id);
+
 create table if not exists public.operational_case_evidence (
   id uuid primary key default gen_random_uuid(),
   case_id uuid not null references public.operational_cases(id) on delete cascade,
   workflow_id uuid references public.operational_case_workflows(id) on delete set null,
+  damage_item_id uuid references public.operational_case_damage_items(id) on delete set null,
   guest_form_attachment_id uuid references public.guest_form_attachments(id) on delete set null,
   evidence_type text not null default 'photo',
   source_type text not null,
   stage text,
+  photo_slot text,
   vehicle_number text,
   storage_path text,
   original_filename text,
+  content_type text,
+  byte_size bigint,
   captured_at timestamptz,
   uploaded_at timestamptz not null default now(),
   metadata jsonb not null default '{}'::jsonb,
@@ -63,13 +87,17 @@ create index if not exists operational_case_evidence_case_id_idx
   on public.operational_case_evidence(case_id);
 create index if not exists operational_case_evidence_vehicle_number_idx
   on public.operational_case_evidence(vehicle_number);
+create index if not exists operational_case_evidence_damage_item_id_idx
+  on public.operational_case_evidence(damage_item_id);
 create index if not exists operational_case_evidence_guest_form_attachment_id_idx
   on public.operational_case_evidence(guest_form_attachment_id);
 
 alter table public.operational_cases enable row level security;
 alter table public.operational_case_workflows enable row level security;
+alter table public.operational_case_damage_items enable row level security;
 alter table public.operational_case_evidence enable row level security;
 
 grant select, insert, update, delete on table public.operational_cases to service_role;
 grant select, insert, update, delete on table public.operational_case_workflows to service_role;
+grant select, insert, update, delete on table public.operational_case_damage_items to service_role;
 grant select, insert, update, delete on table public.operational_case_evidence to service_role;
