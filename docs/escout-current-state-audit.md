@@ -61,6 +61,23 @@ Additional pre-email/tScout verification fields:
 - `pre_email_check_completed_at`
 - `pre_email_communication_id`
 
+## Current worker source and loop cadence
+
+Worker repository: `epicautomationmoab/epic-scout-worker`.
+
+Main worker file: `scout.js`.
+
+Current defaults from the worker source:
+
+- Empty-queue recheck: every 20 seconds (`EMPTY_QUEUE_SLEEP_MS=20000`).
+- Shared queue synchronization: every 5 minutes (`SYNC_INTERVAL_MS=300000`).
+- Claim lease: 15 minutes (`LEASE_MINUTES=15`).
+- Lease renewal while processing: every 5 minutes.
+- MPWR maintenance/offline window: midnight through 2:00 AM in `America/Denver` by default.
+- Queue synchronization is forced on each fresh browser/login start, then repeated on the sync interval.
+
+The same worker code supports multiple named modes through the `SCOUT_MODE` environment variable. Deployment-specific environment values are not stored in GitHub, but the database claim function defines the operational behavior of each supported mode.
+
 ## Current claim behavior
 
 Function: `public.claim_next_scout_mpwr_job(worker_name, worker_mode, lease_minutes)`.
@@ -101,6 +118,8 @@ Function: `public.release_scout_mpwr_job(...)` sets `retry` and schedules +10 mi
 
 Function: `public.renew_scout_mpwr_job_lease(...)` extends the worker lease.
 
+The worker also retries a transient database failure while finishing a successful job up to 5 times with exponential backoff plus jitter, capped at 30 seconds between attempts.
+
 ## Current source population / synchronization
 
 Function: `public.sync_scout_mpwr_queue()` bulk-synchronizes the Scout queue from `public.scout_mpwr_waiver_work_v`.
@@ -113,9 +132,7 @@ The function:
 4. Reactivates matching work.
 5. Pauses queue rows no longer present in the source view.
 
-This is the whole-population synchronization behavior that the lane rebuild intends to eliminate from tScout/iScout clones.
-
-`sync_scout_mpwr_queue()` is not scheduled by Supabase cron. Its invocation therefore occurs outside Supabase cron, likely in the current Scout worker service(s). Worker/deployment configuration still needs to be audited to confirm exact invocation and loop cadence.
+The worker itself calls this function every five minutes and at startup. This is the whole-population synchronization behavior that the lane rebuild intends to eliminate from tScout/iScout clones.
 
 ## Current work view
 
@@ -190,32 +207,25 @@ Rhett jobs are sacred and are out of scope for eScout modifications.
 
 `public.scout_worker_health` contains stale historical tScout heartbeat-test rows from July/August 2026 rather than a reliable current worker picture.
 
-Worker health reporting should be repaired as part of the Scout rebuild, after current Railway worker behavior is fully mapped.
+The current `scout.js` worker source does not contain a live heartbeat write path to `scout_worker_health`, which explains why the table is not a reliable current worker monitor.
+
+Worker health reporting should be repaired as part of the Scout rebuild without involving Bob, Rhett, or Patti.
 
 ## Current queue shape observed during audit
 
-At audit time, the existing shared queue contained active work across all date ranges, including hundreds of future reservations. This confirms that Future work is still maintained in the shared polling population rather than being click-created eScout-only work.
+At audit time, the existing shared queue contained active work across all date ranges, including more than 300 active future reservations. This confirms that Future work is still maintained in the shared polling population rather than being click-created eScout-only work.
 
 The old shared queue must remain available during shadow testing and gradual cutover.
 
-## Remaining Step 1 audit items
+## Step 1 status
 
-Before creating production lane routing, confirm from the Scout worker deployment/source:
+The current Scout worker and database contract are now mapped sufficiently to proceed with shadow lane creation.
 
-- Exact tScout loop cadence.
-- Exact iScout loop cadence.
-- Where each worker calls `sync_scout_mpwr_queue()`.
-- Which worker modes each service passes to `claim_next_scout_mpwr_job()`.
-- Lease-renew timing in the worker process.
-- Retry/error behavior outside the database functions.
-- Worker heartbeat implementation and why health rows are stale.
-- Any service-side special cases not represented in the database functions.
+Known deployment-specific environment values such as the exact `SCOUT_MODE` set on each Railway service are not represented in GitHub. This does not block the shadow build because the claim-function mode behavior is known and no live worker will be redirected until cutover testing.
 
-These items are read-only investigation. They do not require modifications to Bob, Rhett, or Patti.
+## Next build step
 
-## Next build step after audit completion
-
-Create shadow-only separated Scout lanes linked to the canonical reservation/work identity, then build a single routing function capable of:
+Create shadow-only separated Scout lanes linked to the canonical Scout queue/reservation identity, then build a single routing function capable of:
 
 - assigning Today / Tomorrow / Next Day / Future,
 - moving work immediately on reservation changes,
