@@ -155,8 +155,8 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
 
           const badge = document.createElement("span");
           badge.dataset.noShowBadge = "true";
-          badge.textContent = "NO SHOW";
-          badge.title = "Guest marked as a no-show";
+          badge.textContent = "NO DEPARTURE";
+          badge.title = "Guest marked as a no-show / no-departure";
           styleBadge(badge);
           badgeWrap.appendChild(badge);
           guestCell.appendChild(badgeWrap);
@@ -209,14 +209,14 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
 
       const textWrap = document.createElement("div");
       const title = document.createElement("strong");
-      title.textContent = "No-show status";
+      title.textContent = "No-show / no-departure status";
       title.style.display = "block";
       title.style.fontSize = "14px";
 
       const detail = document.createElement("span");
       detail.textContent = isNoShow
-        ? "This guest is marked NO SHOW."
-        : "Guest has not been marked as a no-show.";
+        ? "This guest is marked NO SHOW / NO DEPARTURE."
+        : "Guest has not been marked as a no-show or no-departure.";
       detail.style.display = "block";
       detail.style.marginTop = "3px";
       detail.style.fontSize = "12px";
@@ -225,7 +225,7 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
 
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = isNoShow ? "Clear No Show" : "Mark No Show";
+      button.textContent = isNoShow ? "Clear No Show / No Departure" : "Mark No Show / No Departure";
       button.style.border = isNoShow ? "1px solid #d46a5d" : "1px solid #b83f32";
       button.style.borderRadius = "9px";
       button.style.background = isNoShow ? "#fff" : "#b83f32";
@@ -251,15 +251,22 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
           router.refresh();
         } catch (error) {
           button.disabled = false;
-          button.textContent = isNoShow ? "Clear No Show" : "Mark No Show";
+          button.textContent = isNoShow ? "Clear No Show / No Departure" : "Mark No Show / No Departure";
           detail.textContent =
             error instanceof Error ? error.message : "Unable to update no-show status.";
           detail.style.color = "#b42318";
         }
       });
 
+      const instruction = document.createElement("div");
+      instruction.textContent = "Add a note to the booking explaining why the guest did not depart.";
+      instruction.style.marginTop = "8px";
+      instruction.style.fontSize = "11px";
+      instruction.style.color = "#6f7885";
+      instruction.style.fontStyle = "italic";
+
       wrap.append(textWrap, button);
-      section.appendChild(wrap);
+      section.append(wrap, instruction);
     }
 
     function enhance() {
