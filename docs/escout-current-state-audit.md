@@ -36,200 +36,177 @@ Future/eScout behavior:
 - A later click may wake it again.
 - Reservation transfers to iScout when it enters the two-day window.
 
-## Current Scout queue
+## Current Scout queue and worker behavior
 
-Primary queue: `public.scout_mpwr_queue`.
+Primary live queue: `public.scout_mpwr_queue`.
 
-Current queue supports atomic claiming with:
-
-- `claimed_by`
-- `claimed_at`
-- `lease_expires_at`
-- `attempt_count`
-- `next_check_at`
-- `status`
-- `active`
-
-It also already contains MPWR click state:
-
-- `last_guest_mpwr_click_at`
-- `mpwr_portal_click_count`
-
-Additional pre-email/tScout verification fields:
-
-- `pre_email_check_requested_at`
-- `pre_email_check_completed_at`
-- `pre_email_communication_id`
-
-## Current worker source and loop cadence
+Current queue supports atomic claiming with `claimed_by`, `claimed_at`, `lease_expires_at`, `attempt_count`, `next_check_at`, `status`, and `active`.
 
 Worker repository: `epicautomationmoab/epic-scout-worker`.
 
-Main worker file: `scout.js`.
+Current worker defaults from `scout.js`:
 
-Current defaults from the worker source:
+- Empty-queue recheck: 20 seconds.
+- Shared queue synchronization: every 5 minutes.
+- Claim lease: 15 minutes.
+- Lease renewal: every 5 minutes while processing.
+- MPWR maintenance/offline window: midnight through 2:00 AM America/Denver.
+- Shared queue sync runs at startup and every five minutes.
 
-- Empty-queue recheck: every 20 seconds (`EMPTY_QUEUE_SLEEP_MS=20000`).
-- Shared queue synchronization: every 5 minutes (`SYNC_INTERVAL_MS=300000`).
-- Claim lease: 15 minutes (`LEASE_MINUTES=15`).
-- Lease renewal while processing: every 5 minutes.
-- MPWR maintenance/offline window: midnight through 2:00 AM in `America/Denver` by default.
-- Queue synchronization is forced on each fresh browser/login start, then repeated on the sync interval.
+Database claim modes:
 
-The same worker code supports multiple named modes through the `SCOUT_MODE` environment variable. Deployment-specific environment values are not stored in GitHub, but the database claim function defines the operational behavior of each supported mode.
+- `today`: current Moab date.
+- `immediate` / `near_term`: tomorrow and next day.
+- `future`: current date + 3 and later.
 
-## Current claim behavior
+The live worker bulk-synchronizes the entire population through `sync_scout_mpwr_queue()`. The eScout rebuild eliminates that behavior for Future work.
 
-Function: `public.claim_next_scout_mpwr_job(worker_name, worker_mode, lease_minutes)`.
+## Confirmed legacy issues
 
-Supported modes:
+### Tour retirement mismatch
 
-- `today`
-- `immediate`
-- `near_term`
-- `future`
+Epic Tools records tour handoff status as `checked_in`. Legacy Scout work/retirement logic looks for `tour_returned`.
 
-Current date routing is already Moab-time aware:
+The shadow router correctly treats `checked_in` as the tour retirement state.
 
-- `today`: visit date = current Moab date
-- `immediate` / `near_term`: current date + 1 through current date + 2
-- `future`: current date + 3 and later
+### Waiver first-seen reset
 
-Atomic claim is implemented with `FOR UPDATE SKIP LOCKED` and a default 15-minute lease.
+`replace_scout_mpwr_waiver_snapshot(...)` currently deletes and reinserts the entire snapshot, resetting `first_seen_at` every time. Durable waiver identity/upsert behavior remains part of the rebuild before final cutover.
 
-Expired `processing` leases are claimable again.
+### Worker health
 
-## Current finish / retry cadence
+`scout_worker_health` contains stale test-era rows. The current worker source does not maintain live heartbeat rows. Health reporting remains a rebuild item.
 
-Function: `public.finish_scout_mpwr_job(...)`.
+## Shadow lane system — implemented
 
-On success the job returns to `queued`; on failure it becomes `retry`.
+Canonical lane key: `guest_readiness_operational.readiness_id`.
 
-Current scheduling after each check:
+Table: `public.scout_work_lanes_shadow`.
 
-- Failure: +10 minutes
-- Today and within 1 hour: +1 minute
-- Other today: +3 minutes
-- Tomorrow: +10 minutes
-- Future with missing expected waivers: +60 minutes
-- Otherwise: +4 hours
+History: `public.scout_work_lane_history_shadow`.
 
-Function: `public.release_scout_mpwr_job(...)` sets `retry` and schedules +10 minutes.
+Router: `public.route_scout_readiness_shadow(readiness_id)`.
 
-Function: `public.renew_scout_mpwr_job_lease(...)` extends the worker lease.
+Immediate shadow routing triggers now run after:
 
-The worker also retries a transient database failure while finishing a successful job up to 5 times with exponential backoff plus jitter, capped at 30 seconds between attempts.
+- `guest_readiness_operational` insert/update.
+- `epic_operational_handoffs` insert/update.
 
-## Current source population / synchronization
+Nightly reconciliation:
 
-Function: `public.sync_scout_mpwr_queue()` bulk-synchronizes the Scout queue from `public.scout_mpwr_waiver_work_v`.
+- `public.reconcile_scout_work_lanes_shadow()`.
+- Moab-midnight reconciliation check is scheduled independently of live Scout behavior.
 
-The function:
+Shadow retirement handles:
 
-1. Reads the entire eligible Scout work view.
-2. Deduplicates by MPWR confirmation number.
-3. Inserts/updates queue rows.
-4. Reactivates matching work.
-5. Pauses queue rows no longer present in the source view.
+- archived rows,
+- inactive TripWorks operational status,
+- non-MPWR eligibility,
+- rental `rental_returned`,
+- tour `checked_in`,
+- past visits.
 
-The worker itself calls this function every five minutes and at startup. This is the whole-population synchronization behavior that the lane rebuild intends to eliminate from tScout/iScout clones.
+Current shadow reconciliation has zero structural routing exceptions.
 
-## Current work view
+## Append-only MPWR click history — confirmed
 
-View: `public.scout_mpwr_waiver_work_v`.
+Guest MPWR waiver route writes every click into:
 
-It is sourced from `guest_readiness_with_handoff_v`, grouped/deduplicated by MPWR confirmation number, and currently excludes handoff statuses:
+- `public.scout_mpwr_observation_events`
+- `event_type = 'guest_mpwr_click'`
+- `source = 'guest_portal'`
 
-- `rental_returned`
-- `tour_returned`
+The route also updates legacy mutable fields on `scout_mpwr_queue`, but eScout uses the append-only observation event as its source.
 
-### Confirmed tour-status mismatch
+This means eScout does not have to infer click activity from `last_guest_mpwr_click_at` or `mpwr_portal_click_count`.
 
-Epic Tools' operational handoff function only permits tours to be marked:
+## eScout Future shadow jobs — implemented
 
-- `checked_in`
+Table: `public.escout_future_jobs_shadow`.
 
-However both the current Scout work view and the Scout retirement trigger look for:
+History: `public.escout_future_job_history_shadow`.
 
-- `tour_returned`
+Every new append-only `guest_mpwr_click` event automatically passes through:
 
-Therefore a tour marked `checked_in` is not excluded/retired by those current Scout mechanisms.
+- `public.wake_escout_future_shadow_from_click(event_id)`.
 
-This must be corrected in the eScout lane/router rebuild. It should not be patched independently without considering shadow-routing behavior and rollback.
+Only currently active Future-lane readiness rows are eligible.
 
-## Confirmed rental operational values
+Current debounce/follow-up settings for shadow testing:
 
-Epic operational handoff permits rentals:
+- Click burst debounce: 2 minutes.
+- First MPWR check: +2 minutes.
+- Second follow-up: +5 minutes after first successful check.
+- Third follow-up: +10 minutes after second successful check.
+- After the sequence, the job becomes dormant rather than permanently complete.
+- A later click wakes it again and starts a new burst.
 
-- `rental_out`
-- `rental_returned`
+Moving from Future into Today/Tomorrow/Next Day deactivates the eScout job and marks it `transferred`.
 
-Scout intentionally remains active through `rental_out`.
+Retirement marks it `retired`.
 
-Scout is intended to stop at `rental_returned`.
+Atomic eScout claim/lease functions:
 
-## Current Scout retirement trigger
+- `claim_next_escout_future_shadow_job(...)`
+- `renew_escout_future_shadow_job_lease(...)`
+- `finish_escout_future_shadow_job(...)`
 
-Function: `public.retire_scout_queue_after_epic_handoff()` is triggered from operational handoff changes.
+Structural exception view:
 
-It currently deactivates Scout when:
+- `public.escout_future_jobs_shadow_exceptions_v`
 
-- rental + `rental_returned`
-- tour + `tour_returned`
+Current exception count: zero.
 
-The rental condition is correct. The tour condition is inconsistent with the actual `checked_in` value.
+## Historical event replay result
 
-## Current waiver snapshot behavior
+Recent append-only click history was replayed into the shadow eScout logic.
 
-Function: `public.replace_scout_mpwr_waiver_snapshot(...)` currently:
+Result:
 
-1. Deletes all existing `scout_mpwr_waivers` rows for the MPWR confirmation.
-2. Reinserts the current snapshot.
-3. Sets both `first_seen_at` and `last_verified_at` to `now()`.
+- 17 currently eligible Future eScout jobs were created from real guest MPWR click events.
+- Structural exception count remained zero.
 
-This confirms the known bug: `first_seen_at` is reset on every snapshot refresh and therefore does not represent first observation.
+This provides a real shadow workload without changing tScout/iScout job sources.
 
-The lane rebuild must replace this with durable per-waiver identity/upsert behavior so `first_seen_at` is preserved while `last_verified_at` advances.
+## Dedicated eScout shadow worker — branch ready, not deployed
 
-## Supabase cron audit
+Repository: `epicautomationmoab/epic-scout-worker`.
 
-No Scout worker is scheduled by Supabase cron.
+Branch: `escout-shadow-worker`.
 
-Current Supabase cron jobs are limited to:
+New entrypoint:
 
-- Rhett daily health report
-- Rhett stuck-job alert
-- guest readiness operational refresh
+- `escout-shadow.js`
 
-Rhett jobs are sacred and are out of scope for eScout modifications.
+Branch-only script:
 
-## Worker health
+- `npm run start:escout-shadow`
 
-`public.scout_worker_health` contains stale historical tScout heartbeat-test rows from July/August 2026 rather than a reliable current worker picture.
+Important isolation properties:
 
-The current `scout.js` worker source does not contain a live heartbeat write path to `scout_worker_health`, which explains why the table is not a reliable current worker monitor.
+- Does not call `sync_scout_mpwr_queue()`.
+- Does not claim `scout_mpwr_queue` rows.
+- Claims only `escout_future_jobs_shadow`.
+- Loads only the readiness row connected to the claimed shadow job.
+- Uses a separate browser profile by default.
+- Keeps the same MPWR maintenance window.
+- Entry point passes `node --check` syntax validation.
 
-Worker health reporting should be repaired as part of the Scout rebuild without involving Bob, Rhett, or Patti.
+The shadow worker currently performs observation-only MPWR checks and records completed-waiver counts into eScout shadow job state. It does not yet replace the production waiver snapshot writer.
 
-## Current queue shape observed during audit
+The worker has intentionally **not been deployed** yet. Deployment is the boundary where a separate Railway service would begin logging into MPWR and consuming the 17 shadow jobs.
 
-At audit time, the existing shared queue contained active work across all date ranges, including more than 300 active future reservations. This confirms that Future work is still maintained in the shared polling population rather than being click-created eScout-only work.
+Bob, Rhett, Patti, tScout, and iScout remain unchanged.
 
-The old shared queue must remain available during shadow testing and gradual cutover.
+## Next guarded step
 
-## Step 1 status
+Deploy `escout-shadow-worker` as a separate Railway service using the branch-only entrypoint, observe real MPWR checks against the shadow queue, and compare:
 
-The current Scout worker and database contract are now mapped sufficiently to proceed with shadow lane creation.
+- click time -> first check latency,
+- completed-waiver count changes across the +2/+5/+10 sequence,
+- repeat click wake behavior,
+- Future -> iScout lane transfer,
+- error/retry behavior,
+- no interaction with the live Scout queue.
 
-Known deployment-specific environment values such as the exact `SCOUT_MODE` set on each Railway service are not represented in GitHub. This does not block the shadow build because the claim-function mode behavior is known and no live worker will be redirected until cutover testing.
-
-## Next build step
-
-Create shadow-only separated Scout lanes linked to the canonical Scout queue/reservation identity, then build a single routing function capable of:
-
-- assigning Today / Tomorrow / Next Day / Future,
-- moving work immediately on reservation changes,
-- retiring cancelled/ineligible/completed operational visits,
-- reconciling all routes nightly in America/Denver,
-- recording routing reason and history for auditability,
-- leaving the existing live Scout source untouched during shadow testing.
+Do not redirect tScout/iScout or retire legacy Future polling until this observation period is clean.
