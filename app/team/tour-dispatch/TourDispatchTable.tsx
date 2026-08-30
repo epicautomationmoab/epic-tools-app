@@ -74,7 +74,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       if (!response.ok) throw new Error(payload?.error || "Unable to prepare checkout.");
       setStatuses((current) => ({ ...current, [key]: payload?.checkout_status || "checkout_queued" }));
       setCheckinStatuses((current) => ({ ...current, [key]: payload?.checkin_status || "prepared" }));
-      setMessages((current) => ({ ...current, [key]: "Miles prepared Axel Out." }));
+      setMessages((current) => ({ ...current, [key]: "Checkout prepared." }));
     } catch (error) {
       setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to prepare checkout." }));
     } finally {
@@ -94,9 +94,9 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || "Unable to record vehicle return.");
       setCheckinStatuses((current) => ({ ...current, [key]: "checkin_queued" }));
-      const axelNote = payload?.axel_ready ? " Axel In package released." : " Axel In is pending.";
+      const checkinNote = payload?.axel_ready ? " Check-in package released." : " Check-in is pending.";
       const tourNote = payload?.tour_returned ? " Tour is returned." : "";
-      setMessages((current) => ({ ...current, [key]: `Vehicle return recorded.${axelNote}${tourNote}` }));
+      setMessages((current) => ({ ...current, [key]: `Vehicle return recorded.${checkinNote}${tourNote}` }));
     } catch (error) {
       setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to record vehicle return." }));
     } finally {
@@ -126,8 +126,8 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
         <td><input value={draft.hours} onChange={(e) => updateDraft(key, "hours", e.target.value)} inputMode="decimal" disabled={locked} /></td>
         <td className={styles.saveCell}>
           {!locked ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Preparing…" : "Check Out Vehicle"}</button> : null}
-          {status === "checkout_queued" ? <span className={styles.axelPill}>Axel Checkout Prepared</span> : null}
-          {status === "checking_out" ? <span className={styles.axelPill}>Axel Working…</span> : null}
+          {status === "checkout_queued" ? <span className={styles.axelPill}>Checkout Prepared</span> : null}
+          {status === "checking_out" ? <span className={styles.axelPill}>Checkout In Progress…</span> : null}
           {status === "out" && checkinStatus !== "checkin_queued" ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
           {checkinStatus === "checkin_queued" ? <span className={styles.statusPill}>Vehicle Returned</span> : null}
           {message ? <span className={message.includes("Unable") || message.includes("Enter ") ? styles.error : styles.saved}>{message}</span> : null}
