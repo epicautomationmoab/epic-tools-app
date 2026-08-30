@@ -49,12 +49,11 @@
   transition: background 120ms ease;
 }
 
-.table tbody tr:not(.observationRow):hover td {
+.table tbody tr:hover td {
   background: #f8fafb;
 }
 
-.table input,
-.table select {
+.table input {
   width: 100%;
   min-width: 92px;
   height: 38px;
@@ -65,8 +64,7 @@
   background: #fffdfb;
 }
 
-.table input:focus,
-.table select:focus {
+.table input:focus {
   outline: 3px solid rgba(244, 119, 33, 0.14);
   border-color: #f47721;
   background: #fff;
@@ -110,8 +108,7 @@
   min-width: 210px;
 }
 
-.saveCell button,
-.observationPanel button {
+.saveCell button {
   min-height: 36px;
   padding: 0 16px;
   border: 0;
@@ -123,24 +120,13 @@
   box-shadow: 0 2px 6px rgba(180, 75, 11, 0.18);
 }
 
-.saveCell button:hover:not(:disabled),
-.observationPanel button:hover:not(:disabled) {
+.saveCell button:hover:not(:disabled) {
   background: #dc6618;
 }
 
-.saveCell button:disabled,
-.observationPanel button:disabled {
+.saveCell button:disabled {
   opacity: 0.6;
   cursor: wait;
-}
-
-.secondaryButton {
-  background: #536371 !important;
-  box-shadow: none !important;
-}
-
-.secondaryButton:hover {
-  background: #3f4d59 !important;
 }
 
 .checkinButton {
@@ -169,72 +155,23 @@
   max-width: 210px;
 }
 
-.statusPill {
+.statusPill,
+.axelPill {
   display: inline-block;
   padding: 7px 10px;
   border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.statusPill {
   background: #e8f3ec;
   color: #285a3d;
-  font-size: 11px;
-  font-weight: 800;
 }
 
-.observationRow td {
-  padding: 0;
-  background: #f4f7f9;
-  border-bottom: 1px solid #dce2e7;
-}
-
-.observationPanel {
-  display: grid;
-  grid-template-columns: minmax(160px, 0.7fr) minmax(170px, 0.8fr) minmax(210px, 1fr) minmax(240px, 1.25fr) auto;
-  gap: 12px;
-  align-items: end;
-  padding: 14px 18px 16px;
-  border-left: 4px solid #536371;
-}
-
-.observationPanel label {
-  display: block;
-  color: #53606b;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-.observationPanel label input,
-.observationPanel label select {
-  margin-top: 6px;
-  text-transform: none;
-}
-
-.driverNamesCheck {
-  display: flex !important;
-  align-items: flex-start;
-  gap: 7px;
-  max-width: 230px;
-  font-size: 10px !important;
-  line-height: 1.25;
-  letter-spacing: 0 !important;
-  text-transform: none !important;
-}
-
-.driverNamesCheck input[type="checkbox"] {
-  width: 14px;
-  min-width: 14px;
-  height: 14px;
-  margin: 1px 0 0 !important;
-  padding: 0;
-}
-
-.driverNamesCheck span {
-  display: block;
-  max-width: 205px;
-}
-
-.notesField input {
-  min-width: 220px;
+.axelPill {
+  background: #eef1f4;
+  color: #45515d;
 }
 
 .empty {
@@ -249,7 +186,4 @@
 
 @media (max-width: 900px) {
   .content { padding: 20px 16px 32px; }
-  .observationPanel { grid-template-columns: 1fr 1fr; }
-  .driverNamesCheck,
-  .notesField { grid-column: 1 / -1; }
 }
