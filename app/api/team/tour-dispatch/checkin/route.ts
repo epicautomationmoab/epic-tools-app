@@ -9,6 +9,28 @@ type ReleaseResult = {
   checkin_status: string;
 };
 
+async function triggerAxelIn(jobId: string) {
+  const url = process.env.AXEL_IN_TRIGGER_URL?.trim();
+  const secret = process.env.AXEL_IN_TRIGGER_SECRET?.trim();
+  if (!url || !secret) throw new Error("Axel In trigger is not configured.");
+
+  const response = await fetch(url.replace(/\/$/, "") + "/run", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-axel-secret": secret,
+    },
+    body: JSON.stringify({ job_id: jobId }),
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || `Axel In trigger failed (${response.status}).`);
+  }
+  return payload;
+}
+
 export async function POST(request: NextRequest) {
   const accessToken = request.cookies.get("epic_access_token")?.value;
   const profile = await getAuthenticatedTeamProfile(accessToken);
@@ -32,9 +54,11 @@ export async function POST(request: NextRequest) {
     });
 
     const released = result?.[0];
-    if (!released?.dispatch_id || released.checkin_status !== "checkin_queued") {
-      throw new Error("Vehicle return was not recorded.");
+    if (!released?.dispatch_id || released.checkin_status !== "checkin_queued" || !released.job_id) {
+      throw new Error("Vehicle check-in job was not released.");
     }
+
+    await triggerAxelIn(released.job_id);
 
     const tourReturned = await supabaseRpc<boolean>("mark_tour_returned_if_all_checkins_released", {
       p_store_visit_id: storeVisitId,
@@ -44,7 +68,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       ...released,
-      axel_ready: Boolean(released.job_id),
+      axel_ready: true,
+      axel_triggered: true,
       tour_returned: Boolean(tourReturned),
     });
   } catch (error) {
