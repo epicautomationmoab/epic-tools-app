@@ -25,7 +25,7 @@ export default async function TourDispatchPage() {
   const profile = await getAuthenticatedTeamProfile(accessToken);
 
   const params = new URLSearchParams({
-    select: "store_visit_id,readiness_id,confirmation_code,customer_name,product_display_name,visit_start_time,total_vehicle_count,vehicle_slot,vehicle_label,checkout_mileage,checkout_engine_hours,checkout_status,checkin_status,mpwr_vehicle_number_observed,mpwr_driver_observation,mpwr_checkout_notes,manual_mpwr_checkout_confirmed_at",
+    select: "store_visit_id,readiness_id,confirmation_code,customer_name,product_display_name,visit_start_time,total_vehicle_count,vehicle_slot,vehicle_label,checkout_mileage,checkout_engine_hours,checkout_status,checkin_status",
     visit_date: `eq.${mountainDateString()}`,
     order: "visit_start_time.asc,customer_name.asc,vehicle_slot.asc",
     limit: "200",
@@ -51,7 +51,7 @@ export default async function TourDispatchPage() {
           </div>
         </header>
         <section className={styles.content}>
-          <div className={styles.intro}>Today’s guest-driven MPWR tour vehicles. Enter the tag data, then record what you actually find when manually checking the vehicle out in MPWR.</div>
+          <div className={styles.intro}>Today’s guest-driven MPWR tour vehicles. Enter the assigned car number, starting mileage, and engine hours to prepare the vehicle checkout.</div>
           {error ? <div className={shellStyles.error}>{error}</div> : <TourDispatchTable rows={rows} />}
         </section>
       </main>
