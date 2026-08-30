@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "./TourDispatch.module.css";
 
 export type TourDispatchRow = {
@@ -43,6 +43,29 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
   const [checkinStatuses, setCheckinStatuses] = useState<Record<string, string>>(Object.fromEntries(rows.map((row) => [keyFor(row), row.checkin_status])));
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setDrafts((current) => {
+      const next = { ...current };
+      for (const row of rows) {
+        const key = keyFor(row);
+        next[key] = {
+          car: row.vehicle_label ?? next[key]?.car ?? "",
+          mileage: row.checkout_mileage == null ? next[key]?.mileage ?? "" : String(row.checkout_mileage),
+          hours: row.checkout_engine_hours == null ? next[key]?.hours ?? "" : String(row.checkout_engine_hours),
+        };
+      }
+      return next;
+    });
+    setStatuses((current) => ({
+      ...current,
+      ...Object.fromEntries(rows.map((row) => [keyFor(row), row.checkout_status])),
+    }));
+    setCheckinStatuses((current) => ({
+      ...current,
+      ...Object.fromEntries(rows.map((row) => [keyFor(row), row.checkin_status])),
+    }));
+  }, [rows]);
 
   function updateDraft(key: string, field: keyof Draft, value: string) {
     setDrafts((current) => ({ ...current, [key]: { ...current[key], [field]: value } }));
