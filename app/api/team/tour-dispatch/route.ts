@@ -34,6 +34,28 @@ function numericVehicleNumber(label: string) {
   return match?.[0] ?? null;
 }
 
+async function triggerAxelOut(jobId: string) {
+  const url = process.env.AXEL_OUT_TRIGGER_URL?.trim();
+  const secret = process.env.AXEL_OUT_TRIGGER_SECRET?.trim();
+  if (!url || !secret) throw new Error("Axel Out trigger is not configured.");
+
+  const response = await fetch(url.replace(/\/$/, "") + "/run", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-axel-secret": secret,
+    },
+    body: JSON.stringify({ job_id: jobId }),
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || `Axel Out trigger failed (${response.status}).`);
+  }
+  return payload;
+}
+
 export async function POST(request: NextRequest) {
   const accessToken = request.cookies.get("epic_access_token")?.value;
   const profile = await getAuthenticatedTeamProfile(accessToken);
@@ -100,6 +122,8 @@ export async function POST(request: NextRequest) {
       p_dispatch_id: queued.dispatch_id,
     });
 
+    await triggerAxelOut(queued.job_id);
+
     return NextResponse.json({
       ok: true,
       dispatch_id: queued.dispatch_id,
@@ -107,6 +131,7 @@ export async function POST(request: NextRequest) {
       checkin_job_id: checkinJobId,
       checkout_status: queued.checkout_status,
       checkin_status: "prepared",
+      axel_triggered: true,
     });
   } catch (error) {
     console.error("Tour dispatch checkout queue failed", error);
