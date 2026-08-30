@@ -98,7 +98,6 @@ function resolveReadinessRow(
       row.confirmation_code?.trim().toUpperCase() === confirmation,
   );
 
-  if (candidates.length === 1) return candidates[0];
   if (!candidates.length) return null;
 
   const cells = tableRow.cells;
