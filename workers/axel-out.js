@@ -186,7 +186,7 @@ async function fillCheckout(page, packet) {
 
 async function rehearse(job) {
   const packet = job.instruction_snapshot || {};
-  if (packet.driver_rule !== "match_dropdown_to_valid_driver_waiver_names") {
+  if (packet.driver_rule !== "select_any_dropdown_name_matching_valid_driver_names_or_stop") {
     throw new Error(`Unexpected Miles driver rule: ${packet.driver_rule || "missing"}`);
   }
 
