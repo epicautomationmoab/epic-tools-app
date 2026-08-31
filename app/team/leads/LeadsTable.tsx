@@ -18,11 +18,15 @@ export type LeadRow = {
   claimed_at: string | null;
   claimed_by_profile_id: string | null;
   claimed_by_name: string | null;
+  is_past_guest: boolean;
+  prior_booking_count: number;
+  last_prior_booking_at: string | null;
 };
 
 export type LeadDraft = {
   id: string;
   tripworks_trip_id: number;
+  confirmation_code: string | null;
   customer_name: string | null;
   email: string | null;
   phone_e164: string | null;
@@ -126,6 +130,32 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
     }
   }
 
+  async function releaseLead() {
+    if (!selected || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/team/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "release", opportunity_id: selected.id }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to release lead.");
+      setRows((current) => current.map((row) => row.id === selected.id ? {
+        ...row,
+        claimed_by_profile_id: null,
+        claimed_by_name: null,
+        claimed_at: null,
+        assigned_rep_name: null,
+      } : row));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to release lead.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addNote() {
     if (!selected || busy || !noteText.trim()) return;
     setBusy(true);
@@ -160,7 +190,13 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
               const draft = (draftsByLead[row.id] || []).find((item) => Number(item.tripworks_trip_id) === Number(row.primary_draft_trip_id));
               return (
                 <tr key={row.id} className={styles.clickableRow} onClick={() => { setSelectedId(row.id); setError(""); }}>
-                  <td><div className={styles.name}>{row.customer_name || "Unknown customer"}</div><div className={styles.contact}>{row.phone_e164 || row.email || "No contact details"}</div></td>
+                  <td>
+                    <div className={styles.nameLine}>
+                      <div className={styles.name}>{row.customer_name || "Unknown customer"}</div>
+                      {row.is_past_guest ? <span className={styles.vipBadge}>VIP · Past Guest</span> : null}
+                    </div>
+                    <div className={styles.contact}>{row.phone_e164 || row.email || "No contact details"}</div>
+                  </td>
                   <td className={styles.activity}>{dateLabel(row.activity_date)}</td>
                   <td><div className={styles.experience}>{draft?.experience_name || "TripWorks draft"}</div><div className={styles.contact}>{draft?.option_name || ""}</div></td>
                   <td className={styles.method}>{methodLabel(row.source_method)}</td>
@@ -181,8 +217,17 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
             <div className={styles.drawerHeader}>
               <div>
                 <div className={styles.drawerEyebrow}>Open Sales Opportunity</div>
-                <h2>{selected.customer_name || "Unknown customer"}</h2>
+                <div className={styles.drawerNameLine}>
+                  <h2>{selected.customer_name || "Unknown customer"}</h2>
+                  {selected.is_past_guest ? <span className={styles.vipBadgeLarge}>VIP · Past Guest</span> : null}
+                </div>
                 <p>{dateLabel(selected.activity_date)} · {selectedDrafts.length} TripWorks draft{selectedDrafts.length === 1 ? "" : "s"}</p>
+                {selected.is_past_guest ? (
+                  <p className={styles.pastGuestDetail}>
+                    {selected.prior_booking_count} prior Epic reservation{selected.prior_booking_count === 1 ? "" : "s"}
+                    {selected.last_prior_booking_at ? ` · most recent ${dateTimeLabel(selected.last_prior_booking_at)}` : ""}
+                  </p>
+                ) : null}
               </div>
               <button type="button" className={styles.drawerClose} onClick={() => setSelectedId(null)} aria-label="Close lead details">×</button>
             </div>
@@ -193,7 +238,11 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
                 <strong>{selected.claimed_by_name || selected.assigned_rep_name || "Unclaimed"}</strong>
                 {selected.claimed_at ? <small>Claimed {dateTimeLabel(selected.claimed_at)}</small> : null}
               </div>
-              {!selected.claimed_by_name ? <button type="button" className={styles.claimButton} disabled={busy} onClick={claimLead}>{busy ? "Claiming…" : "Claim Lead"}</button> : null}
+              {!selected.claimed_by_name ? (
+                <button type="button" className={styles.claimButton} disabled={busy} onClick={claimLead}>{busy ? "Claiming…" : "Claim Lead"}</button>
+              ) : (
+                <button type="button" className={styles.releaseButton} disabled={busy} onClick={releaseLead}>{busy ? "Releasing…" : "Release"}</button>
+              )}
             </div>
 
             {error ? <div className={styles.drawerError}>{error}</div> : null}
@@ -235,7 +284,7 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
                   return (
                     <article key={draft.id} className={`${styles.draftCard} ${isPrimary ? styles.draftCardPrimary : ""}`}>
                       <div className={styles.draftCardTop}><div><div className={styles.draftExperience}>{draft.experience_name || "TripWorks draft"}</div><div className={styles.draftOption}>{draft.option_name || "Option not supplied"}</div></div><div className={styles.draftValue}>{dollars(draft.value_cents)}</div></div>
-                      <div className={styles.draftMeta}><span>{timeLabel(draft.start_time)}</span><span>{methodLabel(draft.trip_method)}</span>{draft.created_by_name ? <span>Created by {draft.created_by_name}</span> : null}<span>TW #{draft.tripworks_trip_id}</span></div>
+                      <div className={styles.draftMeta}><span>{timeLabel(draft.start_time)}</span><span>{methodLabel(draft.trip_method)}</span>{draft.created_by_name ? <span>Created by {draft.created_by_name}</span> : null}<span>{draft.confirmation_code || `TW #${draft.tripworks_trip_id}`}</span></div>
                       {isPrimary ? <div className={styles.highestBadge}>Sets Lead Value</div> : null}
                     </article>
                   );
