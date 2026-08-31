@@ -1,0 +1,37 @@
+/* Readiness dashboard density fixes.
+   Keep the OHV status compact so the kiosk code can always show all four digits. */
+
+[class*="ReadinessShell_colOhv"] {
+  width: 44px !important;
+}
+
+[class*="ReadinessShell_colKiosk"] {
+  width: 100px !important;
+}
+
+[class*="ReadinessShell_table"] td select {
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+}
+
+[class*="ReadinessShell_ohvGood"],
+[class*="ReadinessShell_ohvBad"] {
+  min-width: 28px !important;
+  width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+}
+
+[class*="ReadinessShell_ohvGood"]::before {
+  content: "✅";
+  font-size: 18px;
+}
+
+[class*="ReadinessShell_ohvBad"]::before {
+  content: "🚫";
+  font-size: 18px;
+}
