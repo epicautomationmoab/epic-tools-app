@@ -78,8 +78,8 @@ export default async function LeadsPage() {
   }
   const openValue = open.reduce((sum, row) => sum + Number(row.lead_value_cents || 0), 0);
   const capturedValue = booked.reduce((sum, row) => sum + Number(row.captured_value_cents || 0), 0);
-  const decidedOpportunities = booked.length + lost.length;
-  const conversion = decidedOpportunities ? Math.round((booked.length / decidedOpportunities) * 100) : 0;
+  const legitimatePool = open.length + booked.length + lost.length;
+  const conversion = legitimatePool ? Math.round((booked.length / legitimatePool) * 100) : 0;
 
   return <div className={styles.shell}>
     <TeamSidebar active="Sales & Leads" />
@@ -90,7 +90,7 @@ export default async function LeadsPage() {
         <div className={`${styles.kpi} ${styles.kpiPrimary}`}><div className={styles.kpiLabel}>Open Lead Value</div><div className={styles.kpiValue}>{dollars(openValue)}</div><div className={styles.kpiSub}>{open.length} active shopping episodes</div></div>
         <div className={styles.kpi}><div className={styles.kpiLabel}>Captured Lead Value</div><div className={styles.kpiValue}>{dollars(capturedValue)}</div><div className={styles.kpiSub}>{booked.length} converted shopping episodes</div></div>
         <div className={styles.kpi}><div className={styles.kpiLabel}>Open Leads</div><div className={styles.kpiValue}>{open.length}</div><div className={styles.kpiSub}>Future opportunities still with sales</div></div>
-        <div className={styles.kpi}><div className={styles.kpiLabel}>Capture Rate</div><div className={styles.kpiValue}>{conversion}%</div><div className={styles.kpiSub}>{booked.length} won · {lost.length} lost · {retired.length} retired excluded</div></div>
+        <div className={styles.kpi}><div className={styles.kpiLabel}>Lead Conversion</div><div className={styles.kpiValue}>{conversion}%</div><div className={styles.kpiSub}>{booked.length} booked of {legitimatePool} legitimate leads · {retired.length} retired excluded</div></div>
       </section>
       <div className={styles.toolbar}><div className={styles.tabs}><span className={`${styles.tab} ${styles.tabActive}`}>Open Leads {open.length}</span></div><div className={styles.muted}>30-day shopping episodes · click a lead to work it</div></div>
       {!loadError ? <LeadsTable leads={open} draftsByLead={draftsByLead} notesByLead={notesByLead} /> : null}
