@@ -16,11 +16,22 @@ function getSupabaseConfig() {
 }
 
 function dollars(cents: number | null | undefined) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((cents || 0) / 100);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format((Number(cents) || 0) / 100);
 }
 
 function dateLabel(value: string) {
-  return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric" }).format(new Date(`${value}T12:00:00-06:00`));
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsed);
 }
 
 type Opportunity = {
@@ -46,45 +57,73 @@ type Draft = {
   value_cents: number | null;
 };
 
-async function getLeads() {
+async function supabaseRest<T>(path: string): Promise<T> {
   const { url, key } = getSupabaseConfig();
-  const oppParams = new URLSearchParams({
-    select: "id,customer_name,email,phone_e164,activity_date,status,lead_value_cents,captured_value_cents,draft_count,source_method,assigned_rep_name,matched_booking_confirmation_code,primary_draft_trip_id",
-    order: "status.asc,activity_date.asc,lead_value_cents.desc",
-  });
-  const oppResponse = await fetch(`${url}/rest/v1/sales_opportunities?${oppParams}`, {
+  const response = await fetch(`${url}/rest/v1/${path}`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
     cache: "no-store",
   });
-  if (!oppResponse.ok) throw new Error(`Unable to load sales opportunities: ${await oppResponse.text()}`);
-  const opportunities = (await oppResponse.json()) as Opportunity[];
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Supabase request failed (${response.status}): ${detail.slice(0, 500)}`);
+  }
+  return response.json() as Promise<T>;
+}
 
-  const primaryIds = opportunities.map((row) => row.primary_draft_trip_id).filter(Boolean) as number[];
+async function getLeads() {
+  const select = encodeURIComponent(
+    "id,customer_name,email,phone_e164,activity_date,status,lead_value_cents,captured_value_cents,draft_count,source_method,assigned_rep_name,matched_booking_confirmation_code,primary_draft_trip_id",
+  );
+  const opportunities = await supabaseRest<Opportunity[]>(
+    `sales_opportunities?select=${select}`,
+  );
+
+  opportunities.sort((a, b) => {
+    const statusCompare = a.status.localeCompare(b.status);
+    if (statusCompare) return statusCompare;
+    const dateCompare = a.activity_date.localeCompare(b.activity_date);
+    if (dateCompare) return dateCompare;
+    return Number(b.lead_value_cents || 0) - Number(a.lead_value_cents || 0);
+  });
+
+  const primaryIds = [
+    ...new Set(
+      opportunities
+        .map((row) => Number(row.primary_draft_trip_id))
+        .filter((value) => Number.isFinite(value) && value > 0),
+    ),
+  ];
+
   let drafts = new Map<number, Draft>();
   if (primaryIds.length) {
-    const draftParams = new URLSearchParams({
-      select: "tripworks_trip_id,experience_name,option_name,value_cents",
-      tripworks_trip_id: `in.(${primaryIds.join(",")})`,
-    });
-    const draftResponse = await fetch(`${url}/rest/v1/sales_drafts?${draftParams}`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
-      cache: "no-store",
-    });
-    if (draftResponse.ok) {
-      const rows = (await draftResponse.json()) as Draft[];
-      drafts = new Map(rows.map((row) => [row.tripworks_trip_id, row]));
-    }
+    const draftSelect = encodeURIComponent("tripworks_trip_id,experience_name,option_name,value_cents");
+    const rows = await supabaseRest<Draft[]>(
+      `sales_drafts?select=${draftSelect}&tripworks_trip_id=in.(${primaryIds.join(",")})`,
+    );
+    drafts = new Map(rows.map((row) => [Number(row.tripworks_trip_id), row]));
   }
 
   return { opportunities, drafts };
 }
 
 export default async function LeadsPage() {
-  const { opportunities, drafts } = await getLeads();
+  let opportunities: Opportunity[] = [];
+  let drafts = new Map<number, Draft>();
+  let loadError = "";
+
+  try {
+    const loaded = await getLeads();
+    opportunities = loaded.opportunities;
+    drafts = loaded.drafts;
+  } catch (error) {
+    loadError = error instanceof Error ? error.message : "Unable to load Sales & Leads data.";
+    console.error("Sales & Leads load error:", error);
+  }
+
   const open = opportunities.filter((row) => row.status === "open");
   const booked = opportunities.filter((row) => row.status === "booked");
-  const openValue = open.reduce((sum, row) => sum + (row.lead_value_cents || 0), 0);
-  const capturedValue = booked.reduce((sum, row) => sum + (row.captured_value_cents || 0), 0);
+  const openValue = open.reduce((sum, row) => sum + Number(row.lead_value_cents || 0), 0);
+  const capturedValue = booked.reduce((sum, row) => sum + Number(row.captured_value_cents || 0), 0);
   const conversion = opportunities.length ? Math.round((booked.length / opportunities.length) * 100) : 0;
 
   return (
@@ -99,6 +138,12 @@ export default async function LeadsPage() {
           </div>
           <Link className={styles.back} href="/team/readiness">Guest Readiness</Link>
         </header>
+
+        {loadError ? (
+          <div style={{ marginBottom: 18, padding: 16, background: "#fff1ef", border: "1px solid #efc0ba", borderRadius: 12, color: "#8c2f24", fontWeight: 750 }}>
+            Sales data could not load: {loadError}
+          </div>
+        ) : null}
 
         <section className={styles.kpis}>
           <div className={`${styles.kpi} ${styles.kpiPrimary}`}>
@@ -148,7 +193,7 @@ export default async function LeadsPage() {
             </thead>
             <tbody>
               {opportunities.map((row) => {
-                const draft = row.primary_draft_trip_id ? drafts.get(row.primary_draft_trip_id) : undefined;
+                const draft = row.primary_draft_trip_id ? drafts.get(Number(row.primary_draft_trip_id)) : undefined;
                 return (
                   <tr key={row.id}>
                     <td>
@@ -175,6 +220,9 @@ export default async function LeadsPage() {
               })}
             </tbody>
           </table>
+          {!loadError && opportunities.length === 0 ? (
+            <div style={{ padding: 22, color: "#6f7885" }}>No future sales opportunities found.</div>
+          ) : null}
         </section>
       </main>
     </div>
