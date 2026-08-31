@@ -9,7 +9,9 @@
   width: 100px !important;
 }
 
-[class*="ReadinessShell_table"] td select {
+/* The module stylesheet also sets select width with !important.
+   Use higher specificity here so this wins regardless of bundle order. */
+html body [class*="ReadinessShell_table"] td select {
   width: 92px !important;
   min-width: 92px !important;
   max-width: 92px !important;
