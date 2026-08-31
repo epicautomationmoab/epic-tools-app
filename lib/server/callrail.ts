@@ -47,13 +47,10 @@ async function resolveIdentifiers() {
 
 export async function getCallRailTextConversation(conversationId: string) {
   const { accountId } = await resolveIdentifiers();
-  return callRailGet(`/v3/a/${encodeURIComponent(accountId)}/text-messages/${encodeURIComponent(conversationId)}.json?per_page=100`);
+  return callRailGet(`/v3/a/${encodeURIComponent(accountId)}/text-messages/${encodeURIComponent(conversationId)}.json?per_page=100&with_msg_errors=true`);
 }
 
-export async function sendCallRailSms(input: {
-  phone: string;
-  body: string;
-}) {
+export async function sendCallRailSms(input: { phone: string; body: string }) {
   const { accountId, companyId } = await resolveIdentifiers();
   const response = await fetch(`https://api.callrail.com/v3/a/${encodeURIComponent(accountId)}/text-messages.json`, {
     method: "POST",
@@ -75,13 +72,9 @@ export async function sendCallRailSms(input: {
     const errors = Array.isArray(data.error) ? data.error.join(" ") : data.error;
     throw new Error(
       (typeof data.message === "string" && data.message) ||
-        (typeof errors === "string" && errors) ||
-        "CallRail could not send the text message.",
+      (typeof errors === "string" && errors) ||
+      "CallRail could not send the text message.",
     );
   }
-
-  return {
-    conversationId: typeof data.id === "string" ? data.id : null,
-    response: data,
-  };
+  return { conversationId: typeof data.id === "string" ? data.id : null, response: data };
 }
