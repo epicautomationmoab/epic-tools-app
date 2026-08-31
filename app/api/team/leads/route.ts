@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import { sendCallRailSms } from "@/lib/server/callrail";
 
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -35,18 +36,19 @@ export async function POST(request: NextRequest) {
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
 
   const body = await request.json().catch(() => null) as {
-    action?: "claim" | "release" | "note" | "mark_lost" | "retire" | "reopen";
+    action?: "claim" | "release" | "note" | "mark_lost" | "retire" | "reopen" | "send_sms";
     opportunity_id?: string;
     note_text?: string;
     reason?: string;
+    message_text?: string;
   } | null;
   const opportunityId = body?.opportunity_id?.trim();
   if (!opportunityId) return NextResponse.json({ error: "Opportunity is required." }, { status: 400 });
 
   try {
     const getOpportunity = async () => {
-      const rows = await rest<Array<{ id: string; status: string; claimed_by_profile_id: string | null; claimed_by_name: string | null }>>(
-        `sales_opportunities?id=eq.${encodeURIComponent(opportunityId)}&select=id,status,claimed_by_profile_id,claimed_by_name&limit=1`,
+      const rows = await rest<Array<{ id: string; status: string; claimed_by_profile_id: string | null; claimed_by_name: string | null; contact_id: string | null; phone_e164: string | null }>>(
+        `sales_opportunities?id=eq.${encodeURIComponent(opportunityId)}&select=id,status,claimed_by_profile_id,claimed_by_name,contact_id,phone_e164&limit=1`,
       );
       return rows[0] || null;
     };
@@ -81,6 +83,30 @@ export async function POST(request: NextRequest) {
       if (noteText.length > 4000) return NextResponse.json({ error: "Note is too long." }, { status: 400 });
       const rows = await rest<Array<{ id: string; author_name: string; note_text: string; created_at: string }>>("sales_opportunity_notes", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ opportunity_id: opportunityId, author_profile_id: profile.id, author_name: profile.display_name, note_text: noteText }) });
       return NextResponse.json({ ok: true, note: rows[0] });
+    }
+
+    if (body?.action === "send_sms") {
+      const opportunity = await getOpportunity();
+      if (!opportunity) return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+      if (opportunity.status !== "open") return NextResponse.json({ error: "This lead is no longer open." }, { status: 409 });
+      if (!opportunity.contact_id) return NextResponse.json({ error: "This lead is not linked to an Epic Contact, so SMS consent cannot be verified." }, { status: 409 });
+
+      const contacts = await rest<Array<{ id: string; tripworks_is_opt_in: boolean | null; canonical_phone: string | null; tripworks_customer_code: string | null }>>(
+        `sales_contacts?id=eq.${encodeURIComponent(opportunity.contact_id)}&select=id,tripworks_is_opt_in,canonical_phone,tripworks_customer_code&limit=1`,
+      );
+      const contact = contacts[0];
+      if (!contact) return NextResponse.json({ error: "Epic Contact could not be found." }, { status: 404 });
+      if (contact.tripworks_is_opt_in === false) return NextResponse.json({ error: "SMS blocked: this customer opted out in TripWorks." }, { status: 403 });
+      if (contact.tripworks_is_opt_in !== true) return NextResponse.json({ error: "SMS blocked: marketing consent is unknown for this customer." }, { status: 403 });
+
+      const messageText = body.message_text?.trim() || "";
+      if (!messageText) return NextResponse.json({ error: "Message cannot be blank." }, { status: 400 });
+      if (messageText.length > 1600) return NextResponse.json({ error: "Message is too long. Keep it under 1,600 characters." }, { status: 400 });
+      const phone = contact.canonical_phone || opportunity.phone_e164;
+      if (!phone) return NextResponse.json({ error: "This customer does not have a phone number." }, { status: 409 });
+
+      const result = await sendCallRailSms({ phone, body: messageText });
+      return NextResponse.json({ ok: true, sent_at: new Date().toISOString(), conversation_id: result.conversationId });
     }
 
     if (body?.action === "mark_lost" || body?.action === "retire") {
