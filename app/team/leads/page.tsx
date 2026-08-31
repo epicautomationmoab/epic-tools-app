@@ -34,7 +34,7 @@ async function getLeads() {
   const all = await supabaseRest<Array<{ id: string; status: string; captured_value_cents: number }>>(
     `sales_opportunities?select=${encodeURIComponent("id,status,captured_value_cents")}`,
   );
-  const openSelect = encodeURIComponent("id,customer_name,email,phone_e164,activity_date,activity_window_start,activity_window_end,shopping_started_at,shopping_last_activity_at,lead_value_cents,draft_count,source_method,assigned_rep_name,primary_draft_trip_id,contact_id,claimed_at,claimed_by_profile_id,claimed_by_name,is_past_guest,prior_booking_count,last_prior_booking_at,tripworks_customer_code,tripworks_is_opt_in,tripworks_identity_verified_at");
+  const openSelect = encodeURIComponent("id,customer_name,email,phone_e164,activity_date,activity_window_start,activity_window_end,shopping_started_at,shopping_last_activity_at,lead_value_cents,draft_count,source_method,assigned_rep_name,primary_draft_trip_id,contact_id,claimed_at,claimed_by_profile_id,claimed_by_name,is_past_guest,prior_booking_count,last_prior_booking_at,tripworks_customer_code,tripworks_is_opt_in,tripworks_identity_verified_at,new_unclaimed_at");
   const open = await supabaseRest<LeadRow[]>(`sales_open_leads_enriched?select=${openSelect}`);
   open.sort((a, b) => a.activity_window_start.localeCompare(b.activity_window_start) || Number(b.lead_value_cents || 0) - Number(a.lead_value_cents || 0));
 
