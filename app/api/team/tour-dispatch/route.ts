@@ -35,11 +35,12 @@ function numericVehicleNumber(label: string) {
 }
 
 async function triggerAxelOut(jobId: string) {
-  const url = process.env.AXEL_OUT_TRIGGER_URL?.trim();
+  const configuredUrl = process.env.AXEL_OUT_TRIGGER_URL?.trim();
   const secret = process.env.AXEL_OUT_TRIGGER_SECRET?.trim();
-  if (!url || !secret) throw new Error("Axel Out trigger is not configured.");
+  if (!configuredUrl || !secret) throw new Error("Axel Out trigger is not configured.");
 
-  const response = await fetch(url.replace(/\/$/, "") + "/run", {
+  const baseUrl = /^https?:\/\//i.test(configuredUrl) ? configuredUrl : `https://${configuredUrl}`;
+  const response = await fetch(baseUrl.replace(/\/$/, "") + "/run", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
