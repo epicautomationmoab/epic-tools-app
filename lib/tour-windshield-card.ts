@@ -35,7 +35,7 @@ export function renderTourWindshieldCardSvg(data: TourWindshieldCardData) {
   const tourName = escapeXml(data.tourName.trim());
   const departure = escapeXml(mountainTimeLabel(data.departureTime));
   const confirmation = escapeXml(data.confirmationCode.trim().toUpperCase());
-  const lastNameSize = fitTextSize(lastName, 46, 28, 18);
+  const lastNameSize = fitTextSize(lastName, 88, 42, 10);
   const tourSize = fitTextSize(tourName, 15, 10, 42);
 
   // US Letter landscape: 792 x 612 points. Fold line runs horizontally at 306 pt.
@@ -47,9 +47,8 @@ export function renderTourWindshieldCardSvg(data: TourWindshieldCardData) {
   <!-- Fold line -->
   <line x1="0" y1="306" x2="792" y2="306" stroke="black" stroke-width="1.5"/>
 
-  <!-- Guest-facing half -->
-  <line x1="66" y1="504" x2="726" y2="504" stroke="black" stroke-width="5" stroke-linecap="round"/>
-  <text x="396" y="548" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${lastNameSize}" font-weight="700">${lastName}</text>
+  <!-- Guest-facing half: oversized last name, no handwriting guide line -->
+  <text x="396" y="500" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${lastNameSize}" font-weight="700" textLength="700" lengthAdjust="spacingAndGlyphs">${lastName}</text>
 
   <!-- Guide-facing half, rotated for folding -->
   <g transform="rotate(180 396 153)" font-family="Arial, Helvetica, sans-serif" fill="black">
