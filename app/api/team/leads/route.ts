@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
 
   const body = await request.json().catch(() => null) as {
-    action?: "claim" | "note";
+    action?: "claim" | "release" | "note";
     opportunity_id?: string;
     note_text?: string;
   } | null;
@@ -88,6 +88,41 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ ok: true, claimed_by_name: profile.display_name, claimed_at: now });
+    }
+
+    if (body?.action === "release") {
+      const rows = await rest<Array<{ id: string; status: string; claimed_by_profile_id: string | null; claimed_by_name: string | null }>>(
+        `sales_opportunities?id=eq.${encodeURIComponent(opportunityId)}&select=id,status,claimed_by_profile_id,claimed_by_name&limit=1`,
+      );
+      const opportunity = rows[0];
+      if (!opportunity) return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+      if (opportunity.status !== "open") return NextResponse.json({ error: "This lead is no longer open." }, { status: 409 });
+      if (!opportunity.claimed_by_profile_id) return NextResponse.json({ error: "This lead is already unclaimed." }, { status: 409 });
+      if (opportunity.claimed_by_profile_id !== profile.id && profile.role !== "admin" && profile.role !== "manager") {
+        return NextResponse.json({ error: `This lead is owned by ${opportunity.claimed_by_name || "another rep"}.` }, { status: 403 });
+      }
+
+      const now = new Date().toISOString();
+      await rest<void>(`sales_opportunities?id=eq.${encodeURIComponent(opportunityId)}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({
+          claimed_at: null,
+          claimed_by_profile_id: null,
+          claimed_by_name: null,
+          assigned_rep_name: null,
+          assigned_rep_tw_user_id: null,
+          updated_at: now,
+        }),
+      });
+
+      await rest<void>(`sales_opportunity_assignment_history?opportunity_id=eq.${encodeURIComponent(opportunityId)}&unassigned_at=is.null`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ unassigned_at: now }),
+      });
+
+      return NextResponse.json({ ok: true, released_at: now });
     }
 
     if (body?.action === "note") {
