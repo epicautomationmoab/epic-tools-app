@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
 
   try {
-    const [messages, calls, repeatShopping, seen] = await Promise.all([
+    const [messages, calls, repeatShopping, seen, baselines] = await Promise.all([
       rest<Array<{ matched_opportunity_id: string; first_received_at: string; sent_at: string | null; message_body: string | null }>>(
         `callrail_text_messages?matched_opportunity_id=not.is.null&direction=eq.inbound&select=${encodeURIComponent("matched_opportunity_id,first_received_at,sent_at,message_body")}&order=first_received_at.desc&limit=500`,
       ),
@@ -53,8 +53,12 @@ export async function GET(request: NextRequest) {
       rest<Array<{ opportunity_id: string; last_seen_at: string }>>(
         `sales_opportunity_activity_seen?profile_id=eq.${encodeURIComponent(profile.id)}&select=opportunity_id,last_seen_at`,
       ),
+      rest<Array<{ established_at: string }>>(
+        `sales_activity_baselines?activity_kind=eq.repeat_shopping&select=established_at&limit=1`,
+      ),
     ]);
 
+    const repeatShoppingBaseline = baselines[0]?.established_at || new Date().toISOString();
     const seenMap = new Map(seen.map((row) => [row.opportunity_id, row.last_seen_at]));
     const latest = new Map<string, Omit<Activity, "unread">>();
 
@@ -91,6 +95,7 @@ export async function GET(request: NextRequest) {
       if (links.length < 2) continue;
       links.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       const at = links[0].created_at;
+      if (new Date(at).getTime() <= new Date(repeatShoppingBaseline).getTime()) continue;
       const current = latest.get(opportunityId);
       if (!current || new Date(at).getTime() > new Date(current.at).getTime()) {
         latest.set(opportunityId, { opportunity_id: opportunityId, kind: "shopped_again", at, preview: "Another TripWorks draft was created" });
