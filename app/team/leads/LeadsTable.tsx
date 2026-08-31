@@ -129,6 +129,8 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
   const [closeReason, setCloseReason] = useState("");
   const [closeNote, setCloseNote] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [smsText, setSmsText] = useState("");
+  const [smsStatus, setSmsStatus] = useState("");
 
   const selected = useMemo(() => rows.find((row) => row.id === selectedId) || null, [rows, selectedId]);
   const filteredRows = useMemo(() => {
@@ -178,6 +180,11 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
     return () => window.removeEventListener("keydown", onKey);
   }, [selected, closeMode]);
 
+  useEffect(() => {
+    setSmsText("");
+    setSmsStatus("");
+  }, [selectedId]);
+
   const selectedDrafts = selected ? draftsByLead[selected.id] || [] : [];
   const selectedNotes = selected ? notes[selected.id] || [] : [];
   const primaryDraft = selected ? selectedDrafts.find((draft) => Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id)) || selectedDrafts[0] : undefined;
@@ -217,6 +224,22 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
       setNotes((current) => ({ ...current, [selected.id]: [payload.note, ...(current[selected.id] || [])] }));
       setNoteText("");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to add note."); } finally { setBusy(false); }
+  }
+
+  async function sendSms() {
+    if (!selected || busy || !smsText.trim() || selected.tripworks_is_opt_in !== true) return;
+    setBusy(true); setError(""); setSmsStatus("");
+    try {
+      const response = await fetch("/api/team/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send_sms", opportunity_id: selected.id, message_text: smsText }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to send text message.");
+      setSmsText("");
+      setSmsStatus(`Sent ${dateTimeLabel(payload.sent_at)}`);
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to send text message."); } finally { setBusy(false); }
   }
 
   async function closeLead() {
@@ -287,6 +310,18 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
           <div><span>SMS / Marketing</span><strong>{optInLabel(selected.tripworks_is_opt_in)}</strong></div>
           {selected.tripworks_customer_code ? <div><span>TripWorks Customer</span><strong>{selected.tripworks_customer_code}</strong>{customerHref ? <a href={customerHref} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Open Customer in TripWorks ↗</a> : null}</div> : null}
         </div>
+
+        <section className={styles.drawerSection}>
+          <h3>Text Customer</h3>
+          {selected.tripworks_is_opt_in === true ? <div className={styles.smsComposer}>
+            <div className={styles.smsFrom}>From Epic 4X4 · 435-260-4030</div>
+            <textarea value={smsText} onChange={(event) => setSmsText(event.target.value)} rows={4} maxLength={1600} placeholder="Write a text message…" />
+            <div className={styles.smsActions}><span>{smsStatus || `${smsText.length}/1600`}</span><button type="button" onClick={sendSms} disabled={busy || !smsText.trim()}>{busy ? "Sending…" : "Send Text"}</button></div>
+          </div> : <div className={`${styles.smsLocked} ${selected.tripworks_is_opt_in === false ? styles.smsBlocked : ""}`}>
+            <strong>{selected.tripworks_is_opt_in === false ? "Texting blocked" : "Texting unavailable"}</strong>
+            <span>{selected.tripworks_is_opt_in === false ? "This customer opted out of marketing emails and text communications in TripWorks." : "TripWorks marketing consent is unknown for this customer, so proactive sales texting is disabled."}</span>
+          </div>}
+        </section>
 
         <section className={styles.drawerSection}><h3>Sales Notes</h3><div className={styles.noteComposer}><textarea value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add a sales note, follow-up detail, objection, preference…" rows={3} /><button type="button" onClick={addNote} disabled={busy || !noteText.trim()}>{busy ? "Saving…" : "Add Note"}</button></div><div className={styles.noteList}>{selectedNotes.length ? selectedNotes.map((note) => <article key={note.id} className={styles.noteCard}><div className={styles.noteMeta}><strong>{note.author_name}</strong><span>{dateTimeLabel(note.created_at)}</span></div><p>{note.note_text}</p></article>) : <div className={styles.noNotes}>No notes yet.</div>}</div></section>
 
