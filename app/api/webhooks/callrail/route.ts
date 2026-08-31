@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +35,16 @@ function getString(payload: Record<string, unknown>, ...keys: string[]) {
     if (typeof value === "number") return String(value);
   }
   return null;
+}
+
+function getObject(payload: Record<string, unknown>, key: string) {
+  const value = payload[key];
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function getNestedString(payload: Record<string, unknown>, objectKey: string, ...keys: string[]) {
+  const nested = getObject(payload, objectKey);
+  return nested ? getString(nested, ...keys) : null;
 }
 
 function getBoolean(payload: Record<string, unknown>, ...keys: string[]) {
@@ -85,10 +95,35 @@ function verifySignature(rawBody: string, signature: string | null, secret: stri
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function parseFormBody(rawBody: string) {
+  const result: Record<string, unknown> = {};
+  const params = new URLSearchParams(rawBody);
+  for (const [key, value] of params.entries()) {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        result[key] = JSON.parse(trimmed);
+        continue;
+      } catch {}
+    }
+    result[key] = value;
+  }
+  return result;
+}
+
+function parsePayload(rawBody: string, contentType: string | null): unknown {
+  if (contentType?.toLowerCase().includes("json")) {
+    try { return JSON.parse(rawBody); } catch {}
+  }
+  try { return JSON.parse(rawBody); } catch {}
+  const form = parseFormBody(rawBody);
+  return Object.keys(form).length ? form : { raw_body: rawBody };
+}
+
 function payloadObject(parsed: unknown): Record<string, unknown> {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
   const root = parsed as Record<string, unknown>;
-  for (const key of ["call", "text_message", "message"]) {
+  for (const key of ["call", "text_message", "message", "data"]) {
     const nested = root[key];
     if (nested && typeof nested === "object" && !Array.isArray(nested)) return { ...root, ...(nested as Record<string, unknown>) };
   }
@@ -101,8 +136,9 @@ function normalizeEventName(value: string | null) {
 
 function looksLikeText(payload: Record<string, unknown>) {
   return Boolean(
-    getString(payload, "message_id", "text_message_id", "conversation_id", "content", "message_body") ||
-    (getString(payload, "source_number") && getString(payload, "destination_number")),
+    getString(payload, "message_id", "text_message_id", "conversation_id", "content", "message_body", "body") ||
+    (getString(payload, "customer_phone_number") && getString(payload, "tracking_phone_number")) ||
+    (getString(payload, "source_number", "from") && getString(payload, "destination_number", "to")),
   );
 }
 
@@ -110,12 +146,13 @@ function eventType(request: NextRequest, payload: Record<string, unknown>) {
   const explicit = normalizeEventName(
     request.headers.get("x-callrail-event") ||
     request.headers.get("x-event-type") ||
-    getString(payload, "event_type", "event"),
+    getString(payload, "event_type", "event", "webhook_type"),
   );
   if (explicit) return explicit;
   if (looksLikeText(payload)) {
-    const direction = normalizeEventName(getString(payload, "direction"));
-    if (direction.includes("out") || direction === "sent") return "text_message_sent";
+    const direction = normalizeEventName(getString(payload, "direction", "message_direction"));
+    const agent = getString(payload, "agent", "agent_name") || getNestedString(payload, "agent", "name", "full_name", "email", "id");
+    if (direction.includes("out") || direction === "sent" || agent) return "text_message_sent";
     return "text_message_received";
   }
   return Array.isArray(payload.changes) ? "call_modified" : "post_call";
@@ -169,13 +206,7 @@ async function dryRunMatch(normalizedPhone: string | null) {
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawBody);
-  } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
-  }
-
+  const parsed = parsePayload(rawBody, request.headers.get("content-type"));
   const payload = payloadObject(parsed);
   const signingSecret = process.env.CALLRAIL_WEBHOOK_SIGNING_SECRET;
   const suppliedSignature = request.headers.get("signature") || request.headers.get("x-callrail-signature");
@@ -192,17 +223,26 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
 
     if (isText) {
-      const messageId = getString(payload, "message_id", "text_message_id", "id");
-      if (!messageId) return NextResponse.json({ ok: false, error: "CallRail text message ID is required." }, { status: 400 });
+      const explicitDirection = normalizeEventName(getString(payload, "direction", "message_direction"));
+      const agentName = getString(payload, "agent_name") || getNestedString(payload, "agent", "name", "full_name", "email");
+      const direction = event.includes("sent") || explicitDirection.includes("out") || explicitDirection === "sent" || Boolean(agentName) ? "outbound" : "inbound";
 
-      const conversationId = getString(payload, "conversation_id", "thread_id");
-      const sourceNumber = getString(payload, "source_number", "from", "sender_number");
-      const destinationNumber = getString(payload, "destination_number", "to", "recipient_number");
-      const explicitDirection = normalizeEventName(getString(payload, "direction"));
-      const direction = event.includes("sent") || explicitDirection.includes("out") || explicitDirection === "sent" ? "outbound" : "inbound";
-      const customerPhone = direction === "outbound" ? destinationNumber : sourceNumber;
+      const customerNumber = getString(payload, "customer_phone_number", "customer_number", "customer_phone");
+      const trackingNumber = getString(payload, "tracking_phone_number", "tracking_number", "business_phone_number");
+      let sourceNumber = getString(payload, "source_number", "from", "sender_number");
+      let destinationNumber = getString(payload, "destination_number", "to", "recipient_number");
+      if (!sourceNumber) sourceNumber = direction === "outbound" ? trackingNumber : customerNumber;
+      if (!destinationNumber) destinationNumber = direction === "outbound" ? customerNumber : trackingNumber;
+
+      const customerPhone = customerNumber || (direction === "outbound" ? destinationNumber : sourceNumber);
       const normalizedPhone = normalizePhone(customerPhone);
       const match = await dryRunMatch(normalizedPhone);
+
+      const resourceId = getString(payload, "resource_id");
+      const personResourceId = getString(payload, "person_resource_id", "person_id") || getNestedString(payload, "person", "resource_id", "id");
+      const companyResourceId = getString(payload, "company_resource_id") || getNestedString(payload, "company", "resource_id", "id");
+      const messageId = getString(payload, "message_id", "text_message_id", "id") || resourceId || `raw_${createHash("sha256").update(rawBody).digest("hex").slice(0, 32)}`;
+      const conversationId = getString(payload, "conversation_id", "thread_id", "conversation_resource_id") || personResourceId;
 
       const eventRow = {
         message_id: messageId,
@@ -230,24 +270,29 @@ export async function POST(request: NextRequest) {
       const textRow = {
         message_id: messageId,
         conversation_id: conversationId,
-        company_id: getString(payload, "company_id"),
-        company_name: getString(payload, "company_name"),
+        resource_id: resourceId,
+        person_resource_id: personResourceId,
+        company_resource_id: companyResourceId,
+        agent_name: agentName,
+        company_id: getString(payload, "company_id") || companyResourceId,
+        company_name: getString(payload, "company_name") || getNestedString(payload, "company", "name"),
         direction,
         source_number: sourceNumber,
         destination_number: destinationNumber,
         customer_phone_number: customerPhone,
         normalized_customer_phone: normalizedPhone,
-        message_body: getString(payload, "content", "message_body", "body", "message"),
+        message_body: getString(payload, "content", "message_body", "body", "message", "text"),
         message_type: getString(payload, "message_type", "type") || "sms",
         media_urls: getArray(payload, "media_urls", "media", "attachments"),
         status: getString(payload, "status", "message_status"),
         lead_status: getString(payload, "lead_status"),
-        sent_at: getString(payload, "sent_at", "created_at", "timestamp"),
+        sent_at: getString(payload, "sent_at", "created_at", "timestamp", "date"),
         matched_contact_id: match.contactId,
         matched_opportunity_id: match.opportunityId,
         match_type: match.matchType,
         match_confidence: match.matchConfidence,
         match_detail: match.matchDetail,
+        first_received_at: now,
         last_received_at: now,
         raw_payload: parsed,
       };
@@ -277,9 +322,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const callId = getString(payload, "id", "call_id", "callrail_call_id");
-    if (!callId) return NextResponse.json({ ok: false, error: "CallRail call ID is required." }, { status: 400 });
-
+    const callId = getString(payload, "id", "call_id", "callrail_call_id", "resource_id") || `raw_${createHash("sha256").update(rawBody).digest("hex").slice(0, 32)}`;
     const customerPhone = getString(payload, "customer_phone_number", "caller_number", "customer_phone", "caller_phone_number", "from");
     const normalizedPhone = normalizePhone(customerPhone);
     const match = await dryRunMatch(normalizedPhone);
