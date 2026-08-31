@@ -58,6 +58,14 @@ function getNumber(payload: Record<string, unknown>, ...keys: string[]) {
   return null;
 }
 
+function getArray(payload: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = payload[key];
+    if (Array.isArray(value)) return value;
+  }
+  return [];
+}
+
 function normalizePhone(input: string | null) {
   if (!input) return null;
   const trimmed = input.trim();
@@ -77,20 +85,86 @@ function verifySignature(rawBody: string, signature: string | null, secret: stri
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function eventType(request: NextRequest, payload: Record<string, unknown>) {
-  return (
-    request.headers.get("x-callrail-event") ||
-    request.headers.get("x-event-type") ||
-    getString(payload, "event_type", "event", "type") ||
-    (Array.isArray(payload.changes) ? "call_modified" : "post_call")
-  ).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-}
-
 function payloadObject(parsed: unknown): Record<string, unknown> {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
   const root = parsed as Record<string, unknown>;
-  if (root.call && typeof root.call === "object" && !Array.isArray(root.call)) return { ...root, ...(root.call as Record<string, unknown>) };
+  for (const key of ["call", "text_message", "message"]) {
+    const nested = root[key];
+    if (nested && typeof nested === "object" && !Array.isArray(nested)) return { ...root, ...(nested as Record<string, unknown>) };
+  }
   return root;
+}
+
+function normalizeEventName(value: string | null) {
+  return (value || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function looksLikeText(payload: Record<string, unknown>) {
+  return Boolean(
+    getString(payload, "message_id", "text_message_id", "conversation_id", "content", "message_body") ||
+    (getString(payload, "source_number") && getString(payload, "destination_number")),
+  );
+}
+
+function eventType(request: NextRequest, payload: Record<string, unknown>) {
+  const explicit = normalizeEventName(
+    request.headers.get("x-callrail-event") ||
+    request.headers.get("x-event-type") ||
+    getString(payload, "event_type", "event"),
+  );
+  if (explicit) return explicit;
+  if (looksLikeText(payload)) {
+    const direction = normalizeEventName(getString(payload, "direction"));
+    if (direction.includes("out") || direction === "sent") return "text_message_sent";
+    return "text_message_received";
+  }
+  return Array.isArray(payload.changes) ? "call_modified" : "post_call";
+}
+
+async function dryRunMatch(normalizedPhone: string | null) {
+  let contactId: string | null = null;
+  let opportunityId: string | null = null;
+  let matchType: string | null = null;
+  let matchConfidence: string | null = null;
+  let matchDetail: Record<string, unknown> = {};
+
+  if (!normalizedPhone) return { contactId, opportunityId, matchType, matchConfidence, matchDetail };
+
+  const contacts = await rest<Array<{ id: string; display_name: string | null }>>(
+    `sales_contacts?canonical_phone=eq.${encodeURIComponent(normalizedPhone)}&select=id,display_name&limit=2`,
+  );
+  if (contacts.length === 1) {
+    contactId = contacts[0].id;
+    matchType = "phone_to_contact";
+    matchConfidence = "exact_phone";
+    matchDetail = { contact_name: contacts[0].display_name };
+  } else if (contacts.length > 1) {
+    matchType = "ambiguous_phone";
+    matchConfidence = "ambiguous";
+    matchDetail = { contact_count: contacts.length };
+  }
+
+  const opportunities = await rest<Array<{ id: string; customer_name: string | null; contact_id: string | null; shopping_started_at: string | null; shopping_last_activity_at: string | null; lead_value_cents: number }>>(
+    `sales_opportunities?status=eq.open&phone_e164=eq.${encodeURIComponent(normalizedPhone)}&select=id,customer_name,contact_id,shopping_started_at,shopping_last_activity_at,lead_value_cents&order=shopping_last_activity_at.desc&limit=3`,
+  );
+  if (opportunities.length === 1) {
+    opportunityId = opportunities[0].id;
+    contactId = opportunities[0].contact_id || contactId;
+    matchType = "phone_to_open_shopping_episode";
+    matchConfidence = "exact_phone_open_lead";
+    matchDetail = {
+      customer_name: opportunities[0].customer_name,
+      shopping_started_at: opportunities[0].shopping_started_at,
+      shopping_last_activity_at: opportunities[0].shopping_last_activity_at,
+      lead_value_cents: opportunities[0].lead_value_cents,
+    };
+  } else if (opportunities.length > 1) {
+    matchType = "multiple_open_episodes_same_phone";
+    matchConfidence = "needs_review";
+    matchDetail = { opportunity_count: opportunities.length, candidate_ids: opportunities.map((item) => item.id) };
+  }
+
+  return { contactId, opportunityId, matchType, matchConfidence, matchDetail };
 }
 
 export async function POST(request: NextRequest) {
@@ -107,79 +181,127 @@ export async function POST(request: NextRequest) {
   const suppliedSignature = request.headers.get("signature") || request.headers.get("x-callrail-signature");
   const signatureValid = verifySignature(rawBody, suppliedSignature, signingSecret);
 
-  // Shadow-mode behavior: before a signing secret is configured we accept and record payloads,
-  // but mark them unverified. Once configured, invalid signatures are rejected.
   if (signingSecret?.trim() && !signatureValid) {
     return NextResponse.json({ ok: false, error: "Invalid CallRail signature." }, { status: 401 });
   }
 
-  const callId = getString(payload, "id", "call_id", "callrail_call_id");
-  if (!callId) return NextResponse.json({ ok: false, error: "CallRail call ID is required." }, { status: 400 });
-
   const event = eventType(request, payload);
-  const customerPhone = getString(payload, "customer_phone_number", "caller_number", "customer_phone", "caller_phone_number", "from");
-  const normalizedPhone = normalizePhone(customerPhone);
+  const isText = event.includes("text") || looksLikeText(payload);
 
   try {
-    let contactId: string | null = null;
-    let opportunityId: string | null = null;
-    let matchType: string | null = null;
-    let matchConfidence: string | null = null;
-    let matchDetail: Record<string, unknown> = {};
+    const now = new Date().toISOString();
 
-    if (normalizedPhone) {
-      const contacts = await rest<Array<{ id: string; display_name: string | null }>>(
-        `sales_contacts?canonical_phone=eq.${encodeURIComponent(normalizedPhone)}&select=id,display_name&limit=2`,
-      );
-      if (contacts.length === 1) {
-        contactId = contacts[0].id;
-        matchType = "phone_to_contact";
-        matchConfidence = "exact_phone";
-        matchDetail = { contact_name: contacts[0].display_name };
-      } else if (contacts.length > 1) {
-        matchType = "ambiguous_phone";
-        matchConfidence = "ambiguous";
-        matchDetail = { contact_count: contacts.length };
-      }
+    if (isText) {
+      const messageId = getString(payload, "message_id", "text_message_id", "id");
+      if (!messageId) return NextResponse.json({ ok: false, error: "CallRail text message ID is required." }, { status: 400 });
 
-      const opportunities = await rest<Array<{ id: string; customer_name: string | null; contact_id: string | null; shopping_started_at: string | null; shopping_last_activity_at: string | null; lead_value_cents: number }>>(
-        `sales_opportunities?status=eq.open&phone_e164=eq.${encodeURIComponent(normalizedPhone)}&select=id,customer_name,contact_id,shopping_started_at,shopping_last_activity_at,lead_value_cents&order=shopping_last_activity_at.desc&limit=3`,
-      );
-      if (opportunities.length === 1) {
-        opportunityId = opportunities[0].id;
-        contactId = opportunities[0].contact_id || contactId;
-        matchType = "phone_to_open_shopping_episode";
-        matchConfidence = "exact_phone_open_lead";
-        matchDetail = {
-          customer_name: opportunities[0].customer_name,
-          shopping_started_at: opportunities[0].shopping_started_at,
-          shopping_last_activity_at: opportunities[0].shopping_last_activity_at,
-          lead_value_cents: opportunities[0].lead_value_cents,
-        };
-      } else if (opportunities.length > 1) {
-        matchType = "multiple_open_episodes_same_phone";
-        matchConfidence = "needs_review";
-        matchDetail = { opportunity_count: opportunities.length, candidate_ids: opportunities.map((item) => item.id) };
-      }
+      const conversationId = getString(payload, "conversation_id", "thread_id");
+      const sourceNumber = getString(payload, "source_number", "from", "sender_number");
+      const destinationNumber = getString(payload, "destination_number", "to", "recipient_number");
+      const explicitDirection = normalizeEventName(getString(payload, "direction"));
+      const direction = event.includes("sent") || explicitDirection.includes("out") || explicitDirection === "sent" ? "outbound" : "inbound";
+      const customerPhone = direction === "outbound" ? destinationNumber : sourceNumber;
+      const normalizedPhone = normalizePhone(customerPhone);
+      const match = await dryRunMatch(normalizedPhone);
+
+      const eventRow = {
+        message_id: messageId,
+        conversation_id: conversationId,
+        channel: "sms",
+        callrail_call_id: null,
+        event_type: event,
+        received_at: now,
+        signature_valid: signatureValid,
+        changes: null,
+        raw_payload: parsed,
+        normalized_customer_phone: normalizedPhone,
+        matched_contact_id: match.contactId,
+        matched_opportunity_id: match.opportunityId,
+        match_type: match.matchType,
+        match_confidence: match.matchConfidence,
+        match_detail: match.matchDetail,
+      };
+      await rest<void>("callrail_webhook_events", {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify(eventRow),
+      });
+
+      const textRow = {
+        message_id: messageId,
+        conversation_id: conversationId,
+        company_id: getString(payload, "company_id"),
+        company_name: getString(payload, "company_name"),
+        direction,
+        source_number: sourceNumber,
+        destination_number: destinationNumber,
+        customer_phone_number: customerPhone,
+        normalized_customer_phone: normalizedPhone,
+        message_body: getString(payload, "content", "message_body", "body", "message"),
+        message_type: getString(payload, "message_type", "type") || "sms",
+        media_urls: getArray(payload, "media_urls", "media", "attachments"),
+        status: getString(payload, "status", "message_status"),
+        lead_status: getString(payload, "lead_status"),
+        sent_at: getString(payload, "sent_at", "created_at", "timestamp"),
+        matched_contact_id: match.contactId,
+        matched_opportunity_id: match.opportunityId,
+        match_type: match.matchType,
+        match_confidence: match.matchConfidence,
+        match_detail: match.matchDetail,
+        last_received_at: now,
+        raw_payload: parsed,
+      };
+
+      await rest<void>("callrail_text_messages?on_conflict=message_id", {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify(textRow),
+      });
+
+      return NextResponse.json({
+        ok: true,
+        shadow_mode: true,
+        channel: "sms",
+        event_type: event,
+        message_id: messageId,
+        conversation_id: conversationId,
+        direction,
+        signature_valid: signatureValid,
+        normalized_phone: normalizedPhone,
+        match: {
+          contact_id: match.contactId,
+          opportunity_id: match.opportunityId,
+          type: match.matchType,
+          confidence: match.matchConfidence,
+        },
+      });
     }
 
+    const callId = getString(payload, "id", "call_id", "callrail_call_id");
+    if (!callId) return NextResponse.json({ ok: false, error: "CallRail call ID is required." }, { status: 400 });
+
+    const customerPhone = getString(payload, "customer_phone_number", "caller_number", "customer_phone", "caller_phone_number", "from");
+    const normalizedPhone = normalizePhone(customerPhone);
+    const match = await dryRunMatch(normalizedPhone);
     const changes = Array.isArray(payload.changes) ? payload.changes : null;
     const tags = Array.isArray(payload.tags) ? payload.tags : [];
-    const now = new Date().toISOString();
 
     const eventRow = {
       callrail_call_id: callId,
+      message_id: null,
+      conversation_id: null,
+      channel: "call",
       event_type: event,
       received_at: now,
       signature_valid: signatureValid,
       changes,
       raw_payload: parsed,
       normalized_customer_phone: normalizedPhone,
-      matched_contact_id: contactId,
-      matched_opportunity_id: opportunityId,
-      match_type: matchType,
-      match_confidence: matchConfidence,
-      match_detail: matchDetail,
+      matched_contact_id: match.contactId,
+      matched_opportunity_id: match.opportunityId,
+      match_type: match.matchType,
+      match_confidence: match.matchConfidence,
+      match_detail: match.matchDetail,
     };
     await rest<void>("callrail_webhook_events", {
       method: "POST",
@@ -221,11 +343,11 @@ export async function POST(request: NextRequest) {
       tags,
       note: getString(payload, "note", "notes"),
       changes,
-      matched_contact_id: contactId,
-      matched_opportunity_id: opportunityId,
-      match_type: matchType,
-      match_confidence: matchConfidence,
-      match_detail: matchDetail,
+      matched_contact_id: match.contactId,
+      matched_opportunity_id: match.opportunityId,
+      match_type: match.matchType,
+      match_confidence: match.matchConfidence,
+      match_detail: match.matchDetail,
       last_received_at: now,
       last_event_type: event,
       raw_payload: parsed,
@@ -240,15 +362,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       shadow_mode: true,
+      channel: "call",
       event_type: event,
       callrail_call_id: callId,
       signature_valid: signatureValid,
       normalized_phone: normalizedPhone,
       match: {
-        contact_id: contactId,
-        opportunity_id: opportunityId,
-        type: matchType,
-        confidence: matchConfidence,
+        contact_id: match.contactId,
+        opportunity_id: match.opportunityId,
+        type: match.matchType,
+        confidence: match.matchConfidence,
       },
     });
   } catch (error) {
