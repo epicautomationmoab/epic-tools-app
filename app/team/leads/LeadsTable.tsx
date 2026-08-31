@@ -99,11 +99,15 @@ function dateWindowLabel(start: string, end: string) {
 function dateTimeLabel(value: string) {
   return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
-function timeLabel(value: string | null) {
+function tripworksActivityTimeLabel(value: string | null) {
   if (!value) return "Time not supplied";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", hour: "numeric", minute: "2-digit" }).format(parsed);
+  const match = value.match(/[T ](\d{2}):(\d{2})/);
+  if (!match) return value;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return value;
+  const wallClock = new Date(Date.UTC(2000, 0, 1, hour, minute));
+  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(wallClock);
 }
 function methodLabel(value: string | null) { return (value || "unknown").replaceAll("_", " "); }
 function tripworksUrl(code: string | null) { return code ? `https://epic4x4.tripworks.com/trip/${encodeURIComponent(code)}/bookings` : null; }
@@ -236,8 +240,11 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
         <section className={styles.drawerSection}><h3>TripWorks Drafts</h3><p className={styles.drawerIntro}>Every shopping option grouped into this one 30-day shopping episode. The highest-value option sets the current Lead Value.</p><div className={styles.draftList}>{selectedDrafts.map((draft) => {
           const isPrimary = Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id);
           const href = tripworksUrl(draft.confirmation_code);
-          const card = <><div className={styles.draftCardTop}><div><div className={styles.draftExperience}>{draft.experience_name || "TripWorks draft"}</div><div className={styles.draftOption}>{draft.option_name || "Option not supplied"} · {dateLabel(draft.activity_date)}</div></div><div className={styles.draftValue}>{dollars(draft.value_cents)}</div></div><div className={styles.draftMeta}><span>{timeLabel(draft.start_time)}</span><span>{methodLabel(draft.trip_method)}</span>{draft.created_by_name ? <span>Created by {draft.created_by_name}</span> : null}<span>{draft.confirmation_code || `TW #${draft.tripworks_trip_id}`}</span>{href ? <span>Open in TripWorks ↗</span> : null}</div>{isPrimary ? <div className={styles.highestBadge}>Sets Lead Value</div> : null}</>;
-          return href ? <a key={draft.id} className={`${styles.draftCard} ${styles.draftCardLink} ${isPrimary ? styles.draftCardPrimary : ""}`} href={href} target="_blank" rel="noreferrer">{card}</a> : <article key={draft.id} className={`${styles.draftCard} ${isPrimary ? styles.draftCardPrimary : ""}`}>{card}</article>;
+          return <article key={draft.id} className={`${styles.draftCard} ${isPrimary ? styles.draftCardPrimary : ""}`}>
+            <div className={styles.draftCardTop}><div><div className={styles.draftExperience}>{draft.experience_name || "TripWorks draft"}</div><div className={styles.draftOption}>{draft.option_name || "Option not supplied"} · {dateLabel(draft.activity_date)}</div></div><div className={styles.draftValue}>{dollars(draft.value_cents)}</div></div>
+            <div className={styles.draftMeta}><span>{tripworksActivityTimeLabel(draft.start_time)}</span><span>{methodLabel(draft.trip_method)}</span>{draft.created_by_name ? <span>Created by {draft.created_by_name}</span> : null}<span>{draft.confirmation_code || `TW #${draft.tripworks_trip_id}`}</span>{href ? <a href={href} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Open in TripWorks ↗</a> : null}</div>
+            {isPrimary ? <div className={styles.highestBadge}>Sets Lead Value</div> : null}
+          </article>;
         })}</div></section>
       </aside>
     </div> : null}
