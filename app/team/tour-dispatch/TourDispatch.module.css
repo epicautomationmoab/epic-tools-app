@@ -15,21 +15,31 @@
   font-size: 14px;
 }
 
-.printAllWrap button {
-  min-height: 36px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 7px;
-  background: #425466;
-  color: #fff;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(40, 55, 70, 0.16);
+.printAllWrap {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.printAllWrap button:hover {
-  background: #334453;
+.printAllButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #cfd6dd;
+  border-radius: 8px;
+  background: #fff;
+  color: #33485b;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(20, 27, 34, 0.06);
+}
+
+.printAllButton:hover {
+  background: #f7f9fb;
+  border-color: #b9c3cc;
 }
 
 .tableWrap {
@@ -129,21 +139,23 @@
 }
 
 .inlinePrintButton {
-  display: block;
-  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
   padding: 0;
   border: 0;
   background: transparent;
-  color: #526170;
-  font: inherit;
+  color: #6a7682;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .inlinePrintButton:hover {
-  color: #253647;
+  color: #2f465b;
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .saveCell {
