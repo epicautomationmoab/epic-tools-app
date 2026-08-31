@@ -89,20 +89,21 @@ export async function POST(request: NextRequest) {
       const opportunity = await getOpportunity();
       if (!opportunity) return NextResponse.json({ error: "Lead not found." }, { status: 404 });
       if (opportunity.status !== "open") return NextResponse.json({ error: "This lead is no longer open." }, { status: 409 });
-      if (!opportunity.contact_id) return NextResponse.json({ error: "This lead is not linked to an Epic Contact, so SMS consent cannot be verified." }, { status: 409 });
 
-      const contacts = await rest<Array<{ id: string; tripworks_is_opt_in: boolean | null; canonical_phone: string | null; tripworks_customer_code: string | null }>>(
-        `sales_contacts?id=eq.${encodeURIComponent(opportunity.contact_id)}&select=id,tripworks_is_opt_in,canonical_phone,tripworks_customer_code&limit=1`,
-      );
-      const contact = contacts[0];
-      if (!contact) return NextResponse.json({ error: "Epic Contact could not be found." }, { status: 404 });
-      if (contact.tripworks_is_opt_in === false) return NextResponse.json({ error: "SMS blocked: this customer opted out in TripWorks." }, { status: 403 });
-      if (contact.tripworks_is_opt_in !== true) return NextResponse.json({ error: "SMS blocked: marketing consent is unknown for this customer." }, { status: 403 });
+      let contact: { id: string; tripworks_is_opt_in: boolean | null; canonical_phone: string | null; tripworks_customer_code: string | null } | null = null;
+      if (opportunity.contact_id) {
+        const contacts = await rest<Array<{ id: string; tripworks_is_opt_in: boolean | null; canonical_phone: string | null; tripworks_customer_code: string | null }>>(
+          `sales_contacts?id=eq.${encodeURIComponent(opportunity.contact_id)}&select=id,tripworks_is_opt_in,canonical_phone,tripworks_customer_code&limit=1`,
+        );
+        contact = contacts[0] || null;
+      }
+
+      if (contact?.tripworks_is_opt_in === false) return NextResponse.json({ error: "SMS blocked: this customer opted out in TripWorks." }, { status: 403 });
 
       const messageText = body.message_text?.trim() || "";
       if (!messageText) return NextResponse.json({ error: "Message cannot be blank." }, { status: 400 });
       if (messageText.length > 1600) return NextResponse.json({ error: "Message is too long. Keep it under 1,600 characters." }, { status: 400 });
-      const phone = contact.canonical_phone || opportunity.phone_e164;
+      const phone = contact?.canonical_phone || opportunity.phone_e164;
       if (!phone) return NextResponse.json({ error: "This customer does not have a phone number." }, { status: 409 });
 
       const result = await sendCallRailSms({ phone, body: messageText });
