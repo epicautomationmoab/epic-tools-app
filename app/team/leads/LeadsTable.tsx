@@ -116,6 +116,7 @@ function methodLabel(value: string | null) { return (value || "unknown").replace
 function tripworksUrl(code: string | null) { return code ? `https://epic4x4.tripworks.com/trip/${encodeURIComponent(code)}/bookings` : null; }
 function tripworksCustomerUrl(code: string | null) { return code ? `https://epic4x4.tripworks.com/customer/${encodeURIComponent(code)}/trips` : null; }
 function optInLabel(value: boolean | null) { return value === true ? "Opted In" : value === false ? "Opted Out" : "Unknown"; }
+function searchable(value: unknown) { return String(value ?? "").toLowerCase(); }
 
 export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads: LeadRow[]; draftsByLead: Record<string, LeadDraft[]>; notesByLead: Record<string, LeadNote[]> }) {
   const [rows, setRows] = useState(leads);
@@ -127,8 +128,48 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
   const [closeMode, setCloseMode] = useState<CloseMode>(null);
   const [closeReason, setCloseReason] = useState("");
   const [closeNote, setCloseNote] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const selected = useMemo(() => rows.find((row) => row.id === selectedId) || null, [rows, selectedId]);
+  const filteredRows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return rows;
+    const tokens = query.split(/\s+/).filter(Boolean);
+    const queryDigits = query.replace(/\D/g, "");
+
+    return rows.filter((row) => {
+      const drafts = draftsByLead[row.id] || [];
+      const parts: unknown[] = [
+        row.customer_name,
+        row.phone_e164,
+        row.email,
+        row.tripworks_customer_code,
+        row.source_method,
+        row.assigned_rep_name,
+        row.claimed_by_name,
+        row.activity_window_start,
+        row.activity_window_end,
+        row.contact_id,
+      ];
+      for (const draft of drafts) {
+        parts.push(
+          draft.confirmation_code,
+          draft.tripworks_trip_id,
+          draft.customer_name,
+          draft.phone_e164,
+          draft.email,
+          draft.experience_name,
+          draft.option_name,
+          draft.activity_date,
+          draft.trip_method,
+          draft.created_by_name,
+        );
+      }
+      const haystack = parts.map(searchable).join(" ");
+      const digits = haystack.replace(/\D/g, "");
+      return tokens.every((token) => haystack.includes(token)) || (queryDigits.length >= 4 && digits.includes(queryDigits));
+    });
+  }, [rows, draftsByLead, searchQuery]);
 
   useEffect(() => {
     if (!selected) return;
@@ -198,10 +239,25 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
   const reasons = closeMode === "lost" ? LOST_REASONS : RETIRED_REASONS;
 
   return <>
+    <div className={styles.searchRow}>
+      <div className={styles.searchBox}>
+        <span aria-hidden="true">⌕</span>
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search name, phone, email, TW confirmation or customer code…"
+          aria-label="Search open leads"
+        />
+        {searchQuery ? <button type="button" onClick={() => setSearchQuery("")} aria-label="Clear search">×</button> : null}
+      </div>
+      <div className={styles.searchCount}>{searchQuery.trim() ? `${filteredRows.length} of ${rows.length} leads` : `${rows.length} leads`}</div>
+    </div>
+
     <section className={styles.tableWrap}>
       <table className={styles.table}>
         <thead><tr><th>Customer</th><th>Activity Window</th><th>Best Option</th><th>Method</th><th>Rep</th><th>Drafts</th><th>Lead Value</th></tr></thead>
-        <tbody>{rows.map((row) => {
+        <tbody>{filteredRows.map((row) => {
           const draft = (draftsByLead[row.id] || []).find((item) => Number(item.tripworks_trip_id) === Number(row.primary_draft_trip_id));
           return <tr key={row.id} className={styles.clickableRow} onClick={() => { setSelectedId(row.id); setError(""); resetClose(); }}>
             <td><div className={styles.nameLine}><div className={styles.name}>{row.customer_name || "Unknown customer"}</div>{row.is_past_guest ? <span className={styles.vipBadge}>VIP · Past Guest</span> : null}</div><div className={styles.contact}>{row.phone_e164 || row.email || "No contact details"}</div></td>
@@ -214,7 +270,7 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
           </tr>;
         })}</tbody>
       </table>
-      {rows.length === 0 ? <div className={styles.empty}>No open future leads found.</div> : null}
+      {filteredRows.length === 0 ? <div className={styles.empty}>{searchQuery.trim() ? "No open leads match that search." : "No open future leads found."}</div> : null}
     </section>
 
     {selected ? <div className={styles.drawerBackdrop} onMouseDown={() => setSelectedId(null)}>
