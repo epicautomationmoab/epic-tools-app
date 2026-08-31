@@ -29,7 +29,7 @@ async function requireEmployee(request: NextRequest) {
 
 type Activity = {
   opportunity_id: string;
-  kind: "text" | "missed_call" | "call" | "voicemail";
+  kind: "text" | "missed_call" | "call" | "voicemail" | "shopped_again";
   at: string;
   preview: string | null;
   unread: boolean;
@@ -40,12 +40,15 @@ export async function GET(request: NextRequest) {
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
 
   try {
-    const [messages, calls, seen] = await Promise.all([
+    const [messages, calls, repeatShopping, seen] = await Promise.all([
       rest<Array<{ matched_opportunity_id: string; first_received_at: string; sent_at: string | null; message_body: string | null }>>(
         `callrail_text_messages?matched_opportunity_id=not.is.null&direction=eq.inbound&select=${encodeURIComponent("matched_opportunity_id,first_received_at,sent_at,message_body")}&order=first_received_at.desc&limit=500`,
       ),
       rest<Array<{ matched_opportunity_id: string; direction: string | null; answered: boolean | null; voicemail: boolean | null; start_time: string | null; last_received_at: string; customer_name: string | null }>>(
         `callrail_calls?matched_opportunity_id=not.is.null&select=${encodeURIComponent("matched_opportunity_id,direction,answered,voicemail,start_time,last_received_at,customer_name")}&order=last_received_at.desc&limit=500`,
+      ),
+      rest<Array<{ opportunity_id: string; created_at: string; draft_id: string }>>(
+        `sales_opportunity_drafts?select=${encodeURIComponent("opportunity_id,created_at,draft_id")}&order=created_at.desc&limit=1000`,
       ),
       rest<Array<{ opportunity_id: string; last_seen_at: string }>>(
         `sales_opportunity_activity_seen?profile_id=eq.${encodeURIComponent(profile.id)}&select=opportunity_id,last_seen_at`,
@@ -59,12 +62,7 @@ export async function GET(request: NextRequest) {
       const at = message.sent_at || message.first_received_at;
       const current = latest.get(message.matched_opportunity_id);
       if (!current || new Date(at).getTime() > new Date(current.at).getTime()) {
-        latest.set(message.matched_opportunity_id, {
-          opportunity_id: message.matched_opportunity_id,
-          kind: "text",
-          at,
-          preview: message.message_body,
-        });
+        latest.set(message.matched_opportunity_id, { opportunity_id: message.matched_opportunity_id, kind: "text", at, preview: message.message_body });
       }
     }
 
@@ -83,13 +81,26 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const draftsByOpportunity = new Map<string, Array<{ created_at: string; draft_id: string }>>();
+    for (const link of repeatShopping) {
+      const list = draftsByOpportunity.get(link.opportunity_id) || [];
+      list.push({ created_at: link.created_at, draft_id: link.draft_id });
+      draftsByOpportunity.set(link.opportunity_id, list);
+    }
+    for (const [opportunityId, links] of draftsByOpportunity.entries()) {
+      if (links.length < 2) continue;
+      links.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const at = links[0].created_at;
+      const current = latest.get(opportunityId);
+      if (!current || new Date(at).getTime() > new Date(current.at).getTime()) {
+        latest.set(opportunityId, { opportunity_id: opportunityId, kind: "shopped_again", at, preview: "Another TripWorks draft was created" });
+      }
+    }
+
     const activity: Record<string, Activity> = {};
     for (const [opportunityId, item] of latest.entries()) {
       const lastSeen = seenMap.get(opportunityId);
-      activity[opportunityId] = {
-        ...item,
-        unread: !lastSeen || new Date(item.at).getTime() > new Date(lastSeen).getTime(),
-      };
+      activity[opportunityId] = { ...item, unread: !lastSeen || new Date(item.at).getTime() > new Date(lastSeen).getTime() };
     }
 
     return NextResponse.json({ ok: true, activity });
