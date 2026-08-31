@@ -1,6 +1,6 @@
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
-import LeadsTable, { type LeadDraft, type LeadRow } from "./LeadsTable";
+import LeadsTable, { type LeadDraft, type LeadNote, type LeadRow } from "./LeadsTable";
 import styles from "./Leads.module.css";
 
 function requiredEnv(name: string) {
@@ -44,7 +44,7 @@ async function supabaseRest<T>(path: string): Promise<T> {
 
 async function getLeads() {
   const oppSelect = encodeURIComponent(
-    "id,customer_name,email,phone_e164,activity_date,status,lead_value_cents,captured_value_cents,draft_count,source_method,assigned_rep_name,primary_draft_trip_id",
+    "id,customer_name,email,phone_e164,activity_date,status,lead_value_cents,captured_value_cents,draft_count,source_method,assigned_rep_name,primary_draft_trip_id,contact_id,claimed_at,claimed_by_profile_id,claimed_by_name",
   );
   const opportunities = await supabaseRest<Opportunity[]>(`sales_opportunities?select=${oppSelect}`);
 
@@ -59,6 +59,7 @@ async function getLeads() {
   const booked = opportunities.filter((row) => row.status === "booked");
   const openIds = open.map((row) => row.id);
   let draftsByLead: Record<string, LeadDraft[]> = {};
+  let notesByLead: Record<string, LeadNote[]> = {};
 
   if (openIds.length) {
     const quoted = openIds.map((id) => `"${id}"`).join(",");
@@ -88,9 +89,17 @@ async function getLeads() {
         ]),
       );
     }
+
+    const noteSelect = encodeURIComponent("id,opportunity_id,author_name,note_text,created_at");
+    const notes = await supabaseRest<LeadNote[]>(
+      `sales_opportunity_notes?select=${noteSelect}&opportunity_id=in.(${quoted})&order=created_at.desc`,
+    );
+    notesByLead = Object.fromEntries(
+      open.map((lead) => [lead.id, notes.filter((note) => note.opportunity_id === lead.id)]),
+    );
   }
 
-  return { opportunities, open, booked, draftsByLead };
+  return { opportunities, open, booked, draftsByLead, notesByLead };
 }
 
 export default async function LeadsPage() {
@@ -98,6 +107,7 @@ export default async function LeadsPage() {
   let booked: Opportunity[] = [];
   let totalOpportunities = 0;
   let draftsByLead: Record<string, LeadDraft[]> = {};
+  let notesByLead: Record<string, LeadNote[]> = {};
   let loadError = "";
 
   try {
@@ -106,6 +116,7 @@ export default async function LeadsPage() {
     booked = loaded.booked;
     totalOpportunities = loaded.opportunities.length;
     draftsByLead = loaded.draftsByLead;
+    notesByLead = loaded.notesByLead;
   } catch (error) {
     loadError = error instanceof Error ? error.message : "Unable to load Sales & Leads data.";
     console.error("Sales & Leads load error:", error);
@@ -161,10 +172,10 @@ export default async function LeadsPage() {
           <div className={styles.tabs}>
             <span className={`${styles.tab} ${styles.tabActive}`}>Open Leads {open.length}</span>
           </div>
-          <div className={styles.muted}>Future activity dates only · click a lead to see all drafts</div>
+          <div className={styles.muted}>Future activity dates only · click a lead to work it</div>
         </div>
 
-        {!loadError ? <LeadsTable leads={open} draftsByLead={draftsByLead} /> : null}
+        {!loadError ? <LeadsTable leads={open} draftsByLead={draftsByLead} notesByLead={notesByLead} /> : null}
       </main>
     </div>
   );
