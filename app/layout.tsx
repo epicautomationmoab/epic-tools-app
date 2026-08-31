@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import EmployeeSessionRefresher from "./EmployeeSessionRefresher";
 import "./globals.css";
 import "./drawer.css";
+import "./readiness-overrides.css";
 
 export const metadata: Metadata = {
   title: "EpicTools",
