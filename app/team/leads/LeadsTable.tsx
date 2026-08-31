@@ -25,6 +25,9 @@ export type LeadRow = {
   is_past_guest: boolean;
   prior_booking_count: number;
   last_prior_booking_at: string | null;
+  tripworks_customer_code: string | null;
+  tripworks_is_opt_in: boolean | null;
+  tripworks_identity_verified_at: string | null;
 };
 
 export type LeadDraft = {
@@ -111,6 +114,8 @@ function tripworksActivityTimeLabel(value: string | null) {
 }
 function methodLabel(value: string | null) { return (value || "unknown").replaceAll("_", " "); }
 function tripworksUrl(code: string | null) { return code ? `https://epic4x4.tripworks.com/trip/${encodeURIComponent(code)}/bookings` : null; }
+function tripworksCustomerUrl(code: string | null) { return code ? `https://epic4x4.tripworks.com/customer/${encodeURIComponent(code)}/trips` : null; }
+function optInLabel(value: boolean | null) { return value === true ? "Opted In" : value === false ? "Opted Out" : "Unknown"; }
 
 export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads: LeadRow[]; draftsByLead: Record<string, LeadDraft[]>; notesByLead: Record<string, LeadNote[]> }) {
   const [rows, setRows] = useState(leads);
@@ -135,6 +140,7 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
   const selectedDrafts = selected ? draftsByLead[selected.id] || [] : [];
   const selectedNotes = selected ? notes[selected.id] || [] : [];
   const primaryDraft = selected ? selectedDrafts.find((draft) => Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id)) || selectedDrafts[0] : undefined;
+  const customerHref = selected ? tripworksCustomerUrl(selected.tripworks_customer_code) : null;
 
   function resetClose() { setCloseMode(null); setCloseReason(""); setCloseNote(""); setError(""); }
 
@@ -219,7 +225,12 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
         {error ? <div className={styles.drawerError}>{error}</div> : null}
 
         <div className={styles.drawerFacts}><div><span>Lead Value</span><strong>{dollars(selected.lead_value_cents)}</strong></div><div><span>Epic Contact ID</span><strong className={styles.contactId}>{selected.contact_id || "Not linked"}</strong></div><div><span>Method</span><strong>{methodLabel(selected.source_method)}</strong></div><div><span>Best Option</span><strong>{primaryDraft?.experience_name || "TripWorks draft"}</strong></div></div>
-        <div className={styles.drawerContact}>{selected.phone_e164 ? <div><span>Phone</span><strong>{selected.phone_e164}</strong></div> : null}{selected.email ? <div><span>Email</span><strong>{selected.email}</strong></div> : null}</div>
+        <div className={styles.drawerContact}>
+          {selected.phone_e164 ? <div><span>Phone</span><strong>{selected.phone_e164}</strong></div> : null}
+          {selected.email ? <div><span>Email</span><strong>{selected.email}</strong></div> : null}
+          <div><span>SMS / Marketing</span><strong>{optInLabel(selected.tripworks_is_opt_in)}</strong></div>
+          {selected.tripworks_customer_code ? <div><span>TripWorks Customer</span><strong>{selected.tripworks_customer_code}</strong>{customerHref ? <a href={customerHref} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Open Customer in TripWorks ↗</a> : null}</div> : null}
+        </div>
 
         <section className={styles.drawerSection}><h3>Sales Notes</h3><div className={styles.noteComposer}><textarea value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add a sales note, follow-up detail, objection, preference…" rows={3} /><button type="button" onClick={addNote} disabled={busy || !noteText.trim()}>{busy ? "Saving…" : "Add Note"}</button></div><div className={styles.noteList}>{selectedNotes.length ? selectedNotes.map((note) => <article key={note.id} className={styles.noteCard}><div className={styles.noteMeta}><strong>{note.author_name}</strong><span>{dateTimeLabel(note.created_at)}</span></div><p>{note.note_text}</p></article>) : <div className={styles.noNotes}>No notes yet.</div>}</div></section>
 
