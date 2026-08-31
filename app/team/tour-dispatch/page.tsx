@@ -5,6 +5,7 @@ import LogoutButton from "../readiness/LogoutButton";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
 import TourDispatchTable, { type TourDispatchRow } from "./TourDispatchTable";
+import { PrintAllVehicleTagsButton } from "./NativePrintButton";
 import shellStyles from "../readiness/ReadinessShell.module.css";
 import styles from "./TourDispatch.module.css";
 
@@ -39,6 +40,13 @@ export default async function TourDispatchPage() {
     error = err instanceof Error ? err.message : "Unable to load today's tours.";
   }
 
+  const printCards = rows.map((row) => ({
+    customer_name: row.customer_name,
+    product_display_name: row.product_display_name,
+    visit_start_time: row.visit_start_time,
+    confirmation_code: row.confirmation_code,
+  }));
+
   return (
     <div className={shellStyles.page}>
       <TeamSidebar active="Tour Dispatch" />
@@ -51,7 +59,10 @@ export default async function TourDispatchPage() {
           </div>
         </header>
         <section className={styles.content}>
-          <div className={styles.intro}>Today’s guest-driven MPWR tour vehicles. Enter the assigned car number, starting mileage, and engine hours to prepare the vehicle checkout.</div>
+          <div className={styles.introRow}>
+            <div className={styles.intro}>Today’s guest-driven MPWR tour vehicles. Enter the assigned car number, starting mileage, and engine hours to prepare the vehicle checkout.</div>
+            {!error && rows.length ? <div className={styles.printAllWrap}><PrintAllVehicleTagsButton cards={printCards} /></div> : null}
+          </div>
           {error ? <div className={shellStyles.error}>{error}</div> : <TourDispatchTable rows={rows} />}
         </section>
       </main>
