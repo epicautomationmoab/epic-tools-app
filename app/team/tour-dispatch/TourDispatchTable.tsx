@@ -31,6 +31,8 @@ function formatTime(value: string) {
   return `${hour24 % 12 || 12}:${match[2]} ${suffix}`;
 }
 function departureLocked(status: string) { return ["checkout_queued", "checking_out", "out"].includes(status); }
+function returnInProgress(status: string) { return ["checkin_queued", "checking_in"].includes(status); }
+function returnComplete(status: string) { return ["returned", "completed", "checked_in"].includes(status); }
 
 export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] }) {
   const initialDrafts = useMemo(() => Object.fromEntries(rows.map((row) => [keyFor(row), {
@@ -164,8 +166,9 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
           {!locked ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Preparing…" : "Check Out Vehicle"}</button> : null}
           {status === "checkout_queued" ? <span className={styles.axelPill}>Checkout Prepared</span> : null}
           {status === "checking_out" ? <span className={styles.axelPill}>Checkout In Progress…</span> : null}
-          {status === "out" && checkinStatus !== "checkin_queued" ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
-          {checkinStatus === "checkin_queued" ? <span className={styles.statusPill}>Vehicle Returned</span> : null}
+          {status === "out" && !returnInProgress(checkinStatus) && !returnComplete(checkinStatus) ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
+          {returnInProgress(checkinStatus) ? <span className={styles.axelPill}>Check-In In Progress…</span> : null}
+          {returnComplete(checkinStatus) ? <span className={styles.statusPill}>Vehicle Returned</span> : null}
           {message ? <span className={message.includes("Unable") || message.includes("Enter ") ? styles.error : styles.saved}>{message}</span> : null}
         </td>
       </tr>;
