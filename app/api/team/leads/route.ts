@@ -1,0 +1,118 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+
+function getSupabaseConfig() {
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SECRET_KEY?.trim();
+  if (!rawUrl || !key) throw new Error("Supabase server environment variables are missing.");
+  const url = (/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`).replace(/\/+$/, "");
+  return { url, key };
+}
+
+async function rest<T>(path: string, init?: RequestInit): Promise<T> {
+  const { url, key } = getSupabaseConfig();
+  const response = await fetch(`${url}/rest/v1/${path}`, {
+    ...init,
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+    cache: "no-store",
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(text || `Supabase request failed (${response.status}).`);
+  return text ? JSON.parse(text) as T : undefined as T;
+}
+
+async function requireEmployee(request: NextRequest) {
+  const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+  if (!profile || profile.role === "workstation") return null;
+  return profile;
+}
+
+export async function POST(request: NextRequest) {
+  const profile = await requireEmployee(request);
+  if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
+
+  const body = await request.json().catch(() => null) as {
+    action?: "claim" | "note";
+    opportunity_id?: string;
+    note_text?: string;
+  } | null;
+
+  const opportunityId = body?.opportunity_id?.trim();
+  if (!opportunityId) return NextResponse.json({ error: "Opportunity is required." }, { status: 400 });
+
+  try {
+    if (body?.action === "claim") {
+      const rows = await rest<Array<{ id: string; status: string; claimed_by_profile_id: string | null; claimed_by_name: string | null }>>(
+        `sales_opportunities?id=eq.${encodeURIComponent(opportunityId)}&select=id,status,claimed_by_profile_id,claimed_by_name&limit=1`,
+      );
+      const opportunity = rows[0];
+      if (!opportunity) return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+      if (opportunity.status !== "open") return NextResponse.json({ error: "This lead is no longer open." }, { status: 409 });
+      if (opportunity.claimed_by_profile_id && opportunity.claimed_by_profile_id !== profile.id) {
+        return NextResponse.json({ error: `Already claimed by ${opportunity.claimed_by_name || "another rep"}.` }, { status: 409 });
+      }
+
+      const now = new Date().toISOString();
+      await rest<void>(`sales_opportunities?id=eq.${encodeURIComponent(opportunityId)}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({
+          claimed_at: now,
+          claimed_by_profile_id: profile.id,
+          claimed_by_name: profile.display_name,
+          assigned_rep_name: profile.display_name,
+          assigned_rep_tw_user_id: profile.tripworks_user_id,
+          updated_at: now,
+        }),
+      });
+
+      const existingOpen = await rest<Array<{ id: string }>>(
+        `sales_opportunity_assignment_history?opportunity_id=eq.${encodeURIComponent(opportunityId)}&unassigned_at=is.null&select=id`,
+      );
+      if (!existingOpen.length) {
+        await rest<void>("sales_opportunity_assignment_history", {
+          method: "POST",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify({
+            opportunity_id: opportunityId,
+            assigned_profile_id: profile.id,
+            assigned_rep_name: profile.display_name,
+            assignment_source: "manual_claim",
+          }),
+        });
+      }
+
+      return NextResponse.json({ ok: true, claimed_by_name: profile.display_name, claimed_at: now });
+    }
+
+    if (body?.action === "note") {
+      const noteText = body.note_text?.trim() || "";
+      if (!noteText) return NextResponse.json({ error: "Note cannot be blank." }, { status: 400 });
+      if (noteText.length > 4000) return NextResponse.json({ error: "Note is too long." }, { status: 400 });
+
+      const rows = await rest<Array<{ id: string; author_name: string; note_text: string; created_at: string }>>("sales_opportunity_notes", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          opportunity_id: opportunityId,
+          author_profile_id: profile.id,
+          author_name: profile.display_name,
+          note_text: noteText,
+        }),
+      });
+      return NextResponse.json({ ok: true, note: rows[0] });
+    }
+
+    return NextResponse.json({ error: "Unknown action." }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unable to update lead." },
+      { status: 500 },
+    );
+  }
+}
