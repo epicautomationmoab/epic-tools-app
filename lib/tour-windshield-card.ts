@@ -30,12 +30,20 @@ function fitTextSize(value: string, preferred: number, minimum: number, maxChars
   return Math.max(minimum, Math.floor(preferred * maxCharsAtPreferred / value.length));
 }
 
+function fitGuestLastName(value: string) {
+  // Impact is condensed; this deliberately makes short and medium names huge while
+  // reducing only when needed so the word stays inside roughly 720pt of usable width.
+  const estimatedCharacterWidth = 0.56;
+  const maxWidth = 720;
+  return Math.max(58, Math.min(176, Math.floor(maxWidth / Math.max(1, value.length * estimatedCharacterWidth))));
+}
+
 export function renderTourWindshieldCardSvg(data: TourWindshieldCardData) {
   const lastName = escapeXml(data.guestLastName.trim().toUpperCase());
   const tourName = escapeXml(data.tourName.trim());
   const departure = escapeXml(mountainTimeLabel(data.departureTime));
   const confirmation = escapeXml(data.confirmationCode.trim().toUpperCase());
-  const lastNameSize = fitTextSize(lastName, 96, 44, 9);
+  const lastNameSize = fitGuestLastName(lastName);
   const tourSize = fitTextSize(tourName, 15, 10, 42);
 
   // US Letter landscape: 792 x 612 points. Fold line runs horizontally at 306 pt.
@@ -47,8 +55,8 @@ export function renderTourWindshieldCardSvg(data: TourWindshieldCardData) {
   <!-- Fold line -->
   <line x1="0" y1="306" x2="792" y2="306" stroke="black" stroke-width="1.5"/>
 
-  <!-- Guest-facing half: oversized fitted last name, no horizontal distortion -->
-  <text x="396" y="500" text-anchor="middle" font-family="Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif" font-size="${lastNameSize}" font-weight="900">${lastName}</text>
+  <!-- Guest-facing half: oversized fitted last name, centered vertically and horizontally -->
+  <text x="396" y="459" text-anchor="middle" dominant-baseline="middle" font-family="Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif" font-size="${lastNameSize}" font-weight="900">${lastName}</text>
 
   <!-- Guide-facing half, rotated for folding -->
   <g transform="rotate(180 396 153)" font-family="Arial, Helvetica, sans-serif" fill="black">
