@@ -92,7 +92,7 @@ export default async function LeadsPage() {
         <div className={styles.kpi}><div className={styles.kpiLabel}>Open Leads</div><div className={styles.kpiValue}>{open.length}</div><div className={styles.kpiSub}>Future opportunities still with sales</div></div>
         <div className={styles.kpi}><div className={styles.kpiLabel}>Lead Conversion</div><div className={styles.kpiValue}>{conversion}%</div><div className={styles.kpiSub}>{booked.length} booked of {legitimatePool} legitimate leads · {retired.length} retired excluded</div></div>
       </section>
-      <div className={styles.toolbar}><div className={styles.tabs}><span className={`${styles.tab} ${styles.tabActive}`}>Open Leads {open.length}</span></div><div className={styles.muted}>30-day shopping episodes · click a lead to work it</div></div>
+      <div className={styles.toolbar}><div className={styles.tabs}><span className={`${styles.tab} ${styles.tabActive}`}>Open Leads {open.length}</span><Link className={styles.tab} href="/team/leads/inbox">Inbox / Needs Review</Link></div><div className={styles.muted}>30-day shopping episodes · click a lead to work it</div></div>
       {!loadError ? <LeadsTable leads={open} draftsByLead={draftsByLead} notesByLead={notesByLead} /> : null}
     </main>
   </div>;
