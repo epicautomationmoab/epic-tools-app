@@ -53,16 +53,39 @@ export type LeadNote = {
   created_at: string;
 };
 
+type CloseMode = "lost" | "retired" | null;
+
+const LOST_REASONS = [
+  ["", "Choose why we lost it…"],
+  ["price", "Price"],
+  ["availability", "Availability"],
+  ["product_mismatch", "Product mismatch"],
+  ["policy_or_qualification", "Policy / qualification"],
+  ["went_elsewhere", "Went elsewhere"],
+  ["plans_changed", "Plans changed"],
+  ["unresponsive", "Unresponsive"],
+  ["timing", "Timing / not ready"],
+  ["other", "Other"],
+] as const;
+
+const RETIRED_REASONS = [
+  ["", "Choose why this is being retired…"],
+  ["fake_or_junk_contact", "Fake / junk contact"],
+  ["duplicate", "Duplicate"],
+  ["test_or_staff_activity", "Test / staff activity"],
+  ["bad_data", "Bad data"],
+  ["not_a_prospect", "Not actually a prospect"],
+  ["other", "Other"],
+] as const;
+
 function dollars(cents: number | null | undefined) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((Number(cents) || 0) / 100);
 }
-
 function dateLabel(value: string) {
   const parsed = new Date(`${value}T12:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
   return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric" }).format(parsed);
 }
-
 function dateWindowLabel(start: string, end: string) {
   if (!end || start === end) return dateLabel(start);
   const a = new Date(`${start}T12:00:00`);
@@ -73,25 +96,17 @@ function dateWindowLabel(start: string, end: string) {
   const right = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(b);
   return `${left} – ${right}`;
 }
-
 function dateTimeLabel(value: string) {
   return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
-
 function timeLabel(value: string | null) {
   if (!value) return "Time not supplied";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", hour: "numeric", minute: "2-digit" }).format(parsed);
 }
-
-function methodLabel(value: string | null) {
-  return (value || "unknown").replaceAll("_", " ");
-}
-
-function tripworksUrl(code: string | null) {
-  return code ? `https://epic4x4.tripworks.com/trip/${encodeURIComponent(code)}/bookings` : null;
-}
+function methodLabel(value: string | null) { return (value || "unknown").replaceAll("_", " "); }
+function tripworksUrl(code: string | null) { return code ? `https://epic4x4.tripworks.com/trip/${encodeURIComponent(code)}/bookings` : null; }
 
 export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads: LeadRow[]; draftsByLead: Record<string, LeadDraft[]>; notesByLead: Record<string, LeadNote[]> }) {
   const [rows, setRows] = useState(leads);
@@ -100,19 +115,24 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
   const [noteText, setNoteText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [closeMode, setCloseMode] = useState<CloseMode>(null);
+  const [closeReason, setCloseReason] = useState("");
+  const [closeNote, setCloseNote] = useState("");
 
   const selected = useMemo(() => rows.find((row) => row.id === selectedId) || null, [rows, selectedId]);
 
   useEffect(() => {
     if (!selected) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSelectedId(null); };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeMode ? setCloseMode(null) : setSelectedId(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected]);
+  }, [selected, closeMode]);
 
   const selectedDrafts = selected ? draftsByLead[selected.id] || [] : [];
   const selectedNotes = selected ? notes[selected.id] || [] : [];
   const primaryDraft = selected ? selectedDrafts.find((draft) => Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id)) || selectedDrafts[0] : undefined;
+
+  function resetClose() { setCloseMode(null); setCloseReason(""); setCloseNote(""); setError(""); }
 
   async function claimLead() {
     if (!selected || busy) return;
@@ -148,13 +168,32 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to add note."); } finally { setBusy(false); }
   }
 
+  async function closeLead() {
+    if (!selected || !closeMode || !closeReason || busy) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/team/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: closeMode === "lost" ? "mark_lost" : "retire", opportunity_id: selected.id, reason: closeReason, note_text: closeNote }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `Unable to mark lead ${closeMode}.`);
+      setRows((current) => current.filter((row) => row.id !== selected.id));
+      setSelectedId(null);
+      resetClose();
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to close lead."); } finally { setBusy(false); }
+  }
+
+  const reasons = closeMode === "lost" ? LOST_REASONS : RETIRED_REASONS;
+
   return <>
     <section className={styles.tableWrap}>
       <table className={styles.table}>
         <thead><tr><th>Customer</th><th>Activity Window</th><th>Best Option</th><th>Method</th><th>Rep</th><th>Drafts</th><th>Lead Value</th></tr></thead>
         <tbody>{rows.map((row) => {
           const draft = (draftsByLead[row.id] || []).find((item) => Number(item.tripworks_trip_id) === Number(row.primary_draft_trip_id));
-          return <tr key={row.id} className={styles.clickableRow} onClick={() => { setSelectedId(row.id); setError(""); }}>
+          return <tr key={row.id} className={styles.clickableRow} onClick={() => { setSelectedId(row.id); setError(""); resetClose(); }}>
             <td><div className={styles.nameLine}><div className={styles.name}>{row.customer_name || "Unknown customer"}</div>{row.is_past_guest ? <span className={styles.vipBadge}>VIP · Past Guest</span> : null}</div><div className={styles.contact}>{row.phone_e164 || row.email || "No contact details"}</div></td>
             <td className={styles.activity}>{dateWindowLabel(row.activity_window_start, row.activity_window_end)}</td>
             <td><div className={styles.experience}>{draft?.experience_name || "TripWorks draft"}</div><div className={styles.contact}>{draft?.option_name || ""}</div></td>
@@ -179,6 +218,20 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
         <div className={styles.drawerContact}>{selected.phone_e164 ? <div><span>Phone</span><strong>{selected.phone_e164}</strong></div> : null}{selected.email ? <div><span>Email</span><strong>{selected.email}</strong></div> : null}</div>
 
         <section className={styles.drawerSection}><h3>Sales Notes</h3><div className={styles.noteComposer}><textarea value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add a sales note, follow-up detail, objection, preference…" rows={3} /><button type="button" onClick={addNote} disabled={busy || !noteText.trim()}>{busy ? "Saving…" : "Add Note"}</button></div><div className={styles.noteList}>{selectedNotes.length ? selectedNotes.map((note) => <article key={note.id} className={styles.noteCard}><div className={styles.noteMeta}><strong>{note.author_name}</strong><span>{dateTimeLabel(note.created_at)}</span></div><p>{note.note_text}</p></article>) : <div className={styles.noNotes}>No notes yet.</div>}</div></section>
+
+        <section className={styles.drawerSection}>
+          <h3>Lead Outcome</h3>
+          <p className={styles.drawerIntro}>Use Lost for a real opportunity Epic did not win. Retire is only for junk, tests, duplicates, bad data, or contacts that were never truly a sales prospect.</p>
+          {!closeMode ? <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" onClick={() => { setCloseMode("lost"); setCloseReason(""); setCloseNote(""); }} style={{ border: "1px solid #d7a000", background: "#fff9df", color: "#695000", borderRadius: 9, padding: "10px 14px", fontWeight: 900, cursor: "pointer" }}>Mark Lost</button>
+            <button type="button" onClick={() => { setCloseMode("retired"); setCloseReason(""); setCloseNote(""); }} style={{ border: "1px solid #d5dbe1", background: "#fff", color: "#52606d", borderRadius: 9, padding: "10px 14px", fontWeight: 900, cursor: "pointer" }}>Retire Lead</button>
+          </div> : <div style={{ border: "1px solid #e2e6ea", background: "#f8fafb", borderRadius: 12, padding: 14, display: "grid", gap: 10 }}>
+            <div style={{ fontWeight: 900 }}>{closeMode === "lost" ? "Mark this opportunity Lost" : "Retire this lead"}</div>
+            <select value={closeReason} onChange={(event) => setCloseReason(event.target.value)} style={{ width: "100%", padding: "10px 11px", border: "1px solid #d5dce3", borderRadius: 9, background: "white", font: "inherit" }}>{reasons.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+            <textarea value={closeNote} onChange={(event) => setCloseNote(event.target.value)} rows={2} placeholder={closeMode === "lost" ? "Optional context for post-mortem or training…" : "Optional context…"} style={{ width: "100%", padding: "10px 11px", border: "1px solid #d5dce3", borderRadius: 9, font: "inherit", resize: "vertical" }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}><button type="button" onClick={resetClose} disabled={busy} style={{ border: "1px solid #d5dbe1", background: "white", borderRadius: 8, padding: "9px 12px", fontWeight: 800, cursor: "pointer" }}>Cancel</button><button type="button" onClick={closeLead} disabled={busy || !closeReason || (closeReason === "other" && !closeNote.trim())} style={{ border: 0, background: closeMode === "lost" ? "#d7a000" : "#596572", color: "white", borderRadius: 8, padding: "9px 13px", fontWeight: 900, cursor: "pointer", opacity: busy || !closeReason || (closeReason === "other" && !closeNote.trim()) ? .5 : 1 }}>{busy ? "Saving…" : closeMode === "lost" ? "Mark Lost" : "Retire Lead"}</button></div>
+          </div>}
+        </section>
 
         <section className={styles.drawerSection}><h3>TripWorks Drafts</h3><p className={styles.drawerIntro}>Every shopping option grouped into this one 30-day shopping episode. The highest-value option sets the current Lead Value.</p><div className={styles.draftList}>{selectedDrafts.map((draft) => {
           const isPrimary = Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id);
