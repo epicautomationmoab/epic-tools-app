@@ -61,7 +61,7 @@ export default async function TourDispatchPage() {
         <section className={styles.content}>
           <div className={styles.introRow}>
             <div className={styles.intro}>Today’s guest-driven MPWR tour vehicles. Enter the assigned car number, starting mileage, and engine hours to prepare the vehicle checkout.</div>
-            {!error && rows.length ? <div className={styles.printAllWrap}><PrintAllVehicleTagsButton cards={printCards} /></div> : null}
+            {!error && rows.length ? <div className={styles.printAllWrap}><PrintAllVehicleTagsButton className={styles.printAllButton} cards={printCards} /></div> : null}
           </div>
           {error ? <div className={shellStyles.error}>{error}</div> : <TourDispatchTable rows={rows} />}
         </section>
