@@ -45,6 +45,11 @@ async function resolveIdentifiers() {
   return identifiersPromise;
 }
 
+export async function getCallRailTextConversation(conversationId: string) {
+  const { accountId } = await resolveIdentifiers();
+  return callRailGet(`/v3/a/${encodeURIComponent(accountId)}/text-messages/${encodeURIComponent(conversationId)}.json?per_page=100`);
+}
+
 export async function sendCallRailSms(input: {
   phone: string;
   body: string;
@@ -71,7 +76,7 @@ export async function sendCallRailSms(input: {
     throw new Error(
       (typeof data.message === "string" && data.message) ||
         (typeof errors === "string" && errors) ||
-        "CallRail could not send the agreement text.",
+        "CallRail could not send the text message.",
     );
   }
 
