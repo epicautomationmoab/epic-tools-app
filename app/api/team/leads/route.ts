@@ -31,6 +31,53 @@ async function requireEmployee(request: NextRequest) {
 const LOST_REASONS = new Set(["price", "availability", "product_mismatch", "policy_or_qualification", "went_elsewhere", "plans_changed", "unresponsive", "timing", "other"]);
 const RETIRED_REASONS = new Set(["fake_or_junk_contact", "duplicate", "test_or_staff_activity", "bad_data", "not_a_prospect", "other"]);
 
+export async function GET(request: NextRequest) {
+  const profile = await requireEmployee(request);
+  if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
+  const opportunityId = request.nextUrl.searchParams.get("opportunity_id")?.trim();
+  if (!opportunityId) return NextResponse.json({ error: "Opportunity is required." }, { status: 400 });
+
+  try {
+    const messages = await rest<Array<{
+      message_id: string;
+      conversation_id: string | null;
+      direction: string;
+      source_number: string | null;
+      destination_number: string | null;
+      message_body: string | null;
+      sent_at: string | null;
+      first_received_at: string;
+      agent_name: string | null;
+      person_resource_id: string | null;
+      thread_resource_id?: string | null;
+    }>>(
+      `callrail_text_messages?matched_opportunity_id=eq.${encodeURIComponent(opportunityId)}&select=${encodeURIComponent("message_id,conversation_id,direction,source_number,destination_number,message_body,sent_at,first_received_at,agent_name,person_resource_id")}&order=sent_at.asc.nullslast,first_received_at.asc`,
+    );
+
+    const calls = await rest<Array<{
+      callrail_call_id: string;
+      direction: string | null;
+      call_type: string | null;
+      answered: boolean | null;
+      voicemail: boolean | null;
+      start_time: string | null;
+      duration_seconds: number | null;
+      tracking_phone_number: string | null;
+      recording_player_url: string | null;
+      recording_url: string | null;
+      call_summary: string | null;
+      transcription_text: string | null;
+      last_received_at: string;
+    }>>(
+      `callrail_calls?matched_opportunity_id=eq.${encodeURIComponent(opportunityId)}&select=${encodeURIComponent("callrail_call_id,direction,call_type,answered,voicemail,start_time,duration_seconds,tracking_phone_number,recording_player_url,recording_url,call_summary,transcription_text,last_received_at")}&order=start_time.asc.nullslast,last_received_at.asc`,
+    );
+
+    return NextResponse.json({ ok: true, messages, calls });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load conversation history." }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   const profile = await requireEmployee(request);
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
