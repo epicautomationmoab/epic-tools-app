@@ -164,7 +164,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
         <td><input value={draft.hours} onChange={(e) => updateDraft(key, "hours", e.target.value)} inputMode="decimal" disabled={locked} /></td>
         <td className={styles.saveCell}>
           {!locked ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Preparing…" : "Check Out Vehicle"}</button> : null}
-          {status === "checkout_queued" ? <span className={styles.axelPill}>Checkout Prepared</span> : null}
+          {status === "checkout_queued" ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Retrying…" : "Retry Checkout"}</button> : null}
           {status === "checking_out" ? <span className={styles.axelPill}>Checkout In Progress…</span> : null}
           {status === "out" && !returnInProgress(checkinStatus) && !returnComplete(checkinStatus) ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
           {returnInProgress(checkinStatus) ? <span className={styles.axelPill}>Check-In In Progress…</span> : null}
