@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { PrintSingleVehicleTagButton } from "./NativePrintButton";
 import styles from "./TourDispatch.module.css";
 
 export type TourDispatchRow = {
@@ -42,7 +43,6 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
   const [statuses, setStatuses] = useState<Record<string, string>>(Object.fromEntries(rows.map((row) => [keyFor(row), row.checkout_status])));
   const [checkinStatuses, setCheckinStatuses] = useState<Record<string, string>>(Object.fromEntries(rows.map((row) => [keyFor(row), row.checkin_status])));
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [printBusyKey, setPrintBusyKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -71,29 +71,6 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
   function updateDraft(key: string, field: keyof Draft, value: string) {
     setDrafts((current) => ({ ...current, [key]: { ...current[key], [field]: value } }));
     setMessages((current) => ({ ...current, [key]: "" }));
-  }
-
-  async function printCard(row: TourDispatchRow) {
-    const key = keyFor(row);
-    setPrintBusyKey(key);
-    setMessages((current) => ({ ...current, [key]: "" }));
-    try {
-      const response = await fetch("/api/team/tour-dispatch/print-card", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          store_visit_id: row.store_visit_id,
-          vehicle_slot: row.vehicle_slot,
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error || "Unable to queue windshield card.");
-      setMessages((current) => ({ ...current, [key]: "Windshield card queued to print." }));
-    } catch (error) {
-      setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to queue windshield card." }));
-    } finally {
-      setPrintBusyKey(null);
-    }
   }
 
   async function queueCheckout(row: TourDispatchRow) {
@@ -162,24 +139,32 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       const checkinStatus = checkinStatuses[key] ?? row.checkin_status;
       const locked = departureLocked(status);
       const busy = busyKey === key;
-      const printBusy = printBusyKey === key;
       const message = messages[key];
 
       return <tr key={key}>
-        <td><strong>{row.customer_name}</strong>{row.total_vehicle_count > 1 ? <span className={styles.slot}>Vehicle {row.vehicle_slot} of {row.total_vehicle_count}</span> : null}</td>
+        <td>
+          <strong>{row.customer_name}</strong>
+          {row.total_vehicle_count > 1 ? <span className={styles.slot}>Vehicle {row.vehicle_slot} of {row.total_vehicle_count}</span> : null}
+          <PrintSingleVehicleTagButton
+            className={styles.inlinePrintButton}
+            card={{
+              customer_name: row.customer_name,
+              product_display_name: row.product_display_name,
+              visit_start_time: row.visit_start_time,
+              confirmation_code: row.confirmation_code,
+            }}
+          />
+        </td>
         <td>{row.product_display_name}</td>
         <td className={styles.time}>{formatTime(row.visit_start_time)}</td>
         <td><input value={draft.car} onChange={(e) => updateDraft(key, "car", e.target.value)} disabled={locked} /></td>
         <td><input value={draft.mileage} onChange={(e) => updateDraft(key, "mileage", e.target.value)} inputMode="decimal" disabled={locked} /></td>
         <td><input value={draft.hours} onChange={(e) => updateDraft(key, "hours", e.target.value)} inputMode="decimal" disabled={locked} /></td>
         <td className={styles.saveCell}>
-          <div className={styles.actionRow}>
-            <button type="button" className={styles.printButton} onClick={() => printCard(row)} disabled={printBusy}>{printBusy ? "Queuing…" : "Print Card"}</button>
-            {!locked ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Preparing…" : "Check Out Vehicle"}</button> : null}
-            {status === "out" && checkinStatus !== "checkin_queued" ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
-          </div>
+          {!locked ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Preparing…" : "Check Out Vehicle"}</button> : null}
           {status === "checkout_queued" ? <span className={styles.axelPill}>Checkout Prepared</span> : null}
           {status === "checking_out" ? <span className={styles.axelPill}>Checkout In Progress…</span> : null}
+          {status === "out" && checkinStatus !== "checkin_queued" ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
           {checkinStatus === "checkin_queued" ? <span className={styles.statusPill}>Vehicle Returned</span> : null}
           {message ? <span className={message.includes("Unable") || message.includes("Enter ") ? styles.error : styles.saved}>{message}</span> : null}
         </td>
