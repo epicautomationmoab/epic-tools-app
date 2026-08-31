@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
-import { sendCallRailSms } from "@/lib/server/callrail";
+import { getCallRailTextConversation, sendCallRailSms } from "@/lib/server/callrail";
 
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -28,6 +28,18 @@ async function requireEmployee(request: NextRequest) {
   return profile;
 }
 
+function errorText(value: unknown) {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    for (const key of ["message", "description", "detail", "error"]) {
+      if (typeof object[key] === "string" && object[key]) return object[key] as string;
+    }
+  }
+  return null;
+}
+
 const LOST_REASONS = new Set(["price", "availability", "product_mismatch", "policy_or_qualification", "went_elsewhere", "plans_changed", "unresponsive", "timing", "other"]);
 const RETIRED_REASONS = new Set(["fake_or_junk_contact", "duplicate", "test_or_staff_activity", "bad_data", "not_a_prospect", "other"]);
 
@@ -45,14 +57,47 @@ export async function GET(request: NextRequest) {
       source_number: string | null;
       destination_number: string | null;
       message_body: string | null;
+      status: string | null;
       sent_at: string | null;
       first_received_at: string;
       agent_name: string | null;
       person_resource_id: string | null;
-      thread_resource_id?: string | null;
     }>>(
-      `callrail_text_messages?matched_opportunity_id=eq.${encodeURIComponent(opportunityId)}&select=${encodeURIComponent("message_id,conversation_id,direction,source_number,destination_number,message_body,sent_at,first_received_at,agent_name,person_resource_id")}&order=sent_at.asc.nullslast,first_received_at.asc`,
+      `callrail_text_messages?matched_opportunity_id=eq.${encodeURIComponent(opportunityId)}&select=${encodeURIComponent("message_id,conversation_id,direction,source_number,destination_number,message_body,status,sent_at,first_received_at,agent_name,person_resource_id")}&order=sent_at.asc.nullslast,first_received_at.asc`,
     );
+
+    const liveByMessageId = new Map<string, { status: string | null; error: string | null }>();
+    const conversationIds = [...new Set(messages.map((message) => message.conversation_id).filter((value): value is string => Boolean(value)))];
+
+    await Promise.all(conversationIds.map(async (conversationId) => {
+      try {
+        const conversation = await getCallRailTextConversation(conversationId);
+        const liveMessages = Array.isArray(conversation.messages) ? conversation.messages as Array<Record<string, unknown>> : [];
+        for (const live of liveMessages) {
+          const id = live.id == null ? "" : String(live.id);
+          if (!id) continue;
+          const status = typeof live.status === "string" ? live.status.toLowerCase() : null;
+          const detail = errorText(live.error);
+          liveByMessageId.set(id, { status, error: detail });
+        }
+      } catch (error) {
+        console.warn("CallRail conversation status lookup failed", conversationId, error);
+      }
+    }));
+
+    const reconciledMessages = messages.map((message) => {
+      const live = liveByMessageId.get(message.message_id);
+      const deliveryStatus = live?.status || message.status || null;
+      return { ...message, delivery_status: deliveryStatus, delivery_error: live?.error || null };
+    });
+
+    await Promise.allSettled(reconciledMessages
+      .filter((message) => message.direction === "outbound" && message.delivery_status && message.delivery_status !== message.status)
+      .map((message) => rest<void>(`callrail_text_messages?message_id=eq.${encodeURIComponent(message.message_id)}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ status: message.delivery_status, last_received_at: new Date().toISOString() }),
+      })));
 
     const calls = await rest<Array<{
       callrail_call_id: string;
@@ -72,7 +117,7 @@ export async function GET(request: NextRequest) {
       `callrail_calls?matched_opportunity_id=eq.${encodeURIComponent(opportunityId)}&select=${encodeURIComponent("callrail_call_id,direction,call_type,answered,voicemail,start_time,duration_seconds,tracking_phone_number,recording_player_url,recording_url,call_summary,transcription_text,last_received_at")}&order=start_time.asc.nullslast,last_received_at.asc`,
     );
 
-    return NextResponse.json({ ok: true, messages, calls });
+    return NextResponse.json({ ok: true, messages: reconciledMessages, calls });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load conversation history." }, { status: 500 });
   }
