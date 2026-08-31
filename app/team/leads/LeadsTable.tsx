@@ -4,172 +4,55 @@ import { useEffect, useMemo, useState } from "react";
 import styles from "./Leads.module.css";
 
 export type LeadRow = {
-  id: string;
-  customer_name: string | null;
-  email: string | null;
-  phone_e164: string | null;
-  activity_date: string;
-  activity_window_start: string;
-  activity_window_end: string;
-  shopping_started_at: string | null;
-  shopping_last_activity_at: string | null;
-  lead_value_cents: number;
-  draft_count: number;
-  source_method: string | null;
-  assigned_rep_name: string | null;
-  primary_draft_trip_id: number | null;
-  contact_id: string | null;
-  claimed_at: string | null;
-  claimed_by_profile_id: string | null;
-  claimed_by_name: string | null;
-  is_past_guest: boolean;
-  prior_booking_count: number;
-  last_prior_booking_at: string | null;
-  tripworks_customer_code: string | null;
-  tripworks_is_opt_in: boolean | null;
-  tripworks_identity_verified_at: string | null;
+  id: string; customer_name: string | null; email: string | null; phone_e164: string | null; activity_date: string; activity_window_start: string; activity_window_end: string; shopping_started_at: string | null; shopping_last_activity_at: string | null; lead_value_cents: number; draft_count: number; source_method: string | null; assigned_rep_name: string | null; primary_draft_trip_id: number | null; contact_id: string | null; claimed_at: string | null; claimed_by_profile_id: string | null; claimed_by_name: string | null; is_past_guest: boolean; prior_booking_count: number; last_prior_booking_at: string | null; tripworks_customer_code: string | null; tripworks_is_opt_in: boolean | null; tripworks_identity_verified_at: string | null;
 };
 
-export type LeadDraft = {
-  id: string;
-  tripworks_trip_id: number;
-  confirmation_code: string | null;
-  customer_name: string | null;
-  email: string | null;
-  phone_e164: string | null;
-  activity_date: string;
-  start_time: string | null;
-  experience_name: string | null;
-  option_name: string | null;
-  value_cents: number | null;
-  trip_method: string | null;
-  created_by_name: string | null;
-  tripworks_created_at: string | null;
-  last_seen_at: string | null;
-};
-
-export type LeadNote = {
-  id: string;
-  opportunity_id: string;
-  author_name: string;
-  note_text: string;
-  created_at: string;
-};
-
+export type LeadDraft = { id: string; tripworks_trip_id: number; confirmation_code: string | null; customer_name: string | null; email: string | null; phone_e164: string | null; activity_date: string; start_time: string | null; experience_name: string | null; option_name: string | null; value_cents: number | null; trip_method: string | null; created_by_name: string | null; tripworks_created_at: string | null; last_seen_at: string | null; };
+export type LeadNote = { id: string; opportunity_id: string; author_name: string; note_text: string; created_at: string; };
+type CallRailMessage = { message_id: string; conversation_id: string | null; direction: string; source_number: string | null; destination_number: string | null; message_body: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null; person_resource_id: string | null; };
+type CallRailCall = { callrail_call_id: string; direction: string | null; call_type: string | null; answered: boolean | null; voicemail: boolean | null; start_time: string | null; duration_seconds: number | null; tracking_phone_number: string | null; recording_player_url: string | null; recording_url: string | null; call_summary: string | null; transcription_text: string | null; last_received_at: string; };
+type TimelineItem = { id: string; kind: "sms" | "call"; at: string; direction: string; body: string; meta: string; href?: string | null; };
 type CloseMode = "lost" | "retired" | null;
 
-const LOST_REASONS = [
-  ["", "Choose why we lost it…"],
-  ["price", "Price"],
-  ["availability", "Availability"],
-  ["product_mismatch", "Product mismatch"],
-  ["policy_or_qualification", "Policy / qualification"],
-  ["went_elsewhere", "Went elsewhere"],
-  ["plans_changed", "Plans changed"],
-  ["unresponsive", "Unresponsive"],
-  ["timing", "Timing / not ready"],
-  ["other", "Other"],
-] as const;
+const LOST_REASONS = [["", "Choose why we lost it…"],["price", "Price"],["availability", "Availability"],["product_mismatch", "Product mismatch"],["policy_or_qualification", "Policy / qualification"],["went_elsewhere", "Went elsewhere"],["plans_changed", "Plans changed"],["unresponsive", "Unresponsive"],["timing", "Timing / not ready"],["other", "Other"]] as const;
+const RETIRED_REASONS = [["", "Choose why this is being retired…"],["fake_or_junk_contact", "Fake / junk contact"],["duplicate", "Duplicate"],["test_or_staff_activity", "Test / staff activity"],["bad_data", "Bad data"],["not_a_prospect", "Not actually a prospect"],["other", "Other"]] as const;
 
-const RETIRED_REASONS = [
-  ["", "Choose why this is being retired…"],
-  ["fake_or_junk_contact", "Fake / junk contact"],
-  ["duplicate", "Duplicate"],
-  ["test_or_staff_activity", "Test / staff activity"],
-  ["bad_data", "Bad data"],
-  ["not_a_prospect", "Not actually a prospect"],
-  ["other", "Other"],
-] as const;
-
-function dollars(cents: number | null | undefined) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((Number(cents) || 0) / 100);
-}
-function dateLabel(value: string) {
-  const parsed = new Date(`${value}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric" }).format(parsed);
-}
-function dateWindowLabel(start: string, end: string) {
-  if (!end || start === end) return dateLabel(start);
-  const a = new Date(`${start}T12:00:00`);
-  const b = new Date(`${end}T12:00:00`);
-  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return `${start} – ${end}`;
-  const sameYear = a.getFullYear() === b.getFullYear();
-  const left = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) }).format(a);
-  const right = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(b);
-  return `${left} – ${right}`;
-}
-function dateTimeLabel(value: string) {
-  return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
-}
-function tripworksActivityTimeLabel(value: string | null) {
-  if (!value) return "Time not supplied";
-  const match = value.match(/[T ](\d{2}):(\d{2})/);
-  if (!match) return value;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return value;
-  const wallClock = new Date(Date.UTC(2000, 0, 1, hour, minute));
-  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(wallClock);
-}
+function dollars(cents: number | null | undefined) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format((Number(cents) || 0) / 100); }
+function dateLabel(value: string) { const parsed = new Date(`${value}T12:00:00`); if (Number.isNaN(parsed.getTime())) return value; return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric" }).format(parsed); }
+function dateWindowLabel(start: string, end: string) { if (!end || start === end) return dateLabel(start); const a = new Date(`${start}T12:00:00`); const b = new Date(`${end}T12:00:00`); if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return `${start} – ${end}`; const sameYear = a.getFullYear() === b.getFullYear(); const left = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) }).format(a); const right = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(b); return `${left} – ${right}`; }
+function dateTimeLabel(value: string) { return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value)); }
+function tripworksActivityTimeLabel(value: string | null) { if (!value) return "Time not supplied"; const match = value.match(/[T ](\d{2}):(\d{2})/); if (!match) return value; const hour = Number(match[1]); const minute = Number(match[2]); if (!Number.isFinite(hour) || !Number.isFinite(minute)) return value; const wallClock = new Date(Date.UTC(2000, 0, 1, hour, minute)); return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(wallClock); }
 function methodLabel(value: string | null) { return (value || "unknown").replaceAll("_", " "); }
 function tripworksUrl(code: string | null) { return code ? `https://epic4x4.tripworks.com/trip/${encodeURIComponent(code)}/bookings` : null; }
 function tripworksCustomerUrl(code: string | null) { return code ? `https://epic4x4.tripworks.com/customer/${encodeURIComponent(code)}/trips` : null; }
 function optInLabel(value: boolean | null) { return value === true ? "Opted In" : value === false ? "Opted Out" : "Unknown"; }
 function searchable(value: unknown) { return String(value ?? "").toLowerCase(); }
+function durationLabel(seconds: number | null) { if (!seconds) return ""; const minutes = Math.floor(seconds / 60); const remainder = seconds % 60; return minutes ? `${minutes}m ${remainder}s` : `${remainder}s`; }
 
 export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads: LeadRow[]; draftsByLead: Record<string, LeadDraft[]>; notesByLead: Record<string, LeadNote[]> }) {
-  const [rows, setRows] = useState(leads);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [notes, setNotes] = useState(notesByLead);
-  const [noteText, setNoteText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [closeMode, setCloseMode] = useState<CloseMode>(null);
-  const [closeReason, setCloseReason] = useState("");
-  const [closeNote, setCloseNote] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [smsText, setSmsText] = useState("");
-  const [smsStatus, setSmsStatus] = useState("");
+  const [rows, setRows] = useState(leads); const [selectedId, setSelectedId] = useState<string | null>(null); const [notes, setNotes] = useState(notesByLead); const [noteText, setNoteText] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [closeMode, setCloseMode] = useState<CloseMode>(null); const [closeReason, setCloseReason] = useState(""); const [closeNote, setCloseNote] = useState(""); const [searchQuery, setSearchQuery] = useState(""); const [smsText, setSmsText] = useState(""); const [smsStatus, setSmsStatus] = useState(""); const [conversationMessages, setConversationMessages] = useState<CallRailMessage[]>([]); const [conversationCalls, setConversationCalls] = useState<CallRailCall[]>([]); const [conversationLoading, setConversationLoading] = useState(false); const [conversationError, setConversationError] = useState("");
 
   const selected = useMemo(() => rows.find((row) => row.id === selectedId) || null, [rows, selectedId]);
-  const filteredRows = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return rows;
-    const tokens = query.split(/\s+/).filter(Boolean);
-    const queryDigits = query.replace(/\D/g, "");
+  const filteredRows = useMemo(() => { const query = searchQuery.trim().toLowerCase(); if (!query) return rows; const tokens = query.split(/\s+/).filter(Boolean); const queryDigits = query.replace(/\D/g, ""); return rows.filter((row) => { const drafts = draftsByLead[row.id] || []; const parts: unknown[] = [row.customer_name,row.phone_e164,row.email,row.tripworks_customer_code,row.source_method,row.assigned_rep_name,row.claimed_by_name,row.activity_window_start,row.activity_window_end,row.contact_id]; for (const draft of drafts) parts.push(draft.confirmation_code,draft.tripworks_trip_id,draft.customer_name,draft.phone_e164,draft.email,draft.experience_name,draft.option_name,draft.activity_date,draft.trip_method,draft.created_by_name); const haystack = parts.map(searchable).join(" "); const digits = haystack.replace(/\D/g, ""); return tokens.every((token) => haystack.includes(token)) || (queryDigits.length >= 4 && digits.includes(queryDigits)); }); }, [rows, draftsByLead, searchQuery]);
 
-    return rows.filter((row) => {
-      const drafts = draftsByLead[row.id] || [];
-      const parts: unknown[] = [row.customer_name,row.phone_e164,row.email,row.tripworks_customer_code,row.source_method,row.assigned_rep_name,row.claimed_by_name,row.activity_window_start,row.activity_window_end,row.contact_id];
-      for (const draft of drafts) parts.push(draft.confirmation_code,draft.tripworks_trip_id,draft.customer_name,draft.phone_e164,draft.email,draft.experience_name,draft.option_name,draft.activity_date,draft.trip_method,draft.created_by_name);
-      const haystack = parts.map(searchable).join(" ");
-      const digits = haystack.replace(/\D/g, "");
-      return tokens.every((token) => haystack.includes(token)) || (queryDigits.length >= 4 && digits.includes(queryDigits));
-    });
-  }, [rows, draftsByLead, searchQuery]);
+  async function loadConversation(opportunityId: string) { setConversationLoading(true); setConversationError(""); try { const response = await fetch(`/api/team/leads?opportunity_id=${encodeURIComponent(opportunityId)}`, { cache: "no-store" }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error || "Unable to load conversation history."); setConversationMessages(payload.messages || []); setConversationCalls(payload.calls || []); } catch (err) { setConversationError(err instanceof Error ? err.message : "Unable to load conversation history."); } finally { setConversationLoading(false); } }
 
-  useEffect(() => {
-    if (!selected) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeMode ? setCloseMode(null) : setSelectedId(null); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [selected, closeMode]);
+  useEffect(() => { if (!selected) return; const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeMode ? setCloseMode(null) : setSelectedId(null); }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [selected, closeMode]);
+  useEffect(() => { setSmsText(""); setSmsStatus(""); setConversationMessages([]); setConversationCalls([]); setConversationError(""); if (selectedId) void loadConversation(selectedId); }, [selectedId]);
 
-  useEffect(() => { setSmsText(""); setSmsStatus(""); }, [selectedId]);
-
-  const selectedDrafts = selected ? draftsByLead[selected.id] || [] : [];
-  const selectedNotes = selected ? notes[selected.id] || [] : [];
-  const primaryDraft = selected ? selectedDrafts.find((draft) => Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id)) || selectedDrafts[0] : undefined;
-  const customerHref = selected ? tripworksCustomerUrl(selected.tripworks_customer_code) : null;
+  const selectedDrafts = selected ? draftsByLead[selected.id] || [] : []; const selectedNotes = selected ? notes[selected.id] || [] : []; const primaryDraft = selected ? selectedDrafts.find((draft) => Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id)) || selectedDrafts[0] : undefined; const customerHref = selected ? tripworksCustomerUrl(selected.tripworks_customer_code) : null;
+  const timeline = useMemo<TimelineItem[]>(() => {
+    const items: TimelineItem[] = conversationMessages.map((message) => ({ id: `sms-${message.message_id}`, kind: "sms", at: message.sent_at || message.first_received_at, direction: message.direction || "unknown", body: message.message_body || "(No message body)", meta: message.direction === "outbound" ? `Text sent${message.agent_name ? ` by ${message.agent_name}` : ""}` : "Text received" }));
+    for (const call of conversationCalls) items.push({ id: `call-${call.callrail_call_id}`, kind: "call", at: call.start_time || call.last_received_at, direction: call.direction || "unknown", body: call.call_summary || (call.answered === false ? "Missed call" : call.voicemail ? "Voicemail" : "Call"), meta: [call.direction ? `${methodLabel(call.direction)} call` : "Call", durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), href: call.recording_player_url || call.recording_url });
+    return items.sort((a,b)=>new Date(a.at).getTime()-new Date(b.at).getTime());
+  }, [conversationMessages, conversationCalls]);
 
   function resetClose() { setCloseMode(null); setCloseReason(""); setCloseNote(""); setError(""); }
   async function claimLead() { if (!selected || busy) return; setBusy(true); setError(""); try { const response=await fetch("/api/team/leads",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"claim",opportunity_id:selected.id})}); const payload=await response.json(); if(!response.ok) throw new Error(payload.error||"Unable to claim lead."); setRows((current)=>current.map((row)=>row.id===selected.id?{...row,claimed_by_name:payload.claimed_by_name,claimed_at:payload.claimed_at,assigned_rep_name:payload.claimed_by_name}:row)); } catch(err){setError(err instanceof Error?err.message:"Unable to claim lead.");} finally{setBusy(false);} }
   async function releaseLead() { if (!selected || busy) return; setBusy(true); setError(""); try { const response=await fetch("/api/team/leads",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"release",opportunity_id:selected.id})}); const payload=await response.json(); if(!response.ok) throw new Error(payload.error||"Unable to release lead."); setRows((current)=>current.map((row)=>row.id===selected.id?{...row,claimed_by_profile_id:null,claimed_by_name:null,claimed_at:null,assigned_rep_name:null}:row)); } catch(err){setError(err instanceof Error?err.message:"Unable to release lead.");} finally{setBusy(false);} }
   async function addNote() { if (!selected || busy || !noteText.trim()) return; setBusy(true); setError(""); try { const response=await fetch("/api/team/leads",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"note",opportunity_id:selected.id,note_text:noteText})}); const payload=await response.json(); if(!response.ok) throw new Error(payload.error||"Unable to add note."); setNotes((current)=>({...current,[selected.id]:[payload.note,...(current[selected.id]||[])]})); setNoteText(""); } catch(err){setError(err instanceof Error?err.message:"Unable to add note.");} finally{setBusy(false);} }
-  async function sendSms() { if (!selected || busy || !smsText.trim() || selected.tripworks_is_opt_in === false) return; setBusy(true); setError(""); setSmsStatus(""); try { const response=await fetch("/api/team/leads",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"send_sms",opportunity_id:selected.id,message_text:smsText})}); const payload=await response.json(); if(!response.ok) throw new Error(payload.error||"Unable to send text message."); setSmsText(""); setSmsStatus(`Sent ${dateTimeLabel(payload.sent_at)}`); } catch(err){setError(err instanceof Error?err.message:"Unable to send text message.");} finally{setBusy(false);} }
+  async function sendSms() { if (!selected || busy || !smsText.trim() || selected.tripworks_is_opt_in === false) return; setBusy(true); setError(""); setSmsStatus(""); try { const response=await fetch("/api/team/leads",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"send_sms",opportunity_id:selected.id,message_text:smsText})}); const payload=await response.json(); if(!response.ok) throw new Error(payload.error||"Unable to send text message."); setSmsText(""); setSmsStatus(`Sent ${dateTimeLabel(payload.sent_at)}`); window.setTimeout(()=>void loadConversation(selected.id),700); } catch(err){setError(err instanceof Error?err.message:"Unable to send text message.");} finally{setBusy(false);} }
   async function closeLead() { if(!selected||!closeMode||!closeReason||busy)return; setBusy(true); setError(""); try{const response=await fetch("/api/team/leads",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:closeMode==="lost"?"mark_lost":"retire",opportunity_id:selected.id,reason:closeReason,note_text:closeNote})});const payload=await response.json();if(!response.ok)throw new Error(payload.error||`Unable to mark lead ${closeMode}.`);setRows((current)=>current.filter((row)=>row.id!==selected.id));setSelectedId(null);resetClose();}catch(err){setError(err instanceof Error?err.message:"Unable to close lead.");}finally{setBusy(false);} }
-
   const reasons = closeMode === "lost" ? LOST_REASONS : RETIRED_REASONS;
 
   return <>
@@ -183,12 +66,12 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
       <div className={styles.drawerFacts}><div><span>Lead Value</span><strong>{dollars(selected.lead_value_cents)}</strong></div><div><span>Epic Contact ID</span><strong className={styles.contactId}>{selected.contact_id||"Not linked"}</strong></div><div><span>Method</span><strong>{methodLabel(selected.source_method)}</strong></div><div><span>Best Option</span><strong>{primaryDraft?.experience_name||"TripWorks draft"}</strong></div></div>
       <div className={styles.drawerContact}>{selected.phone_e164?<div><span>Phone</span><strong>{selected.phone_e164}</strong></div>:null}{selected.email?<div><span>Email</span><strong>{selected.email}</strong></div>:null}<div><span>SMS / Marketing</span><strong>{optInLabel(selected.tripworks_is_opt_in)}</strong></div>{selected.tripworks_customer_code?<div><span>TripWorks Customer</span><strong>{selected.tripworks_customer_code}</strong>{customerHref?<a href={customerHref} target="_blank" rel="noreferrer" onClick={(event)=>event.stopPropagation()}>Open Customer in TripWorks ↗</a>:null}</div>:null}</div>
 
+      <section className={styles.drawerSection}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}><h3 style={{margin:0}}>Conversation</h3><button type="button" onClick={()=>void loadConversation(selected.id)} disabled={conversationLoading} style={{border:"1px solid #d5dbe1",background:"white",borderRadius:8,padding:"7px 10px",fontWeight:800,cursor:"pointer"}}>{conversationLoading?"Refreshing…":"Refresh"}</button></div>{conversationError?<div className={styles.drawerError}>{conversationError}</div>:null}{conversationLoading && timeline.length===0?<div className={styles.noNotes}>Loading CallRail history…</div>:timeline.length?<div style={{display:"grid",gap:10,marginTop:12}}>{timeline.map((item)=>{const outbound=item.direction==="outbound";return <article key={item.id} style={{maxWidth:"82%",marginLeft:outbound?"auto":0,marginRight:outbound?0:"auto",border:"1px solid #dce3e9",background:outbound?"#f3f7fb":"#fff",borderRadius:14,padding:"11px 13px"}}><div style={{display:"flex",gap:10,justifyContent:"space-between",fontSize:12,fontWeight:800,color:"#687686",marginBottom:6}}><span>{item.kind==="sms"?(outbound?"Epic → Customer":"Customer → Epic"):item.meta}</span><span>{dateTimeLabel(item.at)}</span></div><div style={{fontSize:15,lineHeight:1.45,whiteSpace:"pre-wrap"}}>{item.body}</div>{item.kind==="call"&&item.href?<a href={item.href} target="_blank" rel="noreferrer" style={{display:"inline-block",marginTop:8,fontWeight:800}}>Listen to recording ↗</a>:null}</article>;})}</div>:<div className={styles.noNotes} style={{marginTop:12}}>No matched CallRail communication yet.</div>}</section>
+
       <section className={styles.drawerSection}><h3>Text Customer</h3>{selected.tripworks_is_opt_in !== false?<div className={styles.smsComposer}><div className={styles.smsFrom}>From Epic 4X4 · 435-260-4030{selected.tripworks_is_opt_in===null?" · TripWorks consent unknown":""}</div><textarea value={smsText} onChange={(event)=>setSmsText(event.target.value)} rows={4} maxLength={1600} placeholder="Write a text message…"/><div className={styles.smsActions}><span>{smsStatus||`${smsText.length}/1600`}</span><button type="button" onClick={sendSms} disabled={busy||!smsText.trim()}>{busy?"Sending…":"Send Text"}</button></div></div>:<div className={`${styles.smsLocked} ${styles.smsBlocked}`}><strong>Texting blocked</strong><span>This customer opted out of marketing emails and text communications in TripWorks.</span></div>}</section>
 
       <section className={styles.drawerSection}><h3>Sales Notes</h3><div className={styles.noteComposer}><textarea value={noteText} onChange={(event)=>setNoteText(event.target.value)} placeholder="Add a sales note, follow-up detail, objection, preference…" rows={3}/><button type="button" onClick={addNote} disabled={busy||!noteText.trim()}>{busy?"Saving…":"Add Note"}</button></div><div className={styles.noteList}>{selectedNotes.length?selectedNotes.map((note)=><article key={note.id} className={styles.noteCard}><div className={styles.noteMeta}><strong>{note.author_name}</strong><span>{dateTimeLabel(note.created_at)}</span></div><p>{note.note_text}</p></article>):<div className={styles.noNotes}>No notes yet.</div>}</div></section>
-
       <section className={styles.drawerSection}><h3>Lead Outcome</h3><p className={styles.drawerIntro}>Use Lost for a real opportunity Epic did not win. Retire is only for junk, tests, duplicates, bad data, or contacts that were never truly a sales prospect.</p>{!closeMode?<div style={{display:"flex",gap:10,flexWrap:"wrap"}}><button type="button" onClick={()=>{setCloseMode("lost");setCloseReason("");setCloseNote("");}} style={{border:"1px solid #d7a000",background:"#fff9df",color:"#695000",borderRadius:9,padding:"10px 14px",fontWeight:900,cursor:"pointer"}}>Mark Lost</button><button type="button" onClick={()=>{setCloseMode("retired");setCloseReason("");setCloseNote("");}} style={{border:"1px solid #d5dbe1",background:"#fff",color:"#52606d",borderRadius:9,padding:"10px 14px",fontWeight:900,cursor:"pointer"}}>Retire Lead</button></div>:<div style={{border:"1px solid #e2e6ea",background:"#f8fafb",borderRadius:12,padding:14,display:"grid",gap:10}}><div style={{fontWeight:900}}>{closeMode==="lost"?"Mark this opportunity Lost":"Retire this lead"}</div><select value={closeReason} onChange={(event)=>setCloseReason(event.target.value)} style={{width:"100%",padding:"10px 11px",border:"1px solid #d5dce3",borderRadius:9,background:"white",font:"inherit"}}>{reasons.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><textarea value={closeNote} onChange={(event)=>setCloseNote(event.target.value)} rows={2} placeholder={closeMode==="lost"?"Optional context for post-mortem or training…":"Optional context…"} style={{width:"100%",padding:"10px 11px",border:"1px solid #d5dce3",borderRadius:9,font:"inherit",resize:"vertical"}}/><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={resetClose} disabled={busy} style={{border:"1px solid #d5dbe1",background:"white",borderRadius:8,padding:"9px 12px",fontWeight:800,cursor:"pointer"}}>Cancel</button><button type="button" onClick={closeLead} disabled={busy||!closeReason||(closeReason==="other"&&!closeNote.trim())} style={{border:0,background:closeMode==="lost"?"#d7a000":"#596572",color:"white",borderRadius:8,padding:"9px 13px",fontWeight:900,cursor:"pointer",opacity:busy||!closeReason||(closeReason==="other"&&!closeNote.trim())?.5:1}}>{busy?"Saving…":closeMode==="lost"?"Mark Lost":"Retire Lead"}</button></div></div>}</section>
-
       <section className={styles.drawerSection}><h3>TripWorks Drafts</h3><p className={styles.drawerIntro}>Every shopping option grouped into this one 30-day shopping episode. The highest-value option sets the current Lead Value.</p><div className={styles.draftList}>{selectedDrafts.map((draft)=>{const isPrimary=Number(draft.tripworks_trip_id)===Number(selected.primary_draft_trip_id);const href=tripworksUrl(draft.confirmation_code);return <article key={draft.id} className={`${styles.draftCard} ${isPrimary?styles.draftCardPrimary:""}`}><div className={styles.draftCardTop}><div><div className={styles.draftExperience}>{draft.experience_name||"TripWorks draft"}</div><div className={styles.draftOption}>{draft.option_name||"Option not supplied"} · {dateLabel(draft.activity_date)}</div></div><div className={styles.draftValue}>{dollars(draft.value_cents)}</div></div><div className={styles.draftMeta}><span>{tripworksActivityTimeLabel(draft.start_time)}</span><span>{methodLabel(draft.trip_method)}</span>{draft.created_by_name?<span>Created by {draft.created_by_name}</span>:null}<span>{draft.confirmation_code||`TW #${draft.tripworks_trip_id}`}</span>{href?<a href={href} target="_blank" rel="noreferrer" onClick={(event)=>event.stopPropagation()}>Open in TripWorks ↗</a>:null}</div>{isPrimary?<div className={styles.highestBadge}>Sets Lead Value</div>:null}</article>;})}</div></section>
     </aside></div>:null}
   </>;
