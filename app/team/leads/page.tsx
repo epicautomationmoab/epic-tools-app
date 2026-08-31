@@ -1,5 +1,6 @@
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
+import LeadsTable, { type LeadDraft, type LeadRow } from "./LeadsTable";
 import styles from "./Leads.module.css";
 
 function requiredEnv(name: string) {
@@ -23,38 +24,9 @@ function dollars(cents: number | null | undefined) {
   }).format((Number(cents) || 0) / 100);
 }
 
-function dateLabel(value: string) {
-  const parsed = new Date(`${value}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(parsed);
-}
-
-type Opportunity = {
-  id: string;
-  customer_name: string | null;
-  email: string | null;
-  phone_e164: string | null;
-  activity_date: string;
+type Opportunity = LeadRow & {
   status: string;
-  lead_value_cents: number;
   captured_value_cents: number;
-  draft_count: number;
-  source_method: string | null;
-  assigned_rep_name: string | null;
-  matched_booking_confirmation_code: string | null;
-  primary_draft_trip_id: number | null;
-};
-
-type Draft = {
-  tripworks_trip_id: number;
-  experience_name: string | null;
-  option_name: string | null;
-  value_cents: number | null;
 };
 
 async function supabaseRest<T>(path: string): Promise<T> {
@@ -71,60 +43,77 @@ async function supabaseRest<T>(path: string): Promise<T> {
 }
 
 async function getLeads() {
-  const select = encodeURIComponent(
-    "id,customer_name,email,phone_e164,activity_date,status,lead_value_cents,captured_value_cents,draft_count,source_method,assigned_rep_name,matched_booking_confirmation_code,primary_draft_trip_id",
+  const oppSelect = encodeURIComponent(
+    "id,customer_name,email,phone_e164,activity_date,status,lead_value_cents,captured_value_cents,draft_count,source_method,assigned_rep_name,primary_draft_trip_id",
   );
-  const opportunities = await supabaseRest<Opportunity[]>(
-    `sales_opportunities?select=${select}`,
-  );
+  const opportunities = await supabaseRest<Opportunity[]>(`sales_opportunities?select=${oppSelect}`);
 
-  opportunities.sort((a, b) => {
-    const statusCompare = a.status.localeCompare(b.status);
-    if (statusCompare) return statusCompare;
-    const dateCompare = a.activity_date.localeCompare(b.activity_date);
-    if (dateCompare) return dateCompare;
-    return Number(b.lead_value_cents || 0) - Number(a.lead_value_cents || 0);
-  });
+  const open = opportunities
+    .filter((row) => row.status === "open")
+    .sort((a, b) => {
+      const dateCompare = a.activity_date.localeCompare(b.activity_date);
+      if (dateCompare) return dateCompare;
+      return Number(b.lead_value_cents || 0) - Number(a.lead_value_cents || 0);
+    });
 
-  const primaryIds = [
-    ...new Set(
-      opportunities
-        .map((row) => Number(row.primary_draft_trip_id))
-        .filter((value) => Number.isFinite(value) && value > 0),
-    ),
-  ];
+  const booked = opportunities.filter((row) => row.status === "booked");
+  const openIds = open.map((row) => row.id);
+  let draftsByLead: Record<string, LeadDraft[]> = {};
 
-  let drafts = new Map<number, Draft>();
-  if (primaryIds.length) {
-    const draftSelect = encodeURIComponent("tripworks_trip_id,experience_name,option_name,value_cents");
-    const rows = await supabaseRest<Draft[]>(
-      `sales_drafts?select=${draftSelect}&tripworks_trip_id=in.(${primaryIds.join(",")})`,
+  if (openIds.length) {
+    const quoted = openIds.map((id) => `"${id}"`).join(",");
+    const linkSelect = encodeURIComponent("opportunity_id,draft_id");
+    const links = await supabaseRest<Array<{ opportunity_id: string; draft_id: string }>>(
+      `sales_opportunity_drafts?select=${linkSelect}&opportunity_id=in.(${quoted})`,
     );
-    drafts = new Map(rows.map((row) => [Number(row.tripworks_trip_id), row]));
+
+    const draftIds = [...new Set(links.map((link) => link.draft_id))];
+    if (draftIds.length) {
+      const draftQuoted = draftIds.map((id) => `"${id}"`).join(",");
+      const draftSelect = encodeURIComponent(
+        "id,tripworks_trip_id,customer_name,email,phone_e164,activity_date,start_time,experience_name,option_name,value_cents,trip_method,created_by_name,tripworks_created_at,last_seen_at",
+      );
+      const drafts = await supabaseRest<LeadDraft[]>(
+        `sales_drafts?select=${draftSelect}&id=in.(${draftQuoted})`,
+      );
+      const draftMap = new Map(drafts.map((draft) => [draft.id, draft]));
+      draftsByLead = Object.fromEntries(
+        open.map((lead) => [
+          lead.id,
+          links
+            .filter((link) => link.opportunity_id === lead.id)
+            .map((link) => draftMap.get(link.draft_id))
+            .filter((draft): draft is LeadDraft => Boolean(draft))
+            .sort((a, b) => Number(b.value_cents || 0) - Number(a.value_cents || 0)),
+        ]),
+      );
+    }
   }
 
-  return { opportunities, drafts };
+  return { opportunities, open, booked, draftsByLead };
 }
 
 export default async function LeadsPage() {
-  let opportunities: Opportunity[] = [];
-  let drafts = new Map<number, Draft>();
+  let open: LeadRow[] = [];
+  let booked: Opportunity[] = [];
+  let totalOpportunities = 0;
+  let draftsByLead: Record<string, LeadDraft[]> = {};
   let loadError = "";
 
   try {
     const loaded = await getLeads();
-    opportunities = loaded.opportunities;
-    drafts = loaded.drafts;
+    open = loaded.open;
+    booked = loaded.booked;
+    totalOpportunities = loaded.opportunities.length;
+    draftsByLead = loaded.draftsByLead;
   } catch (error) {
     loadError = error instanceof Error ? error.message : "Unable to load Sales & Leads data.";
     console.error("Sales & Leads load error:", error);
   }
 
-  const open = opportunities.filter((row) => row.status === "open");
-  const booked = opportunities.filter((row) => row.status === "booked");
   const openValue = open.reduce((sum, row) => sum + Number(row.lead_value_cents || 0), 0);
   const capturedValue = booked.reduce((sum, row) => sum + Number(row.captured_value_cents || 0), 0);
-  const conversion = opportunities.length ? Math.round((booked.length / opportunities.length) * 100) : 0;
+  const conversion = totalOpportunities ? Math.round((booked.length / totalOpportunities) * 100) : 0;
 
   return (
     <div className={styles.shell}>
@@ -134,7 +123,7 @@ export default async function LeadsPage() {
           <div>
             <div className={styles.eyebrow}>Epic Tools Sales</div>
             <h1>Sales &amp; Leads</h1>
-            <p>TripWorks shopping activity grouped into real customer opportunities.</p>
+            <p>Open TripWorks shopping opportunities that still belong to the sales team.</p>
           </div>
           <Link className={styles.back} href="/team/readiness">Guest Readiness</Link>
         </header>
@@ -154,76 +143,28 @@ export default async function LeadsPage() {
           <div className={styles.kpi}>
             <div className={styles.kpiLabel}>Captured Lead Value</div>
             <div className={styles.kpiValue}>{dollars(capturedValue)}</div>
-            <div className={styles.kpiSub}>{booked.length} matched bookings</div>
+            <div className={styles.kpiSub}>{booked.length} converted opportunities</div>
           </div>
           <div className={styles.kpi}>
-            <div className={styles.kpiLabel}>Opportunities</div>
-            <div className={styles.kpiValue}>{opportunities.length}</div>
-            <div className={styles.kpiSub}>Grouped from TripWorks drafts</div>
+            <div className={styles.kpiLabel}>Open Leads</div>
+            <div className={styles.kpiValue}>{open.length}</div>
+            <div className={styles.kpiSub}>Future opportunities still with sales</div>
           </div>
           <div className={styles.kpi}>
-            <div className={styles.kpiLabel}>Booking Rate</div>
+            <div className={styles.kpiLabel}>Capture Rate</div>
             <div className={styles.kpiValue}>{conversion}%</div>
-            <div className={styles.kpiSub}>Matched opportunities booked</div>
+            <div className={styles.kpiSub}>Converted from known opportunities</div>
           </div>
         </section>
 
         <div className={styles.toolbar}>
           <div className={styles.tabs}>
-            <span className={`${styles.tab} ${styles.tabActive}`}>All {opportunities.length}</span>
-            <span className={styles.tab}>Open {open.length}</span>
-            <span className={styles.tab}>Booked {booked.length}</span>
+            <span className={`${styles.tab} ${styles.tabActive}`}>Open Leads {open.length}</span>
           </div>
-          <div className={styles.muted}>Future activity dates only</div>
+          <div className={styles.muted}>Future activity dates only · click a lead to see all drafts</div>
         </div>
 
-        <section className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Activity</th>
-                <th>Best Option</th>
-                <th>Method</th>
-                <th>Rep</th>
-                <th>Drafts</th>
-                <th>Status</th>
-                <th>Lead Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {opportunities.map((row) => {
-                const draft = row.primary_draft_trip_id ? drafts.get(Number(row.primary_draft_trip_id)) : undefined;
-                return (
-                  <tr key={row.id}>
-                    <td>
-                      <div className={styles.name}>{row.customer_name || "Unknown customer"}</div>
-                      <div className={styles.contact}>{row.phone_e164 || row.email || "No contact details"}</div>
-                    </td>
-                    <td className={styles.activity}>{dateLabel(row.activity_date)}</td>
-                    <td>
-                      <div className={styles.experience}>{draft?.experience_name || "TripWorks draft"}</div>
-                      <div className={styles.contact}>{draft?.option_name || ""}</div>
-                    </td>
-                    <td className={styles.method}>{(row.source_method || "unknown").replaceAll("_", " ")}</td>
-                    <td>{row.assigned_rep_name || <span className={styles.muted}>Unassigned</span>}</td>
-                    <td><span className={styles.drafts}>{row.draft_count}</span></td>
-                    <td>
-                      <span className={`${styles.status} ${row.status === "booked" ? styles.booked : styles.open}`}>
-                        {row.status}
-                      </span>
-                      {row.matched_booking_confirmation_code ? <div className={styles.contact}>{row.matched_booking_confirmation_code}</div> : null}
-                    </td>
-                    <td className={styles.money}>{dollars(row.status === "booked" ? row.captured_value_cents : row.lead_value_cents)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {!loadError && opportunities.length === 0 ? (
-            <div style={{ padding: 22, color: "#6f7885" }}>No future sales opportunities found.</div>
-          ) : null}
-        </section>
+        {!loadError ? <LeadsTable leads={open} draftsByLead={draftsByLead} /> : null}
       </main>
     </div>
   );
