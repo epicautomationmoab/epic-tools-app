@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
-import { supabaseRpc } from "@/lib/server/supabase-rest";
+import { createHash } from "node:crypto";
+import { supabasePatch, supabaseRpc, supabaseSelect } from "@/lib/server/supabase-rest";
 import { renderTourWindshieldCardSvg } from "@/lib/tour-windshield-card";
 
 type PrintJob = {
@@ -13,22 +13,39 @@ type PrintJob = {
   status: string;
 };
 
-function authorized(request: NextRequest) {
-  const configured = process.env.TOUR_TAG_PRINTER_KEY?.trim();
+type PrinterDevice = {
+  id: string;
+  device_name: string;
+};
+
+async function authorizedDevice(request: NextRequest) {
   const supplied = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  if (!configured || !supplied) return false;
-  const a = Buffer.from(configured);
-  const b = Buffer.from(supplied);
-  return a.length === b.length && timingSafeEqual(a, b);
+  if (!supplied) return null;
+
+  const tokenHash = createHash("sha256").update(supplied).digest("hex");
+  const params = new URLSearchParams({
+    select: "id,device_name",
+    token_hash: `eq.${tokenHash}`,
+    enabled: "eq.true",
+    limit: "1",
+  });
+  const [device] = await supabaseSelect<PrinterDevice>("tour_tag_printer_devices", params);
+  if (!device) return null;
+
+  const filters = new URLSearchParams({ id: `eq.${device.id}` });
+  await supabasePatch("tour_tag_printer_devices", filters, { last_seen_at: new Date().toISOString() });
+  return device;
 }
 
 export async function POST(request: NextRequest) {
-  if (!authorized(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-
   try {
+    const device = await authorizedDevice(request);
+    if (!device) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+
     const body = await request.json().catch(() => ({}));
     const action = String(body?.action ?? "").trim();
-    const worker = String(body?.worker ?? "epic-tour-tag-printer").trim();
+    const requestedWorker = String(body?.worker ?? "").trim();
+    const worker = requestedWorker || device.device_name || "epic-tour-tag-printer";
 
     if (action === "claim") {
       const job = await supabaseRpc<PrintJob | null>("claim_next_tour_windshield_print_job", {
