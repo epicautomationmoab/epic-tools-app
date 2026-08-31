@@ -61,10 +61,10 @@ export function renderTourWindshieldCardSvg(data: TourWindshieldCardData) {
     <text x="110" y="208" font-size="15" font-weight="700">Return Mileage: __________________</text>
     <text x="516" y="208" font-size="15" font-weight="700">Engine Hours: __________________</text>
 
-    <!-- Guide identifier block: intentionally small and low on the guide face -->
+    <!-- Guide identifier block: grouped together in one bottom corner -->
     <line x1="70" y1="257" x2="722" y2="257" stroke="black" stroke-width="0.8"/>
-    <text x="70" y="277" font-size="${tourSize}" font-weight="700">${tourName}</text>
-    <text x="722" y="277" text-anchor="end" font-size="13" font-weight="700">${departure}  ·  ${confirmation}</text>
+    <text x="70" y="275" font-size="${tourSize}" font-weight="700">${tourName}</text>
+    <text x="70" y="294" font-size="13" font-weight="700">${departure}  ·  ${confirmation}</text>
   </g>
 </svg>`;
 }
