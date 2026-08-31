@@ -1,0 +1,19 @@
+[Unit]
+Description=Epic Tour Tag Printer
+After=network-online.target cups.service
+Wants=network-online.target
+Requires=cups.service
+
+[Service]
+Type=simple
+User=pi
+Group=lp
+EnvironmentFile=/etc/epic-tour-tag-printer.env
+ExecStart=/usr/bin/python3 /opt/epic-tour-tag-printer/worker.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
