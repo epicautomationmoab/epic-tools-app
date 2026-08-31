@@ -9,6 +9,10 @@ export type LeadRow = {
   email: string | null;
   phone_e164: string | null;
   activity_date: string;
+  activity_window_start: string;
+  activity_window_end: string;
+  shopping_started_at: string | null;
+  shopping_last_activity_at: string | null;
   lead_value_cents: number;
   draft_count: number;
   source_method: string | null;
@@ -59,14 +63,19 @@ function dateLabel(value: string) {
   return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric" }).format(parsed);
 }
 
+function dateWindowLabel(start: string, end: string) {
+  if (!end || start === end) return dateLabel(start);
+  const a = new Date(`${start}T12:00:00`);
+  const b = new Date(`${end}T12:00:00`);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return `${start} – ${end}`;
+  const sameYear = a.getFullYear() === b.getFullYear();
+  const left = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) }).format(a);
+  const right = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(b);
+  return `${left} – ${right}`;
+}
+
 function dateTimeLabel(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
 
 function timeLabel(value: string | null) {
@@ -78,6 +87,10 @@ function timeLabel(value: string | null) {
 
 function methodLabel(value: string | null) {
   return (value || "unknown").replaceAll("_", " ");
+}
+
+function tripworksUrl(code: string | null) {
+  return code ? `https://epic4x4.tripworks.com/trip/${encodeURIComponent(code)}/bookings` : null;
 }
 
 export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads: LeadRow[]; draftsByLead: Record<string, LeadDraft[]>; notesByLead: Record<string, LeadNote[]> }) {
@@ -92,208 +105,88 @@ export default function LeadsTable({ leads, draftsByLead, notesByLead }: { leads
 
   useEffect(() => {
     if (!selected) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelectedId(null);
-    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSelectedId(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [selected]);
 
   const selectedDrafts = selected ? draftsByLead[selected.id] || [] : [];
   const selectedNotes = selected ? notes[selected.id] || [] : [];
-  const primaryDraft = selected
-    ? selectedDrafts.find((draft) => Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id)) || selectedDrafts[0]
-    : undefined;
+  const primaryDraft = selected ? selectedDrafts.find((draft) => Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id)) || selectedDrafts[0] : undefined;
 
   async function claimLead() {
     if (!selected || busy) return;
-    setBusy(true);
-    setError("");
+    setBusy(true); setError("");
     try {
-      const response = await fetch("/api/team/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "claim", opportunity_id: selected.id }),
-      });
+      const response = await fetch("/api/team/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "claim", opportunity_id: selected.id }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to claim lead.");
-      setRows((current) => current.map((row) => row.id === selected.id ? {
-        ...row,
-        claimed_by_name: payload.claimed_by_name,
-        claimed_at: payload.claimed_at,
-        assigned_rep_name: payload.claimed_by_name,
-      } : row));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to claim lead.");
-    } finally {
-      setBusy(false);
-    }
+      setRows((current) => current.map((row) => row.id === selected.id ? { ...row, claimed_by_name: payload.claimed_by_name, claimed_at: payload.claimed_at, assigned_rep_name: payload.claimed_by_name } : row));
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to claim lead."); } finally { setBusy(false); }
   }
 
   async function releaseLead() {
     if (!selected || busy) return;
-    setBusy(true);
-    setError("");
+    setBusy(true); setError("");
     try {
-      const response = await fetch("/api/team/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "release", opportunity_id: selected.id }),
-      });
+      const response = await fetch("/api/team/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release", opportunity_id: selected.id }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to release lead.");
-      setRows((current) => current.map((row) => row.id === selected.id ? {
-        ...row,
-        claimed_by_profile_id: null,
-        claimed_by_name: null,
-        claimed_at: null,
-        assigned_rep_name: null,
-      } : row));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to release lead.");
-    } finally {
-      setBusy(false);
-    }
+      setRows((current) => current.map((row) => row.id === selected.id ? { ...row, claimed_by_profile_id: null, claimed_by_name: null, claimed_at: null, assigned_rep_name: null } : row));
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to release lead."); } finally { setBusy(false); }
   }
 
   async function addNote() {
     if (!selected || busy || !noteText.trim()) return;
-    setBusy(true);
-    setError("");
+    setBusy(true); setError("");
     try {
-      const response = await fetch("/api/team/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "note", opportunity_id: selected.id, note_text: noteText }),
-      });
+      const response = await fetch("/api/team/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "note", opportunity_id: selected.id, note_text: noteText }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to add note.");
-      setNotes((current) => ({
-        ...current,
-        [selected.id]: [payload.note, ...(current[selected.id] || [])],
-      }));
+      setNotes((current) => ({ ...current, [selected.id]: [payload.note, ...(current[selected.id] || [])] }));
       setNoteText("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to add note.");
-    } finally {
-      setBusy(false);
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to add note."); } finally { setBusy(false); }
   }
 
-  return (
-    <>
-      <section className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead><tr><th>Customer</th><th>Activity</th><th>Best Option</th><th>Method</th><th>Rep</th><th>Drafts</th><th>Lead Value</th></tr></thead>
-          <tbody>
-            {rows.map((row) => {
-              const draft = (draftsByLead[row.id] || []).find((item) => Number(item.tripworks_trip_id) === Number(row.primary_draft_trip_id));
-              return (
-                <tr key={row.id} className={styles.clickableRow} onClick={() => { setSelectedId(row.id); setError(""); }}>
-                  <td>
-                    <div className={styles.nameLine}>
-                      <div className={styles.name}>{row.customer_name || "Unknown customer"}</div>
-                      {row.is_past_guest ? <span className={styles.vipBadge}>VIP · Past Guest</span> : null}
-                    </div>
-                    <div className={styles.contact}>{row.phone_e164 || row.email || "No contact details"}</div>
-                  </td>
-                  <td className={styles.activity}>{dateLabel(row.activity_date)}</td>
-                  <td><div className={styles.experience}>{draft?.experience_name || "TripWorks draft"}</div><div className={styles.contact}>{draft?.option_name || ""}</div></td>
-                  <td className={styles.method}>{methodLabel(row.source_method)}</td>
-                  <td>{row.claimed_by_name || row.assigned_rep_name || <span className={styles.muted}>Unassigned</span>}</td>
-                  <td><span className={styles.drafts}>{row.draft_count}</span></td>
-                  <td className={styles.money}>{dollars(row.lead_value_cents)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {rows.length === 0 ? <div className={styles.empty}>No open future leads found.</div> : null}
-      </section>
+  return <>
+    <section className={styles.tableWrap}>
+      <table className={styles.table}>
+        <thead><tr><th>Customer</th><th>Activity Window</th><th>Best Option</th><th>Method</th><th>Rep</th><th>Drafts</th><th>Lead Value</th></tr></thead>
+        <tbody>{rows.map((row) => {
+          const draft = (draftsByLead[row.id] || []).find((item) => Number(item.tripworks_trip_id) === Number(row.primary_draft_trip_id));
+          return <tr key={row.id} className={styles.clickableRow} onClick={() => { setSelectedId(row.id); setError(""); }}>
+            <td><div className={styles.nameLine}><div className={styles.name}>{row.customer_name || "Unknown customer"}</div>{row.is_past_guest ? <span className={styles.vipBadge}>VIP · Past Guest</span> : null}</div><div className={styles.contact}>{row.phone_e164 || row.email || "No contact details"}</div></td>
+            <td className={styles.activity}>{dateWindowLabel(row.activity_window_start, row.activity_window_end)}</td>
+            <td><div className={styles.experience}>{draft?.experience_name || "TripWorks draft"}</div><div className={styles.contact}>{draft?.option_name || ""}</div></td>
+            <td className={styles.method}>{methodLabel(row.source_method)}</td>
+            <td>{row.claimed_by_name || row.assigned_rep_name || <span className={styles.muted}>Unassigned</span>}</td>
+            <td><span className={styles.drafts}>{row.draft_count}</span></td>
+            <td className={styles.money}>{dollars(row.lead_value_cents)}</td>
+          </tr>;
+        })}</tbody>
+      </table>
+      {rows.length === 0 ? <div className={styles.empty}>No open future leads found.</div> : null}
+    </section>
 
-      {selected ? (
-        <div className={styles.drawerBackdrop} onMouseDown={() => setSelectedId(null)}>
-          <aside className={styles.drawer} onMouseDown={(event) => event.stopPropagation()} aria-label="Lead details">
-            <div className={styles.drawerHeader}>
-              <div>
-                <div className={styles.drawerEyebrow}>Open Sales Opportunity</div>
-                <div className={styles.drawerNameLine}>
-                  <h2>{selected.customer_name || "Unknown customer"}</h2>
-                  {selected.is_past_guest ? <span className={styles.vipBadgeLarge}>VIP · Past Guest</span> : null}
-                </div>
-                <p>{dateLabel(selected.activity_date)} · {selectedDrafts.length} TripWorks draft{selectedDrafts.length === 1 ? "" : "s"}</p>
-                {selected.is_past_guest ? (
-                  <p className={styles.pastGuestDetail}>
-                    {selected.prior_booking_count} prior Epic reservation{selected.prior_booking_count === 1 ? "" : "s"}
-                    {selected.last_prior_booking_at ? ` · most recent ${dateTimeLabel(selected.last_prior_booking_at)}` : ""}
-                  </p>
-                ) : null}
-              </div>
-              <button type="button" className={styles.drawerClose} onClick={() => setSelectedId(null)} aria-label="Close lead details">×</button>
-            </div>
+    {selected ? <div className={styles.drawerBackdrop} onMouseDown={() => setSelectedId(null)}>
+      <aside className={styles.drawer} onMouseDown={(event) => event.stopPropagation()} aria-label="Lead details">
+        <div className={styles.drawerHeader}><div><div className={styles.drawerEyebrow}>Open Sales Opportunity</div><div className={styles.drawerNameLine}><h2>{selected.customer_name || "Unknown customer"}</h2>{selected.is_past_guest ? <span className={styles.vipBadgeLarge}>VIP · Past Guest</span> : null}</div><p>{dateWindowLabel(selected.activity_window_start, selected.activity_window_end)} · {selectedDrafts.length} TripWorks draft{selectedDrafts.length === 1 ? "" : "s"}</p>{selected.is_past_guest ? <p className={styles.pastGuestDetail}>{selected.prior_booking_count} prior Epic reservation{selected.prior_booking_count === 1 ? "" : "s"}{selected.last_prior_booking_at ? ` · most recent ${dateTimeLabel(selected.last_prior_booking_at)}` : ""}</p> : null}</div><button type="button" className={styles.drawerClose} onClick={() => setSelectedId(null)} aria-label="Close lead details">×</button></div>
 
-            <div className={styles.claimBar}>
-              <div>
-                <span className={styles.claimLabel}>Owner</span>
-                <strong>{selected.claimed_by_name || selected.assigned_rep_name || "Unclaimed"}</strong>
-                {selected.claimed_at ? <small>Claimed {dateTimeLabel(selected.claimed_at)}</small> : null}
-              </div>
-              {!selected.claimed_by_name ? (
-                <button type="button" className={styles.claimButton} disabled={busy} onClick={claimLead}>{busy ? "Claiming…" : "Claim Lead"}</button>
-              ) : (
-                <button type="button" className={styles.releaseButton} disabled={busy} onClick={releaseLead}>{busy ? "Releasing…" : "Release"}</button>
-              )}
-            </div>
+        <div className={styles.claimBar}><div><span className={styles.claimLabel}>Owner</span><strong>{selected.claimed_by_name || selected.assigned_rep_name || "Unclaimed"}</strong>{selected.claimed_at ? <small>Claimed {dateTimeLabel(selected.claimed_at)}</small> : null}</div>{!selected.claimed_by_name ? <button type="button" className={styles.claimButton} disabled={busy} onClick={claimLead}>{busy ? "Claiming…" : "Claim Lead"}</button> : <button type="button" className={styles.releaseButton} disabled={busy} onClick={releaseLead}>{busy ? "Releasing…" : "Release"}</button>}</div>
+        {error ? <div className={styles.drawerError}>{error}</div> : null}
 
-            {error ? <div className={styles.drawerError}>{error}</div> : null}
+        <div className={styles.drawerFacts}><div><span>Lead Value</span><strong>{dollars(selected.lead_value_cents)}</strong></div><div><span>Epic Contact ID</span><strong className={styles.contactId}>{selected.contact_id || "Not linked"}</strong></div><div><span>Method</span><strong>{methodLabel(selected.source_method)}</strong></div><div><span>Best Option</span><strong>{primaryDraft?.experience_name || "TripWorks draft"}</strong></div></div>
+        <div className={styles.drawerContact}>{selected.phone_e164 ? <div><span>Phone</span><strong>{selected.phone_e164}</strong></div> : null}{selected.email ? <div><span>Email</span><strong>{selected.email}</strong></div> : null}</div>
 
-            <div className={styles.drawerFacts}>
-              <div><span>Lead Value</span><strong>{dollars(selected.lead_value_cents)}</strong></div>
-              <div><span>Epic Contact ID</span><strong className={styles.contactId}>{selected.contact_id || "Not linked"}</strong></div>
-              <div><span>Method</span><strong>{methodLabel(selected.source_method)}</strong></div>
-              <div><span>Best Option</span><strong>{primaryDraft?.experience_name || "TripWorks draft"}</strong></div>
-            </div>
+        <section className={styles.drawerSection}><h3>Sales Notes</h3><div className={styles.noteComposer}><textarea value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add a sales note, follow-up detail, objection, preference…" rows={3} /><button type="button" onClick={addNote} disabled={busy || !noteText.trim()}>{busy ? "Saving…" : "Add Note"}</button></div><div className={styles.noteList}>{selectedNotes.length ? selectedNotes.map((note) => <article key={note.id} className={styles.noteCard}><div className={styles.noteMeta}><strong>{note.author_name}</strong><span>{dateTimeLabel(note.created_at)}</span></div><p>{note.note_text}</p></article>) : <div className={styles.noNotes}>No notes yet.</div>}</div></section>
 
-            <div className={styles.drawerContact}>
-              {selected.phone_e164 ? <div><span>Phone</span><strong>{selected.phone_e164}</strong></div> : null}
-              {selected.email ? <div><span>Email</span><strong>{selected.email}</strong></div> : null}
-            </div>
-
-            <section className={styles.drawerSection}>
-              <h3>Sales Notes</h3>
-              <div className={styles.noteComposer}>
-                <textarea value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add a sales note, follow-up detail, objection, preference…" rows={3} />
-                <button type="button" onClick={addNote} disabled={busy || !noteText.trim()}>{busy ? "Saving…" : "Add Note"}</button>
-              </div>
-              <div className={styles.noteList}>
-                {selectedNotes.length ? selectedNotes.map((note) => (
-                  <article key={note.id} className={styles.noteCard}>
-                    <div className={styles.noteMeta}><strong>{note.author_name}</strong><span>{dateTimeLabel(note.created_at)}</span></div>
-                    <p>{note.note_text}</p>
-                  </article>
-                )) : <div className={styles.noNotes}>No notes yet.</div>}
-              </div>
-            </section>
-
-            <section className={styles.drawerSection}>
-              <h3>TripWorks Drafts</h3>
-              <p className={styles.drawerIntro}>Every shopping option grouped into this one lead. The highest-value option sets the current Lead Value.</p>
-              <div className={styles.draftList}>
-                {selectedDrafts.map((draft) => {
-                  const isPrimary = Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id);
-                  return (
-                    <article key={draft.id} className={`${styles.draftCard} ${isPrimary ? styles.draftCardPrimary : ""}`}>
-                      <div className={styles.draftCardTop}><div><div className={styles.draftExperience}>{draft.experience_name || "TripWorks draft"}</div><div className={styles.draftOption}>{draft.option_name || "Option not supplied"}</div></div><div className={styles.draftValue}>{dollars(draft.value_cents)}</div></div>
-                      <div className={styles.draftMeta}><span>{timeLabel(draft.start_time)}</span><span>{methodLabel(draft.trip_method)}</span>{draft.created_by_name ? <span>Created by {draft.created_by_name}</span> : null}<span>{draft.confirmation_code || `TW #${draft.tripworks_trip_id}`}</span></div>
-                      {isPrimary ? <div className={styles.highestBadge}>Sets Lead Value</div> : null}
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          </aside>
-        </div>
-      ) : null}
-    </>
-  );
+        <section className={styles.drawerSection}><h3>TripWorks Drafts</h3><p className={styles.drawerIntro}>Every shopping option grouped into this one 30-day shopping episode. The highest-value option sets the current Lead Value.</p><div className={styles.draftList}>{selectedDrafts.map((draft) => {
+          const isPrimary = Number(draft.tripworks_trip_id) === Number(selected.primary_draft_trip_id);
+          const href = tripworksUrl(draft.confirmation_code);
+          const card = <><div className={styles.draftCardTop}><div><div className={styles.draftExperience}>{draft.experience_name || "TripWorks draft"}</div><div className={styles.draftOption}>{draft.option_name || "Option not supplied"} · {dateLabel(draft.activity_date)}</div></div><div className={styles.draftValue}>{dollars(draft.value_cents)}</div></div><div className={styles.draftMeta}><span>{timeLabel(draft.start_time)}</span><span>{methodLabel(draft.trip_method)}</span>{draft.created_by_name ? <span>Created by {draft.created_by_name}</span> : null}<span>{draft.confirmation_code || `TW #${draft.tripworks_trip_id}`}</span>{href ? <span>Open in TripWorks ↗</span> : null}</div>{isPrimary ? <div className={styles.highestBadge}>Sets Lead Value</div> : null}</>;
+          return href ? <a key={draft.id} className={`${styles.draftCard} ${styles.draftCardLink} ${isPrimary ? styles.draftCardPrimary : ""}`} href={href} target="_blank" rel="noreferrer">{card}</a> : <article key={draft.id} className={`${styles.draftCard} ${isPrimary ? styles.draftCardPrimary : ""}`}>{card}</article>;
+        })}</div></section>
+      </aside>
+    </div> : null}
+  </>;
 }
