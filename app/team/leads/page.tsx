@@ -1,5 +1,6 @@
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
+import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
 import LeadsTable, { type LeadDraft, type LeadNote, type LeadRow } from "./LeadsTable";
 import DraftStatusDrawerEnhancer from "./DraftStatusDrawerEnhancer";
 import styles from "./Leads.module.css";
@@ -84,6 +85,7 @@ export default async function LeadsPage() {
 
   return <div className={styles.shell}>
     <DraftStatusDrawerEnhancer />
+    <CallAttentionRowEnhancer context="leads" />
     <TeamSidebar active="Sales & Leads" />
     <main className={styles.main}>
       <header className={styles.header}><div><div className={styles.eyebrow}>Epic Tools Sales</div><h1>Sales &amp; Leads</h1><p>Open sales opportunities that still belong to the sales team.</p></div><Link className={styles.back} href="/team/readiness">Guest Readiness</Link></header>
@@ -94,7 +96,7 @@ export default async function LeadsPage() {
         <div className={styles.kpi}><div className={styles.kpiLabel}>Open Leads</div><div className={styles.kpiValue}>{open.length}</div><div className={styles.kpiSub}>Opportunities still with sales</div></div>
         <div className={styles.kpi}><div className={styles.kpiLabel}>Lead Conversion</div><div className={styles.kpiValue}>{conversion}%</div><div className={styles.kpiSub}>{booked.length} booked of {legitimatePool} legitimate leads · {retired.length} retired excluded</div></div>
       </section>
-      <div className={styles.toolbar}><div className={styles.tabs}><span className={`${styles.tab} ${styles.tabActive}`}>Open Leads {open.length}</span><Link className={styles.tab} href="/team/leads/inbox">Inbox / Needs Review</Link></div><div className={styles.muted}>Sales opportunities · click a lead to work it</div></div>
+      <div className={styles.toolbar}><div className={styles.tabs}><span className={`${styles.tab} ${styles.tabActive}`}>Open Leads {open.length}</span><Link className={styles.tab} href="/team/leads/missed-calls">Missed Calls</Link><Link className={styles.tab} href="/team/leads/inbox">Inbox / Needs Review</Link></div><div className={styles.muted}>Sales opportunities · click a lead to work it</div></div>
       {!loadError ? <LeadsTable leads={open} draftsByLead={draftsByLead} notesByLead={notesByLead} /> : null}
     </main>
   </div>;
