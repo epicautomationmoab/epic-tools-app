@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
   if (!liveCallId) return NextResponse.json({ error: "Live call is required." }, { status: 400 });
 
   try {
-    const calls = await rest<Array<{ id:string; caller_phone:string; caller_name:string|null; source_name:string|null; campaign:string|null; capture_status:string; opportunity_id:string|null; contact_id:string|null }>>(`live_calls?id=eq.${encodeURIComponent(liveCallId)}&select=id,caller_phone,caller_name,source_name,campaign,capture_status,opportunity_id,contact_id&limit=1`);
+    const calls = await rest<Array<{ id:string; callrail_call_id:string|null; caller_phone:string; caller_name:string|null; source_name:string|null; campaign:string|null; capture_status:string; opportunity_id:string|null; contact_id:string|null; raw_payload:Record<string,unknown> }>>(`live_calls?id=eq.${encodeURIComponent(liveCallId)}&select=id,callrail_call_id,caller_phone,caller_name,source_name,campaign,capture_status,opportunity_id,contact_id,raw_payload&limit=1`);
     const call = calls[0];
     if (!call) return NextResponse.json({ error: "Live call not found." }, { status: 404 });
     if (call.opportunity_id || call.capture_status === "saved_lead") return NextResponse.json({ ok: true, opportunity_id: call.opportunity_id, already_saved: true });
@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
     const note = clean(body?.note);
     const leadValueCents = cents(body?.lead_value);
     const now = new Date().toISOString();
+    const workItemId = clean(call.raw_payload?.customer_work_item_id);
 
     let contactId = call.contact_id;
     if (!contactId) {
@@ -102,42 +103,52 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const personKey = `phone:${call.caller_phone}`;
-    const createdOpportunity = await rest<Array<{ id:string }>>("sales_opportunities", {
-      method: "POST",
-      headers: { Prefer: "return=representation" },
-      body: JSON.stringify({
-        person_key: personKey,
-        activity_date: activityDate,
-        activity_window_start: activityDate,
-        activity_window_end: activityDate,
-        customer_name: name,
-        email,
-        phone_e164: call.caller_phone,
-        status: "open",
-        lead_value_cents: leadValueCents,
-        captured_value_cents: 0,
-        draft_count: 0,
-        source_method: "callrail",
-        assigned_rep_name: profile.display_name,
-        contact_id: contactId,
-        claimed_at: now,
-        claimed_by_profile_id: profile.id,
-        claimed_by_name: profile.display_name,
-        shopping_started_at: call.capture_status === "pending" ? now : now,
-        shopping_last_activity_at: now,
-        first_seen_at: now,
-        last_seen_at: now,
-        new_unclaimed_at: null,
-        interest_label: interest,
-        party_needs: partyNeeds,
-        lead_capture_note: note,
-        origin_live_call_id: liveCallId,
-        match_confidence: "live_call_capture",
-        updated_at: now,
-      }),
-    });
-    const opportunityId = createdOpportunity[0]?.id;
+    const existing = await rest<Array<{id:string}>>(`sales_opportunities?status=eq.open&phone_e164=eq.${encodeURIComponent(call.caller_phone)}&select=id&order=shopping_last_activity_at.desc&limit=2`);
+    let opportunityId = existing.length === 1 ? existing[0].id : null;
+
+    if (!opportunityId) {
+      const personKey = `phone:${call.caller_phone}`;
+      const createdOpportunity = await rest<Array<{ id:string }>>("sales_opportunities", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          person_key: personKey,
+          activity_date: activityDate,
+          activity_window_start: activityDate,
+          activity_window_end: activityDate,
+          customer_name: name,
+          email,
+          phone_e164: call.caller_phone,
+          status: "open",
+          lead_value_cents: leadValueCents,
+          captured_value_cents: 0,
+          draft_count: 0,
+          source_method: "callrail",
+          assigned_rep_name: profile.display_name,
+          contact_id: contactId,
+          claimed_at: now,
+          claimed_by_profile_id: profile.id,
+          claimed_by_name: profile.display_name,
+          shopping_started_at: now,
+          shopping_last_activity_at: now,
+          first_seen_at: now,
+          last_seen_at: now,
+          new_unclaimed_at: null,
+          interest_label: interest,
+          party_needs: partyNeeds,
+          lead_capture_note: note,
+          origin_live_call_id: liveCallId,
+          match_confidence: "live_call_capture",
+          updated_at: now,
+        }),
+      });
+      opportunityId = createdOpportunity[0]?.id || null;
+    } else {
+      await rest<void>(`sales_opportunities?id=eq.${encodeURIComponent(opportunityId)}`, {
+        method:"PATCH", headers:{Prefer:"return=minimal"},
+        body:JSON.stringify({customer_name:name,email,contact_id:contactId,shopping_last_activity_at:now,last_seen_at:now,updated_at:now,...(activityDate?{activity_date:activityDate,activity_window_start:activityDate,activity_window_end:activityDate}:{}),...(interest?{interest_label:interest}:{}),...(partyNeeds?{party_needs:partyNeeds}:{}),...(leadValueCents?{lead_value_cents:leadValueCents}:{}),...(note?{lead_capture_note:note}:{})}),
+      });
+    }
     if (!opportunityId) throw new Error("Sales opportunity was not created.");
 
     if (note) {
@@ -170,6 +181,20 @@ export async function POST(request: NextRequest) {
         updated_at: now,
       }),
     });
+
+    if (call.callrail_call_id) {
+      await rest<void>(`callrail_calls?callrail_call_id=eq.${encodeURIComponent(call.callrail_call_id)}`, {
+        method:"PATCH", headers:{Prefer:"return=minimal"},
+        body:JSON.stringify({matched_contact_id:contactId,matched_opportunity_id:opportunityId,match_type:"manual_live_lead_capture",match_confidence:"confirmed_by_rep"}),
+      });
+    }
+
+    if (workItemId) {
+      await rest<void>(`customer_work_items?id=eq.${encodeURIComponent(workItemId)}&status=eq.open`, {
+        method:"PATCH", headers:{Prefer:"return=minimal"},
+        body:JSON.stringify({contact_id:contactId,opportunity_id:opportunityId,work_type:"sales_lead",status:"closed",closed_at:now,updated_at:now,metadata:{...(call.raw_payload||{}),promoted_to_opportunity_id:opportunityId,promoted_at:now}}),
+      });
+    }
 
     return NextResponse.json({ ok: true, opportunity_id: opportunityId, contact_id: contactId });
   } catch (error) {
