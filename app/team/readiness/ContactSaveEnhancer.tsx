@@ -52,7 +52,9 @@ export default function ContactSaveEnhancer() {
     const handleClick = async (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof HTMLButtonElement)) return;
-      if (target.textContent?.trim() !== "Save") return;
+
+      const contactField = target.dataset.contactSaveField;
+      if (contactField !== "email" && contactField !== "phone") return;
 
       const editRow = target.parentElement;
       const input = editRow?.querySelector("input");
@@ -67,7 +69,7 @@ export default function ContactSaveEnhancer() {
         return;
       }
 
-      const field: "email" | "phone" = input.type === "email" ? "email" : "phone";
+      const field: "email" | "phone" = contactField;
       const value = input.value.trim();
       if (!value) {
         window.alert(`Enter a ${field} before saving.`);
