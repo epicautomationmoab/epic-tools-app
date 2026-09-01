@@ -9,6 +9,15 @@ type Alert = {
 
 function compact(value:string|null|undefined){return (value||"").toLowerCase().replace(/[^a-z0-9]/g,"")}
 function phoneDigits(value:string|null|undefined){const d=(value||"").replace(/\D/g,"");return d.slice(-10)}
+function clearAlertStyle(row:HTMLElement){
+  if(row.dataset.callAttentionStyled!=="1")return;
+  row.style.removeProperty("background");
+  row.style.removeProperty("box-shadow");
+  row.style.removeProperty("outline");
+  row.querySelectorAll("[data-call-attention-badge]").forEach(n=>n.remove());
+  delete row.dataset.callAttentionStyled;
+  delete row.dataset.callAttentionTarget;
+}
 
 export default function CallAttentionRowEnhancer({context}:{context:"leads"|"readiness"}){
   useEffect(()=>{
@@ -19,9 +28,7 @@ export default function CallAttentionRowEnhancer({context}:{context:"leads"|"rea
       if(!id)return;
       const body=context==="leads"?{opportunity_id:id}:{reservation_id:id};
       void fetch("/api/team/call-attention",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(()=>{
-        row.style.removeProperty("background"); row.style.removeProperty("box-shadow"); row.style.removeProperty("outline");
-        row.querySelectorAll("[data-call-attention-badge]").forEach(n=>n.remove());
-        delete row.dataset.callAttentionTarget;
+        clearAlertStyle(row);
       }).catch(()=>{});
     };
 
@@ -33,9 +40,7 @@ export default function CallAttentionRowEnhancer({context}:{context:"leads"|"rea
         const alerts=(payload.alerts||[]) as Alert[];
         const rows=Array.from(document.querySelectorAll("main table tbody tr")) as HTMLElement[];
         for(const row of rows){
-          row.style.removeProperty("background"); row.style.removeProperty("box-shadow"); row.style.removeProperty("outline");
-          row.querySelectorAll("[data-call-attention-badge]").forEach(n=>n.remove());
-          delete row.dataset.callAttentionTarget;
+          clearAlertStyle(row);
           if(row.dataset.callAttentionBound!=="1"){row.addEventListener("click",clickHandler);row.dataset.callAttentionBound="1"}
           const rowText=compact(row.textContent||"");
           const rowDigits=phoneDigits(row.textContent||"");
@@ -48,6 +53,7 @@ export default function CallAttentionRowEnhancer({context}:{context:"leads"|"rea
           if(!match)continue;
           const target=context==="leads"?match.opportunity_id:match.reservation_id; if(!target)continue;
           row.dataset.callAttentionTarget=target;
+          row.dataset.callAttentionStyled="1";
           row.style.setProperty("background","#ffe3df","important");
           row.style.setProperty("box-shadow","inset 5px 0 0 #b42318","important");
           const first=row.querySelector("td");
