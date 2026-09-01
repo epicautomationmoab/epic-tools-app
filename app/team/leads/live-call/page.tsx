@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import TeamSidebar from "../../TeamSidebar";
 import LiveLeadCapture from "./LiveLeadCapture";
 import styles from "../Leads.module.css";
@@ -13,7 +14,9 @@ export default function LiveCallLeadPage() {
           <p>Capture the details you learn while the customer is on the phone.</p>
         </div>
       </header>
-      <LiveLeadCapture />
+      <Suspense fallback={<div style={{padding:28,fontWeight:800,color:"#657384"}}>Loading incoming call…</div>}>
+        <LiveLeadCapture />
+      </Suspense>
     </main>
   </div>;
 }
