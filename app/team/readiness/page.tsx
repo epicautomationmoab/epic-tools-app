@@ -19,6 +19,7 @@ import EmailDeliveryAlert from "./EmailDeliveryAlert";
 import EmailDeliveryDrawerEnhancer from "./EmailDeliveryDrawerEnhancer";
 import ReservationDeepLinkEnhancer from "./ReservationDeepLinkEnhancer";
 import NoShowEnhancer from "./NoShowEnhancer";
+import CallRailActivityDrawerEnhancer from "./CallRailActivityDrawerEnhancer";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -48,6 +49,7 @@ export default async function TeamReadinessPage() {
       <AdventureAssureEnhancer rows={rows} />
       <NoShowEnhancer rows={rows} />
       <ContactSaveEnhancer />
+      <CallRailActivityDrawerEnhancer />
 
       <TeamSidebar active="Guest Readiness" />
 
