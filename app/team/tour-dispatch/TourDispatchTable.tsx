@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PrintSingleVehicleTagButton } from "./NativePrintButton";
 import styles from "./TourDispatch.module.css";
 
@@ -35,6 +36,7 @@ function returnInProgress(status: string) { return ["checkin_queued", "checking_
 function returnComplete(status: string) { return ["returned", "completed", "checked_in"].includes(status); }
 
 export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] }) {
+  const router = useRouter();
   const initialDrafts = useMemo(() => Object.fromEntries(rows.map((row) => [keyFor(row), {
     car: row.vehicle_label ?? "",
     mileage: row.checkout_mileage == null ? "" : String(row.checkout_mileage),
@@ -46,6 +48,12 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
   const [checkinStatuses, setCheckinStatuses] = useState<Record<string, string>>(Object.fromEntries(rows.map((row) => [keyFor(row), row.checkin_status])));
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
+
+  function reconcileAfterAction() {
+    for (const delay of [2000, 6000, 15000, 30000]) {
+      window.setTimeout(() => router.refresh(), delay);
+    }
+  }
 
   useEffect(() => {
     setDrafts((current) => {
@@ -101,6 +109,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       setStatuses((current) => ({ ...current, [key]: payload?.checkout_status || "checkout_queued" }));
       setCheckinStatuses((current) => ({ ...current, [key]: payload?.checkin_status || "prepared" }));
       setMessages((current) => ({ ...current, [key]: "Checkout prepared." }));
+      reconcileAfterAction();
     } catch (error) {
       setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to prepare checkout." }));
     } finally {
@@ -123,6 +132,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       const checkinNote = payload?.axel_ready ? " Check-in package released." : " Check-in is pending.";
       const tourNote = payload?.tour_returned ? " Tour is returned." : "";
       setMessages((current) => ({ ...current, [key]: `Vehicle return recorded.${checkinNote}${tourNote}` }));
+      reconcileAfterAction();
     } catch (error) {
       setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to record vehicle return." }));
     } finally {
