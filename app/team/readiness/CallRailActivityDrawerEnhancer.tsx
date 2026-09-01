@@ -35,13 +35,6 @@ function findConfirmation(drawer: Element) {
   return "";
 }
 
-function durationLabel(seconds: number | null) {
-  if (!seconds) return "";
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return minutes ? `${minutes}m ${remainder}s` : `${remainder}s`;
-}
-
 function dateTimeLabel(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Denver",
@@ -54,8 +47,8 @@ function dateTimeLabel(value: string) {
 
 function callLabel(call: CallRailCall) {
   if (call.voicemail) return "Voicemail";
-  if (call.answered === false) return "Missed call";
-  return "Answered call";
+  if (call.answered === false) return "Missed Call";
+  return "Answered Call";
 }
 
 export default function CallRailActivityDrawerEnhancer() {
@@ -67,19 +60,18 @@ export default function CallRailActivityDrawerEnhancer() {
 
     function section(drawer: Element) {
       let existing = drawer.querySelector<HTMLElement>('[data-callrail-readiness-section="true"]');
-      if (existing) return existing;
-
-      existing = document.createElement("section");
-      existing.dataset.callrailReadinessSection = "true";
-      existing.style.margin = "22px 0 0";
-      existing.style.padding = "18px";
-      existing.style.border = "1px solid #dde4ea";
-      existing.style.borderRadius = "14px";
-      existing.style.background = "#fff";
-
-      const facts = drawer.querySelector("section");
-      if (facts?.parentElement) facts.parentElement.insertBefore(existing, facts.nextSibling);
-      else drawer.appendChild(existing);
+      if (!existing) {
+        existing = document.createElement("section");
+        existing.dataset.callrailReadinessSection = "true";
+        existing.style.margin = "22px 0 0";
+        existing.style.padding = "16px 18px";
+        existing.style.border = "1px solid #dde4ea";
+        existing.style.borderRadius = "14px";
+        existing.style.background = "#fff";
+        drawer.appendChild(existing);
+      } else if (existing.nextElementSibling) {
+        drawer.appendChild(existing);
+      }
       return existing;
     }
 
@@ -95,12 +87,12 @@ export default function CallRailActivityDrawerEnhancer() {
       const title = document.createElement("h3");
       title.textContent = "CallRail Activity";
       title.style.margin = "0";
-      title.style.fontSize = "18px";
+      title.style.fontSize = "16px";
       header.appendChild(title);
 
       const live = document.createElement("span");
       live.textContent = "Live";
-      live.style.fontSize = "12px";
+      live.style.fontSize = "11px";
       live.style.fontWeight = "800";
       live.style.color = "#788492";
       header.appendChild(live);
@@ -108,8 +100,9 @@ export default function CallRailActivityDrawerEnhancer() {
 
       if (loading) {
         const message = document.createElement("div");
-        message.textContent = "Loading CallRail activity…";
-        message.style.marginTop = "12px";
+        message.textContent = "Loading…";
+        message.style.marginTop = "10px";
+        message.style.fontSize = "12px";
         message.style.color = "#6f7b88";
         target.appendChild(message);
         return;
@@ -118,7 +111,8 @@ export default function CallRailActivityDrawerEnhancer() {
       if (error) {
         const message = document.createElement("div");
         message.textContent = error;
-        message.style.marginTop = "12px";
+        message.style.marginTop = "10px";
+        message.style.fontSize = "12px";
         message.style.color = "#a33a32";
         message.style.fontWeight = "700";
         target.appendChild(message);
@@ -128,7 +122,8 @@ export default function CallRailActivityDrawerEnhancer() {
       if (!calls.length) {
         const message = document.createElement("div");
         message.textContent = "No linked CallRail activity.";
-        message.style.marginTop = "12px";
+        message.style.marginTop = "10px";
+        message.style.fontSize = "12px";
         message.style.color = "#7a8591";
         target.appendChild(message);
         return;
@@ -136,42 +131,51 @@ export default function CallRailActivityDrawerEnhancer() {
 
       const list = document.createElement("div");
       list.style.display = "grid";
-      list.style.gap = "10px";
-      list.style.marginTop = "12px";
+      list.style.gap = "8px";
+      list.style.marginTop = "10px";
 
       for (const call of calls) {
-        const card = document.createElement("article");
-        card.style.border = "1px solid #dde4ea";
-        card.style.borderRadius = "12px";
-        card.style.padding = "12px 14px";
-        card.style.background = "#f9fbfc";
+        const details = document.createElement("details");
+        details.style.border = "1px solid #dde4ea";
+        details.style.borderRadius = "10px";
+        details.style.background = "#f9fbfc";
+        details.style.overflow = "hidden";
 
-        const meta = document.createElement("div");
-        meta.style.display = "flex";
-        meta.style.justifyContent = "space-between";
-        meta.style.gap = "12px";
-        meta.style.fontSize = "12px";
-        meta.style.fontWeight = "800";
-        meta.style.color = "#687686";
-        const duration = durationLabel(call.duration_seconds);
-        meta.innerHTML = `<span>${callLabel(call)}${duration ? ` · ${duration}` : ""}</span><span>${dateTimeLabel(call.at)}</span>`;
-        card.appendChild(meta);
+        const summary = document.createElement("summary");
+        summary.style.display = "flex";
+        summary.style.alignItems = "center";
+        summary.style.justifyContent = "space-between";
+        summary.style.gap = "12px";
+        summary.style.padding = "11px 13px";
+        summary.style.cursor = "pointer";
+        summary.style.fontSize = "13px";
+        summary.style.fontWeight = "800";
+        summary.style.color = "#637182";
 
-        if (call.caller_name || call.caller_phone) {
-          const caller = document.createElement("div");
-          caller.style.marginTop = "6px";
-          caller.style.fontWeight = "800";
-          caller.textContent = [call.caller_name, call.caller_phone].filter(Boolean).join(" · ");
-          card.appendChild(caller);
-        }
+        const label = document.createElement("span");
+        label.textContent = callLabel(call);
+        summary.appendChild(label);
+
+        const when = document.createElement("span");
+        when.textContent = dateTimeLabel(call.at);
+        summary.appendChild(when);
+        details.appendChild(summary);
+
+        const body = document.createElement("div");
+        body.style.padding = "0 13px 13px";
+        body.style.fontSize = "13px";
+        body.style.lineHeight = "1.45";
 
         const detail = call.summary || call.lead_explanation || call.transcription;
         if (detail) {
-          const body = document.createElement("div");
-          body.style.marginTop = "8px";
-          body.style.lineHeight = "1.45";
-          body.textContent = detail;
-          card.appendChild(body);
+          const text = document.createElement("div");
+          text.textContent = detail;
+          body.appendChild(text);
+        } else {
+          const text = document.createElement("div");
+          text.textContent = "No CallRail summary or transcript available.";
+          text.style.color = "#7a8591";
+          body.appendChild(text);
         }
 
         if (call.recording_url) {
@@ -181,12 +185,13 @@ export default function CallRailActivityDrawerEnhancer() {
           link.rel = "noreferrer";
           link.textContent = "Listen to recording ↗";
           link.style.display = "inline-block";
-          link.style.marginTop = "9px";
+          link.style.marginTop = "8px";
           link.style.fontWeight = "800";
-          card.appendChild(link);
+          body.appendChild(link);
         }
 
-        list.appendChild(card);
+        details.appendChild(body);
+        list.appendChild(details);
       }
       target.appendChild(list);
     }
@@ -200,6 +205,7 @@ export default function CallRailActivityDrawerEnhancer() {
         if (!response.ok) throw new Error(body.error || "Unable to load CallRail activity.");
         if (stopped || confirmation !== activeConfirmation) return;
         render(target, body.calls || []);
+        if (target.nextElementSibling) drawer.appendChild(target);
       } catch (error) {
         if (stopped || confirmation !== activeConfirmation || silent) return;
         render(target, [], false, error instanceof Error ? error.message : "Unable to load CallRail activity.");
@@ -218,9 +224,11 @@ export default function CallRailActivityDrawerEnhancer() {
 
       const confirmation = findConfirmation(drawer);
       if (!confirmation) return;
-      if (confirmation === activeConfirmation && drawer.querySelector('[data-callrail-readiness-section="true"]')) return;
+      const target = section(drawer);
+      if (confirmation === activeConfirmation && target.dataset.callrailLoaded === "true") return;
 
       activeConfirmation = confirmation;
+      target.dataset.callrailLoaded = "true";
       void load(drawer, confirmation);
       if (timer) window.clearInterval(timer);
       timer = window.setInterval(() => {
