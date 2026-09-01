@@ -28,6 +28,7 @@ async function requireEmployee(request: NextRequest) {
 }
 
 const CLASSIFICATIONS = new Set(["unclassified", "sales_lead", "customer_service", "existing_guest", "other", "junk"]);
+const ACTIVE_CLASSIFICATIONS = new Set(["unclassified", "sales_lead"]);
 
 export async function GET(request: NextRequest) {
   const profile = await requireEmployee(request);
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
     if (body?.action === "classify") {
       const workType = body.work_type?.trim() || "";
       if (!CLASSIFICATIONS.has(workType)) return NextResponse.json({ error: "Choose a valid classification." }, { status: 400 });
-      const close = workType === "junk";
+      const close = !ACTIVE_CLASSIFICATIONS.has(workType);
       await rest<void>(`customer_work_items?id=eq.${encodeURIComponent(id)}`, {
         method: "PATCH", headers: { Prefer: "return=minimal" },
         body: JSON.stringify({ work_type: workType, status: close ? "closed" : "open", closed_at: close ? now : null, updated_at: now }),
