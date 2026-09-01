@@ -35,7 +35,7 @@ function destination(call: LiveCall) {
   if (call.route_kind === "open_lead" && call.opportunity_id) return `/team/leads?opportunity=${encodeURIComponent(call.opportunity_id)}`;
   if (call.route_kind === "active_reservation" && call.confirmation_code) return `/team/readiness?confirmation=${encodeURIComponent(call.confirmation_code)}`;
   if (call.route_kind === "known_contact") return `/team/previous-guests?phone=${encodeURIComponent(call.caller_phone)}`;
-  return `/team/leads/inbox?live_call=${encodeURIComponent(call.id)}`;
+  return `/team/leads/live-call?live_call=${encodeURIComponent(call.id)}`;
 }
 
 export default function LiveCallScreenPop() {
