@@ -37,6 +37,10 @@ export async function POST(request: NextRequest) {
     if (!phone) return NextResponse.json({error:"Caller phone is missing."},{status:400});
     const callId = item.source_record_id || `work_${item.id}`;
     const now = new Date().toISOString();
+
+    const existing = await rest<Array<{id:string}>>(`live_calls?callrail_call_id=eq.${encodeURIComponent(callId)}&select=id&limit=1`);
+    if (existing[0]?.id) return NextResponse.json({ok:true,live_call_id:existing[0].id});
+
     const payload = {
       callrail_call_id: callId,
       caller_phone: phone,
@@ -50,9 +54,9 @@ export async function POST(request: NextRequest) {
       raw_payload: { customer_work_item_id:item.id, ...m },
       updated_at: now,
     };
-    const saved = await rest<Array<{id:string}>>("live_calls?on_conflict=callrail_call_id",{
+    const saved = await rest<Array<{id:string}>>("live_calls",{
       method:"POST",
-      headers:{Prefer:"resolution=merge-duplicates,return=representation"},
+      headers:{Prefer:"return=representation"},
       body:JSON.stringify(payload),
     });
     const liveCallId = saved[0]?.id;
