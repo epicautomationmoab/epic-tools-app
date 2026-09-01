@@ -1,6 +1,7 @@
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
 import LeadsTable, { type LeadDraft, type LeadNote, type LeadRow } from "./LeadsTable";
+import DraftStatusDrawerEnhancer from "./DraftStatusDrawerEnhancer";
 import styles from "./Leads.module.css";
 
 function requiredEnv(name: string) {
@@ -82,6 +83,7 @@ export default async function LeadsPage() {
   const conversion = legitimatePool ? Math.round((booked.length / legitimatePool) * 100) : 0;
 
   return <div className={styles.shell}>
+    <DraftStatusDrawerEnhancer />
     <TeamSidebar active="Sales & Leads" />
     <main className={styles.main}>
       <header className={styles.header}><div><div className={styles.eyebrow}>Epic Tools Sales</div><h1>Sales &amp; Leads</h1><p>Open TripWorks shopping opportunities that still belong to the sales team.</p></div><Link className={styles.back} href="/team/readiness">Guest Readiness</Link></header>
