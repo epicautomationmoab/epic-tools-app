@@ -1313,6 +1313,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     <button
                       type="button"
                       className={styles.contactSaveButton}
+                      data-contact-save-field="phone"
                       disabled={savingContact}
                     >
                       {savingContact ? "Saving..." : "Save"}
@@ -1367,6 +1368,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     <button
                       type="button"
                       className={styles.contactSaveButton}
+                      data-contact-save-field="email"
                       disabled={savingContact}
                     >
                       {savingContact ? "Saving..." : "Save"}
