@@ -35,9 +35,9 @@ async function getLeads() {
   const all = await supabaseRest<Array<{ id: string; status: string; captured_value_cents: number }>>(
     `sales_opportunities?select=${encodeURIComponent("id,status,captured_value_cents")}`,
   );
-  const openSelect = encodeURIComponent("id,customer_name,email,phone_e164,activity_date,activity_window_start,activity_window_end,shopping_started_at,shopping_last_activity_at,lead_value_cents,draft_count,source_method,assigned_rep_name,primary_draft_trip_id,contact_id,claimed_at,claimed_by_profile_id,claimed_by_name,is_past_guest,prior_booking_count,last_prior_booking_at,tripworks_customer_code,tripworks_is_opt_in,tripworks_identity_verified_at,new_unclaimed_at");
+  const openSelect = encodeURIComponent("id,customer_name,email,phone_e164,activity_date,activity_window_start,activity_window_end,shopping_started_at,shopping_last_activity_at,lead_value_cents,draft_count,source_method,assigned_rep_name,primary_draft_trip_id,contact_id,claimed_at,claimed_by_profile_id,claimed_by_name,is_past_guest,prior_booking_count,last_prior_booking_at,tripworks_customer_code,tripworks_is_opt_in,tripworks_identity_verified_at,new_unclaimed_at,interest_label,party_needs,lead_capture_note,origin_live_call_id");
   const open = await supabaseRest<LeadRow[]>(`sales_open_leads_enriched?select=${openSelect}`);
-  open.sort((a, b) => a.activity_window_start.localeCompare(b.activity_window_start) || Number(b.lead_value_cents || 0) - Number(a.lead_value_cents || 0));
+  open.sort((a, b) => (a.activity_window_start || "9999-12-31").localeCompare(b.activity_window_start || "9999-12-31") || Number(b.lead_value_cents || 0) - Number(a.lead_value_cents || 0));
 
   const booked = all.filter((row) => row.status === "booked");
   const lost = all.filter((row) => row.status === "lost");
@@ -86,15 +86,15 @@ export default async function LeadsPage() {
     <DraftStatusDrawerEnhancer />
     <TeamSidebar active="Sales & Leads" />
     <main className={styles.main}>
-      <header className={styles.header}><div><div className={styles.eyebrow}>Epic Tools Sales</div><h1>Sales &amp; Leads</h1><p>Open TripWorks shopping opportunities that still belong to the sales team.</p></div><Link className={styles.back} href="/team/readiness">Guest Readiness</Link></header>
+      <header className={styles.header}><div><div className={styles.eyebrow}>Epic Tools Sales</div><h1>Sales &amp; Leads</h1><p>Open sales opportunities that still belong to the sales team.</p></div><Link className={styles.back} href="/team/readiness">Guest Readiness</Link></header>
       {loadError ? <div style={{ marginBottom: 18, padding: 16, background: "#fff1ef", border: "1px solid #efc0ba", borderRadius: 12, color: "#8c2f24", fontWeight: 750 }}>Sales data could not load: {loadError}</div> : null}
       <section className={styles.kpis}>
-        <div className={`${styles.kpi} ${styles.kpiPrimary}`}><div className={styles.kpiLabel}>Open Lead Value</div><div className={styles.kpiValue}>{dollars(openValue)}</div><div className={styles.kpiSub}>{open.length} active shopping episodes</div></div>
-        <div className={styles.kpi}><div className={styles.kpiLabel}>Captured Lead Value</div><div className={styles.kpiValue}>{dollars(capturedValue)}</div><div className={styles.kpiSub}>{booked.length} converted shopping episodes</div></div>
-        <div className={styles.kpi}><div className={styles.kpiLabel}>Open Leads</div><div className={styles.kpiValue}>{open.length}</div><div className={styles.kpiSub}>Future opportunities still with sales</div></div>
+        <div className={`${styles.kpi} ${styles.kpiPrimary}`}><div className={styles.kpiLabel}>Open Lead Value</div><div className={styles.kpiValue}>{dollars(openValue)}</div><div className={styles.kpiSub}>{open.length} active sales opportunities</div></div>
+        <div className={styles.kpi}><div className={styles.kpiLabel}>Captured Lead Value</div><div className={styles.kpiValue}>{dollars(capturedValue)}</div><div className={styles.kpiSub}>{booked.length} converted opportunities</div></div>
+        <div className={styles.kpi}><div className={styles.kpiLabel}>Open Leads</div><div className={styles.kpiValue}>{open.length}</div><div className={styles.kpiSub}>Opportunities still with sales</div></div>
         <div className={styles.kpi}><div className={styles.kpiLabel}>Lead Conversion</div><div className={styles.kpiValue}>{conversion}%</div><div className={styles.kpiSub}>{booked.length} booked of {legitimatePool} legitimate leads · {retired.length} retired excluded</div></div>
       </section>
-      <div className={styles.toolbar}><div className={styles.tabs}><span className={`${styles.tab} ${styles.tabActive}`}>Open Leads {open.length}</span><Link className={styles.tab} href="/team/leads/inbox">Inbox / Needs Review</Link></div><div className={styles.muted}>30-day shopping episodes · click a lead to work it</div></div>
+      <div className={styles.toolbar}><div className={styles.tabs}><span className={`${styles.tab} ${styles.tabActive}`}>Open Leads {open.length}</span><Link className={styles.tab} href="/team/leads/inbox">Inbox / Needs Review</Link></div><div className={styles.muted}>Sales opportunities · click a lead to work it</div></div>
       {!loadError ? <LeadsTable leads={open} draftsByLead={draftsByLead} notesByLead={notesByLead} /> : null}
     </main>
   </div>;
