@@ -51,7 +51,7 @@ async function getLeads() {
     const draftIds = [...new Set(links.map((link) => link.draft_id))];
     if (draftIds.length) {
       const draftQuoted = draftIds.map((id) => `"${id}"`).join(",");
-      const drafts = await supabaseRest<LeadDraft[]>(`sales_drafts?select=${encodeURIComponent("id,tripworks_trip_id,confirmation_code,customer_name,email,phone_e164,activity_date,start_time,experience_name,option_name,value_cents,trip_method,created_by_name,tripworks_created_at,last_seen_at")}&id=in.(${draftQuoted})`);
+      const drafts = await supabaseRest<LeadDraft[]>(`sales_drafts?select=${encodeURIComponent("id,tripworks_trip_id,confirmation_code,customer_name,email,phone_e164,activity_date,start_time,experience_name,option_name,value_cents,trip_method,created_by_name,tripworks_created_at,last_seen_at,last_trip_status")}&id=in.(${draftQuoted})`);
       const draftMap = new Map(drafts.map((draft) => [draft.id, draft]));
       draftsByLead = Object.fromEntries(open.map((lead) => [lead.id, links.filter((link) => link.opportunity_id === lead.id).map((link) => draftMap.get(link.draft_id)).filter((draft): draft is LeadDraft => Boolean(draft)).sort((a, b) => Number(b.value_cents || 0) - Number(a.value_cents || 0))]));
     }
