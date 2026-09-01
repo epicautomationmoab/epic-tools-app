@@ -1,5 +1,6 @@
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
+import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
 import ReadinessTable from "./ReadinessTable";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
@@ -50,6 +51,7 @@ export default async function TeamReadinessPage() {
       <NoShowEnhancer rows={rows} />
       <ContactSaveEnhancer />
       <CallRailActivityDrawerEnhancer />
+      <CallAttentionRowEnhancer context="readiness" />
 
       <TeamSidebar active="Guest Readiness" />
 
