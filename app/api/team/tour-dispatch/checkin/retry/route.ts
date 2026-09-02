@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
-import { supabaseRest } from "@/lib/server/supabase-rest";
+import { supabaseSelect } from "@/lib/server/supabase-rest";
 import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 async function triggerAxelIn(jobId: string) {
@@ -32,18 +32,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid tour vehicle slot." }, { status: 400 });
     }
 
-    const jobs = await supabaseRest<any[]>("tour_vehicle_jobs", {
-      params: {
-        select: "id,status,instruction_snapshot,created_at",
-        action_type: "eq.checkin",
-        execution_mode: "eq.shadow",
-        builder_name: "eq.Miles",
-        builder_version: "eq.miles-shadow-v2",
-        status: "eq.shadow_ready",
-        order: "created_at.desc",
-        limit: "50",
-      },
+    const params = new URLSearchParams({
+      select: "id,status,instruction_snapshot,created_at",
+      action_type: "eq.checkin",
+      execution_mode: "eq.shadow",
+      builder_name: "eq.Miles",
+      builder_version: "eq.miles-shadow-v2",
+      status: "eq.shadow_ready",
+      order: "created_at.desc",
+      limit: "50",
     });
+    const jobs = await supabaseSelect<any>("tour_vehicle_jobs", params);
     const job = jobs.find((candidate) => {
       const packet = candidate?.instruction_snapshot ?? {};
       return String(packet.store_visit_id ?? "") === storeVisitId && Number(packet.vehicle_slot) === vehicleSlot;
