@@ -102,6 +102,14 @@ function buttonStyle(kind: "primary" | "danger" | "neutral" = "neutral") {
   return { ...base, border: "1px solid #d0d5dd", background: "#fff", color: "#344054" };
 }
 
+function rowIsPremier(row: ReadinessRow | undefined) {
+  return Boolean(
+    row &&
+      (row.premier_adventure_assure === true ||
+        row.adventure_assure_level?.trim().toLowerCase() === "premier"),
+  );
+}
+
 export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
   const rowByReadinessId = useMemo(
     () => new Map(rows.filter((row) => row.readiness_id).map((row) => [row.readiness_id!, row])),
@@ -226,7 +234,7 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
     try {
       const result = await rpc<DamageDeposit>("set_rental_damage_deposit_basis", {
         p_readiness_id: readinessId,
-        p_basis: international ? "premier_international" : row?.premier_adventure_assure ? "none" : "standard",
+        p_basis: international ? "premier_international" : rowIsPremier(row) ? "none" : "standard",
         p_updated_by: "EpicTools",
       });
       setDeposit(result);
@@ -258,9 +266,7 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
 
   const selectedRow = targets ? rowByReadinessId.get(targets.readinessId) : null;
   const selectedDue = selectedRow?.amount_due_cents ?? 0;
-  const isPremier = selectedRow
-    ? selectedRow.premier_adventure_assure === true || selectedRow.adventure_assure_level?.trim().toLowerCase() === "premier"
-    : false;
+  const isPremier = rowIsPremier(selectedRow);
 
   return (
     <>
