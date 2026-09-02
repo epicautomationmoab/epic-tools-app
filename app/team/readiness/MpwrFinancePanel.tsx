@@ -102,7 +102,7 @@ function buttonStyle(kind: "primary" | "danger" | "neutral" = "neutral") {
   return { ...base, border: "1px solid #d0d5dd", background: "#fff", color: "#344054" };
 }
 
-function rowIsPremier(row: ReadinessRow | undefined) {
+function rowIsPremier(row: ReadinessRow | null | undefined) {
   return Boolean(
     row &&
       (row.premier_adventure_assure === true ||
