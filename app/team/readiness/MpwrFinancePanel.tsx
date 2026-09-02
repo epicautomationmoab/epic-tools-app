@@ -194,9 +194,9 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
         p_readiness_id: readinessId,
         p_requested_by: "EpicTools",
       });
-      setMessage("Cassie queued to verify MPWR and settle only if MPWR shows a Settle Balance action.");
+      setMessage("MPWR balance settlement queued. MPWR will be verified before any settlement is attempted.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to launch Cassie.");
+      setMessage(error instanceof Error ? error.message : "Unable to queue MPWR balance settlement.");
     } finally {
       setBusy("");
     }
@@ -256,9 +256,9 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
         p_requested_by: "EpicTools",
       });
       await refreshDue();
-      setMessage("Victor queued to release this MPWR damage deposit.");
+      setMessage("Damage deposit release queued.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to launch Victor.");
+      setMessage(error instanceof Error ? error.message : "Unable to queue damage deposit release.");
     } finally {
       setBusy("");
     }
@@ -295,7 +295,7 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
                     <td style={{ padding: 10 }}>{item.mpwr_reservation_url ? <a href={item.mpwr_reservation_url} target="_blank" rel="noreferrer">Open MPWR</a> : "Missing"}</td>
                     <td style={{ padding: 10 }}>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {item.status === "eligible" ? <button style={buttonStyle("primary")} disabled={busy === `victor:${item.readiness_id}`} onClick={() => launchVictor(item.readiness_id)}>Release Deposit — Victor</button> : null}
+                        {item.status === "eligible" ? <button style={buttonStyle("primary")} disabled={busy === `victor:${item.readiness_id}`} onClick={() => launchVictor(item.readiness_id)}>Release Deposit</button> : null}
                         {item.status !== "do_not_release" && item.status !== "release_requested" && item.status !== "releasing" ? <button style={buttonStyle("danger")} onClick={() => setDepositHold(item.readiness_id, true)}>Do Not Release</button> : null}
                         {item.status === "do_not_release" ? <button style={buttonStyle()} onClick={() => setDepositHold(item.readiness_id, false)}>Allow Release</button> : null}
                       </div>
@@ -319,10 +319,10 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
                 disabled={busy === `cassie:${targets.readinessId}` || !selectedRow.mpwr_reservation_url}
                 onClick={() => launchCassie(targets.readinessId)}
               >
-                {busy === `cassie:${targets.readinessId}` ? "Launching Cassie…" : "Settle in MPWR — Cassie"}
+                {busy === `cassie:${targets.readinessId}` ? "Queuing…" : "Settle MPWR Balance"}
               </button>
               <small style={{ display: "block", marginTop: 5, lineHeight: 1.3, color: "#667085", fontWeight: 700 }}>
-                Cassie will first verify that MPWR actually shows a Settle Balance action.
+                MPWR will be verified for an available Settle Balance action before any settlement is attempted.
               </small>
             </div>,
             targets.balanceTarget,
