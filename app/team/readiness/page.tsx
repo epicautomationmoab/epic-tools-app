@@ -21,6 +21,7 @@ import EmailDeliveryDrawerEnhancer from "./EmailDeliveryDrawerEnhancer";
 import ReservationDeepLinkEnhancer from "./ReservationDeepLinkEnhancer";
 import NoShowEnhancer from "./NoShowEnhancer";
 import CallRailActivityDrawerEnhancer from "./CallRailActivityDrawerEnhancer";
+import MpwrFinancePanel from "./MpwrFinancePanel";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 
@@ -69,6 +70,7 @@ export default async function TeamReadinessPage() {
         <section className={styles.content}>
           {error ? <div className={styles.error}>{error}</div> : null}
           <EmailDeliveryAlert />
+          <MpwrFinancePanel rows={rows} />
           <ReadinessTable rows={rows} />
         </section>
       </main>
