@@ -50,9 +50,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
   const [messages, setMessages] = useState<Record<string, string>>({});
 
   function reconcileAfterAction() {
-    for (const delay of [2000, 6000, 15000, 30000]) {
-      window.setTimeout(() => router.refresh(), delay);
-    }
+    for (const delay of [2000, 6000, 15000, 30000]) window.setTimeout(() => router.refresh(), delay);
   }
 
   useEffect(() => {
@@ -68,14 +66,8 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       }
       return next;
     });
-    setStatuses((current) => ({
-      ...current,
-      ...Object.fromEntries(rows.map((row) => [keyFor(row), row.checkout_status])),
-    }));
-    setCheckinStatuses((current) => ({
-      ...current,
-      ...Object.fromEntries(rows.map((row) => [keyFor(row), row.checkin_status])),
-    }));
+    setStatuses((current) => ({ ...current, ...Object.fromEntries(rows.map((row) => [keyFor(row), row.checkout_status])) }));
+    setCheckinStatuses((current) => ({ ...current, ...Object.fromEntries(rows.map((row) => [keyFor(row), row.checkin_status])) }));
   }, [rows]);
 
   function updateDraft(key: string, field: keyof Draft, value: string) {
@@ -90,19 +82,11 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       setMessages((current) => ({ ...current, [key]: "Enter car #, mileage, and hours." }));
       return;
     }
-
     setBusyKey(key);
     try {
       const response = await fetch("/api/team/tour-dispatch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          store_visit_id: row.store_visit_id,
-          vehicle_slot: row.vehicle_slot,
-          vehicle_label: draft.car.trim(),
-          checkout_mileage: Number(draft.mileage),
-          checkout_engine_hours: Number(draft.hours),
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ store_visit_id: row.store_visit_id, vehicle_slot: row.vehicle_slot, vehicle_label: draft.car.trim(), checkout_mileage: Number(draft.mileage), checkout_engine_hours: Number(draft.hours) }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || "Unable to prepare checkout.");
@@ -112,9 +96,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       reconcileAfterAction();
     } catch (error) {
       setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to prepare checkout." }));
-    } finally {
-      setBusyKey(null);
-    }
+    } finally { setBusyKey(null); }
   }
 
   async function releaseCheckin(row: TourDispatchRow) {
@@ -122,8 +104,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
     setBusyKey(key);
     try {
       const response = await fetch("/api/team/tour-dispatch/checkin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ store_visit_id: row.store_visit_id, vehicle_slot: row.vehicle_slot }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -135,9 +116,24 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       reconcileAfterAction();
     } catch (error) {
       setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to record vehicle return." }));
-    } finally {
-      setBusyKey(null);
-    }
+    } finally { setBusyKey(null); }
+  }
+
+  async function retryCheckin(row: TourDispatchRow) {
+    const key = keyFor(row);
+    setBusyKey(key);
+    try {
+      const response = await fetch("/api/team/tour-dispatch/checkin/retry", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ store_visit_id: row.store_visit_id, vehicle_slot: row.vehicle_slot }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to retry vehicle check-in.");
+      setMessages((current) => ({ ...current, [key]: "Axel In retry sent." }));
+      reconcileAfterAction();
+    } catch (error) {
+      setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to retry vehicle check-in." }));
+    } finally { setBusyKey(null); }
   }
 
   if (!rows.length) return <div className={styles.empty}>No MPWR tour vehicles are scheduled for today.</div>;
@@ -152,23 +148,9 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
       const locked = departureLocked(status);
       const busy = busyKey === key;
       const message = messages[key];
-
       return <tr key={key}>
-        <td>
-          <strong>{row.customer_name}</strong>
-          {row.total_vehicle_count > 1 ? <span className={styles.slot}>Vehicle {row.vehicle_slot} of {row.total_vehicle_count}</span> : null}
-          <PrintSingleVehicleTagButton
-            className={styles.inlinePrintButton}
-            card={{
-              customer_name: row.customer_name,
-              product_display_name: row.product_display_name,
-              visit_start_time: row.visit_start_time,
-              confirmation_code: row.confirmation_code,
-            }}
-          />
-        </td>
-        <td>{row.product_display_name}</td>
-        <td className={styles.time}>{formatTime(row.visit_start_time)}</td>
+        <td><strong>{row.customer_name}</strong>{row.total_vehicle_count > 1 ? <span className={styles.slot}>Vehicle {row.vehicle_slot} of {row.total_vehicle_count}</span> : null}<PrintSingleVehicleTagButton className={styles.inlinePrintButton} card={{ customer_name: row.customer_name, product_display_name: row.product_display_name, visit_start_time: row.visit_start_time, confirmation_code: row.confirmation_code }} /></td>
+        <td>{row.product_display_name}</td><td className={styles.time}>{formatTime(row.visit_start_time)}</td>
         <td><input value={draft.car} onChange={(e) => updateDraft(key, "car", e.target.value)} disabled={locked} /></td>
         <td><input value={draft.mileage} onChange={(e) => updateDraft(key, "mileage", e.target.value)} inputMode="decimal" disabled={locked} /></td>
         <td><input value={draft.hours} onChange={(e) => updateDraft(key, "hours", e.target.value)} inputMode="decimal" disabled={locked} /></td>
@@ -177,7 +159,7 @@ export default function TourDispatchTable({ rows }: { rows: TourDispatchRow[] })
           {status === "checkout_queued" ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Retrying…" : "Retry Checkout"}</button> : null}
           {status === "checking_out" ? <span className={styles.axelPill}>Checkout In Progress…</span> : null}
           {status === "out" && !returnInProgress(checkinStatus) && !returnComplete(checkinStatus) ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
-          {returnInProgress(checkinStatus) ? <span className={styles.axelPill}>Check-In In Progress…</span> : null}
+          {returnInProgress(checkinStatus) ? <><span className={styles.axelPill}>Check-In In Progress…</span><button type="button" onClick={() => retryCheckin(row)} disabled={busy}>{busy ? "Retrying…" : "Try Again"}</button></> : null}
           {returnComplete(checkinStatus) ? <span className={styles.statusPill}>Vehicle Returned</span> : null}
           {message ? <span className={message.includes("Unable") || message.includes("Enter ") ? styles.error : styles.saved}>{message}</span> : null}
         </td>
