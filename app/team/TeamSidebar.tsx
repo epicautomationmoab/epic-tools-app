@@ -9,6 +9,7 @@ type Props = {
   active:
     | "Guest Readiness"
     | "Held-Over Rentals"
+    | "Deposits On-Hold"
     | "Tour Dispatch"
     | "Sales & Leads"
     | "Previous Guest Lookup"
@@ -19,6 +20,7 @@ type Props = {
 const baseNavItems = [
   { label: "Guest Readiness", href: "/team/readiness", external: false },
   { label: "Held-Over Rentals", href: "/team/active-rentals", external: false },
+  { label: "Deposits On-Hold", href: "/team/deposits-on-hold", external: false },
   { label: "Tour Dispatch", href: "/team/tour-dispatch", external: false },
   { label: "Sales & Leads", href: "/team/leads", external: false },
   { label: "Previous Guest Lookup", href: "/team/previous-guests", external: false },
