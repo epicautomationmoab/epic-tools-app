@@ -8,23 +8,23 @@ export const dynamic = "force-dynamic";
 
 export default function ReferralPartnersPage() {
   return (
-    <main style={{ minHeight: "100vh", background: "#f1f3f5", color: "#202733" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "250px minmax(0, 1fr)", minHeight: "100vh" }}>
-        <TeamSidebar active="Referral Partners" />
-        <section style={{ minWidth: 0 }}>
-          <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, padding: "16px 24px", borderBottom: "1px solid #dfe4ea", background: "white" }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 24 }}>Referral Partners</h1>
-              <p style={{ margin: "4px 0 0", color: "#68717d", fontSize: 13 }}>Manage partner links, guest discounts, referral rewards, and attribution rules.</p>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}><HeaderClock /><LogoutButton /></div>
-          </header>
-          <div style={{ padding: 24, display: "grid", gap: 22 }}>
-            <ReferralPartnersClient />
-            <PartnerUserInviteClient />
+    <div style={{ minHeight: "100vh", background: "#f1f3f5", color: "#202733" }}>
+      <TeamSidebar active="Referral Partners" />
+
+      <main style={{ marginLeft: 220, minHeight: "100vh", padding: "28px 30px 42px" }}>
+        <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24 }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 34, letterSpacing: "-0.035em", lineHeight: 1.05 }}>Referral Partners</h1>
+            <p style={{ margin: "6px 0 0", color: "#7b8491", fontSize: 14 }}>Manage partner links, guest discounts, referral rewards, and attribution rules.</p>
           </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}><HeaderClock /><LogoutButton /></div>
+        </header>
+
+        <section style={{ marginTop: 26, display: "grid", gap: 22 }}>
+          <ReferralPartnersClient />
+          <PartnerUserInviteClient />
         </section>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
