@@ -12,7 +12,9 @@ type Partner = {
   reward_mode: "partner_reward" | "guest_discount" | "split";
   reward_basis: "flat" | "percent";
   partner_reward_cents: number;
+  partner_reward_percent: number;
   guest_discount_cents: number;
+  guest_discount_percent: number;
   promo_code: string | null;
   attribution_window_days: number;
   show_promo_popup: boolean;
@@ -47,6 +49,16 @@ function modeLabel(mode: Partner["reward_mode"]) {
   return "Partner Reward";
 }
 
+function rewardText(partner: Partner) {
+  const partnerValue = partner.reward_basis === "percent"
+    ? partner.partner_reward_percent > 0 ? `${partner.partner_reward_percent}% partner` : ""
+    : partner.partner_reward_cents > 0 ? `${money(partner.partner_reward_cents)} partner` : "";
+  const guestValue = partner.reward_basis === "percent"
+    ? partner.guest_discount_percent > 0 ? `${partner.guest_discount_percent}% guest` : ""
+    : partner.guest_discount_cents > 0 ? `${money(partner.guest_discount_cents)} guest` : "";
+  return [partnerValue, guestValue].filter(Boolean).join(" + ") || "No reward configured";
+}
+
 export default function ReferralPartnersClient() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +69,8 @@ export default function ReferralPartnersClient() {
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [rewardMode, setRewardMode] = useState<Partner["reward_mode"]>("partner_reward");
-  const [partnerReward, setPartnerReward] = useState("50");
+  const [rewardBasis, setRewardBasis] = useState<Partner["reward_basis"]>("flat");
+  const [partnerReward, setPartnerReward] = useState("25");
   const [guestDiscount, setGuestDiscount] = useState("0");
   const [promoCode, setPromoCode] = useState("");
   const [windowDays, setWindowDays] = useState("30");
@@ -97,6 +110,13 @@ export default function ReferralPartnersClient() {
     }
   }, [rewardMode]);
 
+  useEffect(() => {
+    if (rewardBasis === "percent") {
+      if (rewardMode === "partner_reward" && Number(partnerReward) > 100) setPartnerReward("10");
+      if (rewardMode === "guest_discount" && Number(guestDiscount) > 100) setGuestDiscount("10");
+    }
+  }, [rewardBasis, rewardMode, partnerReward, guestDiscount]);
+
   const preview = useMemo(() => {
     const code = slug || "partner-code";
     return `https://www.epic4x4adventures.com/?ref=${code}`;
@@ -107,6 +127,8 @@ export default function ReferralPartnersClient() {
     setSaving(true);
     setError("");
     try {
+      const partnerValue = Math.max(0, Number(partnerReward) || 0);
+      const guestValue = Math.max(0, Number(guestDiscount) || 0);
       const response = await fetch("/api/team/referral-partners", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,9 +138,11 @@ export default function ReferralPartnersClient() {
           contact_name: contactName,
           contact_email: contactEmail,
           reward_mode: rewardMode,
-          reward_basis: "flat",
-          partner_reward_cents: Math.round((Number(partnerReward) || 0) * 100),
-          guest_discount_cents: Math.round((Number(guestDiscount) || 0) * 100),
+          reward_basis: rewardBasis,
+          partner_reward_cents: rewardBasis === "flat" ? Math.round(partnerValue * 100) : 0,
+          partner_reward_percent: rewardBasis === "percent" ? partnerValue : 0,
+          guest_discount_cents: rewardBasis === "flat" ? Math.round(guestValue * 100) : 0,
+          guest_discount_percent: rewardBasis === "percent" ? guestValue : 0,
           promo_code: promoCode,
           attribution_window_days: Number(windowDays) || 30,
           show_promo_popup: showPopup,
@@ -133,7 +157,8 @@ export default function ReferralPartnersClient() {
       setContactName("");
       setContactEmail("");
       setRewardMode("partner_reward");
-      setPartnerReward("50");
+      setRewardBasis("flat");
+      setPartnerReward("25");
       setGuestDiscount("0");
       setPromoCode("");
       setWindowDays("30");
@@ -148,13 +173,15 @@ export default function ReferralPartnersClient() {
     }
   }
 
+  const valueSuffix = rewardBasis === "percent" ? "%" : "$";
+
   return (
     <div style={{ display: "grid", gap: 22 }}>
       <section style={{ background: "white", border: "1px solid #dfe4ea", borderRadius: 12, padding: 20 }}>
         <div style={{ marginBottom: 18 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>Add Referral Partner</h2>
           <p style={{ margin: "6px 0 0", color: "#68717d", fontSize: 13 }}>
-            The public domain is intentionally separate from Epic Tools. This link preview uses the main Epic website for now.
+            Create the partner once here. Their referral link works automatically on Epic4X4Adventures.com.
           </p>
         </div>
 
@@ -170,7 +197,7 @@ export default function ReferralPartnersClient() {
             <strong>Referral link preview:</strong> <span style={{ overflowWrap: "anywhere" }}>{preview}</span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
             <label style={labelStyle}>Reward Arrangement
               <select style={fieldStyle} value={rewardMode} onChange={(e) => setRewardMode(e.target.value as Partner["reward_mode"])}>
                 <option value="partner_reward">Partner Reward</option>
@@ -178,11 +205,23 @@ export default function ReferralPartnersClient() {
                 <option value="split">Split Reward</option>
               </select>
             </label>
-            <label style={labelStyle}>Partner Reward ($)<input style={fieldStyle} type="number" min="0" step="1" value={partnerReward} onChange={(e) => setPartnerReward(e.target.value)} /></label>
-            <label style={labelStyle}>Guest Discount ($)<input style={fieldStyle} type="number" min="0" step="1" value={guestDiscount} onChange={(e) => setGuestDiscount(e.target.value)} /></label>
+            <label style={labelStyle}>Calculation
+              <select style={fieldStyle} value={rewardBasis} onChange={(e) => setRewardBasis(e.target.value as Partner["reward_basis"])}>
+                <option value="flat">Flat Amount</option>
+                <option value="percent">Percentage</option>
+              </select>
+            </label>
+            <label style={labelStyle}>Partner Reward ({valueSuffix})<input style={fieldStyle} type="number" min="0" max={rewardBasis === "percent" ? "100" : undefined} step={rewardBasis === "percent" ? "0.01" : "1"} value={partnerReward} onChange={(e) => setPartnerReward(e.target.value)} /></label>
+            <label style={labelStyle}>Guest Discount ({valueSuffix})<input style={fieldStyle} type="number" min="0" max={rewardBasis === "percent" ? "100" : undefined} step={rewardBasis === "percent" ? "0.01" : "1"} value={guestDiscount} onChange={(e) => setGuestDiscount(e.target.value)} /></label>
             <label style={labelStyle}>Attribution Window (days)<input style={fieldStyle} type="number" min="1" max="365" value={windowDays} onChange={(e) => setWindowDays(e.target.value)} /></label>
-            <label style={labelStyle}>TripWorks Promo Code<input style={fieldStyle} value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} placeholder="MOABSPRINGS50" /></label>
+            <label style={labelStyle}>TripWorks Promo Code<input style={fieldStyle} value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} placeholder="MOABSPRINGS10" /></label>
           </div>
+
+          {rewardBasis === "percent" ? (
+            <div style={{ background: "#fff8f3", border: "1px solid #ffd8c2", borderRadius: 9, padding: "11px 13px", color: "#7a3b18", fontSize: 12 }}>
+              Percentage partner rewards are calculated on actual pre-tax TripWorks sales after discounts, excluding TripSafe and Adventure Assure.
+            </div>
+          ) : null}
 
           <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 9, fontSize: 13 }}>
             <input type="checkbox" checked={showPopup} onChange={(e) => setShowPopup(e.target.checked)} />
@@ -192,7 +231,7 @@ export default function ReferralPartnersClient() {
           {showPopup ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
               <label style={labelStyle}>Popup Heading<input style={fieldStyle} value={popupHeading} onChange={(e) => setPopupHeading(e.target.value)} placeholder="A special offer from Moab Springs Ranch" /></label>
-              <label style={labelStyle}>Popup Message<input style={fieldStyle} value={popupBody} onChange={(e) => setPopupBody(e.target.value)} placeholder="Save $50 on your Epic adventure." /></label>
+              <label style={labelStyle}>Popup Message<input style={fieldStyle} value={popupBody} onChange={(e) => setPopupBody(e.target.value)} placeholder="Save 10% on your Epic adventure." /></label>
             </div>
           ) : null}
 
@@ -209,8 +248,8 @@ export default function ReferralPartnersClient() {
             {partners.map((partner) => (
               <div key={partner.id} style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1.4fr) minmax(150px, 1fr) minmax(180px, 1.2fr) minmax(120px, .7fr)", gap: 12, alignItems: "center", border: "1px solid #e5e9ee", borderRadius: 9, padding: "12px 14px", fontSize: 13 }}>
                 <div><strong style={{ display: "block", fontSize: 14 }}>{partner.name}</strong><span style={{ color: "#68717d" }}>?ref={partner.slug}</span></div>
-                <div><strong>{modeLabel(partner.reward_mode)}</strong><br /><span style={{ color: "#68717d" }}>{partner.attribution_window_days}-day attribution</span></div>
-                <div>{partner.partner_reward_cents > 0 ? `${money(partner.partner_reward_cents)} partner` : ""}{partner.partner_reward_cents > 0 && partner.guest_discount_cents > 0 ? " + " : ""}{partner.guest_discount_cents > 0 ? `${money(partner.guest_discount_cents)} guest` : ""}{partner.promo_code ? <><br /><span style={{ color: "#68717d" }}>Promo: {partner.promo_code}</span></> : null}</div>
+                <div><strong>{modeLabel(partner.reward_mode)}</strong><br /><span style={{ color: "#68717d" }}>{partner.reward_basis === "percent" ? "Percentage" : "Flat amount"} · {partner.attribution_window_days}-day attribution</span></div>
+                <div>{rewardText(partner)}{partner.promo_code ? <><br /><span style={{ color: "#68717d" }}>Promo: {partner.promo_code}</span></> : null}</div>
                 <div style={{ fontWeight: 800 }}>{partner.status === "active" ? "Active" : "Inactive"}{partner.show_promo_popup ? <><br /><span style={{ color: "#68717d", fontWeight: 600 }}>Popup on</span></> : null}</div>
               </div>
             ))}
