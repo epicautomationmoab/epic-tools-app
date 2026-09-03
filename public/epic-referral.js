@@ -30,8 +30,9 @@
       partner: payload.partner,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
-    document.cookie = `epic_ref=${encodeURIComponent(ref)}; Path=/; Max-Age=${Math.max(60, Math.floor((new Date(payload.expires_at).getTime() - Date.now()) / 1000))}; SameSite=Lax; Secure`;
-    document.cookie = `epic_rid=${encodeURIComponent(payload.referral_visit_id || "")}; Path=/; Max-Age=${Math.max(60, Math.floor((new Date(payload.expires_at).getTime() - Date.now()) / 1000))}; SameSite=Lax; Secure`;
+    const maxAge = Math.max(60, Math.floor((new Date(payload.expires_at).getTime() - Date.now()) / 1000));
+    document.cookie = `epic_ref=${encodeURIComponent(ref)}; Path=/; Max-Age=${maxAge}; SameSite=Lax; Secure`;
+    document.cookie = `epic_rid=${encodeURIComponent(payload.referral_visit_id || "")}; Path=/; Max-Age=${maxAge}; SameSite=Lax; Secure`;
   }
 
   function decorateLinks(payload) {
@@ -46,6 +47,17 @@
     });
   }
 
+  function defaultOfferText(partner) {
+    if (partner.reward_basis === "percent" && Number(partner.guest_discount_percent) > 0) {
+      return `Save ${Number(partner.guest_discount_percent)}% on your Epic adventure.`;
+    }
+    if (Number(partner.guest_discount_cents) > 0) {
+      const dollars = Number(partner.guest_discount_cents) / 100;
+      return `Save ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(dollars)} on your Epic adventure.`;
+    }
+    return "Thanks for booking with Epic through this partner.";
+  }
+
   function showOffer(partner) {
     if (!partner || !partner.show_promo_popup) return;
     const wrapper = document.createElement("div");
@@ -57,7 +69,7 @@
     heading.textContent = partner.popup_heading || `A special offer from ${partner.name}`;
     heading.style.cssText = "margin:0 0 10px;font-size:24px;";
     const body = document.createElement("p");
-    body.textContent = partner.popup_body || (partner.guest_discount_cents ? `Save $${Math.round(partner.guest_discount_cents / 100)} on your Epic adventure.` : "Thanks for booking with Epic through this partner.");
+    body.textContent = partner.popup_body || defaultOfferText(partner);
     body.style.cssText = "margin:0 0 18px;line-height:1.5;color:#5f6874;";
     card.appendChild(heading);
     card.appendChild(body);
