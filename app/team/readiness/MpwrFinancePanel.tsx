@@ -33,9 +33,6 @@ type DamageDeposit = {
   released_at?: string | null;
   released_by?: string | null;
   last_error?: string | null;
-  customer_name?: string;
-  visit_start_time?: string;
-  product_display_name?: string;
 };
 
 type SettlementJob = {
@@ -87,29 +84,18 @@ function findFactTarget(dialog: HTMLElement, label: string) {
   return null;
 }
 
-function money(cents: number | null | undefined) {
-  return `$${((cents ?? 0) / 100).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function buttonStyle(kind: "primary" | "danger" | "neutral" = "neutral") {
-  const base: React.CSSProperties = {
+function buttonStyle() {
+  return {
     borderRadius: 8,
     padding: "7px 10px",
     fontSize: 12,
     fontWeight: 800,
     cursor: "pointer",
     lineHeight: 1.15,
-  };
-  if (kind === "primary") {
-    return { ...base, border: "1px solid #156e99", background: "#eaf6fc", color: "#0e5d83" };
-  }
-  if (kind === "danger") {
-    return { ...base, border: "1px solid #b42318", background: "#fff0ee", color: "#9d1c12" };
-  }
-  return { ...base, border: "1px solid #d0d5dd", background: "#fff", color: "#344054" };
+    border: "1px solid #d0d5dd",
+    background: "#fff",
+    color: "#344054",
+  } as const;
 }
 
 function rowIsPremier(row: ReadinessRow | null | undefined) {
@@ -117,6 +103,55 @@ function rowIsPremier(row: ReadinessRow | null | undefined) {
     row &&
       (row.premier_adventure_assure === true ||
         row.adventure_assure_level?.trim().toLowerCase() === "premier"),
+  );
+}
+
+function HoldToggle({
+  checked,
+  disabled,
+  onEnable,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  onEnable: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled || checked}
+      onClick={onEnable}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        border: 0,
+        background: "transparent",
+        padding: 0,
+        cursor: disabled || checked ? "default" : "pointer",
+        fontSize: 12,
+        fontWeight: 900,
+        color: checked ? "#b42318" : "#344054",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 34,
+          height: 19,
+          borderRadius: 999,
+          padding: 2,
+          display: "inline-flex",
+          justifyContent: checked ? "flex-end" : "flex-start",
+          background: checked ? "#d92d20" : "#cfd4dc",
+          boxSizing: "border-box",
+        }}
+      >
+        <span style={{ width: 15, height: 15, borderRadius: "50%", background: "#fff" }} />
+      </span>
+      Do Not Release
+    </button>
   );
 }
 
@@ -128,18 +163,8 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
   const [targets, setTargets] = useState<DrawerTargets | null>(null);
   const [deposit, setDeposit] = useState<DamageDeposit | null>(null);
   const [settlement, setSettlement] = useState<SettlementJob | null>(null);
-  const [dueDeposits, setDueDeposits] = useState<DamageDeposit[]>([]);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
-
-  const refreshDue = useCallback(async () => {
-    try {
-      const result = await rpc<DamageDeposit[]>("list_rental_damage_deposits_due");
-      setDueDeposits(Array.isArray(result) ? result : []);
-    } catch {
-      // Keep readiness usable even if the finance queue cannot refresh.
-    }
-  }, []);
 
   const refreshDeposit = useCallback(async (readinessId: string) => {
     const row = rowByReadinessId.get(readinessId);
@@ -167,12 +192,6 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
       setSettlement(null);
     }
   }, []);
-
-  useEffect(() => {
-    refreshDue();
-    const timer = window.setInterval(refreshDue, 30000);
-    return () => window.clearInterval(timer);
-  }, [refreshDue]);
 
   useEffect(() => {
     function inspectDrawer() {
@@ -211,13 +230,14 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
 
     const timer = window.setInterval(() => {
       refreshSettlement(targets.readinessId);
+      refreshDeposit(targets.readinessId).catch(() => {});
     }, 3000);
 
     return () => window.clearInterval(timer);
   }, [targets?.readinessId, refreshDeposit, refreshSettlement]);
 
-  async function launchCassie(readinessId: string) {
-    setBusy(`cassie:${readinessId}`);
+  async function launchSettlement(readinessId: string) {
+    setBusy(`balance:${readinessId}`);
     setMessage("");
     try {
       await rpc("launch_cassie_settle_balance", {
@@ -225,7 +245,7 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
         p_requested_by: "EpicTools",
       });
       await refreshSettlement(readinessId);
-      setMessage("MPWR balance settlement queued. MPWR will be verified before any settlement is attempted.");
+      setMessage("MPWR balance settlement queued.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to queue MPWR balance settlement.");
     } finally {
@@ -233,26 +253,21 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
     }
   }
 
-  async function setDepositHold(readinessId: string, doNotRelease: boolean) {
-    let reason: string | null = null;
-    if (doNotRelease) {
-      reason = window.prompt("Why should this damage deposit NOT be released?")?.trim() || null;
-      if (!reason) return;
-    }
+  async function enableDepositHold(readinessId: string) {
     setBusy(`hold:${readinessId}`);
     setMessage("");
     try {
-      const result = await rpc<DamageDeposit>("set_rental_damage_deposit_hold", {
-        p_readiness_id: readinessId,
-        p_do_not_release: doNotRelease,
-        p_reason: reason,
-        p_updated_by: "EpicTools",
+      const response = await fetch("/api/deposits/hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ readiness_id: readinessId }),
       });
-      setDeposit(result);
-      await refreshDue();
-      setMessage(doNotRelease ? "Deposit is blocked from release." : "Release block cleared.");
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to hold deposit.");
+      setDeposit(payload as DamageDeposit);
+      setMessage("Deposit marked Do Not Release.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to update the deposit hold.");
+      setMessage(error instanceof Error ? error.message : "Unable to hold deposit.");
     } finally {
       setBusy("");
     }
@@ -269,27 +284,9 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
         p_updated_by: "EpicTools",
       });
       setDeposit(result);
-      await refreshDue();
       setMessage(international ? "Premier international hold set to $1,500 per vehicle." : "International deposit override removed.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to update the deposit amount.");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function launchVictor(readinessId: string) {
-    setBusy(`victor:${readinessId}`);
-    setMessage("");
-    try {
-      await rpc("launch_victor_release_deposit", {
-        p_readiness_id: readinessId,
-        p_requested_by: "EpicTools",
-      });
-      await refreshDue();
-      setMessage("Damage deposit release queued.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to queue damage deposit release.");
     } finally {
       setBusy("");
     }
@@ -303,45 +300,11 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
 
   return (
     <>
-      {dueDeposits.length ? (
-        <section style={{ marginBottom: 18, border: "1px solid #e3e7ec", borderRadius: 12, background: "#fff", overflow: "hidden" }}>
-          <div style={{ padding: "13px 16px", borderBottom: "1px solid #eef1f4", fontWeight: 900, fontSize: 15 }}>
-            Release Damage Deposits ({dueDeposits.length})
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ textAlign: "left", background: "#fafbfc" }}>
-                  <th style={{ padding: 10 }}>Guest</th>
-                  <th style={{ padding: 10 }}>Deposit</th>
-                  <th style={{ padding: 10 }}>Status</th>
-                  <th style={{ padding: 10 }}>MPWR</th>
-                  <th style={{ padding: 10 }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dueDeposits.map((item) => (
-                  <tr key={item.id} style={{ borderTop: "1px solid #eef1f4" }}>
-                    <td style={{ padding: 10 }}><strong>{item.customer_name || item.confirmation_code}</strong><div style={{ color: "#667085" }}>{item.confirmation_code}</div></td>
-                    <td style={{ padding: 10, fontWeight: 800 }}>{money(item.deposit_amount_cents)}</td>
-                    <td style={{ padding: 10, fontWeight: 800, color: item.status === "do_not_release" ? "#b42318" : "#344054" }}>{item.status.replaceAll("_", " ")}{item.hold_reason ? <div style={{ fontWeight: 600, color: "#667085" }}>{item.hold_reason}</div> : null}</td>
-                    <td style={{ padding: 10 }}>{item.mpwr_reservation_url ? <a href={item.mpwr_reservation_url} target="_blank" rel="noreferrer">Open MPWR</a> : "Missing"}</td>
-                    <td style={{ padding: 10 }}>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {item.status === "eligible" ? <button style={buttonStyle("primary")} disabled={busy === `victor:${item.readiness_id}`} onClick={() => launchVictor(item.readiness_id)}>Release Deposit</button> : null}
-                        {item.status !== "do_not_release" && item.status !== "release_requested" && item.status !== "releasing" ? <button style={buttonStyle("danger")} onClick={() => setDepositHold(item.readiness_id, true)}>Do Not Release</button> : null}
-                        {item.status === "do_not_release" ? <button style={buttonStyle()} onClick={() => setDepositHold(item.readiness_id, false)}>Allow Release</button> : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+      {message ? (
+        <div style={{ marginBottom: 12, borderRadius: 9, padding: "9px 12px", background: "#f4f7f9", color: "#344054", fontSize: 13, fontWeight: 700 }}>
+          {message}
+        </div>
       ) : null}
-
-      {message ? <div style={{ marginBottom: 12, borderRadius: 9, padding: "9px 12px", background: "#f4f7f9", color: "#344054", fontSize: 13, fontWeight: 700 }}>{message}</div> : null}
 
       {targets?.balanceTarget && selectedRow && selectedDue > 0
         ? createPortal(
@@ -354,11 +317,11 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
                 <>
                   <button
                     type="button"
-                    style={buttonStyle("primary")}
-                    disabled={busy === `cassie:${targets.readinessId}` || !selectedRow.mpwr_reservation_url}
-                    onClick={() => launchCassie(targets.readinessId)}
+                    style={{ ...buttonStyle(), borderColor: "#156e99", background: "#eaf6fc", color: "#0e5d83" }}
+                    disabled={busy === `balance:${targets.readinessId}` || !selectedRow.mpwr_reservation_url}
+                    onClick={() => launchSettlement(targets.readinessId)}
                   >
-                    {busy === `cassie:${targets.readinessId}` ? "Queuing…" : "Settle MPWR Balance"}
+                    {busy === `balance:${targets.readinessId}` ? "Queuing…" : "Settle MPWR Balance"}
                   </button>
                   <small style={{ display: "block", marginTop: 5, lineHeight: 1.3, color: "#667085", fontWeight: 700 }}>
                     MPWR will be verified for an available Settle Balance action before any settlement is attempted.
@@ -373,15 +336,36 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
       {targets?.depositTarget && selectedRow?.business_line === "rental" && deposit
         ? createPortal(
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 900, color: deposit.status === "do_not_release" ? "#b42318" : "#344054" }}>
-                {deposit.status === "do_not_release" ? "⛔ DO NOT RELEASE" : `Deposit status: ${deposit.status.replaceAll("_", " ")}`}
-              </div>
-              {deposit.hold_reason ? <small style={{ display: "block", marginTop: 3, color: "#667085", fontWeight: 700 }}>{deposit.hold_reason}</small> : null}
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 7 }}>
-                {deposit.status !== "do_not_release" && deposit.status !== "released" ? <button type="button" style={buttonStyle("danger")} disabled={busy === `hold:${targets.readinessId}`} onClick={() => setDepositHold(targets.readinessId, true)}>Do Not Release</button> : null}
-                {deposit.status === "do_not_release" ? <button type="button" style={buttonStyle()} disabled={busy === `hold:${targets.readinessId}`} onClick={() => setDepositHold(targets.readinessId, false)}>Allow Release</button> : null}
-                {isPremier ? <button type="button" style={buttonStyle()} disabled={busy === `basis:${targets.readinessId}`} onClick={() => setInternational(targets.readinessId, deposit.deposit_basis !== "premier_international")}>{deposit.deposit_basis === "premier_international" ? "Remove International Hold" : "International — $1,500/vehicle"}</button> : null}
-              </div>
+              {deposit.deposit_amount_cents > 0 && deposit.status !== "released" ? (
+                <HoldToggle
+                  checked={deposit.status === "do_not_release"}
+                  disabled={busy === `hold:${targets.readinessId}` || deposit.status === "release_requested" || deposit.status === "releasing"}
+                  onEnable={() => enableDepositHold(targets.readinessId)}
+                />
+              ) : null}
+
+              {deposit.status === "do_not_release" ? (
+                <small style={{ display: "block", marginTop: 5, color: "#b42318", fontWeight: 800 }}>
+                  Release is blocked. A Manager or Admin must clear it from Deposits On-Hold.
+                </small>
+              ) : null}
+
+              {deposit.status === "released" ? (
+                <div style={{ marginTop: 4, fontSize: 12, fontWeight: 900, color: "#157f3b" }}>✓ Deposit Released</div>
+              ) : null}
+
+              {isPremier ? (
+                <div style={{ marginTop: 7 }}>
+                  <button
+                    type="button"
+                    style={buttonStyle()}
+                    disabled={busy === `basis:${targets.readinessId}`}
+                    onClick={() => setInternational(targets.readinessId, deposit.deposit_basis !== "premier_international")}
+                  >
+                    {deposit.deposit_basis === "premier_international" ? "Remove International Hold" : "International — $1,500/vehicle"}
+                  </button>
+                </div>
+              ) : null}
             </div>,
             targets.depositTarget,
           )
