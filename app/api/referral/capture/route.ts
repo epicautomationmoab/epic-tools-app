@@ -66,14 +66,16 @@ export async function POST(request: Request) {
       id: string;
       slug: string;
       name: string;
+      reward_basis: "flat" | "percent";
       attribution_window_days: number;
       promo_code: string | null;
       guest_discount_cents: number;
+      guest_discount_percent: number;
       show_promo_popup: boolean;
       popup_heading: string | null;
       popup_body: string | null;
     }>>(
-      `referral_partners?slug=eq.${encodeURIComponent(slug)}&status=eq.active&select=id,slug,name,attribution_window_days,promo_code,guest_discount_cents,show_promo_popup,popup_heading,popup_body&limit=1`,
+      `referral_partners?slug=eq.${encodeURIComponent(slug)}&status=eq.active&select=id,slug,name,reward_basis,attribution_window_days,promo_code,guest_discount_cents,guest_discount_percent,show_promo_popup,popup_heading,popup_body&limit=1`,
     );
     const partner = partners[0];
     if (!partner) {
@@ -108,8 +110,10 @@ export async function POST(request: Request) {
       partner: {
         name: partner.name,
         slug: partner.slug,
+        reward_basis: partner.reward_basis,
         promo_code: partner.promo_code,
         guest_discount_cents: partner.guest_discount_cents,
+        guest_discount_percent: partner.guest_discount_percent,
         show_promo_popup: partner.show_promo_popup,
         popup_heading: partner.popup_heading,
         popup_body: partner.popup_body,
