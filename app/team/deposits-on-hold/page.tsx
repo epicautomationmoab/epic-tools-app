@@ -16,9 +16,9 @@ function getSupabaseAdminConfig() {
   return { url: url.replace(/\/+$/, ""), key };
 }
 
-async function loadDepositsOnHold() {
+async function loadDeposits() {
   const { url, key } = getSupabaseAdminConfig();
-  const response = await fetch(`${url}/rest/v1/rpc/list_rental_damage_deposits_on_hold`, {
+  const response = await fetch(`${url}/rest/v1/rpc/list_rental_damage_deposits_active`, {
     method: "POST",
     headers: {
       apikey: key,
@@ -28,7 +28,7 @@ async function loadDepositsOnHold() {
     body: "{}",
     cache: "no-store",
   });
-  if (!response.ok) throw new Error((await response.text()) || "Unable to load deposits on hold.");
+  if (!response.ok) throw new Error((await response.text()) || "Unable to load deposits.");
   return response.json();
 }
 
@@ -40,13 +40,13 @@ export default async function DepositsOnHoldPage() {
   let rows = [];
   let error = "";
   try {
-    const result = await loadDepositsOnHold();
+    const result = await loadDeposits();
     rows = Array.isArray(result) ? result : [];
   } catch (err) {
-    error = err instanceof Error ? err.message : "Unable to load deposits on hold.";
+    error = err instanceof Error ? err.message : "Unable to load deposits.";
   }
 
-  const canRelease = profile?.role === "manager" || profile?.role === "admin";
+  const canOverrideHold = profile?.role === "manager" || profile?.role === "admin";
 
   return (
     <div className={styles.page}>
@@ -67,10 +67,10 @@ export default async function DepositsOnHoldPage() {
 
         <section className={styles.content}>
           <div style={{ marginBottom: 14, color: "#667085", fontWeight: 700 }}>
-            Only deposits explicitly marked <strong>Do Not Release</strong> appear here. Manager or Admin access is required to remove the block.
+            Daily MPWR deposit queue. Release deposits when they are due. Deposits marked <strong>Do Not Release</strong> stay blocked unless a Manager or Admin overrides the hold.
           </div>
           {error ? <div className={styles.error}>{error}</div> : null}
-          <DepositsOnHoldPanel initialRows={rows} canRelease={canRelease} />
+          <DepositsOnHoldPanel initialRows={rows} canOverrideHold={canOverrideHold} />
         </section>
       </main>
     </div>
