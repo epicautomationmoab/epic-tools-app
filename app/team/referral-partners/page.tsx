@@ -1,6 +1,6 @@
-import HeaderClock from "@/app/team/HeaderClock";
-import LogoutButton from "@/app/team/LogoutButton";
-import TeamSidebar from "@/app/team/TeamSidebar";
+import HeaderClock from "../readiness/HeaderClock";
+import LogoutButton from "../readiness/LogoutButton";
+import TeamSidebar from "../TeamSidebar";
 import ReferralPartnersClient from "./ReferralPartnersClient";
 
 export const dynamic = "force-dynamic";
