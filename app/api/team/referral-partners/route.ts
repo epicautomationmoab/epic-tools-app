@@ -55,15 +55,18 @@ export async function POST(request: NextRequest) {
   const slug = typeof body?.slug === "string" ? body.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") : "";
   if (!name || !slug) return NextResponse.json({ error: "Partner name and referral code are required." }, { status: 400 });
 
+  const rewardBasis = body?.reward_basis === "percent" ? "percent" : "flat";
   const payload = {
     name,
     slug,
     contact_name: typeof body?.contact_name === "string" ? body.contact_name.trim() || null : null,
     contact_email: typeof body?.contact_email === "string" ? body.contact_email.trim() || null : null,
     reward_mode: typeof body?.reward_mode === "string" ? body.reward_mode : "partner_reward",
-    reward_basis: typeof body?.reward_basis === "string" ? body.reward_basis : "flat",
-    partner_reward_cents: Number.isFinite(Number(body?.partner_reward_cents)) ? Math.max(0, Math.round(Number(body?.partner_reward_cents))) : 0,
-    guest_discount_cents: Number.isFinite(Number(body?.guest_discount_cents)) ? Math.max(0, Math.round(Number(body?.guest_discount_cents))) : 0,
+    reward_basis: rewardBasis,
+    partner_reward_cents: rewardBasis === "flat" && Number.isFinite(Number(body?.partner_reward_cents)) ? Math.max(0, Math.round(Number(body?.partner_reward_cents))) : 0,
+    partner_reward_percent: rewardBasis === "percent" && Number.isFinite(Number(body?.partner_reward_percent)) ? Math.min(100, Math.max(0, Number(body?.partner_reward_percent))) : 0,
+    guest_discount_cents: rewardBasis === "flat" && Number.isFinite(Number(body?.guest_discount_cents)) ? Math.max(0, Math.round(Number(body?.guest_discount_cents))) : 0,
+    guest_discount_percent: rewardBasis === "percent" && Number.isFinite(Number(body?.guest_discount_percent)) ? Math.min(100, Math.max(0, Number(body?.guest_discount_percent))) : 0,
     promo_code: typeof body?.promo_code === "string" ? body.promo_code.trim() || null : null,
     attribution_window_days: Number.isFinite(Number(body?.attribution_window_days)) ? Math.min(365, Math.max(1, Math.round(Number(body?.attribution_window_days)))) : 30,
     show_promo_popup: Boolean(body?.show_promo_popup),
