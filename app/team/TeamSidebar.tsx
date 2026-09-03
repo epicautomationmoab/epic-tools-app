@@ -14,6 +14,7 @@ type Props = {
     | "Sales & Leads"
     | "Previous Guest Lookup"
     | "Email Delivery"
+    | "Referral Partners"
     | "Manage Users";
 };
 
@@ -39,7 +40,11 @@ export default async function TeamSidebar({ active }: Props) {
   const canManageEmployees = profile?.role === "admin" || profile?.role === "manager";
 
   const navItems = canManageEmployees
-    ? [...baseNavItems, { label: "Manage Users", href: "/team/auth-setup", external: false } as const]
+    ? [
+        ...baseNavItems,
+        { label: "Referral Partners", href: "/team/referral-partners", external: false } as const,
+        { label: "Manage Users", href: "/team/auth-setup", external: false } as const,
+      ]
     : baseNavItems;
 
   return (
