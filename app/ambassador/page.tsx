@@ -28,7 +28,7 @@ export default function AmbassadorDashboard() {
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load dashboard."));
   }, []);
 
-  const referralUrl = useMemo(() => data ? `https://epic4x4ambassador.com/r/${data.partner.slug}` : "", [data]);
+  const referralUrl = useMemo(() => data ? `https://www.epic4x4adventures.com/?ref=${data.partner.slug}` : "", [data]);
 
   if (error) return <main style={{ padding: 40, fontFamily: "Arial, sans-serif" }}>{error}</main>;
   if (!data) return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f1f3f5", color: "#68717d" }}>Loading Ambassador dashboard…</main>;
@@ -81,7 +81,7 @@ export default function AmbassadorDashboard() {
                   <input value={referralUrl} readOnly style={{ flex: 1, height: 42, border: "1px solid #cfd6de", borderRadius: 8, padding: "0 10px" }} />
                   <button onClick={() => navigator.clipboard.writeText(referralUrl)} style={{ border: 0, borderRadius: 8, background: "#202733", color: "white", padding: "0 16px", fontWeight: 800 }}>Copy</button>
                 </div>
-                <p style={{ color: "#68717d", fontSize: 13, marginBottom: 0 }}>Attribution window: {data.partner.attribution_window_days} days</p>
+                <p style={{ color: "#68717d", fontSize: 13, marginBottom: 0 }}>This link sends guests directly to Epic4X4Adventures.com. Attribution window: {data.partner.attribution_window_days} days.</p>
               </div>
 
               <div style={{ background: "white", border: "1px solid #dfe4ea", borderRadius: 14, padding: 20 }}>
