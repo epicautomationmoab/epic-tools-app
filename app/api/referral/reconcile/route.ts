@@ -24,12 +24,7 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
   return text ? JSON.parse(text) as T : undefined as T;
 }
 
-type WebhookRow = {
-  id: string;
-  created_at: string;
-  payload: Record<string, any>;
-};
-
+type WebhookRow = { id: string; created_at: string; payload: Record<string, any> };
 type ReservationRow = {
   id: string;
   confirmation_code: string | null;
@@ -57,16 +52,66 @@ function getReferralSlug(payload: Record<string, any>) {
   }
 }
 
+function getTripOrders(payload: Record<string, any>) {
+  return Array.isArray(payload?.tripOrders) ? payload.tripOrders : [];
+}
+
 function getBookingId(payload: Record<string, any>) {
-  const orders = Array.isArray(payload?.tripOrders) ? payload.tripOrders : [];
-  const bookings = orders.flatMap((order: any) => Array.isArray(order?.bookings) ? order.bookings : []);
+  const bookings = getTripOrders(payload).flatMap((order: any) => Array.isArray(order?.bookings) ? order.bookings : []);
   return bookings[0]?.id ? String(bookings[0].id) : null;
 }
 
-function getRevenue(payload: Record<string, any>, reservation: ReservationRow) {
+function findTripOrder(payload: Record<string, any>, bookingId: string | null) {
+  const orders = getTripOrders(payload);
+  if (!bookingId) return orders[0] || null;
+  return orders.find((order: any) => (Array.isArray(order?.bookings) ? order.bookings : []).some((booking: any) => String(booking?.id) === bookingId)) || orders[0] || null;
+}
+
+function getBookingFromOrder(order: any, bookingId: string | null) {
+  const bookings = Array.isArray(order?.bookings) ? order.bookings : [];
+  if (!bookingId) return bookings[0] || null;
+  return bookings.find((booking: any) => String(booking?.id) === bookingId) || bookings[0] || null;
+}
+
+function getRevenue(payload: Record<string, any>, reservation: ReservationRow, order: any) {
+  if (Number.isFinite(order?.total_sales)) return Number(order.total_sales);
   if (Number.isFinite(payload?.total_sales)) return Number(payload.total_sales);
   if (Number.isFinite(payload?.subtotal)) return Number(payload.subtotal);
   return reservation.total_sales_cents ?? reservation.total_amount_cents ?? 0;
+}
+
+function isTripSafe(addon: any) {
+  const name = `${addon?.name || ""} ${addon?.experience_addon?.title || ""}`.toLowerCase();
+  return name.includes("tripsafe") || name.includes("optional travel protection");
+}
+
+function isAdventureAssure(addon: any) {
+  const name = `${addon?.name || ""} ${addon?.experience_addon?.title || ""}`.toLowerCase();
+  return name.includes("adventure assure");
+}
+
+function protectionExclusion(order: any, booking: any) {
+  const addons = Array.isArray(booking?.addons) ? booking.addons : [];
+  const selectedTripSafe = addons.some((addon: any) => isTripSafe(addon) && /^yes\b/i.test(String(addon?.name || "")));
+  const assureAddons = addons.filter((addon: any) => isAdventureAssure(addon));
+  const assureTotal = assureAddons.reduce((sum: number, addon: any) => sum + (Number.isFinite(addon?.price) ? Math.max(0, Number(addon.price)) : 0), 0);
+
+  let tripSafeTotal = 0;
+  if (selectedTripSafe) {
+    const explicitlyPricedOtherAddons = addons.reduce((sum: number, addon: any) => {
+      if (isTripSafe(addon)) return sum;
+      return sum + (Number.isFinite(addon?.price) ? Math.max(0, Number(addon.price)) : 0);
+    }, 0);
+    if (Number.isFinite(order?.addons_total)) {
+      tripSafeTotal = Math.max(0, Number(order.addons_total) - explicitlyPricedOtherAddons);
+    }
+  }
+
+  return {
+    tripSafeCents: tripSafeTotal,
+    adventureAssureCents: assureTotal,
+    totalCents: Math.max(0, tripSafeTotal + assureTotal),
+  };
 }
 
 function computeRewards(partner: any, eligibleRevenue: number) {
@@ -126,10 +171,15 @@ export async function GET(request: Request) {
         const reservation = bookingId
           ? reservations.find((row) => row.booking_id === bookingId) || reservations[0]
           : reservations[0];
+        const order = findTripOrder(payload, reservation.booking_id || bookingId);
+        const booking = getBookingFromOrder(order, reservation.booking_id || bookingId);
 
         const bookedAt = payload?.reserved_at || payload?.created_at || reservation.reserved_at || event.created_at;
-        const revenue = getRevenue(payload, reservation);
-        const eligibleRevenue = revenue;
+        const revenue = getRevenue(payload, reservation, order);
+        const protection = protectionExclusion(order, booking);
+        const eligibleRevenue = partner.reward_basis === "percent"
+          ? Math.max(0, revenue - protection.totalCents)
+          : revenue;
         const rewards = computeRewards(partner, eligibleRevenue);
 
         const visits = await rest<any[]>(
@@ -143,9 +193,9 @@ export async function GET(request: Request) {
           operational_reservation_id: reservation.id,
           confirmation_code: confirmationCode || reservation.confirmation_code,
           tripworks_trip_id: tripId || reservation.tripworks_trip_id,
-          booking_id: bookingId || reservation.booking_id,
-          customer_name: payload?.customer?.full_name || reservation.customer_name,
-          customer_email: payload?.customer?.email || reservation.customer_email,
+          booking_id: reservation.booking_id || bookingId,
+          customer_name: booking?.customer?.full_name || payload?.customer?.full_name || reservation.customer_name,
+          customer_email: booking?.customer?.email || payload?.customer?.email || reservation.customer_email,
           experience_name: reservation.experience_name,
           business_line: reservation.business_line,
           booked_at: bookedAt,
@@ -163,6 +213,11 @@ export async function GET(request: Request) {
             referral_slug: slug,
             webhook_event_id: event.id,
             mkt_landing_url: payload?.mkt_landing_url || null,
+            reward_basis: partner.reward_basis,
+            pre_tax_sales_cents: revenue,
+            excluded_tripsafe_cents: protection.tripSafeCents,
+            excluded_adventure_assure_cents: protection.adventureAssureCents,
+            eligible_referral_revenue_cents: eligibleRevenue,
           },
           updated_at: new Date().toISOString(),
         };
