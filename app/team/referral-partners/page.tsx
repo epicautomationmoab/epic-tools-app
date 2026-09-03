@@ -2,6 +2,7 @@ import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
 import TeamSidebar from "../TeamSidebar";
 import ReferralPartnersClient from "./ReferralPartnersClient";
+import PartnerUserInviteClient from "./PartnerUserInviteClient";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,10 @@ export default function ReferralPartnersPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}><HeaderClock /><LogoutButton /></div>
           </header>
-          <div style={{ padding: 24 }}><ReferralPartnersClient /></div>
+          <div style={{ padding: 24, display: "grid", gap: 22 }}>
+            <ReferralPartnersClient />
+            <PartnerUserInviteClient />
+          </div>
         </section>
       </div>
     </main>
