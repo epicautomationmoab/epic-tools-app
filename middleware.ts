@@ -11,6 +11,7 @@ export async function middleware(request: NextRequest) {
   const suppliedPreviewToken = request.cookies.get("epic_preview_access")?.value;
   const hasPreviewAccess = Boolean(previewToken && suppliedPreviewToken === previewToken);
   const hasEmployeeSession = Boolean(request.cookies.get("epic_access_token")?.value);
+  const hasAmbassadorSession = Boolean(request.cookies.get("epic_ambassador_access_token")?.value);
   const workstationPassword = process.env.EPIC_HQ_RECEPTION_PASSWORD?.trim();
   const workstationCookie = request.cookies.get("epic_workstation_access")?.value;
   const hasWorkstationAccess = Boolean(
@@ -23,8 +24,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Kiosk and guest visit pages are guest-facing production surfaces and do not
-  // depend on the temporary EpicTools preview password.
+  const ambassadorPublicRoutes = new Set([
+    "/ambassador/login",
+    "/ambassador/setup",
+    "/ambassador/forgot-password",
+    "/ambassador/reset-password",
+  ]);
+  if (pathname.startsWith("/ambassador") && !ambassadorPublicRoutes.has(pathname) && !hasAmbassadorSession) {
+    const loginUrl = new URL("/ambassador/login", request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
   if (pathname.startsWith("/kiosk") || pathname.startsWith("/visit")) {
     return NextResponse.next();
   }
@@ -37,6 +47,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl);
   }
 
+  if ((hostname === "epic4x4ambassador.com" || hostname === "www.epic4x4ambassador.com") && pathname === "/") {
+    const ambassadorUrl = request.nextUrl.clone();
+    ambassadorUrl.pathname = hasAmbassadorSession ? "/ambassador" : "/ambassador/login";
+    return NextResponse.redirect(ambassadorUrl);
+  }
+
   return NextResponse.next();
 }
 
@@ -44,6 +60,7 @@ export const config = {
   matcher: [
     "/",
     "/team/:path*",
+    "/ambassador/:path*",
     "/kiosk/:path*",
     "/visit/:path*",
   ],

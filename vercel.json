@@ -11,6 +11,14 @@
     {
       "path": "/api/guest-communications/run-post-visit",
       "schedule": "0 16,17 * * *"
+    },
+    {
+      "path": "/api/referral/reconcile",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/referral/rewards/reconcile",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
