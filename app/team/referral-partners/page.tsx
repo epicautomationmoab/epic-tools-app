@@ -3,6 +3,7 @@ import LogoutButton from "../readiness/LogoutButton";
 import TeamSidebar from "../TeamSidebar";
 import ReferralPartnersClient from "./ReferralPartnersClient";
 import PartnerUserInviteClient from "./PartnerUserInviteClient";
+import ManualAttributionClient from "./ManualAttributionClient";
 import RedemptionRequestsClient from "./RedemptionRequestsClient";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export default function ReferralPartnersPage() {
         </header>
         <section style={{ marginTop: 26, display: "grid", gap: 22 }}>
           <ReferralPartnersClient />
+          <ManualAttributionClient />
           <PartnerUserInviteClient />
           <RedemptionRequestsClient />
         </section>
