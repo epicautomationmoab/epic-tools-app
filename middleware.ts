@@ -12,6 +12,7 @@ export async function middleware(request: NextRequest) {
   const hasPreviewAccess = Boolean(previewToken && suppliedPreviewToken === previewToken);
   const hasEmployeeSession = Boolean(request.cookies.get("epic_access_token")?.value);
   const hasAmbassadorSession = Boolean(request.cookies.get("epic_ambassador_access_token")?.value);
+  const hasAmbassadorAdminSession = Boolean(request.cookies.get("epic_ambassador_admin_access_token")?.value);
   const workstationPassword = process.env.EPIC_HQ_RECEPTION_PASSWORD?.trim();
   const workstationCookie = request.cookies.get("epic_workstation_access")?.value;
   const hasWorkstationAccess = Boolean(
@@ -22,6 +23,15 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith("/team") && !hasPreviewAccess && !hasEmployeeSession && !hasWorkstationAccess) {
     const loginUrl = new URL("/employee-login", request.url);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (pathname.startsWith("/ambassador/admin")) {
+    if (pathname === "/ambassador/admin/login") return NextResponse.next();
+    if (!hasAmbassadorAdminSession) {
+      const loginUrl = new URL("/ambassador/admin/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+    return NextResponse.next();
   }
 
   const ambassadorPublicRoutes = new Set([
