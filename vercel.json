@@ -15,6 +15,10 @@
     {
       "path": "/api/referral/reconcile",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/referral/rewards/reconcile",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
