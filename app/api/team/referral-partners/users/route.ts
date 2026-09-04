@@ -51,11 +51,21 @@ export async function POST(request: NextRequest) {
     });
 
     const { url, key } = getSupabaseConfig();
-    const redirectTo = "https://epic4x4ambassador.com/ambassador/login";
+    const redirectTo = "https://www.epic4x4ambassador.com/ambassador/setup";
     const inviteResponse = await fetch(`${url}/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, {
       method: "POST",
       headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, data: { ambassador_profile_id: profileRows[0].id, partner_id: partnerId, partner_name: partner[0].name, role } }),
+      body: JSON.stringify({
+        email,
+        data: {
+          account_type: "ambassador",
+          display_name: displayName,
+          ambassador_profile_id: profileRows[0].id,
+          partner_id: partnerId,
+          partner_name: partner[0].name,
+          role,
+        },
+      }),
       cache: "no-store",
     });
     const invitePayload = await inviteResponse.json().catch(() => ({}));
