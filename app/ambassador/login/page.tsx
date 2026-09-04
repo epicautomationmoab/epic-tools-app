@@ -9,29 +9,20 @@ export default function AmbassadorLoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
-    setError("");
+    event.preventDefault(); setSubmitting(true); setError("");
     try {
-      const response = await fetch("/api/ambassador/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch("/api/ambassador/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to sign in.");
       window.location.href = "/ambassador";
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to sign in.");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to sign in."); }
+    finally { setSubmitting(false); }
   }
 
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f1f3f5", padding: 24 }}>
       <form onSubmit={submit} style={{ width: "100%", maxWidth: 430, background: "#fff", border: "1px solid #dfe4e9", borderRadius: 18, padding: 34, boxShadow: "0 18px 50px rgba(20,31,45,.12)" }}>
-        <img src="/epic-logo.png" alt="Epic 4X4 Adventures" style={{ display: "block", width: 190, margin: "0 auto 18px" }} />
+        <img src="/epic-logo-black.png" alt="Epic 4X4 Adventures" style={{ display: "block", width: 190, margin: "0 auto 18px" }} />
         <h1 style={{ margin: 0, textAlign: "center", color: "#202733", fontSize: 28 }}>Epic 4X4 Ambassador</h1>
         <p style={{ textAlign: "center", color: "#68717d", margin: "8px 0 26px" }}>Partner referral and rewards portal</p>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required autoComplete="email" style={{ width: "100%", height: 48, border: "1px solid #cfd6de", borderRadius: 9, padding: "0 12px", boxSizing: "border-box", marginBottom: 12 }} />
