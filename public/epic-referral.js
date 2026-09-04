@@ -1,3 +1,4 @@
+// Ambassador production deployment trigger.
 (() => {
   const params = new URLSearchParams(window.location.search);
   const ref = (params.get("ref") || "").trim().toLowerCase();
