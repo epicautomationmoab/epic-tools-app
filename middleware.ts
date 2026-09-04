@@ -24,7 +24,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const ambassadorPublicRoutes = new Set(["/ambassador/login", "/ambassador/setup"]);
+  const ambassadorPublicRoutes = new Set([
+    "/ambassador/login",
+    "/ambassador/setup",
+    "/ambassador/forgot-password",
+    "/ambassador/reset-password",
+  ]);
   if (pathname.startsWith("/ambassador") && !ambassadorPublicRoutes.has(pathname) && !hasAmbassadorSession) {
     const loginUrl = new URL("/ambassador/login", request.url);
     return NextResponse.redirect(loginUrl);
