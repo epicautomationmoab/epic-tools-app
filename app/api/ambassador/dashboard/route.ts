@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const [partnerRows, bookingRows, visitRows] = await Promise.all([
-      rest<Array<Record<string, unknown>>>(`referral_partners?id=eq.${encodeURIComponent(profile.partner_id)}&select=${encodeURIComponent("id,name,slug,reward_mode,partner_reward_cents,guest_discount_cents,promo_code,attribution_window_days,show_promo_popup")}&limit=1`),
+      rest<Array<Record<string, unknown>>>(`referral_partners?id=eq.${encodeURIComponent(profile.partner_id)}&select=${encodeURIComponent("id,name,slug,reward_mode,reward_basis,partner_reward_cents,partner_reward_percent,guest_discount_cents,guest_discount_percent,promo_code,attribution_window_days,show_promo_popup")}&limit=1`),
       rest<Array<Record<string, unknown>>>(`referral_bookings?partner_id=eq.${encodeURIComponent(profile.partner_id)}&select=${encodeURIComponent("id,confirmation_code,customer_name,experience_name,business_line,booked_at,activity_start_at,booking_status,booking_revenue_cents,partner_reward_cents,guest_discount_cents,reward_status,earned_at,sent_at")}&order=booked_at.desc.nullslast&limit=100`),
       rest<Array<{ id: string }>>(`referral_visits?partner_id=eq.${encodeURIComponent(profile.partner_id)}&select=id&limit=10000`),
     ]);
