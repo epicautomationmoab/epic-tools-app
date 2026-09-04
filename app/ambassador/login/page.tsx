@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 export default function AmbassadorLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,7 +27,11 @@ export default function AmbassadorLoginPage() {
         <h1 style={{ margin: 0, textAlign: "center", color: "#202733", fontSize: 28 }}>Epic 4X4 Ambassador</h1>
         <p style={{ textAlign: "center", color: "#68717d", margin: "8px 0 26px" }}>Partner referral and rewards portal</p>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required autoComplete="email" style={{ width: "100%", height: 48, border: "1px solid #cfd6de", borderRadius: 9, padding: "0 12px", boxSizing: "border-box", marginBottom: 12 }} />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required autoComplete="current-password" style={{ width: "100%", height: 48, border: "1px solid #cfd6de", borderRadius: 9, padding: "0 12px", boxSizing: "border-box" }} />
+        <div style={{ position: "relative" }}>
+          <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required autoComplete="current-password" style={{ width: "100%", height: 48, border: "1px solid #cfd6de", borderRadius: 9, padding: "0 46px 0 12px", boxSizing: "border-box" }} />
+          <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"} style={{ position: "absolute", right: 8, top: 7, width: 34, height: 34, border: 0, background: "transparent", cursor: "pointer", fontSize: 18 }}>{showPassword ? "🙈" : "👁"}</button>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 9 }}><button type="button" onClick={() => window.location.href = "/ambassador/forgot-password"} style={{ border: 0, background: "transparent", color: "#d5521d", fontWeight: 800, cursor: "pointer", padding: 0 }}>Forgot password?</button></div>
         {error ? <p style={{ color: "#b42318", marginBottom: 0 }}>{error}</p> : null}
         <button type="submit" disabled={submitting} style={{ width: "100%", height: 48, marginTop: 20, border: 0, borderRadius: 9, background: "#d5521d", color: "#fff", fontWeight: 800, cursor: submitting ? "wait" : "pointer" }}>{submitting ? "Signing in..." : "Sign in"}</button>
       </form>
