@@ -27,17 +27,22 @@ type CatalogItem = {
 };
 
 async function getWallet(partnerId: string) {
-  const [rewards, redemptions] = await Promise.all([
+  const [rewards, adjustments, redemptions] = await Promise.all([
     rest<Array<{ partner_reward_cents: number; reward_status: string }>>(
       `referral_bookings?partner_id=eq.${encodeURIComponent(partnerId)}&reward_status=in.(earned,sent,redeemed)&select=partner_reward_cents,reward_status`,
+    ),
+    rest<Array<{ amount_cents: number }>>(
+      `referral_reward_adjustments?partner_id=eq.${encodeURIComponent(partnerId)}&select=amount_cents`,
     ),
     rest<Array<Record<string, unknown>>>(
       `referral_redemptions?partner_id=eq.${encodeURIComponent(partnerId)}&select=id,amount_cents,method,method_details,status,requested_at,approved_at,sent_at,completed_at,rejected_at,cancelled_at,provider,provider_reference&order=requested_at.desc`,
     ),
   ]);
-  const earned = rewards.reduce((sum, row) => sum + Math.max(0, Number(row.partner_reward_cents) || 0), 0);
+  const bookingEarned = rewards.reduce((sum, row) => sum + Math.max(0, Number(row.partner_reward_cents) || 0), 0);
+  const adjustmentTotal = adjustments.reduce((sum, row) => sum + (Number(row.amount_cents) || 0), 0);
+  const earned = bookingEarned + adjustmentTotal;
   const committed = redemptions.filter((row) => !["rejected", "cancelled"].includes(String(row.status))).reduce((sum, row) => sum + Math.max(0, Number(row.amount_cents) || 0), 0);
-  return { earned_cents: earned, committed_cents: committed, available_cents: Math.max(0, earned - committed), redemptions };
+  return { earned_cents: earned, booking_earned_cents: bookingEarned, adjustment_cents: adjustmentTotal, committed_cents: committed, available_cents: Math.max(0, earned - committed), redemptions };
 }
 
 async function getCatalog() {
