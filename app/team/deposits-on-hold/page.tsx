@@ -67,7 +67,7 @@ export default async function DepositsOnHoldPage() {
 
         <section className={styles.content}>
           <div style={{ marginBottom: 14, color: "#667085", fontWeight: 700 }}>
-            Daily MPWR deposit queue. Release deposits when they are due. Deposits marked <strong>Do Not Release</strong> stay blocked unless a Manager or Admin overrides the hold.
+            Daily MPWR damage deposit queue. Staff may place a <strong>HOLD</strong> until Victor claims the deposit for the automatic 11:15 AM release. Held deposits remain blocked until a Manager or Admin releases the hold. Victor failures remain here as <strong>Needs Review</strong>.
           </div>
           {error ? <div className={styles.error}>{error}</div> : null}
           <DepositsOnHoldPanel initialRows={rows} canOverrideHold={canOverrideHold} />
