@@ -5,6 +5,33 @@ function cfg(){const raw=process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();const key=
 async function rest<T>(path:string,init?:RequestInit):Promise<T>{const{url,key}=cfg();const r=await fetch(`${url}/rest/v1/${path}`,{...init,headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json",...(init?.headers||{})},cache:"no-store"});const text=await r.text();if(!r.ok)throw new Error(text||`Supabase request failed (${r.status}).`);return text?JSON.parse(text) as T:undefined as T;}
 async function admin(req:NextRequest){return getAuthenticatedAmbassadorAdmin(req.cookies.get("epic_ambassador_admin_access_token")?.value);}
 
+function cleanSlug(value:unknown){return typeof value==="string"?value.trim().toLowerCase().replace(/[^a-z0-9-]+/g,"-").replace(/^-+|-+$/g,""):"";}
+function payloadFrom(body:Record<string,unknown>){
+  const basis=body.reward_basis==="percent"?"percent":"flat";
+  const rewardMode=["partner_reward","guest_discount","split"].includes(String(body.reward_mode))?String(body.reward_mode):"partner_reward";
+  return {
+    name:typeof body.name==="string"?body.name.trim():"",
+    slug:cleanSlug(body.slug),
+    contact_name:typeof body.contact_name==="string"?body.contact_name.trim()||null:null,
+    contact_email:typeof body.contact_email==="string"?body.contact_email.trim()||null:null,
+    status:body.status==="inactive"?"inactive":"active",
+    reward_mode:rewardMode,
+    reward_basis:basis,
+    partner_reward_cents:basis==="flat"?Math.max(0,Math.round(Number(body.partner_reward_cents)||0)):0,
+    partner_reward_percent:basis==="percent"?Math.min(100,Math.max(0,Number(body.partner_reward_percent)||0)):0,
+    guest_discount_cents:basis==="flat"?Math.max(0,Math.round(Number(body.guest_discount_cents)||0)):0,
+    guest_discount_percent:basis==="percent"?Math.min(100,Math.max(0,Number(body.guest_discount_percent)||0)):0,
+    promo_code:typeof body.promo_code==="string"?body.promo_code.trim()||null:null,
+    attribution_window_days:Math.min(365,Math.max(1,Math.round(Number(body.attribution_window_days)||30))),
+    show_promo_popup:Boolean(body.show_promo_popup),
+    popup_heading:typeof body.popup_heading==="string"?body.popup_heading.trim()||null:null,
+    popup_body:typeof body.popup_body==="string"?body.popup_body.trim()||null:null,
+    updated_at:new Date().toISOString(),
+  };
+}
+
 export async function GET(req:NextRequest){if(!await admin(req))return NextResponse.json({error:"Ambassador administrator access required."},{status:403});try{const partners=await rest<any[]>(`referral_partners?select=${encodeURIComponent("id,name,slug,contact_name,contact_email,status,reward_mode,reward_basis,partner_reward_cents,partner_reward_percent,guest_discount_cents,guest_discount_percent,promo_code,attribution_window_days,show_promo_popup,popup_heading,popup_body,created_at,updated_at")}&order=name.asc`);return NextResponse.json({ok:true,partners});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Unable to load Ambassadors."},{status:500});}}
 
-export async function POST(req:NextRequest){if(!await admin(req))return NextResponse.json({error:"Ambassador administrator access required."},{status:403});const body=await req.json().catch(()=>null) as Record<string,unknown>|null;const name=typeof body?.name==="string"?body.name.trim():"";const slug=typeof body?.slug==="string"?body.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g,"-").replace(/^-+|-+$/g,""):"";if(!name||!slug)return NextResponse.json({error:"Ambassador name and referral code are required."},{status:400});const basis=body?.reward_basis==="percent"?"percent":"flat";const payload={name,slug,contact_name:typeof body?.contact_name==="string"?body.contact_name.trim()||null:null,contact_email:typeof body?.contact_email==="string"?body.contact_email.trim()||null:null,reward_mode:typeof body?.reward_mode==="string"?body.reward_mode:"partner_reward",reward_basis:basis,partner_reward_cents:basis==="flat"?Math.max(0,Math.round(Number(body?.partner_reward_cents)||0)):0,partner_reward_percent:basis==="percent"?Math.min(100,Math.max(0,Number(body?.partner_reward_percent)||0)):0,guest_discount_cents:basis==="flat"?Math.max(0,Math.round(Number(body?.guest_discount_cents)||0)):0,guest_discount_percent:basis==="percent"?Math.min(100,Math.max(0,Number(body?.guest_discount_percent)||0)):0,promo_code:typeof body?.promo_code==="string"?body.promo_code.trim()||null:null,attribution_window_days:Math.min(365,Math.max(1,Math.round(Number(body?.attribution_window_days)||30))),show_promo_popup:Boolean(body?.show_promo_popup),popup_heading:typeof body?.popup_heading==="string"?body.popup_heading.trim()||null:null,popup_body:typeof body?.popup_body==="string"?body.popup_body.trim()||null:null};try{const rows=await rest<any[]>("referral_partners",{method:"POST",headers:{Prefer:"return=representation"},body:JSON.stringify(payload)});return NextResponse.json({ok:true,partner:rows[0]});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Unable to create Ambassador."},{status:500});}}
+export async function POST(req:NextRequest){if(!await admin(req))return NextResponse.json({error:"Ambassador administrator access required."},{status:403});const body=await req.json().catch(()=>null) as Record<string,unknown>|null;if(!body)return NextResponse.json({error:"Ambassador details are required."},{status:400});const payload=payloadFrom(body);if(!payload.name||!payload.slug)return NextResponse.json({error:"Ambassador name and referral code are required."},{status:400});try{const rows=await rest<any[]>("referral_partners",{method:"POST",headers:{Prefer:"return=representation"},body:JSON.stringify(payload)});return NextResponse.json({ok:true,partner:rows[0]});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Unable to create Ambassador."},{status:500});}}
+
+export async function PATCH(req:NextRequest){if(!await admin(req))return NextResponse.json({error:"Ambassador administrator access required."},{status:403});const body=await req.json().catch(()=>null) as Record<string,unknown>|null;const id=typeof body?.id==="string"?body.id:"";if(!id||!body)return NextResponse.json({error:"Ambassador ID is required."},{status:400});const payload=payloadFrom(body);if(!payload.name||!payload.slug)return NextResponse.json({error:"Ambassador name and referral code are required."},{status:400});try{const rows=await rest<any[]>(`referral_partners?id=eq.${encodeURIComponent(id)}`,{method:"PATCH",headers:{Prefer:"return=representation"},body:JSON.stringify(payload)});if(!rows[0])return NextResponse.json({error:"Ambassador not found."},{status:404});return NextResponse.json({ok:true,partner:rows[0]});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Unable to update Ambassador."},{status:500});}}
