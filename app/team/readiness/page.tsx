@@ -7,6 +7,7 @@ import AutoRefresh from "./AutoRefresh";
 import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
 import LastSynced from "./LastSynced";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
+import PortalQrEnhancer from "./PortalQrEnhancer";
 import DamageAcknowledgmentEnhancer from "./DamageAcknowledgmentEnhancer";
 import PostVisitReviewToggleEnhancer from "./PostVisitReviewToggleEnhancer";
 import ReservationActionRailEnhancer from "./ReservationActionRailEnhancer";
@@ -40,6 +41,7 @@ export default async function TeamReadinessPage() {
       <AutoRefresh />
       <AutoCancellationPopupWatcher />
       <PortalEmailEnhancer />
+      <PortalQrEnhancer />
       <DamageAcknowledgmentEnhancer />
       <PostVisitReviewToggleEnhancer />
       <ReservationActionRailEnhancer />
