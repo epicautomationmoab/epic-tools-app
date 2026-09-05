@@ -196,10 +196,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (["created", "sent", "opened"].includes(agreement.status)) {
+      const resetAt = new Date().toISOString();
       await supabasePatch(
         "cancellation_agreement_requests",
         new URLSearchParams({ id: `eq.${agreement.id}`, status: "in.(created,sent,opened)" }),
-        { status: "expired", updated_at: new Date().toISOString() },
+        { status: "expired", expires_at: resetAt, updated_at: resetAt },
       );
     }
     return NextResponse.json({ ok: true });
