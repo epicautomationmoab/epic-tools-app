@@ -74,22 +74,22 @@ export async function GET(request: Request) {
           continue;
         }
 
-        const partners = await rest<any[]>(`referral_partners?id=eq.${encodeURIComponent(referral.partner_id)}&select=reward_basis,partner_reward_cents,partner_reward_percent&limit=1`);
-        const partner = partners[0];
-        if (!partner) { skipped++; continue; }
-
         const originalEligible = Math.max(0, Number(referral.metadata?.original_eligible_revenue_cents ?? referral.metadata?.eligible_referral_revenue_cents ?? referral.eligible_revenue_cents ?? 0));
+        const originalReward = Math.max(0, Number(referral.metadata?.original_partner_reward_cents ?? referral.partner_reward_cents ?? 0));
+        const lockedBasis = String(referral.metadata?.reward_basis || (originalEligible > 0 && originalReward !== 0 ? "percent" : "flat")).toLowerCase();
+        const lockedRate = lockedBasis === "percent" && originalEligible > 0 ? originalReward / originalEligible : 0;
+
         const payload = reservation.latest_payload || reservation.booking_payload || reservation.trip_payload || {};
         const order = findOrder(payload, reservation.booking_id || referral.booking_id || null);
         const booking = findBooking(order, reservation.booking_id || referral.booking_id || null);
         const currentSales = Number.isFinite(reservation.total_sales_cents) ? Number(reservation.total_sales_cents) : (Number.isFinite(reservation.total_amount_cents) ? Number(reservation.total_amount_cents) : originalEligible);
-        const currentEligibleRaw = partner.reward_basis === "percent" ? Math.max(0, currentSales - protectionExclusion(order, booking)) : currentSales;
-        const payableEligible = partner.reward_basis === "percent" ? Math.min(originalEligible, currentEligibleRaw) : currentEligibleRaw;
-        const payableReward = partner.reward_basis === "percent" ? Math.max(0, Math.round(payableEligible * (Number(partner.partner_reward_percent) || 0) / 100)) : Math.max(0, Number(partner.partner_reward_cents) || 0);
+        const currentEligibleRaw = lockedBasis === "percent" ? Math.max(0, currentSales - protectionExclusion(order, booking)) : currentSales;
+        const payableEligible = lockedBasis === "percent" ? Math.min(originalEligible, currentEligibleRaw) : currentEligibleRaw;
+        const payableReward = lockedBasis === "percent" ? Math.min(originalReward, Math.max(0, Math.round(payableEligible * lockedRate))) : originalReward;
 
         if (payableReward < Number(referral.partner_reward_cents || 0) || payableEligible < Number(referral.eligible_revenue_cents || 0)) {
-          await rest<void>(`referral_bookings?id=eq.${encodeURIComponent(referral.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ eligible_revenue_cents: payableEligible, partner_reward_cents: payableReward, metadata: { ...(referral.metadata || {}), original_eligible_revenue_cents: originalEligible, latest_eligible_revenue_cents: currentEligibleRaw, commission_cap_applied: currentEligibleRaw > originalEligible, reward_last_reconciled_at: new Date().toISOString() }, updated_at: new Date().toISOString() }) });
-          await rest<void>("referral_reward_events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ referral_booking_id: referral.id, event_type: "adjusted", amount_cents: payableReward, notes: "Reward adjusted downward to current eligible booking value; increases remain capped at original referral value." }) });
+          await rest<void>(`referral_bookings?id=eq.${encodeURIComponent(referral.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ eligible_revenue_cents: payableEligible, partner_reward_cents: payableReward, metadata: { ...(referral.metadata || {}), original_eligible_revenue_cents: originalEligible, original_partner_reward_cents: originalReward, locked_reward_basis: lockedBasis, latest_eligible_revenue_cents: currentEligibleRaw, commission_cap_applied: currentEligibleRaw > originalEligible, reward_last_reconciled_at: new Date().toISOString() }, updated_at: new Date().toISOString() }) });
+          await rest<void>("referral_reward_events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ referral_booking_id: referral.id, event_type: "adjusted", amount_cents: payableReward, notes: "Reward adjusted downward under the reward terms locked when this referral was booked; increases remain capped at the original referral value." }) });
           adjusted++;
         }
 
@@ -119,7 +119,7 @@ export async function GET(request: Request) {
 
         if (completed && referral.reward_status === "pending") {
           const now = new Date().toISOString();
-          await rest<void>(`referral_bookings?id=eq.${encodeURIComponent(referral.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ booking_status: "traveled", reward_status: "earned", earned_at: now, metadata: { ...(referral.metadata || {}), completion_source: completionSource, completion_reconciled_at: now }, updated_at: now }) });
+          await rest<void>(`referral_bookings?id=eq.${encodeURIComponent(referral.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ booking_status: "traveled", reward_status: "earned", earned_at: now, metadata: { ...(referral.metadata || {}), original_eligible_revenue_cents: originalEligible, original_partner_reward_cents: originalReward, locked_reward_basis: lockedBasis, completion_source: completionSource, completion_reconciled_at: now }, updated_at: now }) });
           await rest<void>("referral_reward_events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ referral_booking_id: referral.id, event_type: "earned", amount_cents: payableReward, notes: line === "rental" ? "Earned when Epic recorded Rental Returned." : "Earned when Epic recorded Tour Checked In." }) });
           earned++;
         } else skipped++;
