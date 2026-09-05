@@ -27,8 +27,8 @@ function money(cents: number) {
 
 function statusLabel(row: DepositRow) {
   if (row.work_state === "do_not_release") return "DO NOT RELEASE";
-  if (row.work_state === "ready") return "Ready to Release";
-  if (row.work_state === "releasing") return "Release in Progress";
+  if (row.work_state === "ready") return "Ready for 11:15 Release";
+  if (row.work_state === "releasing") return "Processing";
   if (row.work_state === "needs_review") return "Needs Review";
   return "Not Due Yet";
 }
@@ -44,7 +44,38 @@ export default function DepositsOnHoldPanel({
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
 
-  async function releaseDeposit(row: DepositRow) {
+  async function holdDeposit(row: DepositRow) {
+    setBusy(row.readiness_id);
+    setMessage("");
+    try {
+      const response = await fetch("/api/deposits/hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ readiness_id: row.readiness_id }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to hold deposit.");
+
+      setRows((current) => current.map((item) =>
+        item.readiness_id === row.readiness_id
+          ? {
+              ...item,
+              status: "do_not_release",
+              work_state: "do_not_release",
+              hold_by: payload?.hold_by ?? "staff",
+              hold_at: payload?.hold_at ?? new Date().toISOString(),
+            }
+          : item,
+      ));
+      setMessage(`${row.customer_name || row.confirmation_code}: deposit is now blocked from automatic release.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to hold deposit.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function releaseHeldDeposit(row: DepositRow) {
     setBusy(row.readiness_id);
     setMessage("");
     try {
@@ -61,7 +92,7 @@ export default function DepositsOnHoldPanel({
           ? { ...item, status: "release_requested", work_state: "releasing", hold_by: null, hold_at: null }
           : item,
       ));
-      setMessage(`${row.customer_name || row.confirmation_code}: deposit release sent to MPWR.`);
+      setMessage(`${row.customer_name || row.confirmation_code}: deposit release sent to Victor.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to release deposit.");
     } finally {
@@ -72,7 +103,7 @@ export default function DepositsOnHoldPanel({
   if (!rows.length) {
     return (
       <div style={{ border: "1px solid #dfe5eb", borderRadius: 12, padding: 20, background: "#fff", fontWeight: 800 }}>
-        No active MPWR deposit holds.
+        No active MPWR damage deposits.
       </div>
     );
   }
@@ -103,14 +134,14 @@ export default function DepositsOnHoldPanel({
                 const blocked = row.work_state === "do_not_release";
                 const ready = row.work_state === "ready";
                 const releasing = row.work_state === "releasing";
-                const canRelease = ready || (blocked && canOverrideHold);
+                const needsReview = row.work_state === "needs_review";
 
                 return (
                   <tr
                     key={row.id}
                     style={{
                       borderTop: "1px solid #eef1f4",
-                      background: blocked ? "#fff4f2" : undefined,
+                      background: blocked ? "#fff4f2" : needsReview ? "#fff8e6" : undefined,
                     }}
                   >
                     <td style={{ padding: 12 }}>
@@ -120,8 +151,8 @@ export default function DepositsOnHoldPanel({
                     <td style={{ padding: 12, fontWeight: 800 }}>{row.confirmation_code}</td>
                     <td style={{ padding: 12, fontWeight: 900 }}>{money(row.deposit_amount_cents)}</td>
                     <td style={{ padding: 12 }}>
-                      <div style={{ fontWeight: 900, color: blocked ? "#b42318" : ready ? "#157f3b" : "#475467" }}>
-                        {statusLabel(row)}
+                      <div style={{ fontWeight: 900, color: blocked ? "#b42318" : needsReview ? "#9a6700" : ready ? "#157f3b" : "#475467" }}>
+                        {needsReview ? "⚠️ " : ""}{statusLabel(row)}
                       </div>
                       {blocked ? (
                         <div style={{ color: "#b42318", marginTop: 3, fontWeight: 700 }}>
@@ -141,11 +172,28 @@ export default function DepositsOnHoldPanel({
                       )}
                     </td>
                     <td style={{ padding: 12 }}>
-                      {canRelease ? (
+                      {ready ? (
                         <button
                           type="button"
                           disabled={busy === row.readiness_id}
-                          onClick={() => releaseDeposit(row)}
+                          onClick={() => holdDeposit(row)}
+                          style={{
+                            border: "1px solid #b42318",
+                            borderRadius: 8,
+                            background: "#fff4f2",
+                            color: "#b42318",
+                            padding: "8px 13px",
+                            fontWeight: 900,
+                            cursor: busy === row.readiness_id ? "wait" : "pointer",
+                          }}
+                        >
+                          {busy === row.readiness_id ? "Holding…" : "HOLD"}
+                        </button>
+                      ) : blocked && canOverrideHold ? (
+                        <button
+                          type="button"
+                          disabled={busy === row.readiness_id}
+                          onClick={() => releaseHeldDeposit(row)}
                           style={{
                             border: "1px solid #157f3b",
                             borderRadius: 8,
@@ -156,12 +204,14 @@ export default function DepositsOnHoldPanel({
                             cursor: busy === row.readiness_id ? "wait" : "pointer",
                           }}
                         >
-                          {busy === row.readiness_id ? "Releasing…" : "Release"}
+                          {busy === row.readiness_id ? "Releasing…" : "Release Hold"}
                         </button>
                       ) : blocked ? (
-                        <span style={{ fontWeight: 900, color: "#b42318" }}>Manager / Admin Release Only</span>
+                        <span style={{ fontWeight: 900, color: "#b42318" }}>Held</span>
                       ) : releasing ? (
-                        <span style={{ fontWeight: 800, color: "#667085" }}>Working…</span>
+                        <span style={{ fontWeight: 800, color: "#667085" }}>Processing…</span>
+                      ) : needsReview ? (
+                        <span style={{ fontWeight: 900, color: "#9a6700" }}>Needs Review</span>
                       ) : (
                         <span style={{ color: "#98a2b3", fontWeight: 700 }}>—</span>
                       )}
