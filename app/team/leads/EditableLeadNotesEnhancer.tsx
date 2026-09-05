@@ -60,8 +60,9 @@ export default function EditableLeadNotesEnhancer({ notesByLead }: Props) {
           const paragraph = card.querySelector("p");
           const strong = card.querySelector("strong");
           if (!paragraph || !strong) continue;
+          const paragraphElement = paragraph as HTMLParagraphElement;
 
-          const originalText = normalize(paragraph.textContent);
+          const originalText = normalize(paragraphElement.textContent);
           const author = normalize(strong.textContent);
           const candidates = allNotes.filter(
             (note) => normalize(note.note_text) === originalText && normalize(note.author_name) === author,
@@ -71,7 +72,7 @@ export default function EditableLeadNotesEnhancer({ notesByLead }: Props) {
 
           element.dataset.editableSalesNote = "true";
           const override = overrides.current.get(note.id);
-          if (override) paragraph.textContent = override.note_text;
+          if (override) paragraphElement.textContent = override.note_text;
 
           const actions = document.createElement("div");
           actions.style.display = "flex";
@@ -108,8 +109,8 @@ export default function EditableLeadNotesEnhancer({ notesByLead }: Props) {
             if (element.dataset.editingSalesNote === "true") return;
             element.dataset.editingSalesNote = "true";
 
-            const currentText = paragraph.textContent || "";
-            paragraph.style.display = "none";
+            const currentText = paragraphElement.textContent || "";
+            paragraphElement.style.display = "none";
             actions.style.display = "none";
 
             const editor = document.createElement("div");
@@ -161,7 +162,7 @@ export default function EditableLeadNotesEnhancer({ notesByLead }: Props) {
 
             function closeEditor() {
               editor.remove();
-              paragraph.style.display = "";
+              paragraphElement.style.display = "";
               actions.style.display = "flex";
               delete element.dataset.editingSalesNote;
             }
@@ -198,7 +199,7 @@ export default function EditableLeadNotesEnhancer({ notesByLead }: Props) {
                 const nextText = String(payload.note?.note_text || text);
                 const nextUpdatedAt = String(payload.note?.updated_at || new Date().toISOString());
                 overrides.current.set(note.id, { note_text: nextText, updated_at: nextUpdatedAt });
-                paragraph.textContent = nextText;
+                paragraphElement.textContent = nextText;
                 edited.textContent = editedLabel(nextUpdatedAt);
                 closeEditor();
               } catch (err) {
