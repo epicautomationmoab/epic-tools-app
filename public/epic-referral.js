@@ -1,4 +1,4 @@
-// Ambassador production deployment trigger.
+// Ambassador referral capture and attribution.
 (() => {
   const params = new URLSearchParams(window.location.search);
   const ref = (params.get("ref") || "").trim().toLowerCase();
@@ -6,7 +6,7 @@
 
   const STORAGE_KEY = "epic_referral_attribution";
   const VISITOR_KEY = "epic_referral_visitor_id";
-  const endpoint = "https://epic4x4ambassador.com/api/referral/capture";
+  const endpoint = "https://www.epic4x4ambassador.com/api/referral/capture";
 
   function uuid() {
     if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
@@ -34,6 +34,15 @@
     const maxAge = Math.max(60, Math.floor((new Date(payload.expires_at).getTime() - Date.now()) / 1000));
     document.cookie = `epic_ref=${encodeURIComponent(ref)}; Path=/; Max-Age=${maxAge}; SameSite=Lax; Secure`;
     document.cookie = `epic_rid=${encodeURIComponent(payload.referral_visit_id || "")}; Path=/; Max-Age=${maxAge}; SameSite=Lax; Secure`;
+  }
+
+  function cleanVisibleUrl() {
+    try {
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("ref");
+      const visible = `${clean.pathname}${clean.search}${clean.hash}` || "/";
+      window.history.replaceState(window.history.state, "", visible);
+    } catch (_) {}
   }
 
   function decorateLinks(payload) {
@@ -99,13 +108,15 @@
     return acc;
   }, {});
 
+  const landingUrl = window.location.href;
+
   fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ref,
       visitor_id: getVisitorId(),
-      landing_url: window.location.href,
+      landing_url: landingUrl,
       referrer_url: document.referrer || null,
       ...utm,
     }),
@@ -114,6 +125,7 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Referral capture failed.");
       persist(payload);
+      cleanVisibleUrl();
       decorateLinks(payload);
       showOffer(payload.partner);
     })
