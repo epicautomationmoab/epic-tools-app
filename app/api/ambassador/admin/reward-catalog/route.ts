@@ -24,19 +24,24 @@ async function requireAdmin(request: NextRequest) {
   return getAuthenticatedAmbassadorAdmin(request.cookies.get("epic_ambassador_admin_access_token")?.value);
 }
 
-function sanitize(body: Record<string, unknown>) {
+function slugify(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function sanitize(body: Record<string, unknown>, existing?: Record<string, any> | null) {
   const amountType = body.amount_type === "custom" ? "custom" : "fixed";
-  const redemptionType = ["gift_card", "prepaid_card", "venmo", "paypal", "check"].includes(String(body.redemption_type)) ? String(body.redemption_type) : "gift_card";
   const allowed = Array.isArray(body.allowed_amounts_cents)
     ? body.allowed_amounts_cents.map(Number).filter((v) => Number.isFinite(v) && v > 0).map(Math.round)
     : [];
+  const displayName = String(body.display_name || "").trim();
+  const imageUrl = String(body.image_url || "").trim();
   return {
-    slug: String(body.slug || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+    slug: existing?.slug || slugify(displayName),
     category: String(body.category || "").trim(),
-    display_name: String(body.display_name || "").trim(),
-    image_status: body.image_status === "ready" ? "ready" : "placeholder",
-    image_url: String(body.image_url || "").trim() || null,
-    redemption_type: redemptionType,
+    display_name: displayName,
+    image_status: imageUrl ? "ready" : "placeholder",
+    image_url: imageUrl || null,
+    redemption_type: existing?.redemption_type || "gift_card",
     amount_type: amountType,
     allowed_amounts_cents: amountType === "fixed" ? allowed : [],
     min_amount_cents: Math.max(1, Math.round(Number(body.min_amount_cents) || 1000)),
@@ -44,7 +49,7 @@ function sanitize(body: Record<string, unknown>) {
     fee_cents: Math.max(0, Math.round(Number(body.fee_cents) || 0)),
     fee_note: String(body.fee_note || "").trim() || null,
     active: body.active !== false,
-    sort_order: Math.round(Number(body.sort_order) || 100),
+    sort_order: existing?.sort_order ?? 1000,
     updated_at: new Date().toISOString(),
   };
 }
@@ -64,9 +69,12 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: "Reward details are required." }, { status: 400 });
   const payload = sanitize(body);
-  if (!payload.slug || !payload.category || !payload.display_name) return NextResponse.json({ error: "Category, display name, and reward code are required." }, { status: 400 });
+  if (!payload.category || !payload.display_name) return NextResponse.json({ error: "Category and display name are required." }, { status: 400 });
+  if (!payload.image_url) return NextResponse.json({ error: "Upload a reward image before saving." }, { status: 400 });
   if (payload.amount_type === "fixed" && payload.allowed_amounts_cents.length === 0) return NextResponse.json({ error: "Add at least one denomination for a fixed-value reward." }, { status: 400 });
   try {
+    const sameSlug = await rest<any[]>(`referral_reward_catalog?slug=eq.${encodeURIComponent(payload.slug)}&select=id&limit=1`);
+    if (sameSlug[0]) payload.slug = `${payload.slug}-${Date.now().toString().slice(-6)}`;
     const rows = await rest<any[]>("referral_reward_catalog", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(payload) });
     return NextResponse.json({ ok: true, reward: rows[0] });
   } catch (error) {
@@ -79,12 +87,15 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const id = String(body?.id || "");
   if (!id || !body) return NextResponse.json({ error: "Reward ID is required." }, { status: 400 });
-  const payload = sanitize(body);
-  if (!payload.slug || !payload.category || !payload.display_name) return NextResponse.json({ error: "Category, display name, and reward code are required." }, { status: 400 });
-  if (payload.amount_type === "fixed" && payload.allowed_amounts_cents.length === 0) return NextResponse.json({ error: "Add at least one denomination for a fixed-value reward." }, { status: 400 });
   try {
+    const existingRows = await rest<any[]>(`referral_reward_catalog?id=eq.${encodeURIComponent(id)}&select=*&limit=1`);
+    const existing = existingRows[0];
+    if (!existing) return NextResponse.json({ error: "Reward not found." }, { status: 404 });
+    const payload = sanitize(body, existing);
+    if (!payload.category || !payload.display_name) return NextResponse.json({ error: "Category and display name are required." }, { status: 400 });
+    if (!payload.image_url) return NextResponse.json({ error: "Upload a reward image before saving." }, { status: 400 });
+    if (payload.amount_type === "fixed" && payload.allowed_amounts_cents.length === 0) return NextResponse.json({ error: "Add at least one denomination for a fixed-value reward." }, { status: 400 });
     const rows = await rest<any[]>(`referral_reward_catalog?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(payload) });
-    if (!rows[0]) return NextResponse.json({ error: "Reward not found." }, { status: 404 });
     return NextResponse.json({ ok: true, reward: rows[0] });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to update reward." }, { status: 500 });
