@@ -135,6 +135,7 @@ export default function DepositsOnHoldPanel({
                 const ready = row.work_state === "ready";
                 const releasing = row.work_state === "releasing";
                 const needsReview = row.work_state === "needs_review";
+                const canHold = !blocked && !releasing && !needsReview;
 
                 return (
                   <tr
@@ -172,7 +173,7 @@ export default function DepositsOnHoldPanel({
                       )}
                     </td>
                     <td style={{ padding: 12 }}>
-                      {ready ? (
+                      {canHold ? (
                         <button
                           type="button"
                           disabled={busy === row.readiness_id}
