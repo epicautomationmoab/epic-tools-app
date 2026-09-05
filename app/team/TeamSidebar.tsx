@@ -30,12 +30,37 @@ const baseNavItems = [
   { label: "MPWR", href: "https://mpwr-hq.poladv.com/orders", external: true },
 ] as const;
 
+async function getDepositNeedsReviewCount() {
+  try {
+    const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const key = process.env.SUPABASE_SECRET_KEY?.trim();
+    if (!rawUrl || !key) return 0;
+    const url = (/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`).replace(/\/+$/, "");
+    const response = await fetch(`${url}/rest/v1/rpc/list_rental_damage_deposits_active`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+      cache: "no-store",
+    });
+    if (!response.ok) return 0;
+    const rows = await response.json();
+    return Array.isArray(rows) ? rows.filter((row) => row?.work_state === "needs_review").length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export default async function TeamSidebar({ active }: Props) {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("epic_access_token")?.value;
-  const [profile, activeRentalCount] = await Promise.all([
+  const [profile, activeRentalCount, depositNeedsReviewCount] = await Promise.all([
     getAuthenticatedTeamProfile(accessToken),
     getCarryoverRentalCount(),
+    getDepositNeedsReviewCount(),
   ]);
   const canManageEmployees = profile?.role === "admin" || profile?.role === "manager";
 
@@ -65,21 +90,18 @@ export default async function TeamSidebar({ active }: Props) {
                 {item.label === "Held-Over Rentals" && activeRentalCount > 0 ? (
                   <span
                     aria-label={`${activeRentalCount} held-over rental${activeRentalCount === 1 ? "" : "s"}`}
-                    style={{
-                      minWidth: 22,
-                      height: 22,
-                      padding: "0 7px",
-                      borderRadius: 999,
-                      display: "inline-grid",
-                      placeItems: "center",
-                      background: "#ffc107",
-                      color: "#202733",
-                      fontSize: 11,
-                      fontWeight: 900,
-                      lineHeight: 1,
-                    }}
+                    style={{ minWidth: 22, height: 22, padding: "0 7px", borderRadius: 999, display: "inline-grid", placeItems: "center", background: "#ffc107", color: "#202733", fontSize: 11, fontWeight: 900, lineHeight: 1 }}
                   >
                     {activeRentalCount}
+                  </span>
+                ) : null}
+                {item.label === "Deposits On-Hold" && depositNeedsReviewCount > 0 ? (
+                  <span
+                    aria-label={`${depositNeedsReviewCount} deposit release${depositNeedsReviewCount === 1 ? "" : "s"} need review`}
+                    title={`${depositNeedsReviewCount} Victor deposit release${depositNeedsReviewCount === 1 ? "" : "s"} need review`}
+                    style={{ minWidth: 22, height: 22, padding: "0 6px", borderRadius: 999, display: "inline-grid", gridAutoFlow: "column", gap: 3, placeItems: "center", background: "#ffc107", color: "#202733", fontSize: 11, fontWeight: 900, lineHeight: 1 }}
+                  >
+                    <span aria-hidden="true">⚠️</span>{depositNeedsReviewCount}
                   </span>
                 ) : null}
               </>
