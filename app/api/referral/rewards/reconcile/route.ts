@@ -93,16 +93,34 @@ export async function GET(request: Request) {
           adjusted++;
         }
 
-        const boardRows = await rest<any[]>(`guest_arrival_board_v?confirmation_code=eq.${encodeURIComponent(reservation.confirmation_code || referral.confirmation_code || "")}&select=business_line,has_checked_in_status,has_rental_out_status&limit=10`);
-        const completed = boardRows.some((row) => {
-          const line = String(row.business_line || reservation.business_line || referral.business_line || "").toLowerCase();
-          return line === "tour" ? Boolean(row.has_checked_in_status) : line === "rental" ? Boolean(row.has_rental_out_status) : Boolean(row.has_checked_in_status || row.has_rental_out_status);
-        });
+        const confirmation = reservation.confirmation_code || referral.confirmation_code || "";
+        const line = String(reservation.business_line || referral.business_line || "").toLowerCase();
+
+        const [boardRows, handoffRows] = await Promise.all([
+          rest<any[]>(`guest_arrival_board_v?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=business_line,has_checked_in_status,has_rental_out_status&limit=10`),
+          rest<any[]>(`epic_operational_handoffs?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=business_line,handoff_status,recorded_at&order=recorded_at.desc&limit=20`),
+        ]);
+
+        const liveTourCheckedIn = boardRows.some((row) => Boolean(row.has_checked_in_status));
+        const handoffStatuses = new Set(handoffRows.map((row) => String(row.handoff_status || "").toLowerCase()));
+
+        let completed = false;
+        let completionSource = "";
+        if (line === "tour") {
+          completed = liveTourCheckedIn || handoffStatuses.has("checked_in") || handoffStatuses.has("tour_returned");
+          completionSource = liveTourCheckedIn ? "tour_checked_in_live" : handoffStatuses.has("checked_in") ? "tour_checked_in_handoff" : handoffStatuses.has("tour_returned") ? "tour_returned_fallback" : "";
+        } else if (line === "rental") {
+          completed = handoffStatuses.has("rental_returned");
+          completionSource = completed ? "rental_returned" : "";
+        } else {
+          completed = liveTourCheckedIn || handoffStatuses.has("checked_in") || handoffStatuses.has("tour_returned") || handoffStatuses.has("rental_returned");
+          completionSource = completed ? "operational_completion" : "";
+        }
 
         if (completed && referral.reward_status === "pending") {
           const now = new Date().toISOString();
-          await rest<void>(`referral_bookings?id=eq.${encodeURIComponent(referral.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ booking_status: "traveled", reward_status: "earned", earned_at: now, updated_at: now }) });
-          await rest<void>("referral_reward_events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ referral_booking_id: referral.id, event_type: "earned", amount_cents: payableReward, notes: "Earned from Epic operational completion status." }) });
+          await rest<void>(`referral_bookings?id=eq.${encodeURIComponent(referral.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ booking_status: "traveled", reward_status: "earned", earned_at: now, metadata: { ...(referral.metadata || {}), completion_source: completionSource, completion_reconciled_at: now }, updated_at: now }) });
+          await rest<void>("referral_reward_events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ referral_booking_id: referral.id, event_type: "earned", amount_cents: payableReward, notes: line === "rental" ? "Earned when Epic recorded Rental Returned." : "Earned when Epic recorded Tour Checked In." }) });
           earned++;
         } else skipped++;
       } catch (error) {
