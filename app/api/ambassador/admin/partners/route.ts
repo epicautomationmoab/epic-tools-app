@@ -29,22 +29,26 @@ export async function GET(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Ambassador admin login required." }, { status: 401 });
 
   try {
-    const [partners, bookings, adjustments, redemptions] = await Promise.all([
+    const [partners, bookings, adjustments, redemptions, visits] = await Promise.all([
       rest<any[]>(`referral_partners?select=id,name,slug,status,reward_mode,reward_basis,partner_reward_cents,partner_reward_percent,guest_discount_cents,guest_discount_percent&order=name.asc`),
       rest<any[]>(`referral_bookings?select=id,partner_id,partner_reward_cents,reward_status,confirmation_code,customer_name,experience_name,activity_start_at,booking_status&order=activity_start_at.desc.nullslast&limit=5000`),
       rest<any[]>(`referral_reward_adjustments?select=id,partner_id,amount_cents,adjustment_type,reason,reference,created_by_name,created_by_email,created_at&order=created_at.desc&limit=5000`),
       rest<any[]>(`referral_redemptions?select=id,partner_id,amount_cents,status&limit=5000`),
+      rest<any[]>(`referral_visits?select=id,partner_id,occurred_at&order=occurred_at.desc&limit=10000`),
     ]);
 
     const payload = partners.map((partner) => {
       const pb = bookings.filter((row) => row.partner_id === partner.id);
       const pa = adjustments.filter((row) => row.partner_id === partner.id);
       const pr = redemptions.filter((row) => row.partner_id === partner.id);
+      const pv = visits.filter((row) => row.partner_id === partner.id);
       const bookingEarned = pb.filter((row) => ["earned","sent","redeemed"].includes(String(row.reward_status))).reduce((sum, row) => sum + Math.max(0, Number(row.partner_reward_cents) || 0), 0);
       const adjustmentTotal = pa.reduce((sum, row) => sum + (Number(row.amount_cents) || 0), 0);
       const committed = pr.filter((row) => !["rejected","cancelled"].includes(String(row.status))).reduce((sum, row) => sum + Math.max(0, Number(row.amount_cents) || 0), 0);
       return {
         ...partner,
+        visit_count: pv.length,
+        latest_visit_at: pv[0]?.occurred_at || null,
         earned_cents: bookingEarned + adjustmentTotal,
         adjustment_total_cents: adjustmentTotal,
         committed_cents: committed,
