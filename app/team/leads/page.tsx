@@ -3,6 +3,7 @@ import TeamSidebar from "../TeamSidebar";
 import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
 import LeadsTable, { type LeadDraft, type LeadNote, type LeadRow } from "./LeadsTable";
 import DraftStatusDrawerEnhancer from "./DraftStatusDrawerEnhancer";
+import EditableLeadNotesEnhancer from "./EditableLeadNotesEnhancer";
 import styles from "./Leads.module.css";
 
 function requiredEnv(name: string) {
@@ -57,7 +58,7 @@ async function getLeads() {
       const draftMap = new Map(drafts.map((draft) => [draft.id, draft]));
       draftsByLead = Object.fromEntries(open.map((lead) => [lead.id, links.filter((link) => link.opportunity_id === lead.id).map((link) => draftMap.get(link.draft_id)).filter((draft): draft is LeadDraft => Boolean(draft)).sort((a, b) => Number(b.value_cents || 0) - Number(a.value_cents || 0))]));
     }
-    const notes = await supabaseRest<LeadNote[]>(`sales_opportunity_notes?select=${encodeURIComponent("id,opportunity_id,author_name,note_text,created_at")}&opportunity_id=in.(${quoted})&order=created_at.desc`);
+    const notes = await supabaseRest<LeadNote[]>(`sales_opportunity_notes?select=${encodeURIComponent("id,opportunity_id,author_name,note_text,created_at,updated_at")}&opportunity_id=in.(${quoted})&order=created_at.desc`);
     notesByLead = Object.fromEntries(open.map((lead) => [lead.id, notes.filter((note) => note.opportunity_id === lead.id)]));
   }
   return { open, booked, lost, retired, draftsByLead, notesByLead };
@@ -86,6 +87,7 @@ export default async function LeadsPage() {
   return <div className={styles.shell}>
     <DraftStatusDrawerEnhancer />
     <CallAttentionRowEnhancer context="leads" />
+    <EditableLeadNotesEnhancer notesByLead={notesByLead} />
     <TeamSidebar active="Sales & Leads" />
     <main className={styles.main}>
       <header className={styles.header}><div><div className={styles.eyebrow}>Epic Tools Sales</div><h1>Sales &amp; Leads</h1><p>Open sales opportunities that still belong to the sales team.</p></div><Link className={styles.back} href="/team/readiness">Guest Readiness</Link></header>
