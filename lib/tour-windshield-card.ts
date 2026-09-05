@@ -44,7 +44,7 @@ export function renderTourWindshieldCardSvg(data: TourWindshieldCardData) {
   const departure = escapeXml(mountainTimeLabel(data.departureTime));
   const confirmation = escapeXml(data.confirmationCode.trim().toUpperCase());
   const lastNameSize = fitGuestLastName(lastName);
-  const tourSize = fitTextSize(tourName, 15, 10, 42);
+  const tourSize = fitTextSize(tourName, 17, 11, 42);
 
   // US Letter landscape: 792 x 612 points. Fold line runs horizontally at 306 pt.
   // The guide half is rotated 180 degrees so both exposed faces read upright after folding.
@@ -60,18 +60,21 @@ export function renderTourWindshieldCardSvg(data: TourWindshieldCardData) {
 
   <!-- Guide-facing half, rotated for folding -->
   <g transform="rotate(180 396 153)" font-family="Arial, Helvetica, sans-serif" fill="black">
-    <text x="396" y="92" text-anchor="middle" font-size="25" font-weight="700">Vehicle Number: __________________</text>
+    <!-- Vehicle number remains the first and largest handwritten field. -->
+    <text x="396" y="82" text-anchor="middle" font-size="27" font-weight="700">Vehicle Number: __________________</text>
 
-    <text x="110" y="175" font-size="15" font-weight="700">Departure Mileage: __________________</text>
-    <text x="516" y="175" font-size="15" font-weight="700">Engine Hours: __________________</text>
+    <!-- Only the departure readings are captured now. These are copied into Tour Dispatch. -->
+    <text x="76" y="158" font-size="19" font-weight="700">Start Mileage:</text>
+    <line x1="213" y1="164" x2="388" y2="164" stroke="black" stroke-width="1.4"/>
 
-    <text x="110" y="208" font-size="15" font-weight="700">Return Mileage: __________________</text>
-    <text x="516" y="208" font-size="15" font-weight="700">Engine Hours: __________________</text>
+    <text x="430" y="158" font-size="19" font-weight="700">Start Engine Hours:</text>
+    <line x1="611" y1="164" x2="716" y2="164" stroke="black" stroke-width="1.4"/>
 
-    <!-- Guide identifier block: grouped together in one bottom corner -->
-    <line x1="70" y1="257" x2="722" y2="257" stroke="black" stroke-width="0.8"/>
-    <text x="70" y="275" font-size="${tourSize}" font-weight="700">${tourName}</text>
-    <text x="70" y="294" font-size="13" font-weight="700">${departure}  ·  ${confirmation}</text>
+    <!-- Guide identifier block -->
+    <line x1="70" y1="228" x2="722" y2="228" stroke="black" stroke-width="0.8"/>
+    <text x="70" y="253" font-size="${tourSize}" font-weight="700">${tourName}</text>
+    <text x="70" y="279" font-size="16" font-weight="700">${departure}</text>
+    <text x="722" y="279" text-anchor="end" font-size="13" font-weight="700">${confirmation}</text>
   </g>
 </svg>`;
 }
