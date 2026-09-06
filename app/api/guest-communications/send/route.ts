@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
+import {
+  buildCancellationPolicyText,
+  buildConfirmationPaymentSummary,
+  type ConfirmationFinancialRow,
+} from "@/lib/guest-confirmation-accounting";
 
 type CommunicationRow = {
   id: string;
@@ -155,7 +160,6 @@ async function loadNextCommunication() {
     order: "scheduled_for.asc",
     limit: "1",
   }));
-
   if (dueTwoHourReminder) return dueTwoHourReminder;
 
   const dueDayBeforeReminder = await fetchOneCommunication(new URLSearchParams({
@@ -167,7 +171,6 @@ async function loadNextCommunication() {
     order: "scheduled_for.asc",
     limit: "1",
   }));
-
   if (dueDayBeforeReminder) return dueDayBeforeReminder;
 
   return fetchOneCommunication(new URLSearchParams({
@@ -190,6 +193,21 @@ async function loadGuestPortalRows(token: string) {
   return (await response.json()) as GuestPortalRow[];
 }
 
+async function loadFinancialRow(confirmationCode: string) {
+  const config = getSupabaseConfig();
+  const params = new URLSearchParams({
+    select: "amount_paid_cents,amount_due_cents,total_amount_cents,travel_protection_choice,latest_payload",
+    confirmation_code: `eq.${confirmationCode}`,
+    limit: "1",
+  });
+  const response = await fetch(`${config.url}/rest/v1/operational_reservations?${params}`, {
+    headers: supabaseHeaders(config.key), cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Unable to load confirmation financials: ${await response.text()}`);
+  const rows = (await response.json()) as ConfirmationFinancialRow[];
+  return rows[0] ?? null;
+}
+
 async function updateCommunication(id: string, values: Record<string, unknown>) {
   const config = getSupabaseConfig();
   const response = await fetch(`${config.url}/rest/v1/guest_communications?id=eq.${encodeURIComponent(id)}`, {
@@ -204,12 +222,8 @@ async function updateCommunication(id: string, values: Record<string, unknown>) 
 }
 
 function templateIdFor(communicationType: string) {
-  if (communicationType === "arrival_readiness_two_hour") {
-    return requiredEnv("RESEND_TWO_HOUR_TEMPLATE_ID");
-  }
-  if (communicationType === "arrival_reminder_day_before") {
-    return requiredEnv("RESEND_REMINDER_TEMPLATE_ID");
-  }
+  if (communicationType === "arrival_readiness_two_hour") return requiredEnv("RESEND_TWO_HOUR_TEMPLATE_ID");
+  if (communicationType === "arrival_reminder_day_before") return requiredEnv("RESEND_REMINDER_TEMPLATE_ID");
   return requiredEnv("RESEND_CONFIRMATION_TEMPLATE_ID");
 }
 
@@ -227,9 +241,7 @@ export async function POST(request: Request) {
   }
 
   const communication = await loadNextCommunication();
-  if (!communication) {
-    return NextResponse.json({ ok: true, sent: false, message: "No communications are ready." });
-  }
+  if (!communication) return NextResponse.json({ ok: true, sent: false, message: "No communications are ready." });
 
   if (
     communication.communication_type === "arrival_reminder_day_before" &&
@@ -245,17 +257,11 @@ export async function POST(request: Request) {
 
   const portalRows = await loadGuestPortalRows(communication.guest_portal_token);
   if (!portalRows.length) {
-    await updateCommunication(communication.id, {
-      status: "failed",
-      last_error: "No guest portal rows were found.",
-    });
+    await updateCommunication(communication.id, { status: "failed", last_error: "No guest portal rows were found." });
     return NextResponse.json({ ok: false, communicationId: communication.id, error: "No guest portal rows were found." }, { status: 500 });
   }
 
-  if (
-    communication.communication_type === "arrival_readiness_two_hour" &&
-    !hasOutstandingRequirements(portalRows)
-  ) {
+  if (communication.communication_type === "arrival_readiness_two_hour" && !hasOutstandingRequirements(portalRows)) {
     await updateCommunication(communication.id, {
       status: "cancelled",
       waiting_reason: "No outstanding guest requirements",
@@ -284,27 +290,36 @@ export async function POST(request: Request) {
     const location = getLocation(portalRows);
     const portalUrl = `${requiredEnv("GUEST_PORTAL_BASE_URL").replace(/\/+$/, "")}/guest/${communication.guest_portal_token}`;
 
+    const variables: Record<string, string> = {
+      ARRIVAL_INSTRUCTIONS: "Please arrive 15 minutes before your scheduled departure time.",
+      CONFIRMATION_CODE: communication.confirmation_code,
+      DIRECTIONS_URL: location.directionsUrl,
+      GUEST_NAME: firstName(communication.customer_name),
+      INTENDED_RECIPIENT: communication.customer_email ?? "",
+      LOCATION_SUMMARY: location.address,
+      PORTAL_URL: portalUrl,
+      READINESS_HEADLINE: readiness.headline,
+      READINESS_MESSAGE: readiness.message,
+      RESERVATION_SUMMARY: buildReservationSummary(portalRows),
+    };
+
+    if (communication.communication_type === "initial_guest_portal") {
+      const financial = await loadFinancialRow(communication.confirmation_code);
+      if (!financial) throw new Error("No operational reservation financials were found for confirmation email.");
+      const payment = buildConfirmationPaymentSummary(financial);
+      variables.PAYMENT_TOTAL = payment.total;
+      variables.PAYMENT_PAID = payment.paid;
+      variables.PAYMENT_BALANCE_DUE = payment.balanceDue;
+      variables.CANCELLATION_POLICY_TEXT = buildCancellationPolicyText(financial.travel_protection_choice);
+    }
+
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
       from: requiredEnv("GUEST_EMAIL_FROM"),
       to: recipient,
       bcc: requiredEnv("GUEST_EMAIL_BCC"),
       replyTo: requiredEnv("GUEST_EMAIL_REPLY_TO"),
-      template: {
-        id: templateIdFor(communication.communication_type),
-        variables: {
-          ARRIVAL_INSTRUCTIONS: "Please arrive 15 minutes before your scheduled departure time.",
-          CONFIRMATION_CODE: communication.confirmation_code,
-          DIRECTIONS_URL: location.directionsUrl,
-          GUEST_NAME: firstName(communication.customer_name),
-          INTENDED_RECIPIENT: communication.customer_email ?? "",
-          LOCATION_SUMMARY: location.address,
-          PORTAL_URL: portalUrl,
-          READINESS_HEADLINE: readiness.headline,
-          READINESS_MESSAGE: readiness.message,
-          RESERVATION_SUMMARY: buildReservationSummary(portalRows),
-        },
-      },
+      template: { id: templateIdFor(communication.communication_type), variables },
     }, { idempotencyKey: `guest-communication-${communication.id}` });
 
     if (error) throw new Error(error.message);
