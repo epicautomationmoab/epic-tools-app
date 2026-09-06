@@ -35,19 +35,8 @@ type DamageDeposit = {
   last_error?: string | null;
 };
 
-type SettlementJob = {
-  id: string;
-  readiness_id: string;
-  status: "queued" | "claimed" | "settled" | "already_settled" | "needs_review" | "failed";
-  result_message?: string | null;
-  observed_mpwr_amount_due_cents?: number | null;
-  completed_at?: string | null;
-  updated_at?: string | null;
-};
-
 type DrawerTargets = {
   readinessId: string;
-  balanceTarget: HTMLElement | null;
   depositTarget: HTMLElement | null;
 };
 
@@ -162,7 +151,6 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
   );
   const [targets, setTargets] = useState<DrawerTargets | null>(null);
   const [deposit, setDeposit] = useState<DamageDeposit | null>(null);
-  const [settlement, setSettlement] = useState<SettlementJob | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
 
@@ -182,24 +170,12 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
     setDeposit(result);
   }, [rowByReadinessId]);
 
-  const refreshSettlement = useCallback(async (readinessId: string) => {
-    try {
-      const result = await rpc<SettlementJob[]>("get_latest_cassie_mpwr_job", {
-        p_readiness_id: readinessId,
-      });
-      setSettlement(Array.isArray(result) && result.length ? result[0] : null);
-    } catch {
-      setSettlement(null);
-    }
-  }, []);
-
   useEffect(() => {
     function inspectDrawer() {
       const dialog = document.querySelector<HTMLElement>("[role='dialog'][aria-label$='reservation details']");
       if (!dialog) {
         setTargets(null);
         setDeposit(null);
-        setSettlement(null);
         return;
       }
 
@@ -212,7 +188,6 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
 
       setTargets({
         readinessId: row.readiness_id,
-        balanceTarget: findFactTarget(dialog, "Balance"),
         depositTarget: findFactTarget(dialog, "Security Deposit"),
       });
     }
@@ -226,32 +201,13 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
   useEffect(() => {
     if (!targets?.readinessId) return;
     refreshDeposit(targets.readinessId).catch(() => setDeposit(null));
-    refreshSettlement(targets.readinessId);
 
     const timer = window.setInterval(() => {
-      refreshSettlement(targets.readinessId);
       refreshDeposit(targets.readinessId).catch(() => {});
     }, 3000);
 
     return () => window.clearInterval(timer);
-  }, [targets?.readinessId, refreshDeposit, refreshSettlement]);
-
-  async function launchSettlement(readinessId: string) {
-    setBusy(`balance:${readinessId}`);
-    setMessage("");
-    try {
-      await rpc("launch_cassie_settle_balance", {
-        p_readiness_id: readinessId,
-        p_requested_by: "EpicTools",
-      });
-      await refreshSettlement(readinessId);
-      setMessage("MPWR balance settlement queued.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to queue MPWR balance settlement.");
-    } finally {
-      setBusy("");
-    }
-  }
+  }, [targets?.readinessId, refreshDeposit]);
 
   async function enableDepositHold(readinessId: string) {
     setBusy(`hold:${readinessId}`);
@@ -294,8 +250,6 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
 
   const selectedRow = targets ? rowByReadinessId.get(targets.readinessId) : null;
   const isPremier = rowIsPremier(selectedRow);
-  const mpwrSettled = settlement?.status === "settled" || settlement?.status === "already_settled";
-  const mpwrSettlementPending = settlement?.status === "queued" || settlement?.status === "claimed";
 
   return (
     <>
@@ -304,33 +258,6 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
           {message}
         </div>
       ) : null}
-
-      {targets?.balanceTarget && selectedRow
-        ? createPortal(
-            <div style={{ marginTop: 8 }}>
-              {mpwrSettled ? (
-                <div style={{ fontSize: 13, fontWeight: 900, color: "#157f3b" }}>✓ MPWR Balance Settled</div>
-              ) : mpwrSettlementPending ? (
-                <div style={{ fontSize: 13, fontWeight: 900, color: "#667085" }}>MPWR settlement in progress…</div>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    style={{ ...buttonStyle(), borderColor: "#156e99", background: "#eaf6fc", color: "#0e5d83" }}
-                    disabled={busy === `balance:${targets.readinessId}` || !selectedRow.mpwr_reservation_url}
-                    onClick={() => launchSettlement(targets.readinessId)}
-                  >
-                    {busy === `balance:${targets.readinessId}` ? "Queuing…" : "Settle MPWR Balance"}
-                  </button>
-                  <small style={{ display: "block", marginTop: 5, lineHeight: 1.3, color: "#667085", fontWeight: 700 }}>
-                    MPWR will be verified for an available Settle Balance action before any settlement is attempted.
-                  </small>
-                </>
-              )}
-            </div>,
-            targets.balanceTarget,
-          )
-        : null}
 
       {targets?.depositTarget && selectedRow?.business_line === "rental" && deposit
         ? createPortal(
