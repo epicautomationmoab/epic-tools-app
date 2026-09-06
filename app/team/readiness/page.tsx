@@ -11,6 +11,7 @@ import PortalQrEnhancer from "./PortalQrEnhancer";
 import PortalQrRailEnhancer from "./PortalQrRailEnhancer";
 import DamageAcknowledgmentEnhancer from "./DamageAcknowledgmentEnhancer";
 import PostVisitReviewToggleEnhancer from "./PostVisitReviewToggleEnhancer";
+import GuestPaymentVisibilityEnhancer from "./GuestPaymentVisibilityEnhancer";
 import ReservationActionRailEnhancer from "./ReservationActionRailEnhancer";
 import OhvDrawerEnhancer from "./OhvDrawerEnhancer";
 import SignedWaiverDrawerEnhancer from "./SignedWaiverDrawerEnhancer";
@@ -46,6 +47,7 @@ export default async function TeamReadinessPage() {
       <PortalQrRailEnhancer />
       <DamageAcknowledgmentEnhancer />
       <PostVisitReviewToggleEnhancer />
+      <GuestPaymentVisibilityEnhancer />
       <ReservationActionRailEnhancer />
       <EmailDeliveryDrawerEnhancer />
       <ReservationDeepLinkEnhancer />
