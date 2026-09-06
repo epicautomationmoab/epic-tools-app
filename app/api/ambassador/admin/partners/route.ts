@@ -42,12 +42,15 @@ export async function GET(request: NextRequest) {
       const pa = adjustments.filter((row) => row.partner_id === partner.id);
       const pr = redemptions.filter((row) => row.partner_id === partner.id);
       const pv = visits.filter((row) => row.partner_id === partner.id);
+      const pending = pb.filter((row) => String(row.reward_status) === "pending").reduce((sum, row) => sum + Math.max(0, Number(row.partner_reward_cents) || 0), 0);
       const bookingEarned = pb.filter((row) => ["earned","sent","redeemed"].includes(String(row.reward_status))).reduce((sum, row) => sum + Math.max(0, Number(row.partner_reward_cents) || 0), 0);
       const adjustmentTotal = pa.reduce((sum, row) => sum + (Number(row.amount_cents) || 0), 0);
       const committed = pr.filter((row) => !["rejected","cancelled"].includes(String(row.status))).reduce((sum, row) => sum + Math.max(0, Number(row.amount_cents) || 0), 0);
       return {
         ...partner,
         visit_count: pv.length,
+        booking_count: pb.length,
+        pending_cents: pending,
         latest_visit_at: pv[0]?.occurred_at || null,
         earned_cents: bookingEarned + adjustmentTotal,
         adjustment_total_cents: adjustmentTotal,
