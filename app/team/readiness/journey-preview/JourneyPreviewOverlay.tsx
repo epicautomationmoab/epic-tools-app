@@ -19,6 +19,12 @@ function findConfirmation(drawer: Element) {
   return "";
 }
 
+function closeReservationDrawer() {
+  const drawer = document.querySelector<HTMLElement>('[role="dialog"][aria-label$="reservation details"]');
+  const closeButton = drawer?.querySelector<HTMLButtonElement>('button[aria-label="Close drawer"]');
+  closeButton?.click();
+}
+
 export default function JourneyPreviewOverlay({ rows }: { rows: ReadinessRow[] }) {
   const [selected, setSelected] = useState<ReadinessRow | null>(null);
 
@@ -63,8 +69,32 @@ export default function JourneyPreviewOverlay({ rows }: { rows: ReadinessRow[] }
   }, [rows]);
 
   return selected ? (
-    <div className="journey-preview-pane" aria-label="Customer journey preview pane">
-      <CustomerJourneyPane row={selected} />
-    </div>
+    <>
+      <button
+        type="button"
+        aria-label="Close reservation details"
+        onClick={closeReservationDrawer}
+        style={{
+          position: "fixed",
+          top: 36,
+          right: 40,
+          zIndex: 120,
+          width: 40,
+          height: 40,
+          border: 0,
+          borderRadius: 999,
+          background: "#f0f2f4",
+          color: "#111827",
+          fontSize: 28,
+          lineHeight: "40px",
+          fontWeight: 700,
+          cursor: "pointer",
+          boxShadow: "0 4px 12px rgba(8,16,28,.12)",
+        }}
+      >×</button>
+      <div className="journey-preview-pane" aria-label="Customer journey preview pane">
+        <CustomerJourneyPane row={selected} />
+      </div>
+    </>
   ) : null;
 }
