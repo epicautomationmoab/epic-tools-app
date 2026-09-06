@@ -1,6 +1,7 @@
 import TeamReadinessPage from "../page";
 import { getReadinessRows } from "@/lib/supabase";
 import JourneyPreviewOverlay from "./JourneyPreviewOverlay";
+import "./preview.css";
 
 export const dynamic = "force-dynamic";
 
