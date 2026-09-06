@@ -53,10 +53,18 @@ export default function GuestPaymentBanner() {
       }
     }
 
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadPaymentStatus();
+    };
+
     void loadPaymentStatus();
+    window.addEventListener("focus", loadPaymentStatus);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("focus", loadPaymentStatus);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [pathname]);
 
@@ -87,10 +95,6 @@ export default function GuestPaymentBanner() {
           {formatMoney(balanceDueCents)}
         </span>
       </div>
-
-      <span style={{ color: "rgba(255,255,255,0.78)", fontSize: "14px" }}>
-        Pay before arrival for an even faster check-in.
-      </span>
 
       <a
         href={paymentUrl}
