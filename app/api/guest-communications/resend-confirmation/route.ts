@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
+import {
+  buildCancellationPolicyText,
+  buildConfirmationPaymentSummary,
+  type ConfirmationFinancialRow,
+} from "@/lib/guest-confirmation-accounting";
 
 type CommunicationRow = {
   id: string;
@@ -64,8 +69,6 @@ function firstName(fullName: string) {
   return fullName.trim().split(/\s+/)[0] || "Guest";
 }
 
-// TripWorks visit_start_time is a local wall-clock value stored in a timestamptz-shaped field.
-// Preserve its date/time components instead of applying a UTC -> Mountain conversion.
 function formatVisitTime(value: string) {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::\d{2})?/);
   if (!match) throw new Error(`Invalid visit start time: ${value}`);
@@ -165,6 +168,22 @@ async function loadEffectiveEmail(confirmationCode: string, fallback: string | n
   return rows[0]?.effective_email?.trim() || fallback?.trim() || null;
 }
 
+async function loadFinancialRow(confirmationCode: string) {
+  const config = getSupabaseConfig();
+  const params = new URLSearchParams({
+    select: "amount_paid_cents,amount_due_cents,total_amount_cents,travel_protection_choice,latest_payload",
+    confirmation_code: `eq.${confirmationCode}`,
+    limit: "1",
+  });
+  const response = await fetch(`${config.url}/rest/v1/operational_reservations?${params}`, {
+    headers: supabaseHeaders(config.key),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Unable to load confirmation financials: ${await response.text()}`);
+  const rows = (await response.json()) as ConfirmationFinancialRow[];
+  return rows[0] ?? null;
+}
+
 async function recordManualAttempt(
   communicationId: string,
   recipientEmail: string,
@@ -237,6 +256,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No guest portal rows were found." }, { status: 409 });
     }
 
+    const financial = await loadFinancialRow(communication.confirmation_code);
+    if (!financial) {
+      return NextResponse.json({ error: "No operational reservation financials were found." }, { status: 409 });
+    }
+
+    const payment = buildConfirmationPaymentSummary(financial);
     const readiness = buildReadinessMessage(portalRows);
     const location = getLocation(portalRows);
     const portalBaseUrl = (process.env.GUEST_PORTAL_BASE_URL?.trim() || DEFAULT_GUEST_PORTAL_BASE_URL).replace(/\/+$/, "");
@@ -252,11 +277,15 @@ export async function POST(request: NextRequest) {
         id: requiredEnv("RESEND_CONFIRMATION_TEMPLATE_ID"),
         variables: {
           ARRIVAL_INSTRUCTIONS: "Please arrive 15 minutes before your scheduled departure time.",
+          CANCELLATION_POLICY_TEXT: buildCancellationPolicyText(financial.travel_protection_choice),
           CONFIRMATION_CODE: communication.confirmation_code,
           DIRECTIONS_URL: location.directionsUrl,
           GUEST_NAME: firstName(communication.customer_name),
           INTENDED_RECIPIENT: recipientEmail,
           LOCATION_SUMMARY: location.address,
+          PAYMENT_BALANCE_DUE: payment.balanceDue,
+          PAYMENT_PAID: payment.paid,
+          PAYMENT_TOTAL: payment.total,
           PORTAL_URL: portalUrl,
           READINESS_HEADLINE: readiness.headline,
           READINESS_MESSAGE: readiness.message,
