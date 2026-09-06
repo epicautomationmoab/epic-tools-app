@@ -41,6 +41,10 @@ type GuestPortalRow = {
   ohv_certificate_uploaded_at: string | null;
 };
 
+type FinancialRow = {
+  amount_due_cents: number | null;
+};
+
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SECRET_KEY?.trim();
@@ -91,6 +95,28 @@ function denverWallTimeToIso(value: string) {
   return `${year}-${month}-${day}T${hour}:${minute}:${seconds}${fraction}${offsetMatch[1]}`;
 }
 
+async function loadGuestFacingBalance(
+  config: ReturnType<typeof getSupabaseConfig>,
+  confirmationCode: string,
+) {
+  const financialParams = new URLSearchParams({
+    select: "amount_due_cents",
+    confirmation_code: `eq.${confirmationCode}`,
+    limit: "1",
+  });
+
+  const response = await fetch(
+    `${config.url}/rest/v1/operational_reservations?${financialParams.toString()}`,
+    { headers: { apikey: config.key }, cache: "no-store" },
+  );
+
+  if (!response.ok) return 0;
+
+  const rows = (await response.json()) as FinancialRow[];
+  const baseDueCents = Math.max(rows[0]?.amount_due_cents ?? 0, 0);
+  return Math.round(baseDueCents * 1.04);
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ token: string }> },
@@ -127,14 +153,21 @@ export async function GET(
     }
 
     const hasMpwrWaiver = rows.some((row) => Boolean(row.mpwr_waiver_url));
+    const confirmationCode = rows[0].confirmation_code;
+    const balanceDueCents = await loadGuestFacingBalance(config, confirmationCode);
 
     return NextResponse.json({
       reservation: {
         guestPortalToken: rows[0].guest_portal_token,
-        confirmationCode: rows[0].confirmation_code,
+        confirmationCode,
         customerName: rows[0].customer_name,
         customerEmail: rows[0].customer_email,
         customerPhoneLastFour: rows[0].customer_phone_last_four,
+        balanceDueCents,
+        paymentUrl:
+          balanceDueCents > 0
+            ? `https://epic4x4.tripworks.com/public/payment/add/${encodeURIComponent(confirmationCode)}`
+            : null,
         mpwrWaiverUrl: hasMpwrWaiver
           ? `/api/guest/${encodeURIComponent(token)}/mpwr-waiver`
           : null,
