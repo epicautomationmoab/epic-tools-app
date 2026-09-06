@@ -1,3 +1,5 @@
+import type { TripSafeStatus } from "@/lib/cancellation-policy";
+
 export type ConfirmationFinancialRow = {
   amount_paid_cents: number | null;
   amount_due_cents: number | null;
@@ -81,9 +83,16 @@ const DECLINED_POLICY = [
 
 const PURCHASED_POLICY = "You have purchased TripSafe Itinerary Protection. Cancellation or change requests will be honored for any reason up to one hour before your scheduled start time. Requests received within one hour of the start time are nonrefundable, and all reservation charges remain due. TripSafe Travel Protection fee is nonrefundable.";
 
+const WITHIN_48_POLICY = [
+  "Your reservation was confirmed within Epic 4X4 Adventures’ 48-hour cancellation period. Payment is due in full, and the reservation is nonrefundable.",
+  "If Epic 4X4 Adventures has agreed to accept cash or split payments for your party upon arrival, the credit card you provided secures the reservation. It will be charged for any unpaid balance remaining at your scheduled tour departure time or rental pickup time.",
+].join("\n\n");
+
 const UNKNOWN_POLICY = "Your reservation is subject to Epic 4X4 Adventures cancellation terms. Please review your reservation documents or contact us if you have questions about your TripSafe selection or cancellation terms.";
 
-export function buildCancellationPolicyText(choice: string | null) {
+export function buildCancellationPolicyText(choice: string | null, policyStatus?: TripSafeStatus | null) {
+  if (policyStatus === "confirmed_within_48") return WITHIN_48_POLICY;
+
   const normalized = choice?.trim().toLowerCase() ?? "";
   if (normalized.startsWith("yes")) return PURCHASED_POLICY;
   if (normalized.startsWith("no")) return DECLINED_POLICY;
