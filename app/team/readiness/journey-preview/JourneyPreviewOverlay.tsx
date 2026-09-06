@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
-import CustomerJourneyModal from "../CustomerJourneyModal";
+import CustomerJourneyPane from "../CustomerJourneyPane";
 
 function normalizedText(element: Element | null) {
   return element?.textContent?.replace(/\s+/g, " ").trim().toLowerCase() || "";
@@ -26,11 +26,15 @@ export default function JourneyPreviewOverlay({ rows }: { rows: ReadinessRow[] }
     let scheduled = false;
 
     function syncFromDrawer() {
-      const drawer = document.querySelector('[role="dialog"][aria-label$="reservation details"]');
+      const drawer = document.querySelector<HTMLElement>('[role="dialog"][aria-label$="reservation details"]');
       if (!drawer) {
+        document.body.classList.remove("journey-preview-open");
         setSelected(null);
         return;
       }
+
+      document.body.classList.add("journey-preview-open");
+      drawer.dataset.journeyPreviewDrawer = "true";
 
       const confirmation = findConfirmation(drawer);
       if (!confirmation) return;
@@ -52,15 +56,15 @@ export default function JourneyPreviewOverlay({ rows }: { rows: ReadinessRow[] }
     observer.observe(document.body, { childList: true, subtree: true });
     schedule();
 
-    return () => observer.disconnect();
+    return () => {
+      document.body.classList.remove("journey-preview-open");
+      observer.disconnect();
+    };
   }, [rows]);
 
-  function closeBoth() {
-    setSelected(null);
-    const drawer = document.querySelector('[role="dialog"][aria-label$="reservation details"]');
-    const closeButton = drawer?.querySelector<HTMLButtonElement>('button[aria-label="Close drawer"]');
-    closeButton?.click();
-  }
-
-  return selected ? <CustomerJourneyModal row={selected} onClose={closeBoth} /> : null;
+  return selected ? (
+    <div className="journey-preview-pane" aria-label="Customer journey preview pane">
+      <CustomerJourneyPane row={selected} />
+    </div>
+  ) : null;
 }
