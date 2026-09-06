@@ -9,6 +9,7 @@ type JourneyKind = "call" | "text" | "email" | "document" | "reservation" | "ope
 type JourneyFilter = "all" | JourneyKind;
 type JourneyEvent = { id: string; kind: JourneyKind; at: string | null; title: string; meta: string; body?: string | null; href?: string | null };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
+type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null; source_number: string | null; destination_number: string | null };
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -23,6 +24,7 @@ function ohvSummary(row: ReadinessRow) { if (row.business_line !== "rental" || r
 function handoffLabel(value: ReadinessRow["handoff_status"]) { if (!value) return "Not started"; if (value === "checked_in") return "Checked In"; if (value === "rental_out") return "Rental Out"; if (value === "rental_returned") return "Rental Returned"; if (value === "tour_returned") return "Tour Returned"; return String(value).replaceAll("_", " "); }
 function durationLabel(seconds: number | null) { if (!seconds) return ""; const m = Math.floor(seconds / 60); const s = seconds % 60; return m ? `${m}m ${s}s` : `${s}s`; }
 function callTitle(call: CallRailCall) { if (call.voicemail) return "Voicemail"; if (call.answered === false) return "Missed Call"; return call.direction === "outbound" ? "Outbound Call" : "Answered Call"; }
+function messageTitle(message: CallRailMessage) { return message.direction === "outbound" ? "Text sent" : "Text received"; }
 
 function readinessEvents(row: ReadinessRow): JourneyEvent[] {
   const events: JourneyEvent[] = [];
@@ -42,8 +44,9 @@ function Section({ title, children }: { title: string; children: ReactNode }) { 
 export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessRow; onClose: () => void }) {
   const [filter, setFilter] = useState<JourneyFilter>("all");
   const [calls, setCalls] = useState<CallRailCall[]>([]);
-  const [callsLoading, setCallsLoading] = useState(true);
-  const [callsError, setCallsError] = useState("");
+  const [messages, setMessages] = useState<CallRailMessage[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState("");
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -54,15 +57,18 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      setCallsLoading(true); setCallsError("");
+      setActivityLoading(true); setActivityError("");
       try {
         const response = await fetch(`/api/team/readiness/callrail?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Unable to load call activity.");
-        if (!cancelled) setCalls(payload.calls || []);
+        if (!response.ok) throw new Error(payload.error || "Unable to load communication activity.");
+        if (!cancelled) {
+          setCalls(payload.calls || []);
+          setMessages(payload.messages || []);
+        }
       } catch (error) {
-        if (!cancelled) setCallsError(error instanceof Error ? error.message : "Unable to load call activity.");
-      } finally { if (!cancelled) setCallsLoading(false); }
+        if (!cancelled) setActivityError(error instanceof Error ? error.message : "Unable to load communication activity.");
+      } finally { if (!cancelled) setActivityLoading(false); }
     }
     void load();
     return () => { cancelled = true; };
@@ -70,11 +76,19 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
 
   const events = useMemo(() => {
     const callEvents: JourneyEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || call.transcription, href: call.recording_url }));
-    return [...readinessEvents(row), ...callEvents].sort((a, b) => {
+    const textEvents: JourneyEvent[] = messages.map((message) => ({
+      id: `text-${message.message_id}`,
+      kind: "text",
+      at: message.sent_at || message.first_received_at,
+      title: messageTitle(message),
+      meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "),
+      body: message.message_body || "(No message body)",
+    }));
+    return [...readinessEvents(row), ...callEvents, ...textEvents].sort((a, b) => {
       if (!a.at && !b.at) return 0; if (!a.at) return 1; if (!b.at) return -1;
       return new Date(b.at).getTime() - new Date(a.at).getTime();
     });
-  }, [row, calls]);
+  }, [row, calls, messages]);
 
   const visibleEvents = filter === "all" ? events : events.filter((event) => event.kind === filter);
   const epicDocsComplete = (row.epic_document_received_count ?? 0) >= (row.epic_document_expected_count ?? row.expected_guest_count ?? 0);
@@ -117,11 +131,11 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
 
         <main className={styles.journey}>
           <div className={styles.journeyHeader}><h3 className={styles.sectionTitle}>Customer Journey</h3><div className={styles.filters} aria-label="Journey filters">{filterOptions.map(([value,label]) => <button type="button" className={`${styles.filter} ${filter === value ? styles.filterActive : ""}`} key={value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>
-          {callsLoading ? <div className={styles.placeholder}>Loading call history…</div> : null}
-          {callsError ? <div className={styles.timelineError}>{callsError}</div> : null}
+          {activityLoading ? <div className={styles.placeholder}>Loading communication history…</div> : null}
+          {activityError ? <div className={styles.timelineError}>{activityError}</div> : null}
           <div className={styles.timeline}>{visibleEvents.map((event) => <article className={styles.event} key={event.id}><div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={styles.eventKind}>{event.kind}</span></div><div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}</div>{event.body ? <div className={styles.eventBody}>{event.body}</div> : null}{event.href ? <a className={styles.eventLink} href={event.href} target="_blank" rel="noreferrer">Listen to recording ↗</a> : null}</article>)}</div>
-          {!visibleEvents.length && !callsLoading ? <div className={styles.placeholder}>No {filter === "all" ? "journey" : filter} activity is linked yet.</div> : null}
-          {(filter === "text" || filter === "email") ? <div className={styles.placeholder}>{filter === "text" ? "Text history" : "Email history"} will plug into this same timeline next.</div> : null}
+          {!visibleEvents.length && !activityLoading ? <div className={styles.placeholder}>No {filter === "all" ? "journey" : filter} activity is linked yet.</div> : null}
+          {filter === "email" ? <div className={styles.placeholder}>Email history will plug into this same timeline later.</div> : null}
         </main>
       </div>
     </section>
