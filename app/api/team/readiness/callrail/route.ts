@@ -68,11 +68,11 @@ function normalizePhone(input: string | null) {
   return `+${digits}`;
 }
 
-async function effectivePhoneForConfirmation(confirmation: string, fallback: string | null) {
-  const overrides = await rest<Array<{ effective_phone: string | null }>>(
-    `guest_contact_overrides?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=effective_phone&limit=1`,
+async function readinessPhoneForConfirmation(confirmation: string, fallback: string | null) {
+  const rows = await rest<Array<{ customer_phone: string | null }>>(
+    `guest_readiness_with_handoff_v?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=customer_phone&limit=1`,
   );
-  return normalizePhone(overrides[0]?.effective_phone || fallback);
+  return normalizePhone(rows[0]?.customer_phone || fallback);
 }
 
 export async function GET(request: NextRequest) {
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     const reservationId = reservations[0]?.id;
     if (!reservationId) return NextResponse.json({ ok: true, customer_phone: null, calls: [], messages: [] });
 
-    const normalizedPhone = await effectivePhoneForConfirmation(confirmation, reservations[0]?.customer_phone || null);
+    const normalizedPhone = await readinessPhoneForConfirmation(confirmation, reservations[0]?.customer_phone || null);
 
     const [events, messages] = await Promise.all([
       rest<Array<{ id: string; received_at: string; raw_payload: Record<string, unknown> }>>(
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
     const reservation = reservations[0];
     if (!reservation) return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
 
-    const phone = await effectivePhoneForConfirmation(confirmation, reservation.customer_phone || null);
+    const phone = await readinessPhoneForConfirmation(confirmation, reservation.customer_phone || null);
     if (!phone) return NextResponse.json({ error: "This customer does not have a phone number." }, { status: 409 });
 
     if (reservation.tripworks_customer_id) {
