@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import { sendCallRailSms } from "@/lib/server/callrail";
 
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -146,5 +147,51 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, reservation_id: reservationId, customer_phone: normalizedPhone, calls, messages });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load CallRail activity." }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const profile = await requireEmployee(request);
+  if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
+
+  const body = await request.json().catch(() => null) as { confirmation?: string; message_text?: string } | null;
+  const confirmation = body?.confirmation?.trim().toUpperCase();
+  const messageText = body?.message_text?.trim() || "";
+  if (!confirmation) return NextResponse.json({ error: "Confirmation is required." }, { status: 400 });
+  if (!messageText) return NextResponse.json({ error: "Message cannot be blank." }, { status: 400 });
+  if (messageText.length > 1600) return NextResponse.json({ error: "Message is too long. Keep it under 1,600 characters." }, { status: 400 });
+
+  try {
+    const reservations = await rest<Array<{
+      id: string;
+      customer_phone: string | null;
+      tripworks_customer_id: number | null;
+    }>>(
+      `operational_reservations?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=id,customer_phone,tripworks_customer_id&limit=1`,
+    );
+    const reservation = reservations[0];
+    if (!reservation) return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
+
+    const phone = normalizePhone(reservation.customer_phone || null);
+    if (!phone) return NextResponse.json({ error: "This customer does not have a phone number." }, { status: 409 });
+
+    if (reservation.tripworks_customer_id) {
+      const contacts = await rest<Array<{ tripworks_is_opt_in: boolean | null }>>(
+        `sales_contacts?tripworks_customer_id=eq.${encodeURIComponent(String(reservation.tripworks_customer_id))}&select=tripworks_is_opt_in&limit=1`,
+      );
+      if (contacts[0]?.tripworks_is_opt_in === false) {
+        return NextResponse.json({ error: "SMS blocked: this customer opted out in TripWorks." }, { status: 403 });
+      }
+    }
+
+    const result = await sendCallRailSms({ phone, body: messageText });
+    return NextResponse.json({
+      ok: true,
+      sent_at: new Date().toISOString(),
+      sent_by: profile.display_name,
+      conversation_id: result.conversationId,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to send text message." }, { status: 500 });
   }
 }
