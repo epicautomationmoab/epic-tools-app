@@ -19,6 +19,7 @@ import LogoutButton from "./LogoutButton";
 import SharedActionPinEnhancer from "./SharedActionPinEnhancer";
 import AdventureAssureEnhancer from "./AdventureAssureEnhancer";
 import ContactSaveEnhancer from "./ContactSaveEnhancer";
+import StaffNotesDrawerEnhancer from "./StaffNotesDrawerEnhancer";
 import EmailDeliveryAlert from "./EmailDeliveryAlert";
 import EmailDeliveryDrawerEnhancer from "./EmailDeliveryDrawerEnhancer";
 import ReservationDeepLinkEnhancer from "./ReservationDeepLinkEnhancer";
@@ -56,6 +57,7 @@ export default async function TeamReadinessPage() {
       <AdventureAssureEnhancer rows={rows} />
       <NoShowEnhancer rows={rows} />
       <ContactSaveEnhancer />
+      <StaffNotesDrawerEnhancer />
       <CallAttentionRowEnhancer context="readiness" />
 
       <TeamSidebar active="Guest Readiness" />
