@@ -293,7 +293,6 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
   }
 
   const selectedRow = targets ? rowByReadinessId.get(targets.readinessId) : null;
-  const selectedDue = selectedRow?.amount_due_cents ?? 0;
   const isPremier = rowIsPremier(selectedRow);
   const mpwrSettled = settlement?.status === "settled" || settlement?.status === "already_settled";
   const mpwrSettlementPending = settlement?.status === "queued" || settlement?.status === "claimed";
@@ -306,7 +305,7 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
         </div>
       ) : null}
 
-      {targets?.balanceTarget && selectedRow && selectedDue > 0
+      {targets?.balanceTarget && selectedRow
         ? createPortal(
             <div style={{ marginTop: 8 }}>
               {mpwrSettled ? (
