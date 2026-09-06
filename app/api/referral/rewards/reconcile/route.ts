@@ -124,12 +124,16 @@ export async function GET(request: Request) {
           earned++;
         } else skipped++;
       } catch (error) {
-        errors.push(error instanceof Error ? error.message : "Unknown reward reconciliation error");
+        const message = error instanceof Error ? error.message : "Unknown reward reconciliation error";
+        console.error("[ambassador-reward-reconcile] row failed", { confirmation_code: referral?.confirmation_code || null, referral_booking_id: referral?.id || null, error: message });
+        errors.push(message);
       }
     }
 
+    if (errors.length) console.error("[ambassador-reward-reconcile] completed with errors", { scanned: referrals.length, earned, voided, adjusted, skipped, errors: errors.slice(0, 10) });
     return NextResponse.json({ ok: true, scanned: referrals.length, earned, voided, adjusted, skipped, errors: errors.slice(0, 10) });
   } catch (error) {
+    console.error("[ambassador-reward-reconcile] fatal", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Reward reconciliation failed." }, { status: 500 });
   }
 }
