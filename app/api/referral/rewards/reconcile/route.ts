@@ -95,26 +95,20 @@ export async function GET(request: Request) {
 
         const confirmation = reservation.confirmation_code || referral.confirmation_code || "";
         const line = String(reservation.business_line || referral.business_line || "").toLowerCase();
-
-        const [boardRows, handoffRows] = await Promise.all([
-          rest<any[]>(`guest_arrival_board_v?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=business_line,has_checked_in_status,has_rental_out_status&limit=10`),
-          rest<any[]>(`epic_operational_handoffs?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=business_line,handoff_status,recorded_at&order=recorded_at.desc&limit=20`),
-        ]);
-
-        const liveTourCheckedIn = boardRows.some((row) => Boolean(row.has_checked_in_status));
+        const handoffRows = await rest<any[]>(`epic_operational_handoffs?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=business_line,handoff_status,recorded_at&order=recorded_at.desc&limit=20`);
         const handoffStatuses = new Set(handoffRows.map((row) => String(row.handoff_status || "").toLowerCase()));
 
         let completed = false;
         let completionSource = "";
         if (line === "tour") {
-          completed = liveTourCheckedIn || handoffStatuses.has("checked_in") || handoffStatuses.has("tour_returned");
-          completionSource = liveTourCheckedIn ? "tour_checked_in_live" : handoffStatuses.has("checked_in") ? "tour_checked_in_handoff" : handoffStatuses.has("tour_returned") ? "tour_returned_fallback" : "";
+          completed = handoffStatuses.has("checked_in") || handoffStatuses.has("tour_returned");
+          completionSource = handoffStatuses.has("checked_in") ? "tour_checked_in_handoff" : handoffStatuses.has("tour_returned") ? "tour_returned_fallback" : "";
         } else if (line === "rental") {
           completed = handoffStatuses.has("rental_returned");
           completionSource = completed ? "rental_returned" : "";
         } else {
-          completed = liveTourCheckedIn || handoffStatuses.has("checked_in") || handoffStatuses.has("tour_returned") || handoffStatuses.has("rental_returned");
-          completionSource = completed ? "operational_completion" : "";
+          completed = handoffStatuses.has("checked_in") || handoffStatuses.has("tour_returned") || handoffStatuses.has("rental_returned");
+          completionSource = completed ? "operational_handoff_completion" : "";
         }
 
         if (completed && referral.reward_status === "pending") {
