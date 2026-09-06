@@ -74,6 +74,8 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [canManageTemplates, setCanManageTemplates] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [templateLoadState, setTemplateLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [templateLoadMessage, setTemplateLoadMessage] = useState("");
   const [manageTemplatesOpen, setManageTemplatesOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [templateName, setTemplateName] = useState("");
@@ -98,14 +100,22 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   }, [row.confirmation_code]);
 
   const loadTemplates = useCallback(async () => {
+    setTemplateLoadState("loading");
+    setTemplateLoadMessage("");
     try {
       const response = await fetch("/api/team/readiness/message-templates", { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to load templates.");
-      setTemplates(payload.templates || []);
+      const nextTemplates = payload.templates || [];
+      setTemplates(nextTemplates);
       setCanManageTemplates(payload.can_manage === true);
+      setTemplateLoadState("ready");
+      setTemplateLoadMessage(nextTemplates.length ? "" : "No templates available.");
     } catch (err) {
-      setTemplateStatus(err instanceof Error ? err.message : "Unable to load templates.");
+      setTemplates([]);
+      setCanManageTemplates(false);
+      setTemplateLoadState("error");
+      setTemplateLoadMessage(err instanceof Error ? err.message : "Unable to load templates.");
     }
   }, []);
 
@@ -266,7 +276,12 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
         <div className={styles.templateBar}>
           <button type="button" className={styles.templateButton} onClick={() => setTemplatesOpen((value) => !value)}>Templates ▾</button>
           {canManageTemplates ? <button type="button" className={styles.templateManageButton} onClick={() => { setManageTemplatesOpen(true); startAddTemplate(); }}>Manage templates</button> : null}
-          {templatesOpen ? <div className={styles.templateMenu}>{templates.map((template) => <button type="button" key={template.template_id} onClick={() => { setSmsText(applyTemplate(template.message_body, row)); setTemplatesOpen(false); setSmsStatus(""); }}>{template.name}</button>)}</div> : null}
+          {templatesOpen ? <div className={styles.templateMenu}>
+            {templateLoadState === "loading" ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#6f7885" }}>Loading templates…</div> : null}
+            {templateLoadState === "error" ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#b42318", maxWidth: 280 }}>{templateLoadMessage}</div> : null}
+            {templateLoadState === "ready" && templates.length === 0 ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#6f7885" }}>{templateLoadMessage || "No templates available."}</div> : null}
+            {templateLoadState === "ready" ? templates.map((template) => <button type="button" key={template.template_id} onClick={() => { setSmsText(applyTemplate(template.message_body, row)); setTemplatesOpen(false); setSmsStatus(""); }}>{template.name}</button>) : null}
+          </div> : null}
         </div>
 
         <div className={styles.smsComposerRow}>
