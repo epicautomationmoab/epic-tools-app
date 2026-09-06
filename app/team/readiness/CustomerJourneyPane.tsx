@@ -6,7 +6,8 @@ import styles from "./CustomerJourneyModal.module.css";
 
 type JourneyKind = "call" | "text" | "email" | "document" | "reservation" | "operation";
 type JourneyFilter = "all" | JourneyKind;
-type JourneyEvent = { id: string; kind: JourneyKind; at: string | null; title: string; meta: string; body?: string | null; href?: string | null };
+type JourneyReadiness = "complete" | "partial" | "missing";
+type JourneyEvent = { id: string; kind: JourneyKind; at: string | null; title: string; meta: string; body?: string | null; href?: string | null; readiness?: JourneyReadiness };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null };
 
@@ -20,12 +21,46 @@ function mpwrSummary(row: ReadinessRow) { if (row.requires_mpwr === false) retur
 function handoffLabel(value: ReadinessRow["handoff_status"]) { if (!value) return "Not started"; if (value === "checked_in") return "Checked In"; if (value === "rental_out") return "Rental Out"; if (value === "rental_returned") return "Rental Returned"; if (value === "tour_returned") return "Tour Returned"; return String(value).replaceAll("_", " "); }
 function durationLabel(seconds: number | null) { if (!seconds) return ""; const m = Math.floor(seconds / 60); const s = seconds % 60; return m ? `${m}m ${s}s` : `${s}s`; }
 function callTitle(call: CallRailCall) { if (call.voicemail) return "Voicemail"; if (call.answered === false) return "Missed Call"; return call.direction === "outbound" ? "Outbound Call" : "Answered Call"; }
+function readinessStatus(received: number, expected: number): JourneyReadiness {
+  if (expected <= 0 || received >= expected) return "complete";
+  if (received > 0) return "partial";
+  return "missing";
+}
 
 function readinessEvents(row: ReadinessRow): JourneyEvent[] {
   const events: JourneyEvent[] = [];
   if (row.courtesy_call_completed) events.push({ id: "courtesy", kind: "operation", at: row.courtesy_call_completed_at || null, title: "Courtesy call completed", meta: [row.courtesy_call_completed_by ? `by ${row.courtesy_call_completed_by}` : null, row.courtesy_call_outcome || null].filter(Boolean).join(" · ") });
-  if ((row.epic_document_received_count ?? 0) > 0) events.push({ id: "epic-docs", kind: "document", at: null, title: `Epic Docs received (${docsSummary(row)})`, meta: "Current document readiness" });
-  if ((row.mpwr_document_received_count ?? 0) > 0) events.push({ id: "mpwr-docs", kind: "document", at: null, title: `MPWR waivers received (${mpwrSummary(row)})`, meta: "Current waiver readiness" });
+
+  const epicReceived = row.epic_document_received_count ?? 0;
+  const epicExpected = row.epic_document_expected_count ?? row.expected_guest_count ?? 0;
+  if (epicExpected > 0 || epicReceived > 0) {
+    const status = readinessStatus(epicReceived, epicExpected);
+    events.push({
+      id: "epic-docs",
+      kind: "document",
+      readiness: status,
+      at: null,
+      title: `Epic Docs ${status === "complete" ? "ready" : status === "partial" ? "incomplete" : "missing"} (${docsSummary(row)})`,
+      meta: status === "complete" ? "Current state · Ready" : status === "partial" ? "Current state · More signatures needed" : "Current state · Documents needed",
+    });
+  }
+
+  if (row.requires_mpwr !== false) {
+    const mpwrReceived = row.mpwr_document_received_count ?? 0;
+    const mpwrExpected = row.mpwr_document_expected_count ?? row.expected_guest_count ?? 0;
+    if (mpwrExpected > 0 || mpwrReceived > 0) {
+      const status = readinessStatus(mpwrReceived, mpwrExpected);
+      events.push({
+        id: "mpwr-docs",
+        kind: "document",
+        readiness: status,
+        at: null,
+        title: `MPWR waivers ${status === "complete" ? "ready" : status === "partial" ? "incomplete" : "missing"} (${mpwrSummary(row)})`,
+        meta: status === "complete" ? "Current state · Ready" : status === "partial" ? "Current state · More waivers needed" : "Current state · Waivers needed",
+      });
+    }
+  }
+
   if (row.handoff_status) events.push({ id: "handoff", kind: "operation", at: null, title: handoffLabel(row.handoff_status), meta: "Current operational handoff status" });
   events.push({ id: "reservation", kind: "reservation", at: row.visit_start_time, title: row.product_display_name, meta: `${row.confirmation_code} · ${row.business_line}${row.rental_duration ? ` · ${row.rental_duration}` : ""}` });
   return events;
@@ -80,8 +115,8 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       {loading ? <div className={styles.placeholder}>Loading communication history…</div> : null}
       {error ? <div className={styles.timelineError}>{error}</div> : null}
       <div className={styles.timeline}>
-        {visible.map((event) => <article className={`${styles.event} ${styles[`event_${event.kind}`] || ""}`} key={event.id}>
-          <div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={`${styles.eventKind} ${styles[`kind_${event.kind}`] || ""}`}>{event.kind}</span></div>
+        {visible.map((event) => <article className={`${styles.event} ${styles[`event_${event.kind}`] || ""} ${event.readiness ? styles[`event_readiness_${event.readiness}`] || "" : ""}`} key={event.id}>
+          <div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={`${styles.eventKind} ${styles[`kind_${event.kind}`] || ""} ${event.readiness ? styles[`kind_readiness_${event.readiness}`] || "" : ""}`}>{event.readiness ? event.readiness : event.kind}</span></div>
           <div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}</div>
           {event.body ? <div className={styles.eventBody}>{event.body}</div> : null}
           {event.href ? <a className={styles.eventLink} href={event.href} target="_blank" rel="noreferrer">Listen to recording ↗</a> : null}
