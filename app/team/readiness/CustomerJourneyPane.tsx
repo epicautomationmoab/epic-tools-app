@@ -10,11 +10,17 @@ type JourneyReadiness = "complete" | "partial" | "missing";
 type JourneyEvent = { id: string; kind: JourneyKind; at: string | null; title: string; meta: string; body?: string | null; href?: string | null; readiness?: JourneyReadiness };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null };
+type MessageTemplate = { template_id: string; name: string; message_body: string; sort_order: number; active: boolean; updated_at: string; updated_by: string | null };
 
 function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
+}
+function formatTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", hour: "numeric", minute: "2-digit" }).format(date);
 }
 function docsSummary(row: ReadinessRow) { return `${row.epic_document_received_count ?? 0}/${row.epic_document_expected_count ?? row.expected_guest_count ?? 0}`; }
 function mpwrSummary(row: ReadinessRow) { if (row.requires_mpwr === false) return "Not required"; return `${row.mpwr_document_received_count ?? 0}/${row.mpwr_document_expected_count ?? row.expected_guest_count ?? 0}`; }
@@ -22,6 +28,16 @@ function handoffLabel(value: ReadinessRow["handoff_status"]) { if (!value) retur
 function durationLabel(seconds: number | null) { if (!seconds) return ""; const m = Math.floor(seconds / 60); const s = seconds % 60; return m ? `${m}m ${s}s` : `${s}s`; }
 function callTitle(call: CallRailCall) { if (call.voicemail) return "Voicemail"; if (call.answered === false) return "Missed Call"; return call.direction === "outbound" ? "Outbound Call" : "Answered Call"; }
 function readinessStatus(received: number, expected: number): JourneyReadiness { if (expected <= 0 || received >= expected) return "complete"; if (received > 0) return "partial"; return "missing"; }
+
+function applyTemplate(template: string, row: ReadinessRow) {
+  const firstName = row.customer_name.trim().split(/\s+/)[0] || "Guest";
+  return template
+    .replaceAll("{{first_name}}", firstName)
+    .replaceAll("{{guest_name}}", row.customer_name)
+    .replaceAll("{{activity}}", row.product_display_name)
+    .replaceAll("{{time}}", formatTime(row.visit_start_time))
+    .replaceAll("{{confirmation}}", row.confirmation_code);
+}
 
 function readinessEvents(row: ReadinessRow): JourneyEvent[] {
   const events: JourneyEvent[] = [];
@@ -55,6 +71,14 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   const [smsText, setSmsText] = useState("");
   const [smsStatus, setSmsStatus] = useState("");
   const [smsSending, setSmsSending] = useState(false);
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [canManageTemplates, setCanManageTemplates] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [manageTemplatesOpen, setManageTemplatesOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [templateBody, setTemplateBody] = useState("");
+  const [templateStatus, setTemplateStatus] = useState("");
 
   const loadActivity = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -73,11 +97,24 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
     }
   }, [row.confirmation_code]);
 
+  const loadTemplates = useCallback(async () => {
+    try {
+      const response = await fetch("/api/team/readiness/message-templates", { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to load templates.");
+      setTemplates(payload.templates || []);
+      setCanManageTemplates(payload.can_manage === true);
+    } catch (err) {
+      setTemplateStatus(err instanceof Error ? err.message : "Unable to load templates.");
+    }
+  }, []);
+
   useEffect(() => {
     setSmsText("");
     setSmsStatus("");
     setEffectivePhone(row.customer_phone || "");
     void loadActivity();
+    void loadTemplates();
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void loadActivity(true); }, 3000);
     const handleContactSaved = (event: Event) => {
       const detail = (event as CustomEvent<{ confirmationCode?: string; field?: string; value?: string }>).detail;
@@ -91,7 +128,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       window.clearInterval(timer);
       window.removeEventListener("readiness-contact-saved", handleContactSaved as EventListener);
     };
-  }, [loadActivity, row.confirmation_code, row.customer_phone]);
+  }, [loadActivity, loadTemplates, row.confirmation_code, row.customer_phone]);
 
   async function sendSms() {
     const text = smsText.trim();
@@ -116,6 +153,57 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       setSmsStatus(err instanceof Error ? err.message : "Unable to send text message.");
     } finally {
       setSmsSending(false);
+    }
+  }
+
+  function startAddTemplate() {
+    setEditingTemplate(null);
+    setTemplateName("");
+    setTemplateBody("");
+    setTemplateStatus("");
+  }
+
+  function startEditTemplate(template: MessageTemplate) {
+    setEditingTemplate(template);
+    setTemplateName(template.name);
+    setTemplateBody(template.message_body);
+    setTemplateStatus("");
+  }
+
+  async function saveTemplate() {
+    const name = templateName.trim();
+    const messageBody = templateBody.trim();
+    if (!name || !messageBody) { setTemplateStatus("Template name and message are required."); return; }
+    setTemplateStatus("Saving…");
+    try {
+      const response = await fetch("/api/team/readiness/message-templates", {
+        method: editingTemplate ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingTemplate ? { template_id: editingTemplate.template_id, name, message_body: messageBody } : { name, message_body: messageBody }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to save template.");
+      setTemplateStatus("Saved ✓");
+      startAddTemplate();
+      await loadTemplates();
+    } catch (err) {
+      setTemplateStatus(err instanceof Error ? err.message : "Unable to save template.");
+    }
+  }
+
+  async function archiveTemplate(template: MessageTemplate) {
+    if (!window.confirm(`Remove the template “${template.name}”?`)) return;
+    try {
+      const response = await fetch("/api/team/readiness/message-templates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template_id: template.template_id, active: false }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to remove template.");
+      await loadTemplates();
+    } catch (err) {
+      setTemplateStatus(err instanceof Error ? err.message : "Unable to remove template.");
     }
   }
 
@@ -174,6 +262,13 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
           <strong>Text {row.customer_name.split(" ")[0] || "Guest"}</strong>
           <span>{effectivePhone || "No phone number"}</span>
         </div>
+
+        <div className={styles.templateBar}>
+          <button type="button" className={styles.templateButton} onClick={() => setTemplatesOpen((value) => !value)}>Templates ▾</button>
+          {canManageTemplates ? <button type="button" className={styles.templateManageButton} onClick={() => { setManageTemplatesOpen(true); startAddTemplate(); }}>Manage templates</button> : null}
+          {templatesOpen ? <div className={styles.templateMenu}>{templates.map((template) => <button type="button" key={template.template_id} onClick={() => { setSmsText(applyTemplate(template.message_body, row)); setTemplatesOpen(false); setSmsStatus(""); }}>{template.name}</button>)}</div> : null}
+        </div>
+
         <div className={styles.smsComposerRow}>
           <textarea
             value={smsText}
@@ -192,6 +287,23 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
           {smsStatus ? <span className={smsStatus === "Sent ✓" ? styles.smsSuccess : styles.smsError}>{smsStatus}</span> : null}
         </div>
       </div>
+
+      {manageTemplatesOpen ? <div className={styles.templateManagerBackdrop} onMouseDown={() => setManageTemplatesOpen(false)}>
+        <section className={styles.templateManager} onMouseDown={(event) => event.stopPropagation()}>
+          <header><div><strong>Text Templates</strong><span>Admin and Manager can add or edit templates.</span></div><button type="button" onClick={() => setManageTemplatesOpen(false)}>×</button></header>
+          <div className={styles.templateManagerBody}>
+            <div className={styles.templateList}>{templates.map((template) => <div className={styles.templateListRow} key={template.template_id}><button type="button" onClick={() => startEditTemplate(template)}><strong>{template.name}</strong><span>{template.message_body}</span></button><button type="button" className={styles.templateDelete} onClick={() => archiveTemplate(template)}>Remove</button></div>)}</div>
+            <div className={styles.templateEditor}>
+              <h4>{editingTemplate ? "Edit template" : "Add template"}</h4>
+              <label>Name<input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" /></label>
+              <label>Message<textarea value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} placeholder="Template message" rows={7} /></label>
+              <div className={styles.templateHelp}>Available placeholders: {'{{first_name}}'}, {'{{guest_name}}'}, {'{{activity}}'}, {'{{time}}'}, {'{{confirmation}}'}</div>
+              <div className={styles.templateEditorActions}><button type="button" onClick={startAddTemplate}>New</button><button type="button" className={styles.templateSave} onClick={saveTemplate}>Save template</button></div>
+              {templateStatus ? <div className={styles.templateStatus}>{templateStatus}</div> : null}
+            </div>
+          </div>
+        </section>
+      </div> : null}
     </section>
   );
 }
