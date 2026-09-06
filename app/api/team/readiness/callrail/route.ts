@@ -68,6 +68,13 @@ function normalizePhone(input: string | null) {
   return `+${digits}`;
 }
 
+async function effectivePhoneForConfirmation(confirmation: string, fallback: string | null) {
+  const overrides = await rest<Array<{ effective_phone: string | null }>>(
+    `guest_contact_overrides?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=effective_phone&limit=1`,
+  );
+  return normalizePhone(overrides[0]?.effective_phone || fallback);
+}
+
 export async function GET(request: NextRequest) {
   const profile = await requireEmployee(request);
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
@@ -80,8 +87,9 @@ export async function GET(request: NextRequest) {
       `operational_reservations?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=id,customer_phone&limit=1`,
     );
     const reservationId = reservations[0]?.id;
-    const normalizedPhone = normalizePhone(reservations[0]?.customer_phone || null);
-    if (!reservationId) return NextResponse.json({ ok: true, calls: [], messages: [] });
+    if (!reservationId) return NextResponse.json({ ok: true, customer_phone: null, calls: [], messages: [] });
+
+    const normalizedPhone = await effectivePhoneForConfirmation(confirmation, reservations[0]?.customer_phone || null);
 
     const [events, messages] = await Promise.all([
       rest<Array<{ id: string; received_at: string; raw_payload: Record<string, unknown> }>>(
@@ -172,7 +180,7 @@ export async function POST(request: NextRequest) {
     const reservation = reservations[0];
     if (!reservation) return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
 
-    const phone = normalizePhone(reservation.customer_phone || null);
+    const phone = await effectivePhoneForConfirmation(confirmation, reservation.customer_phone || null);
     if (!phone) return NextResponse.json({ error: "This customer does not have a phone number." }, { status: 409 });
 
     if (reservation.tripworks_customer_id) {
@@ -189,6 +197,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       sent_at: new Date().toISOString(),
       sent_by: profile.display_name,
+      customer_phone: phone,
       conversation_id: result.conversationId,
     });
   } catch (error) {
