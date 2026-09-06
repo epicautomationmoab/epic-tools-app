@@ -43,6 +43,7 @@ type GuestPortalRow = {
 
 type FinancialRow = {
   amount_due_cents: number | null;
+  guest_portal_payment_hidden: boolean | null;
 };
 
 function getSupabaseConfig() {
@@ -57,75 +58,45 @@ function denverWallTimeToIso(value: string) {
   const match = value.match(
     /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?/,
   );
-
   if (!match) return value;
-
   const [, year, month, day, hour, minute, rawSecond = "00"] = match;
   const second = Number.parseFloat(rawSecond);
   const wholeSecond = Math.floor(second);
   const millisecond = Math.round((second - wholeSecond) * 1000);
-
-  const wallClockAsUtc = new Date(
-    Date.UTC(
-      Number(year),
-      Number(month) - 1,
-      Number(day),
-      Number(hour),
-      Number(minute),
-      wholeSecond,
-      millisecond,
-    ),
-  );
-
-  const offsetName = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
-    timeZoneName: "longOffset",
-  })
+  const wallClockAsUtc = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), wholeSecond, millisecond));
+  const offsetName = new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", timeZoneName: "longOffset" })
     .formatToParts(wallClockAsUtc)
     .find((part) => part.type === "timeZoneName")?.value;
-
   const offsetMatch = offsetName?.match(/^GMT([+-]\d{2}:\d{2})$/);
   if (!offsetMatch) return value;
-
   const seconds = String(wholeSecond).padStart(2, "0");
-  const fraction = millisecond
-    ? `.${String(millisecond).padStart(3, "0")}`
-    : "";
-
+  const fraction = millisecond ? `.${String(millisecond).padStart(3, "0")}` : "";
   return `${year}-${month}-${day}T${hour}:${minute}:${seconds}${fraction}${offsetMatch[1]}`;
 }
 
-async function loadGuestFacingBalance(
-  config: ReturnType<typeof getSupabaseConfig>,
-  confirmationCode: string,
-) {
+async function loadPaymentState(config: ReturnType<typeof getSupabaseConfig>, confirmationCode: string) {
   const financialParams = new URLSearchParams({
-    select: "amount_due_cents",
+    select: "amount_due_cents,guest_portal_payment_hidden",
     confirmation_code: `eq.${confirmationCode}`,
     limit: "1",
   });
-
-  const response = await fetch(
-    `${config.url}/rest/v1/operational_reservations?${financialParams.toString()}`,
-    { headers: { apikey: config.key }, cache: "no-store" },
-  );
-
-  if (!response.ok) return 0;
-
+  const response = await fetch(`${config.url}/rest/v1/operational_reservations?${financialParams.toString()}`, {
+    headers: { apikey: config.key },
+    cache: "no-store",
+  });
+  if (!response.ok) return { balanceDueCents: 0, hidden: false };
   const rows = (await response.json()) as FinancialRow[];
   const baseDueCents = Math.max(rows[0]?.amount_due_cents ?? 0, 0);
-  return Math.round(baseDueCents * 1.04);
+  return {
+    balanceDueCents: Math.round(baseDueCents * 1.04),
+    hidden: rows[0]?.guest_portal_payment_hidden === true,
+  };
 }
 
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ token: string }> },
-) {
+export async function GET(_request: Request, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params;
-    if (!token) {
-      return NextResponse.json({ error: "Portal token is required." }, { status: 400 });
-    }
+    if (!token) return NextResponse.json({ error: "Portal token is required." }, { status: 400 });
 
     const config = getSupabaseConfig();
     const params = new URLSearchParams({
@@ -133,28 +104,22 @@ export async function GET(
       guest_portal_token: `eq.${token}`,
       order: "visit_start_time.asc",
     });
-
     const response = await fetch(`${config.url}/rest/v1/guest_portal_v?${params.toString()}`, {
       headers: { apikey: config.key },
       cache: "no-store",
     });
-
     if (!response.ok) {
       const body = await response.text();
-      return NextResponse.json(
-        { error: "Unable to load guest portal.", detail: body.slice(0, 300) },
-        { status: response.status },
-      );
+      return NextResponse.json({ error: "Unable to load guest portal.", detail: body.slice(0, 300) }, { status: response.status });
     }
 
     const rows = (await response.json()) as GuestPortalRow[];
-    if (!rows.length) {
-      return NextResponse.json({ error: "Guest portal not found." }, { status: 404 });
-    }
+    if (!rows.length) return NextResponse.json({ error: "Guest portal not found." }, { status: 404 });
 
     const hasMpwrWaiver = rows.some((row) => Boolean(row.mpwr_waiver_url));
     const confirmationCode = rows[0].confirmation_code;
-    const balanceDueCents = await loadGuestFacingBalance(config, confirmationCode);
+    const paymentState = await loadPaymentState(config, confirmationCode);
+    const paymentVisible = paymentState.balanceDueCents > 0 && !paymentState.hidden;
 
     return NextResponse.json({
       reservation: {
@@ -163,15 +128,12 @@ export async function GET(
         customerName: rows[0].customer_name,
         customerEmail: rows[0].customer_email,
         customerPhoneLastFour: rows[0].customer_phone_last_four,
-        balanceDueCents,
-        paymentUrl:
-          balanceDueCents > 0
-            ? `https://epic4x4.tripworks.com/public/payment/add/${encodeURIComponent(confirmationCode)}`
-            : null,
-        mpwrWaiverUrl: hasMpwrWaiver
-          ? `/api/guest/${encodeURIComponent(token)}/mpwr-waiver`
+        balanceDueCents: paymentVisible ? paymentState.balanceDueCents : 0,
+        paymentUrl: paymentVisible
+          ? `https://epic4x4.tripworks.com/public/payment/add/${encodeURIComponent(confirmationCode)}`
           : null,
-
+        paymentHidden: paymentState.hidden,
+        mpwrWaiverUrl: hasMpwrWaiver ? `/api/guest/${encodeURIComponent(token)}/mpwr-waiver` : null,
         activities: rows.map((row) => ({
           readinessId: row.readiness_id,
           businessLine: row.business_line,
@@ -192,14 +154,12 @@ export async function GET(
           ohvCertificateFilename: row.ohv_certificate_filename,
           ohvCertificateUploadedAt: row.ohv_certificate_uploaded_at,
         })),
-
         epicDocuments: rows.map((row) => ({
           readinessId: row.readiness_id,
           received: row.epic_document_received_count ?? 0,
           expected: row.epic_document_expected_count ?? 0,
           signers: row.epic_document_signers ?? [],
         })),
-
         mpwrWaivers: rows.map((row) => ({
           readinessId: row.readiness_id,
           received: row.mpwr_document_received_count ?? 0,
@@ -209,9 +169,6 @@ export async function GET(
       },
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to load guest portal." },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load guest portal." }, { status: 500 });
   }
 }
