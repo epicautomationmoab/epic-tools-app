@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./CustomerJourneyModal.module.css";
 
@@ -35,14 +35,7 @@ function readinessEvents(row: ReadinessRow): JourneyEvent[] {
   const epicExpected = row.epic_document_expected_count ?? row.expected_guest_count ?? 0;
   if (epicExpected > 0 || epicReceived > 0) {
     const status = readinessStatus(epicReceived, epicExpected);
-    events.push({
-      id: "epic-docs",
-      kind: "document",
-      readiness: status,
-      at: null,
-      title: `Epic Docs ${status === "complete" ? "ready" : status === "partial" ? "incomplete" : "missing"} (${docsSummary(row)})`,
-      meta: status === "complete" ? "Current state · Ready" : status === "partial" ? "Current state · More signatures needed" : "Current state · Documents needed",
-    });
+    events.push({ id: "epic-docs", kind: "document", readiness: status, at: null, title: `Epic Docs ${status === "complete" ? "ready" : status === "partial" ? "incomplete" : "missing"} (${docsSummary(row)})`, meta: status === "complete" ? "Current state · Ready" : status === "partial" ? "Current state · More signatures needed" : "Current state · Documents needed" });
   }
 
   if (row.requires_mpwr !== false) {
@@ -50,14 +43,7 @@ function readinessEvents(row: ReadinessRow): JourneyEvent[] {
     const mpwrExpected = row.mpwr_document_expected_count ?? row.expected_guest_count ?? 0;
     if (mpwrExpected > 0 || mpwrReceived > 0) {
       const status = readinessStatus(mpwrReceived, mpwrExpected);
-      events.push({
-        id: "mpwr-docs",
-        kind: "document",
-        readiness: status,
-        at: null,
-        title: `MPWR waivers ${status === "complete" ? "ready" : status === "partial" ? "incomplete" : "missing"} (${mpwrSummary(row)})`,
-        meta: status === "complete" ? "Current state · Ready" : status === "partial" ? "Current state · More waivers needed" : "Current state · Waivers needed",
-      });
+      events.push({ id: "mpwr-docs", kind: "document", readiness: status, at: null, title: `MPWR waivers ${status === "complete" ? "ready" : status === "partial" ? "incomplete" : "missing"} (${mpwrSummary(row)})`, meta: status === "complete" ? "Current state · Ready" : status === "partial" ? "Current state · More waivers needed" : "Current state · Waivers needed" });
     }
   }
 
@@ -72,23 +58,58 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   const [messages, setMessages] = useState<CallRailMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [smsText, setSmsText] = useState("");
+  const [smsStatus, setSmsStatus] = useState("");
+  const [smsSending, setSmsSending] = useState(false);
+
+  const loadActivity = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/team/readiness/callrail?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to load communication activity.");
+      setCalls(payload.calls || []);
+      setMessages(payload.messages || []);
+    } catch (err) {
+      if (!silent) setError(err instanceof Error ? err.message : "Unable to load communication activity.");
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [row.confirmation_code]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true); setError("");
-      try {
-        const response = await fetch(`/api/team/readiness/callrail?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Unable to load communication activity.");
-        if (!cancelled) { setCalls(payload.calls || []); setMessages(payload.messages || []); }
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load communication activity.");
-      } finally { if (!cancelled) setLoading(false); }
+    setSmsText("");
+    setSmsStatus("");
+    void loadActivity();
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void loadActivity(true); }, 3000);
+    return () => window.clearInterval(timer);
+  }, [loadActivity]);
+
+  async function sendSms() {
+    const text = smsText.trim();
+    if (!text || smsSending) return;
+    setSmsSending(true);
+    setSmsStatus("");
+    try {
+      const response = await fetch("/api/team/readiness/callrail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: row.confirmation_code, message_text: text }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to send text message.");
+      setSmsText("");
+      setSmsStatus("Sent ✓");
+      window.setTimeout(() => setSmsStatus(""), 2500);
+      await loadActivity(true);
+      window.setTimeout(() => void loadActivity(true), 1500);
+    } catch (err) {
+      setSmsStatus(err instanceof Error ? err.message : "Unable to send text message.");
+    } finally {
+      setSmsSending(false);
     }
-    void load();
-    return () => { cancelled = true; };
-  }, [row.confirmation_code]);
+  }
 
   const events = useMemo(() => {
     const callEvents: JourneyEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || call.transcription, href: call.recording_url }));
@@ -112,6 +133,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
           {filters.map(([value,label]) => <button type="button" className={`${styles.filter} ${filter === value ? styles.filterActive : ""}`} key={value} onClick={() => setFilter(value)}>{label}</button>)}
         </div>
       </div>
+
       {loading ? <div className={styles.placeholder}>Loading communication history…</div> : null}
       {error ? <div className={styles.timelineError}>{error}</div> : null}
       <div className={styles.timeline}>
@@ -124,6 +146,30 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       </div>
       {!visible.length && !loading ? <div className={styles.placeholder}>No {filter === "all" ? "journey" : filter} activity is linked yet.</div> : null}
       {filter === "email" ? <div className={styles.placeholder}>Email history will plug into this same timeline later.</div> : null}
+
+      <div className={styles.smsComposer}>
+        <div className={styles.smsComposerHeader}>
+          <strong>Text {row.customer_name.split(" ")[0] || "Guest"}</strong>
+          <span>{row.customer_phone || "No phone number"}</span>
+        </div>
+        <div className={styles.smsComposerRow}>
+          <textarea
+            value={smsText}
+            onChange={(event) => { setSmsText(event.target.value); setSmsStatus(""); }}
+            placeholder={row.customer_phone ? "Type a message…" : "No phone number available"}
+            maxLength={1600}
+            disabled={!row.customer_phone || smsSending}
+            aria-label={`Text ${row.customer_name}`}
+          />
+          <button type="button" onClick={sendSms} disabled={!row.customer_phone || !smsText.trim() || smsSending}>
+            {smsSending ? "Sending…" : "Send"}
+          </button>
+        </div>
+        <div className={styles.smsComposerFooter}>
+          <span>{smsText.length}/1600</span>
+          {smsStatus ? <span className={smsStatus === "Sent ✓" ? styles.smsSuccess : styles.smsError}>{smsStatus}</span> : null}
+        </div>
+      </div>
     </section>
   );
 }
