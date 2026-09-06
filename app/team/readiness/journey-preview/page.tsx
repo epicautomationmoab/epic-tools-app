@@ -1,9 +1,16 @@
+import TeamReadinessPage from "../page";
 import { getReadinessRows } from "@/lib/supabase";
-import JourneyPreviewClient from "./JourneyPreviewClient";
+import JourneyPreviewOverlay from "./JourneyPreviewOverlay";
 
 export const dynamic = "force-dynamic";
 
 export default async function CustomerJourneyPreviewPage() {
   const rows = await getReadinessRows();
-  return <JourneyPreviewClient rows={rows} />;
+
+  return (
+    <>
+      <TeamReadinessPage />
+      <JourneyPreviewOverlay rows={rows} />
+    </>
+  );
 }
