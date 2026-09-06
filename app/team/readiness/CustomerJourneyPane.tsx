@@ -7,10 +7,12 @@ import styles from "./CustomerJourneyModal.module.css";
 type JourneyKind = "call" | "text" | "email" | "document" | "reservation" | "operation";
 type JourneyFilter = "all" | JourneyKind;
 type JourneyReadiness = "complete" | "partial" | "missing";
-type JourneyEvent = { id: string; kind: JourneyKind; at: string | null; title: string; meta: string; body?: string | null; href?: string | null; readiness?: JourneyReadiness };
+type JourneyEvent = { id: string; kind: JourneyKind; at: string | null; title: string; meta: string; body?: string | null; href?: string | null; readiness?: JourneyReadiness; direction?: string | null };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null };
 type MessageTemplate = { template_id: string; name: string; message_body: string; sort_order: number; active: boolean; updated_at: string; updated_by: string | null };
+
+const GUEST_PORTAL_BASE_URL = "https://team.myepicreservation.com";
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -28,6 +30,7 @@ function handoffLabel(value: ReadinessRow["handoff_status"]) { if (!value) retur
 function durationLabel(seconds: number | null) { if (!seconds) return ""; const m = Math.floor(seconds / 60); const s = seconds % 60; return m ? `${m}m ${s}s` : `${s}s`; }
 function callTitle(call: CallRailCall) { if (call.voicemail) return "Voicemail"; if (call.answered === false) return "Missed Call"; return call.direction === "outbound" ? "Outbound Call" : "Answered Call"; }
 function readinessStatus(received: number, expected: number): JourneyReadiness { if (expected <= 0 || received >= expected) return "complete"; if (received > 0) return "partial"; return "missing"; }
+function portalUrl(row: ReadinessRow) { return row.guest_portal_token ? `${GUEST_PORTAL_BASE_URL}/guest/${encodeURIComponent(row.guest_portal_token)}` : ""; }
 
 function applyTemplate(template: string, row: ReadinessRow) {
   const firstName = row.customer_name.trim().split(/\s+/)[0] || "Guest";
@@ -36,7 +39,8 @@ function applyTemplate(template: string, row: ReadinessRow) {
     .replaceAll("{{guest_name}}", row.customer_name)
     .replaceAll("{{activity}}", row.product_display_name)
     .replaceAll("{{time}}", formatTime(row.visit_start_time))
-    .replaceAll("{{confirmation}}", row.confirmation_code);
+    .replaceAll("{{confirmation}}", row.confirmation_code)
+    .replaceAll("{{portal_url}}", portalUrl(row));
 }
 
 function readinessEvents(row: ReadinessRow): JourneyEvent[] {
@@ -219,7 +223,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
 
   const events = useMemo(() => {
     const callEvents: JourneyEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || call.transcription, href: call.recording_url }));
-    const textEvents: JourneyEvent[] = messages.map((message) => ({ id: `text-${message.message_id}`, kind: "text", at: message.sent_at || message.first_received_at, title: message.direction === "outbound" ? "Text sent" : "Text received", meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "), body: message.message_body || "(No message body)" }));
+    const textEvents: JourneyEvent[] = messages.map((message) => ({ id: `text-${message.message_id}`, kind: "text", direction: message.direction, at: message.sent_at || message.first_received_at, title: message.direction === "outbound" ? "Text sent" : "Text received", meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "), body: message.message_body || "(No message body)" }));
     return [...readinessEvents(row), ...callEvents, ...textEvents].sort((a, b) => {
       if (!a.at && !b.at) return 0;
       if (!a.at) return 1;
@@ -257,7 +261,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       {loading ? <div className={styles.placeholder}>Loading communication history…</div> : null}
       {error ? <div className={styles.timelineError}>{error}</div> : null}
       <div className={styles.timeline}>
-        {visible.map((event) => <article className={`${styles.event} ${styles[`event_${event.kind}`] || ""} ${event.readiness ? styles[`event_readiness_${event.readiness}`] || "" : ""}`} key={event.id}>
+        {visible.map((event) => <article className={`${styles.event} ${styles[`event_${event.kind}`] || ""} ${event.kind === "text" && event.direction ? styles[`event_text_${event.direction}`] || "" : ""} ${event.readiness ? styles[`event_readiness_${event.readiness}`] || "" : ""}`} key={event.id}>
           <div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={`${styles.eventKind} ${styles[`kind_${event.kind}`] || ""} ${event.readiness ? styles[`kind_readiness_${event.readiness}`] || "" : ""}`}>{event.readiness ? event.readiness : event.kind}</span></div>
           <div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}</div>
           {event.body ? <div className={styles.eventBody}>{event.body}</div> : null}
@@ -312,7 +316,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
               <h4>{editingTemplate ? "Edit template" : "Add template"}</h4>
               <label>Name<input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" /></label>
               <label>Message<textarea value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} placeholder="Template message" rows={7} /></label>
-              <div className={styles.templateHelp}>Available placeholders: {'{{first_name}}'}, {'{{guest_name}}'}, {'{{activity}}'}, {'{{time}}'}, {'{{confirmation}}'}</div>
+              <div className={styles.templateHelp}>Available placeholders: {'{{first_name}}'}, {'{{guest_name}}'}, {'{{activity}}'}, {'{{time}}'}, {'{{confirmation}}'}, {'{{portal_url}}'}</div>
               <div className={styles.templateEditorActions}><button type="button" onClick={startAddTemplate}>New</button><button type="button" className={styles.templateSave} onClick={saveTemplate}>Save template</button></div>
               {templateStatus ? <div className={styles.templateStatus}>{templateStatus}</div> : null}
             </div>
