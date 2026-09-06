@@ -135,11 +135,26 @@ function normalizeEventName(value: string | null) {
 }
 
 function looksLikeText(payload: Record<string, unknown>) {
-  return Boolean(
-    getString(payload, "message_id", "text_message_id", "conversation_id", "content", "message_body", "body") ||
-    (getString(payload, "customer_phone_number") && getString(payload, "tracking_phone_number")) ||
-    (getString(payload, "source_number", "from") && getString(payload, "destination_number", "to")),
+  const explicitMessageId = getString(payload, "message_id", "text_message_id");
+  const conversationId = getString(payload, "conversation_id", "thread_id", "conversation_resource_id");
+  const messageBody = getString(payload, "content", "message_body", "body", "message", "text");
+  const sourceNumber = getString(payload, "source_number", "from", "sender_number");
+  const destinationNumber = getString(payload, "destination_number", "to", "recipient_number");
+  const resourceId = getString(payload, "resource_id", "id");
+  const callSpecificId = getString(payload, "call_id", "callrail_call_id");
+  const hasCallShape = Boolean(
+    callSpecificId ||
+    getString(payload, "call_type", "recording", "recording_player", "timeline_url") ||
+    payload.answered !== undefined ||
+    payload.voicemail !== undefined ||
+    payload.duration !== undefined,
   );
+
+  if (hasCallShape) return false;
+  if (explicitMessageId || messageBody) return true;
+  if (resourceId?.toUpperCase().startsWith("SCI")) return true;
+  if (conversationId && sourceNumber && destinationNumber) return true;
+  return false;
 }
 
 function eventType(request: NextRequest, payload: Record<string, unknown>) {
