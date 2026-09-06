@@ -21,23 +21,17 @@ function mpwrSummary(row: ReadinessRow) { if (row.requires_mpwr === false) retur
 function handoffLabel(value: ReadinessRow["handoff_status"]) { if (!value) return "Not started"; if (value === "checked_in") return "Checked In"; if (value === "rental_out") return "Rental Out"; if (value === "rental_returned") return "Rental Returned"; if (value === "tour_returned") return "Tour Returned"; return String(value).replaceAll("_", " "); }
 function durationLabel(seconds: number | null) { if (!seconds) return ""; const m = Math.floor(seconds / 60); const s = seconds % 60; return m ? `${m}m ${s}s` : `${s}s`; }
 function callTitle(call: CallRailCall) { if (call.voicemail) return "Voicemail"; if (call.answered === false) return "Missed Call"; return call.direction === "outbound" ? "Outbound Call" : "Answered Call"; }
-function readinessStatus(received: number, expected: number): JourneyReadiness {
-  if (expected <= 0 || received >= expected) return "complete";
-  if (received > 0) return "partial";
-  return "missing";
-}
+function readinessStatus(received: number, expected: number): JourneyReadiness { if (expected <= 0 || received >= expected) return "complete"; if (received > 0) return "partial"; return "missing"; }
 
 function readinessEvents(row: ReadinessRow): JourneyEvent[] {
   const events: JourneyEvent[] = [];
   if (row.courtesy_call_completed) events.push({ id: "courtesy", kind: "operation", at: row.courtesy_call_completed_at || null, title: "Courtesy call completed", meta: [row.courtesy_call_completed_by ? `by ${row.courtesy_call_completed_by}` : null, row.courtesy_call_outcome || null].filter(Boolean).join(" · ") });
-
   const epicReceived = row.epic_document_received_count ?? 0;
   const epicExpected = row.epic_document_expected_count ?? row.expected_guest_count ?? 0;
   if (epicExpected > 0 || epicReceived > 0) {
     const status = readinessStatus(epicReceived, epicExpected);
     events.push({ id: "epic-docs", kind: "document", readiness: status, at: null, title: `Epic Docs ${status === "complete" ? "ready" : status === "partial" ? "incomplete" : "missing"} (${docsSummary(row)})`, meta: status === "complete" ? "Current state · Ready" : status === "partial" ? "Current state · More signatures needed" : "Current state · Documents needed" });
   }
-
   if (row.requires_mpwr !== false) {
     const mpwrReceived = row.mpwr_document_received_count ?? 0;
     const mpwrExpected = row.mpwr_document_expected_count ?? row.expected_guest_count ?? 0;
@@ -46,7 +40,6 @@ function readinessEvents(row: ReadinessRow): JourneyEvent[] {
       events.push({ id: "mpwr-docs", kind: "document", readiness: status, at: null, title: `MPWR waivers ${status === "complete" ? "ready" : status === "partial" ? "incomplete" : "missing"} (${mpwrSummary(row)})`, meta: status === "complete" ? "Current state · Ready" : status === "partial" ? "Current state · More waivers needed" : "Current state · Waivers needed" });
     }
   }
-
   if (row.handoff_status) events.push({ id: "handoff", kind: "operation", at: null, title: handoffLabel(row.handoff_status), meta: "Current operational handoff status" });
   events.push({ id: "reservation", kind: "reservation", at: row.visit_start_time, title: row.product_display_name, meta: `${row.confirmation_code} · ${row.business_line}${row.rental_duration ? ` · ${row.rental_duration}` : ""}` });
   return events;
@@ -56,6 +49,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   const [filter, setFilter] = useState<JourneyFilter>("all");
   const [calls, setCalls] = useState<CallRailCall[]>([]);
   const [messages, setMessages] = useState<CallRailMessage[]>([]);
+  const [effectivePhone, setEffectivePhone] = useState(row.customer_phone || "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [smsText, setSmsText] = useState("");
@@ -71,6 +65,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       if (!response.ok) throw new Error(payload.error || "Unable to load communication activity.");
       setCalls(payload.calls || []);
       setMessages(payload.messages || []);
+      if (typeof payload.customer_phone === "string") setEffectivePhone(payload.customer_phone);
     } catch (err) {
       if (!silent) setError(err instanceof Error ? err.message : "Unable to load communication activity.");
     } finally {
@@ -81,10 +76,22 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   useEffect(() => {
     setSmsText("");
     setSmsStatus("");
+    setEffectivePhone(row.customer_phone || "");
     void loadActivity();
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void loadActivity(true); }, 3000);
-    return () => window.clearInterval(timer);
-  }, [loadActivity]);
+    const handleContactSaved = (event: Event) => {
+      const detail = (event as CustomEvent<{ confirmationCode?: string; field?: string; value?: string }>).detail;
+      if (detail?.confirmationCode === row.confirmation_code && detail.field === "phone" && detail.value) {
+        setEffectivePhone(detail.value);
+        void loadActivity(true);
+      }
+    };
+    window.addEventListener("readiness-contact-saved", handleContactSaved as EventListener);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("readiness-contact-saved", handleContactSaved as EventListener);
+    };
+  }, [loadActivity, row.confirmation_code, row.customer_phone]);
 
   async function sendSms() {
     const text = smsText.trim();
@@ -99,6 +106,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to send text message.");
+      if (typeof payload.customer_phone === "string") setEffectivePhone(payload.customer_phone);
       setSmsText("");
       setSmsStatus("Sent ✓");
       window.setTimeout(() => setSmsStatus(""), 2500);
@@ -115,12 +123,26 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
     const callEvents: JourneyEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || call.transcription, href: call.recording_url }));
     const textEvents: JourneyEvent[] = messages.map((message) => ({ id: `text-${message.message_id}`, kind: "text", at: message.sent_at || message.first_received_at, title: message.direction === "outbound" ? "Text sent" : "Text received", meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "), body: message.message_body || "(No message body)" }));
     return [...readinessEvents(row), ...callEvents, ...textEvents].sort((a, b) => {
-      if (!a.at && !b.at) return 0; if (!a.at) return 1; if (!b.at) return -1;
+      if (!a.at && !b.at) return 0;
+      if (!a.at) return 1;
+      if (!b.at) return -1;
       return new Date(b.at).getTime() - new Date(a.at).getTime();
     });
   }, [row, calls, messages]);
 
-  const visible = filter === "all" ? events : events.filter((event) => event.kind === filter);
+  const visible = useMemo(() => {
+    const filtered = filter === "all" ? events : events.filter((event) => event.kind === filter);
+    if (filter === "text") {
+      return [...filtered].sort((a, b) => {
+        if (!a.at && !b.at) return 0;
+        if (!a.at) return -1;
+        if (!b.at) return 1;
+        return new Date(a.at).getTime() - new Date(b.at).getTime();
+      });
+    }
+    return filtered;
+  }, [events, filter]);
+
   const filters: Array<[JourneyFilter, string]> = [["all","All"],["call","Calls"],["text","Texts"],["email","Emails"],["document","Documents"],["reservation","Reservation"],["operation","Operations"]];
 
   return (
@@ -150,18 +172,18 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       <div className={styles.smsComposer}>
         <div className={styles.smsComposerHeader}>
           <strong>Text {row.customer_name.split(" ")[0] || "Guest"}</strong>
-          <span>{row.customer_phone || "No phone number"}</span>
+          <span>{effectivePhone || "No phone number"}</span>
         </div>
         <div className={styles.smsComposerRow}>
           <textarea
             value={smsText}
             onChange={(event) => { setSmsText(event.target.value); setSmsStatus(""); }}
-            placeholder={row.customer_phone ? "Type a message…" : "No phone number available"}
+            placeholder={effectivePhone ? "Type a message…" : "No phone number available"}
             maxLength={1600}
-            disabled={!row.customer_phone || smsSending}
+            disabled={!effectivePhone || smsSending}
             aria-label={`Text ${row.customer_name}`}
           />
-          <button type="button" onClick={sendSms} disabled={!row.customer_phone || !smsText.trim() || smsSending}>
+          <button type="button" onClick={sendSms} disabled={!effectivePhone || !smsText.trim() || smsSending}>
             {smsSending ? "Sending…" : "Send"}
           </button>
         </div>
