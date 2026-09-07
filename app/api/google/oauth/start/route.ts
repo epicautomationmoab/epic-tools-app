@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     url.searchParams.set("access_type", "offline");
     url.searchParams.set("prompt", "consent select_account");
     url.searchParams.set("include_granted_scopes", "true");
-    url.searchParams.set("scope", "openid email https://www.googleapis.com/auth/gmail.send");
+    url.searchParams.set("scope", "openid email https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly");
     url.searchParams.set("state", state);
     url.searchParams.set("login_hint", EXPECTED_MAILBOX);
 
