@@ -131,7 +131,7 @@ export default function LogoutButton() {
 
       {locked && profile ? (
         <div style={{ position: "fixed", inset: 0, zIndex: 6000, display: "grid", placeItems: "center", padding: 20, background: "rgba(17,24,39,.72)", backdropFilter: "blur(4px)" }}>
-          <div role="dialog" aria-modal="true" aria-label={`Unlock ${profile.display_name}`} style={{ width: "min(390px, 100%)", borderRadius: 16, background: "#fff", padding: 26, boxShadow: "0 24px 70px rgba(0,0,0,.32)" }}>
+          <div role="alertdialog" aria-modal="true" aria-label={`Unlock ${profile.display_name}`} style={{ width: "min(390px, 100%)", borderRadius: 16, background: "#fff", padding: 26, boxShadow: "0 24px 70px rgba(0,0,0,.32)" }}>
             <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: ".08em", textTransform: "uppercase", color: "#e45b22" }}>Epic Tools Locked</div>
             <h2 style={{ margin: "5px 0 6px", color: "#202733" }}>{profile.display_name}</h2>
             <p style={{ margin: 0, color: "#667085", fontSize: 14 }}>30 minutes of inactivity. Enter your PIN to continue without signing in again.</p>
