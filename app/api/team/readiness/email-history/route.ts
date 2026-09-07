@@ -36,6 +36,10 @@ type CommunicationRow = {
   sent_at: string | null;
   created_at: string;
   last_error: string | null;
+  subject: string | null;
+  body_text: string | null;
+  sender_email: string | null;
+  sender_name: string | null;
 };
 
 type DeliveryRow = {
@@ -44,14 +48,16 @@ type DeliveryRow = {
   event_at: string;
 };
 
-function labelForType(type: string) {
+function labelForType(type: string, senderName?: string | null) {
   if (type === "initial_guest_portal") return "Confirmation Email";
   if (type === "arrival_reminder_day_before") return "Day-Before Reminder";
   if (type === "arrival_readiness_two_hour") return "Last-Minute Readiness Email";
+  if (type === "manual_guest_email") return senderName ? `Email from ${senderName}` : "Manual Guest Email";
   return type.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function subjectForType(type: string) {
+function subjectForType(type: string, storedSubject?: string | null) {
+  if (storedSubject?.trim()) return storedSubject.trim();
   if (type === "initial_guest_portal") return "Your Epic 4X4 Adventure Is Confirmed";
   if (type === "arrival_reminder_day_before") return "Adventure Reminder";
   if (type === "arrival_readiness_two_hour") return "Action Required - Your Adventure Begins Soon";
@@ -75,13 +81,17 @@ export async function GET(request: NextRequest) {
 
   try {
     const communications = await rest<CommunicationRow[]>(
-      `guest_communications?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=${encodeURIComponent("id,confirmation_code,communication_type,customer_email,status,provider_message_id,sent_at,created_at,last_error")}&order=created_at.asc&limit=100`,
+      `guest_communications?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=${encodeURIComponent("id,confirmation_code,communication_type,customer_email,status,provider_message_id,sent_at,created_at,last_error,subject,body_text,sender_email,sender_name")}&order=created_at.asc&limit=100`,
     );
 
-    const messageIds = communications.map((row) => row.provider_message_id).filter((value): value is string => Boolean(value));
+    const resendMessageIds = communications
+      .filter((row) => row.communication_type !== "manual_guest_email")
+      .map((row) => row.provider_message_id)
+      .filter((value): value is string => Boolean(value));
+
     let deliveries: DeliveryRow[] = [];
-    if (messageIds.length) {
-      const inList = `(${messageIds.map((id) => `\"${id.replaceAll('"', '')}\"`).join(",")})`;
+    if (resendMessageIds.length) {
+      const inList = `(${resendMessageIds.map((id) => `\"${id.replaceAll('"', '')}\"`).join(",")})`;
       deliveries = await rest<DeliveryRow[]>(
         `guest_email_delivery_events?provider_message_id=in.${encodeURIComponent(inList)}&select=${encodeURIComponent("provider_message_id,event_type,event_at")}&order=event_at.desc&limit=500`,
       );
@@ -95,15 +105,20 @@ export async function GET(request: NextRequest) {
     const emails = communications
       .filter((row) => row.sent_at || row.provider_message_id || row.status === "sent" || row.status === "failed")
       .map((row) => {
-        const delivery = row.provider_message_id ? latestByMessage.get(row.provider_message_id) ?? null : null;
+        const delivery = row.communication_type !== "manual_guest_email" && row.provider_message_id
+          ? latestByMessage.get(row.provider_message_id) ?? null
+          : null;
         return {
           id: row.id,
           direction: "outbound",
           at: row.sent_at || row.created_at,
-          label: labelForType(row.communication_type),
-          subject: subjectForType(row.communication_type),
+          label: labelForType(row.communication_type, row.sender_name),
+          subject: subjectForType(row.communication_type, row.subject),
           communication_type: row.communication_type,
           recipient: row.customer_email,
+          sender: row.sender_email,
+          sender_name: row.sender_name,
+          body: row.body_text,
           provider_message_id: row.provider_message_id,
           status: deliveryLabel(delivery?.event_type ?? null, row.status),
           error: row.last_error,
