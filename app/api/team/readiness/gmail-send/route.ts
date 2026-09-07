@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
+import { firstNameFromDisplayName, renderEpicEmailHtml, renderEpicPlainTextSignature } from "@/lib/server/epic-email-signature";
 
 const EXPECTED_MAILBOX = "hello@epic4x4adventures.com";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -24,17 +25,31 @@ function base64Url(value: string) {
   return Buffer.from(value, "utf8").toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
 }
 
-function buildRawMessage(to: string, subject: string, body: string) {
+function buildRawMessage(to: string, subject: string, body: string, senderFirstName: string) {
+  const boundary = `epic_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const plainText = `${body}\n\n${renderEpicPlainTextSignature(senderFirstName)}`;
+  const html = renderEpicEmailHtml(body, senderFirstName);
   const lines = [
-    `From: Epic 4X4 Adventures <${EXPECTED_MAILBOX}>`,
+    `From: ${senderFirstName} at Epic 4X4 Adventures <${EXPECTED_MAILBOX}>`,
     `To: ${to}`,
     `Reply-To: ${EXPECTED_MAILBOX}`,
     `Subject: ${encodeSubject(subject)}`,
     "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
     'Content-Type: text/plain; charset="UTF-8"',
     "Content-Transfer-Encoding: 8bit",
     "",
-    body,
+    plainText,
+    "",
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    html,
+    "",
+    `--${boundary}--`,
   ];
   return base64Url(lines.join("\r\n"));
 }
@@ -107,13 +122,14 @@ export async function POST(request: NextRequest) {
       throw new Error(tokenPayload?.error_description || tokenPayload?.error || "Unable to refresh Gmail authorization.");
     }
 
+    const senderFirstName = firstNameFromDisplayName(profile.display_name);
     const gmailResponse = await fetch(GMAIL_SEND_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${tokenPayload.access_token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ raw: buildRawMessage(recipient, subject, body) }),
+      body: JSON.stringify({ raw: buildRawMessage(recipient, subject, body, senderFirstName) }),
       cache: "no-store",
     });
     const gmailPayload = await gmailResponse.json();
