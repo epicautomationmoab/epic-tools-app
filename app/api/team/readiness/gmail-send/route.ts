@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
 import { firstNameFromDisplayName, renderEpicEmailHtml, renderEpicPlainTextSignature } from "@/lib/server/epic-email-signature";
-import { EPIC_EMAIL_LOGO_BASE64, EPIC_EMAIL_LOGO_CONTENT_ID, EPIC_EMAIL_LOGO_FILENAME, EPIC_EMAIL_LOGO_MIME } from "@/lib/server/epic-email-logo";
 
 const EXPECTED_MAILBOX = "hello@epic4x4adventures.com";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -26,14 +25,7 @@ function base64Url(value: string) {
   return Buffer.from(value, "utf8").toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
 }
 
-function wrapBase64(value: string, width = 76) {
-  const chunks: string[] = [];
-  for (let i = 0; i < value.length; i += width) chunks.push(value.slice(i, i + width));
-  return chunks.join("\r\n");
-}
-
 function buildRawMessage(to: string, subject: string, body: string, senderFirstName: string) {
-  const relatedBoundary = `epic_related_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const altBoundary = `epic_alt_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const plainText = `${body}\n\n${renderEpicPlainTextSignature(senderFirstName)}`;
   const html = renderEpicEmailHtml(body, senderFirstName);
@@ -43,9 +35,6 @@ function buildRawMessage(to: string, subject: string, body: string, senderFirstN
     `Reply-To: ${EXPECTED_MAILBOX}`,
     `Subject: ${encodeSubject(subject)}`,
     "MIME-Version: 1.0",
-    `Content-Type: multipart/related; boundary="${relatedBoundary}"`,
-    "",
-    `--${relatedBoundary}`,
     `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
     "",
     `--${altBoundary}`,
@@ -61,16 +50,6 @@ function buildRawMessage(to: string, subject: string, body: string, senderFirstN
     html,
     "",
     `--${altBoundary}--`,
-    "",
-    `--${relatedBoundary}`,
-    `Content-Type: ${EPIC_EMAIL_LOGO_MIME}; name="${EPIC_EMAIL_LOGO_FILENAME}"`,
-    "Content-Transfer-Encoding: base64",
-    `Content-ID: <${EPIC_EMAIL_LOGO_CONTENT_ID}>`,
-    `Content-Disposition: inline; filename="${EPIC_EMAIL_LOGO_FILENAME}"`,
-    "",
-    wrapBase64(EPIC_EMAIL_LOGO_BASE64),
-    "",
-    `--${relatedBoundary}--`,
   ];
   return base64Url(lines.join("\r\n"));
 }
