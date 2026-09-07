@@ -26,13 +26,13 @@ function durationLabel(seconds: number | null) { if (!seconds) return ""; const 
 function callTitle(call: CallRailCall) { if (call.voicemail) return "Voicemail"; if (call.answered === false) return "Missed Call"; return call.direction === "outbound" ? "Outbound Call" : "Answered Call"; }
 function messageTitle(message: CallRailMessage) { return message.direction === "outbound" ? "Text sent" : "Text received"; }
 
-function readinessEvents(row: ReadinessRow): JourneyEvent[] {
+function readinessEvents(row: ReadinessRow, bookingMethod: string | null, bookedAt: string | null): JourneyEvent[] {
   const events: JourneyEvent[] = [];
   if (row.courtesy_call_completed) events.push({ id: "courtesy", kind: "operation", at: row.courtesy_call_completed_at || null, title: "Courtesy call completed", meta: [row.courtesy_call_completed_by ? `by ${row.courtesy_call_completed_by}` : null, row.courtesy_call_outcome || null].filter(Boolean).join(" · ") });
   if ((row.epic_document_received_count ?? 0) > 0) events.push({ id: "epic-docs", kind: "document", at: null, title: `Epic Docs received (${docsSummary(row)})`, meta: "Current document readiness" });
   if ((row.mpwr_document_received_count ?? 0) > 0) events.push({ id: "mpwr-docs", kind: "document", at: null, title: `MPWR waivers received (${mpwrSummary(row)})`, meta: "Current waiver readiness" });
   if (row.handoff_status) events.push({ id: "handoff", kind: "operation", at: null, title: handoffLabel(row.handoff_status), meta: "Current operational handoff status" });
-  events.push({ id: "reservation", kind: "reservation", at: row.visit_start_time, title: row.product_display_name, meta: `${row.confirmation_code} · ${row.business_line}${row.rental_duration ? ` · ${row.rental_duration}` : ""}` });
+  events.push({ id: "reservation", kind: "reservation", at: bookedAt, title: "Reservation booked", meta: [bookingMethod ? `via ${bookingMethod}` : null, row.confirmation_code, row.product_display_name, row.business_line, row.rental_duration || null].filter(Boolean).join(" · ") });
   return events;
 }
 
@@ -45,6 +45,8 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
   const [filter, setFilter] = useState<JourneyFilter>("all");
   const [calls, setCalls] = useState<CallRailCall[]>([]);
   const [messages, setMessages] = useState<CallRailMessage[]>([]);
+  const [bookingMethod, setBookingMethod] = useState<string | null>(null);
+  const [bookedAt, setBookedAt] = useState<string | null>(null);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState("");
 
@@ -57,7 +59,7 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      setActivityLoading(true); setActivityError("");
+      setActivityLoading(true); setActivityError(""); setBookingMethod(null); setBookedAt(null);
       try {
         const response = await fetch(`/api/team/readiness/callrail?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" });
         const payload = await response.json();
@@ -65,6 +67,8 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
         if (!cancelled) {
           setCalls(payload.calls || []);
           setMessages(payload.messages || []);
+          setBookingMethod(payload.booking_method || null);
+          setBookedAt(payload.booked_at || null);
         }
       } catch (error) {
         if (!cancelled) setActivityError(error instanceof Error ? error.message : "Unable to load communication activity.");
@@ -84,11 +88,11 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
       meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "),
       body: message.message_body || "(No message body)",
     }));
-    return [...readinessEvents(row), ...callEvents, ...textEvents].sort((a, b) => {
+    return [...readinessEvents(row, bookingMethod, bookedAt), ...callEvents, ...textEvents].sort((a, b) => {
       if (!a.at && !b.at) return 0; if (!a.at) return 1; if (!b.at) return -1;
       return new Date(b.at).getTime() - new Date(a.at).getTime();
     });
-  }, [row, calls, messages]);
+  }, [row, calls, messages, bookingMethod, bookedAt]);
 
   const visibleEvents = filter === "all" ? events : events.filter((event) => event.kind === filter);
   const epicDocsComplete = (row.epic_document_received_count ?? 0) >= (row.epic_document_expected_count ?? row.expected_guest_count ?? 0);
@@ -116,7 +120,7 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
           {row.attention_flags?.length ? <div className={styles.alertBox}><strong>Needs attention</strong><div>{row.attention_flags.join(" · ")}</div></div> : null}
 
           <Section title="Guest & Reservation"><div className={styles.cardGrid}>
-            <DetailCard label="Phone" value={row.customer_phone || "Not available"}/><DetailCard label="Email" value={row.customer_email || "Not available"}/><DetailCard label="TripWorks" value={row.confirmation_code}/><DetailCard label="MPWR" value={row.mpwr_confirmation_number || "N/A"}/><DetailCard label="People" value={row.expected_guest_count ?? "Unknown"}/><DetailCard label="Vehicles" value={row.total_vehicle_count ?? 0}/><DetailCard label="Duration" value={row.rental_duration || "N/A"}/><DetailCard label="Status" value={handoffLabel(row.handoff_status)}/>
+            <DetailCard label="Phone" value={row.customer_phone || "Not available"}/><DetailCard label="Email" value={row.customer_email || "Not available"}/><DetailCard label="TripWorks" value={row.confirmation_code}/><DetailCard label="MPWR" value={row.mpwr_confirmation_number || "N/A"}/><DetailCard label="Booking Method" value={bookingMethod || (activityLoading ? "Loading…" : "Not available")}/><DetailCard label="Booked At" value={bookedAt ? formatDateTime(bookedAt) : (activityLoading ? "Loading…" : "Not available")}/><DetailCard label="People" value={row.expected_guest_count ?? "Unknown"}/><DetailCard label="Vehicles" value={row.total_vehicle_count ?? 0}/><DetailCard label="Duration" value={row.rental_duration || "N/A"}/><DetailCard label="Status" value={handoffLabel(row.handoff_status)}/>
           </div>{row.vehicle_breakdown?.length ? <div className={styles.inlineList}>{row.vehicle_breakdown.map((vehicle) => <span key={`${vehicle.model}-${vehicle.quantity}`}>{vehicle.quantity} × {vehicle.model}</span>)}</div> : null}</Section>
 
           <Section title="Money & Protection"><div className={styles.cardGrid}><DetailCard label="Balance" value={balanceSummary(row)} tone={balanceDue ? "bad" : "good"}/><DetailCard label="Adventure Assure" value={assureSummary(row)}/><DetailCard label="OHV" value={ohvSummary(row)} tone={ohvSummary(row) === "Missing" ? "warn" : undefined}/><DetailCard label="Operational Status" value={handoffLabel(row.handoff_status)}/></div></Section>
