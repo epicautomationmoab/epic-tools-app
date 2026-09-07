@@ -48,12 +48,51 @@
 }
 
 .manifestGroup {
+  --manifest-accent: #54606c;
+  --manifest-dark: #3f4953;
+  --manifest-soft: #eef1f4;
+  --manifest-ring: rgba(84, 96, 108, 0.18);
   overflow: hidden;
   background: #fff;
   border: 1px solid #dfe3e8;
-  border-top: 4px solid #f47721;
+  border-top: 5px solid var(--manifest-accent);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(20, 27, 34, 0.05);
+}
+
+.themePoison {
+  --manifest-accent: #3a3f46;
+  --manifest-dark: #2f343a;
+  --manifest-soft: #e6e8eb;
+  --manifest-ring: rgba(58, 63, 70, 0.20);
+}
+
+.themeHells {
+  --manifest-accent: #f47721;
+  --manifest-dark: #b94f0a;
+  --manifest-soft: #fff0e3;
+  --manifest-ring: rgba(244, 119, 33, 0.22);
+}
+
+.themeDiscovery {
+  --manifest-accent: #0057b8;
+  --manifest-dark: #003f86;
+  --manifest-soft: #e2edfb;
+  --manifest-ring: rgba(0, 87, 184, 0.20);
+}
+
+.themeProR {
+  --manifest-accent: #c62828;
+  --manifest-dark: #971f1f;
+  --manifest-soft: #f9e4e4;
+  --manifest-ring: rgba(198, 40, 40, 0.20);
+}
+
+.themeDefault {
+  --manifest-accent: #54606c;
+  --manifest-dark: #3f4953;
+  --manifest-soft: #eef1f4;
+  --manifest-ring: rgba(84, 96, 108, 0.18);
 }
 
 .manifestHeader {
@@ -62,15 +101,15 @@
   justify-content: space-between;
   gap: 24px;
   padding: 16px 18px;
-  background: #fffaf6;
-  border-bottom: 1px solid #eadfd6;
+  background: #fff;
+  border-bottom: 1px solid #e3e7eb;
 }
 
 .manifestEyebrow {
   margin-bottom: 3px;
-  color: #a84d12;
+  color: var(--manifest-dark);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -90,20 +129,20 @@
 }
 
 .manifestTime {
-  color: #a84d12;
+  color: var(--manifest-dark);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 900;
   white-space: nowrap;
 }
 
 .manifestTime::before {
   content: "";
   display: inline-block;
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   margin-right: 7px;
   border-radius: 50%;
-  background: #f47721;
+  background: var(--manifest-accent);
   vertical-align: 1px;
 }
 
@@ -145,8 +184,8 @@
 }
 
 .guideField input:focus {
-  outline: 3px solid rgba(244, 119, 33, 0.14);
-  border-color: #f47721;
+  outline: 3px solid var(--manifest-ring);
+  border-color: var(--manifest-accent);
 }
 
 .guideStatus {
@@ -181,8 +220,8 @@
 .table th:nth-child(2),
 .table th:nth-child(3),
 .table th:nth-child(4) {
-  color: #a84d12;
-  background: #fff3e9;
+  color: var(--manifest-dark);
+  background: var(--manifest-soft);
 }
 
 .table td {
@@ -217,8 +256,8 @@
 }
 
 .table input:focus {
-  outline: 3px solid rgba(244, 119, 33, 0.14);
-  border-color: #f47721;
+  outline: 3px solid var(--manifest-ring);
+  border-color: var(--manifest-accent);
   background: #fff;
 }
 
@@ -233,10 +272,10 @@
   margin-top: 4px;
   padding: 2px 7px;
   border-radius: 999px;
-  color: #9b4a18;
-  background: #fff0e5;
+  color: var(--manifest-dark);
+  background: var(--manifest-soft);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .inlinePrintButton {
@@ -258,7 +297,7 @@
 }
 
 .inlinePrintButton:hover {
-  color: #2f465b;
+  color: var(--manifest-dark);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -272,15 +311,15 @@
   padding: 0 16px;
   border: 0;
   border-radius: 7px;
-  background: #f47721;
+  background: var(--manifest-accent);
   color: #fff;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(180, 75, 11, 0.18);
+  box-shadow: 0 2px 6px rgba(20, 27, 34, 0.16);
 }
 
 .saveCell button:hover:not(:disabled) {
-  background: #dc6618;
+  background: var(--manifest-dark);
 }
 
 .saveCell button:disabled {
