@@ -27,36 +27,6 @@ async function requireEmployee(request: NextRequest) {
   return profile;
 }
 
-function getString(payload: Record<string, unknown>, ...keys: string[]) {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number") return String(value);
-  }
-  return null;
-}
-
-function getNumber(payload: Record<string, unknown>, ...keys: string[]) {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
-  }
-  return null;
-}
-
-function getBoolean(payload: Record<string, unknown>, ...keys: string[]) {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === "boolean") return value;
-    if (typeof value === "string") {
-      if (value.toLowerCase() === "true") return true;
-      if (value.toLowerCase() === "false") return false;
-    }
-  }
-  return null;
-}
-
 function normalizePhone(input: string | null) {
   if (!input) return null;
   const trimmed = input.trim();
@@ -75,6 +45,41 @@ async function readinessPhoneForConfirmation(confirmation: string, fallback: str
   return normalizePhone(rows[0]?.customer_phone || fallback);
 }
 
+type NormalizedCall = {
+  callrail_call_id: string;
+  start_time: string | null;
+  last_received_at: string;
+  direction: string | null;
+  answered: boolean | null;
+  voicemail: boolean | null;
+  duration_seconds: number | null;
+  customer_name: string | null;
+  customer_phone_number: string | null;
+  recording_player_url: string | null;
+  recording_url: string | null;
+  call_summary: string | null;
+  transcription_text: string | null;
+  lead_score: number | null;
+  lead_explanation: string | null;
+  sentiment: string | null;
+  call_highlights: unknown[] | null;
+  speaker_percent: Record<string, unknown> | null;
+  keywords: string | null;
+  source_name: string | null;
+  campaign: string | null;
+  medium: string | null;
+  device_type: string | null;
+  customer_city: string | null;
+  customer_state: string | null;
+  landing_page_url: string | null;
+  referring_url: string | null;
+  timeline_url: string | null;
+  person_resource_id: string | null;
+  lead_status: string | null;
+  first_touch: Record<string, unknown> | null;
+  last_touch: Record<string, unknown> | null;
+};
+
 export async function GET(request: NextRequest) {
   const profile = await requireEmployee(request);
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
@@ -90,10 +95,11 @@ export async function GET(request: NextRequest) {
     if (!reservationId) return NextResponse.json({ ok: true, customer_phone: null, calls: [], messages: [] });
 
     const normalizedPhone = await readinessPhoneForConfirmation(confirmation, reservations[0]?.customer_phone || null);
+    const callSelect = "callrail_call_id,start_time,last_received_at,direction,answered,voicemail,duration_seconds,customer_name,customer_phone_number,recording_player_url,recording_url,call_summary,transcription_text,lead_score,lead_explanation,sentiment,call_highlights,speaker_percent,keywords,source_name,campaign,medium,device_type,customer_city,customer_state,landing_page_url,referring_url,timeline_url,person_resource_id,lead_status,first_touch,last_touch";
 
-    const [events, messages] = await Promise.all([
-      rest<Array<{ id: string; received_at: string; raw_payload: Record<string, unknown> }>>(
-        `callrail_webhook_events?matched_reservation_id=eq.${encodeURIComponent(reservationId)}&select=${encodeURIComponent("id,received_at,raw_payload")}&order=received_at.asc&limit=500`,
+    const [normalizedCalls, messages] = await Promise.all([
+      rest<NormalizedCall[]>(
+        `callrail_calls?matched_reservation_id=eq.${encodeURIComponent(reservationId)}&select=${encodeURIComponent(callSelect)}&order=start_time.asc.nullslast,last_received_at.asc&limit=500`,
       ),
       normalizedPhone
         ? rest<Array<{
@@ -112,46 +118,40 @@ export async function GET(request: NextRequest) {
         : Promise.resolve([]),
     ]);
 
-    const byCall = new Map<string, {
-      id: string;
-      at: string;
-      direction: string;
-      answered: boolean | null;
-      voicemail: boolean | null;
-      duration_seconds: number | null;
-      caller_name: string | null;
-      caller_phone: string | null;
-      recording_url: string | null;
-      summary: string | null;
-      transcription: string | null;
-      lead_explanation: string | null;
-      received_at: string;
-    }>();
+    const calls = normalizedCalls.map((call) => ({
+      id: call.callrail_call_id,
+      at: call.start_time || call.last_received_at,
+      direction: call.direction || "inbound",
+      answered: call.answered,
+      voicemail: call.voicemail,
+      duration_seconds: call.duration_seconds,
+      caller_name: call.customer_name,
+      caller_phone: call.customer_phone_number,
+      recording_url: call.recording_player_url || call.recording_url,
+      summary: call.call_summary,
+      transcription: call.transcription_text,
+      lead_score: call.lead_score,
+      lead_explanation: call.lead_explanation,
+      sentiment: call.sentiment,
+      call_highlights: call.call_highlights || [],
+      speaker_percent: call.speaker_percent || {},
+      keywords: call.keywords,
+      source_name: call.source_name,
+      campaign: call.campaign,
+      medium: call.medium,
+      device_type: call.device_type,
+      customer_city: call.customer_city,
+      customer_state: call.customer_state,
+      landing_page_url: call.landing_page_url,
+      referring_url: call.referring_url,
+      timeline_url: call.timeline_url,
+      person_resource_id: call.person_resource_id,
+      lead_status: call.lead_status,
+      first_touch: call.first_touch,
+      last_touch: call.last_touch,
+      received_at: call.last_received_at,
+    }));
 
-    for (const event of events) {
-      const p = event.raw_payload || {};
-      const callId = getString(p, "resource_id", "call_id", "id");
-      if (!callId?.startsWith("CAL")) continue;
-      const current = byCall.get(callId);
-      const next = {
-        id: callId,
-        at: getString(p, "start_time", "timestamp", "created_at") || event.received_at,
-        direction: getString(p, "direction") || "inbound",
-        answered: getBoolean(p, "answered"),
-        voicemail: getBoolean(p, "voicemail"),
-        duration_seconds: getNumber(p, "duration", "duration_seconds"),
-        caller_name: getString(p, "customer_name", "callername", "caller_name", "formatted_customer_name"),
-        caller_phone: getString(p, "customer_phone_number", "callernum", "caller_number", "formatted_customer_phone_number"),
-        recording_url: getString(p, "recording_player", "recording_player_url", "recording", "recording_url"),
-        summary: getString(p, "call_summary", "summary"),
-        transcription: getString(p, "conversational_transcript", "transcription", "transcription_text"),
-        lead_explanation: getString(p, "lead_explanation"),
-        received_at: event.received_at,
-      };
-      if (!current || new Date(event.received_at).getTime() >= new Date(current.received_at).getTime()) byCall.set(callId, next);
-    }
-
-    const calls = [...byCall.values()].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
     return NextResponse.json({ ok: true, reservation_id: reservationId, customer_phone: normalizedPhone, calls, messages });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load CallRail activity." }, { status: 500 });
