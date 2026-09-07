@@ -5,7 +5,7 @@ import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./CustomerJourneyModal.module.css";
 
 type CommunicationKind = "call" | "text" | "email";
-type CommunicationFilter = "all" | CommunicationKind;
+type CommunicationFilter = "outbound" | "all" | CommunicationKind;
 type CommunicationEvent = {
   id: string;
   kind: CommunicationKind;
@@ -45,7 +45,6 @@ function timelineLabel(event: CommunicationEvent) {
   if (event.kind === "email") return "E";
   return event.direction === "outbound" ? "OC" : "IC";
 }
-
 function applyTemplate(template: string, row: ReadinessRow) {
   const firstName = row.customer_name.trim().split(/\s+/)[0] || "Guest";
   return template
@@ -58,7 +57,7 @@ function applyTemplate(template: string, row: ReadinessRow) {
 }
 
 export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
-  const [filter, setFilter] = useState<CommunicationFilter>("all");
+  const [filter, setFilter] = useState<CommunicationFilter>("outbound");
   const [calls, setCalls] = useState<CallRailCall[]>([]);
   const [messages, setMessages] = useState<CallRailMessage[]>([]);
   const [effectivePhone, setEffectivePhone] = useState(row.customer_phone || "");
@@ -116,6 +115,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   }, []);
 
   useEffect(() => {
+    setFilter("outbound");
     setSmsText("");
     setSmsStatus("");
     setEffectivePhone(row.customer_phone || "");
@@ -162,18 +162,8 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
     }
   }
 
-  function startAddTemplate() {
-    setEditingTemplate(null);
-    setTemplateName("");
-    setTemplateBody("");
-    setTemplateStatus("");
-  }
-  function startEditTemplate(template: MessageTemplate) {
-    setEditingTemplate(template);
-    setTemplateName(template.name);
-    setTemplateBody(template.message_body);
-    setTemplateStatus("");
-  }
+  function startAddTemplate() { setEditingTemplate(null); setTemplateName(""); setTemplateBody(""); setTemplateStatus(""); }
+  function startEditTemplate(template: MessageTemplate) { setEditingTemplate(template); setTemplateName(template.name); setTemplateBody(template.message_body); setTemplateStatus(""); }
   async function saveTemplate() {
     const name = templateName.trim();
     const messageBody = templateBody.trim();
@@ -187,49 +177,23 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to save template.");
-      setTemplateStatus("Saved ✓");
       startAddTemplate();
       await loadTemplates();
-    } catch (err) {
-      setTemplateStatus(err instanceof Error ? err.message : "Unable to save template.");
-    }
+    } catch (err) { setTemplateStatus(err instanceof Error ? err.message : "Unable to save template."); }
   }
   async function archiveTemplate(template: MessageTemplate) {
     if (!window.confirm(`Remove the template “${template.name}”?`)) return;
     try {
-      const response = await fetch("/api/team/readiness/message-templates", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template_id: template.template_id, active: false }),
-      });
+      const response = await fetch("/api/team/readiness/message-templates", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ template_id: template.template_id, active: false }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to remove template.");
       await loadTemplates();
-    } catch (err) {
-      setTemplateStatus(err instanceof Error ? err.message : "Unable to remove template.");
-    }
+    } catch (err) { setTemplateStatus(err instanceof Error ? err.message : "Unable to remove template."); }
   }
 
   const events = useMemo(() => {
-    const callEvents: CommunicationEvent[] = calls.map((call) => ({
-      id: `call-${call.id}`,
-      kind: "call",
-      direction: call.direction,
-      at: call.at,
-      title: callTitle(call),
-      meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "),
-      body: call.summary || call.lead_explanation || call.transcription,
-      href: call.recording_url,
-    }));
-    const textEvents: CommunicationEvent[] = messages.map((message) => ({
-      id: `text-${message.message_id}`,
-      kind: "text",
-      direction: message.direction,
-      at: message.sent_at || message.first_received_at,
-      title: message.direction === "outbound" ? "Text sent" : "Text received",
-      meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "),
-      body: message.message_body || "(No message body)",
-    }));
+    const callEvents: CommunicationEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", direction: call.direction, at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || call.transcription, href: call.recording_url }));
+    const textEvents: CommunicationEvent[] = messages.map((message) => ({ id: `text-${message.message_id}`, kind: "text", direction: message.direction, at: message.sent_at || message.first_received_at, title: message.direction === "outbound" ? "Text sent" : "Text received", meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "), body: message.message_body || "(No message body)" }));
     return [...callEvents, ...textEvents].sort((a, b) => {
       if (!a.at && !b.at) return 0;
       if (!a.at) return 1;
@@ -239,15 +203,9 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   }, [calls, messages]);
 
   const visible = useMemo(() => {
+    if (filter === "outbound") return [];
     const filtered = filter === "all" ? events : events.filter((event) => event.kind === filter);
-    if (filter === "text" || filter === "all") {
-      return [...filtered].sort((a, b) => {
-        if (!a.at && !b.at) return 0;
-        if (!a.at) return -1;
-        if (!b.at) return 1;
-        return new Date(a.at).getTime() - new Date(b.at).getTime();
-      });
-    }
+    if (filter === "text" || filter === "all") return [...filtered].sort((a, b) => new Date(a.at || 0).getTime() - new Date(b.at || 0).getTime());
     return filtered;
   }, [events, filter]);
 
@@ -273,7 +231,28 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   const hasCalls = calls.length > 0;
   const hasTexts = messages.length > 0;
   const hasEmails = false;
-  const filters: Array<[CommunicationFilter, string]> = [["all","All"],["call","Calls"],["text","Texts"],["email","Emails"]];
+  const filters: Array<[CommunicationFilter, string]> = [["outbound","Outbound"],["call","Calls"],["text","Texts"],["email","Emails"],["all","All"]];
+  const firstName = row.customer_name.split(" ")[0] || "Guest";
+  const emailHref = row.customer_email ? `mailto:${row.customer_email}` : "";
+
+  const textComposer = <div className={styles.smsComposer} style={filter === "outbound" ? { position: "relative", bottom: "auto", margin: 0, borderTop: 0, boxShadow: "none", padding: 0, backdropFilter: "none" } : undefined}>
+    <div className={styles.smsComposerHeader}><strong>Text {firstName}</strong><span>{effectivePhone || "No phone number"}</span></div>
+    <div className={styles.templateBar}>
+      <button type="button" className={styles.templateButton} onClick={() => setTemplatesOpen((value) => !value)}>Templates ▾</button>
+      {canManageTemplates ? <button type="button" className={styles.templateManageButton} onClick={() => { setManageTemplatesOpen(true); startAddTemplate(); }}>Manage templates</button> : null}
+      {templatesOpen ? <div className={styles.templateMenu}>
+        {templateLoadState === "loading" ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#6f7885" }}>Loading templates…</div> : null}
+        {templateLoadState === "error" ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#b42318", maxWidth: 280 }}>{templateLoadMessage}</div> : null}
+        {templateLoadState === "ready" && templates.length === 0 ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#6f7885" }}>{templateLoadMessage || "No templates available."}</div> : null}
+        {templateLoadState === "ready" ? templates.map((template) => <button type="button" key={template.template_id} onClick={() => { setSmsText(applyTemplate(template.message_body, row)); setTemplatesOpen(false); setSmsStatus(""); }}>{template.name}</button>) : null}
+      </div> : null}
+    </div>
+    <div className={styles.smsComposerRow}>
+      <textarea value={smsText} onChange={(event) => { setSmsText(event.target.value); setSmsStatus(""); }} placeholder={effectivePhone ? "Type a message…" : "No phone number available"} maxLength={1600} disabled={!effectivePhone || smsSending} aria-label={`Text ${row.customer_name}`} />
+      <button type="button" onClick={sendSms} disabled={!effectivePhone || !smsText.trim() || smsSending}>{smsSending ? "Sending…" : "Send"}</button>
+    </div>
+    <div className={styles.smsComposerFooter}><span>{smsText.length}/1600</span>{smsStatus ? <span className={smsStatus === "Sent ✓" ? styles.smsSuccess : styles.smsError}>{smsStatus}</span> : null}</div>
+  </div>;
 
   return (
     <section className={styles.journey} style={{ height: "100%", background: "#fff" }} aria-label="Customer communications">
@@ -283,7 +262,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
         <p className={styles.subtitle}>{formatDateTime(row.visit_start_time)} · {row.product_display_name}</p>
         <div className={styles.filters} aria-label="Communication filters">
           {filters.map(([value,label]) => {
-            const hasActivity = value === "call" ? hasCalls : value === "text" ? hasTexts : value === "email" ? hasEmails : events.length > 0;
+            const hasActivity = value === "call" ? hasCalls : value === "text" ? hasTexts : value === "email" ? hasEmails : false;
             const presenceClass = value === "call" && hasActivity ? styles.filterHasCalls : value === "text" && hasActivity ? styles.filterHasTexts : value === "email" && hasActivity ? styles.filterHasEmails : "";
             return <button type="button" className={`${styles.filter} ${presenceClass} ${filter === value ? styles.filterActive : ""}`} key={value} onClick={() => setFilter(value)}>{label}</button>;
           })}
@@ -292,6 +271,15 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
 
       {loading ? <div className={styles.placeholder}>Loading communication history…</div> : null}
       {error ? <div className={styles.timelineError}>{error}</div> : null}
+
+      {filter === "outbound" ? <div style={{ display: "grid", gap: 16 }}>
+        <div style={{ padding: 18, border: "1px solid #e1e6eb", borderRadius: 14, background: "#fbfcfd" }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#202733", marginBottom: 10 }}>Outbound communications</div>
+          {emailHref ? <a href={emailHref} style={{ display: "inline-flex", alignItems: "center", minHeight: 40, padding: "0 14px", borderRadius: 9, background: "#188a4b", color: "#fff", fontWeight: 900, textDecoration: "none" }}>Email {firstName}</a> : <button type="button" disabled style={{ minHeight: 40, padding: "0 14px", borderRadius: 9, border: 0, opacity: .45 }}>No email address</button>}
+          {row.customer_email ? <div style={{ marginTop: 7, color: "#7a8490", fontSize: 11 }}>{row.customer_email}</div> : null}
+        </div>
+        {textComposer}
+      </div> : null}
 
       {filter === "all" && timelineRange ? <div className={styles.communicationTimeline} aria-label="Communication timeline">
         <div className={styles.communicationTrack}>
@@ -305,39 +293,18 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
         <div className={styles.communicationLegend}><span className={styles.legendCall}>Calls</span><span className={styles.legendText}>Texts</span><span className={styles.legendEmail}>Emails</span></div>
       </div> : null}
 
-      <div className={`${styles.timeline} ${filter === "all" ? styles.timelineAll : ""}`}>
+      {filter !== "outbound" ? <div className={`${styles.timeline} ${filter === "all" ? styles.timelineAll : ""}`}>
         {visible.map((event) => <article id={`comm-${event.id}`} className={`${styles.event} ${styles[`event_${event.kind}`] || ""} ${event.kind === "text" && event.direction ? styles[`event_text_${event.direction}`] || "" : ""} ${filter === "all" ? styles.eventCompact : ""}`} key={event.id}>
           <div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={`${styles.eventKind} ${styles[`kind_${event.kind}`] || ""}`}>{timelineLabel(event)}</span></div>
           <div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}</div>
           {event.body ? <div className={styles.eventBody}>{event.body}</div> : null}
           {event.href ? <a className={styles.eventLink} href={event.href} target="_blank" rel="noreferrer">Listen to recording ↗</a> : null}
         </article>)}
-      </div>
-
-      {!visible.length && !loading && filter !== "email" ? <div className={styles.placeholder}>No {filter === "all" ? "communication" : filter} activity is linked yet.</div> : null}
-      {filter === "email" ? <div className={styles.placeholder}>Email history will appear here as we connect Resend and Gmail. This tab will show both inbound and outbound email.</div> : null}
-
-      {(filter === "text" || filter === "all") ? <div className={styles.smsComposer}>
-        <div className={styles.smsComposerHeader}>
-          <strong>Text {row.customer_name.split(" ")[0] || "Guest"}</strong>
-          <span>{effectivePhone || "No phone number"}</span>
-        </div>
-        <div className={styles.templateBar}>
-          <button type="button" className={styles.templateButton} onClick={() => setTemplatesOpen((value) => !value)}>Templates ▾</button>
-          {canManageTemplates ? <button type="button" className={styles.templateManageButton} onClick={() => { setManageTemplatesOpen(true); startAddTemplate(); }}>Manage templates</button> : null}
-          {templatesOpen ? <div className={styles.templateMenu}>
-            {templateLoadState === "loading" ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#6f7885" }}>Loading templates…</div> : null}
-            {templateLoadState === "error" ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#b42318", maxWidth: 280 }}>{templateLoadMessage}</div> : null}
-            {templateLoadState === "ready" && templates.length === 0 ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#6f7885" }}>{templateLoadMessage || "No templates available."}</div> : null}
-            {templateLoadState === "ready" ? templates.map((template) => <button type="button" key={template.template_id} onClick={() => { setSmsText(applyTemplate(template.message_body, row)); setTemplatesOpen(false); setSmsStatus(""); }}>{template.name}</button>) : null}
-          </div> : null}
-        </div>
-        <div className={styles.smsComposerRow}>
-          <textarea value={smsText} onChange={(event) => { setSmsText(event.target.value); setSmsStatus(""); }} placeholder={effectivePhone ? "Type a message…" : "No phone number available"} maxLength={1600} disabled={!effectivePhone || smsSending} aria-label={`Text ${row.customer_name}`} />
-          <button type="button" onClick={sendSms} disabled={!effectivePhone || !smsText.trim() || smsSending}>{smsSending ? "Sending…" : "Send"}</button>
-        </div>
-        <div className={styles.smsComposerFooter}><span>{smsText.length}/1600</span>{smsStatus ? <span className={smsStatus === "Sent ✓" ? styles.smsSuccess : styles.smsError}>{smsStatus}</span> : null}</div>
       </div> : null}
+
+      {!visible.length && !loading && filter !== "email" && filter !== "outbound" ? <div className={styles.placeholder}>No {filter === "all" ? "communication" : filter} activity is linked yet.</div> : null}
+      {filter === "email" ? <div className={styles.placeholder}>Email history will appear here as we connect Resend and Gmail. This tab will show both inbound and outbound email.</div> : null}
+      {filter === "text" ? textComposer : null}
 
       {manageTemplatesOpen ? <div className={styles.templateManagerBackdrop} onMouseDown={() => setManageTemplatesOpen(false)}>
         <section className={styles.templateManager} onMouseDown={(event) => event.stopPropagation()}>
