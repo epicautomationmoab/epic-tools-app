@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import CustomerJourneyPane from "../CustomerJourneyPane";
 import JourneyEmailComposerEnhancer from "./JourneyEmailComposerEnhancer";
+import JourneyCallClassificationEnhancer from "./JourneyCallClassificationEnhancer";
 
 function normalizedText(element: Element | null) {
   return element?.textContent?.replace(/\s+/g, " ").trim().toLowerCase() || "";
@@ -97,6 +98,7 @@ export default function JourneyPreviewOverlay({ rows }: { rows: ReadinessRow[] }
         <CustomerJourneyPane row={selected} />
       </div>
       <JourneyEmailComposerEnhancer row={selected} />
+      <JourneyCallClassificationEnhancer row={selected} />
     </>
   ) : null;
 }
