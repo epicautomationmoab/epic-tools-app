@@ -15,6 +15,9 @@ type CommunicationEvent = {
   body?: string | null;
   href?: string | null;
   direction?: string | null;
+  label?: string | null;
+  recipient?: string | null;
+  status?: string | null;
 };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null };
@@ -45,6 +48,13 @@ function timelineLabel(event: CommunicationEvent) {
   if (event.kind === "text") return "T";
   if (event.kind === "email") return "E";
   return event.direction === "outbound" ? "OC" : "IC";
+}
+function statusTone(status: string | null | undefined) {
+  const value = (status || "").toLowerCase();
+  if (value === "delivered" || value === "sent") return { background: "#e8f6ee", color: "#188a4b" };
+  if (value === "failed" || value === "bounced") return { background: "#fff0ed", color: "#b42318" };
+  if (value === "suppressed") return { background: "#f1f3f5", color: "#5f6a76" };
+  return { background: "#fff3d8", color: "#8a5a00" };
 }
 function applyTemplate(template: string, row: ReadinessRow) {
   const firstName = row.customer_name.trim().split(/\s+/)[0] || "Guest";
@@ -202,7 +212,17 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   const events = useMemo(() => {
     const callEvents: CommunicationEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", direction: call.direction, at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || call.transcription, href: call.recording_url }));
     const textEvents: CommunicationEvent[] = messages.map((message) => ({ id: `text-${message.message_id}`, kind: "text", direction: message.direction, at: message.sent_at || message.first_received_at, title: message.direction === "outbound" ? "Text sent" : "Text received", meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "), body: message.message_body || "(No message body)" }));
-    const emailEvents: CommunicationEvent[] = emails.map((email) => ({ id: `email-${email.id}`, kind: "email", direction: "outbound", at: email.at, title: email.label, meta: [email.status, email.recipient].filter(Boolean).join(" · "), body: email.subject }));
+    const emailEvents: CommunicationEvent[] = emails.map((email) => ({
+      id: `email-${email.id}`,
+      kind: "email",
+      direction: "outbound",
+      at: email.at,
+      title: email.subject,
+      meta: email.label,
+      label: email.label,
+      recipient: email.recipient,
+      status: email.status,
+    }));
     return [...callEvents, ...textEvents, ...emailEvents].sort((a, b) => {
       if (!a.at && !b.at) return 0;
       if (!a.at) return 1;
@@ -303,12 +323,25 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       </div> : null}
 
       {filter !== "outbound" ? <div className={`${styles.timeline} ${filter === "all" ? styles.timelineAll : ""}`}>
-        {visible.map((event) => <article id={`comm-${event.id}`} className={`${styles.event} ${styles[`event_${event.kind}`] || ""} ${event.kind === "text" && event.direction ? styles[`event_text_${event.direction}`] || "" : ""} ${filter === "all" ? styles.eventCompact : ""}`} key={event.id}>
-          <div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={`${styles.eventKind} ${styles[`kind_${event.kind}`] || ""}`}>{timelineLabel(event)}</span></div>
-          <div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}</div>
-          {event.body ? <div className={styles.eventBody}>{event.body}</div> : null}
-          {event.href ? <a className={styles.eventLink} href={event.href} target="_blank" rel="noreferrer">Listen to recording ↗</a> : null}
-        </article>)}
+        {visible.map((event) => {
+          if (filter === "email" && event.kind === "email") {
+            const tone = statusTone(event.status);
+            return <article id={`comm-${event.id}`} className={`${styles.event} ${styles.event_email}`} key={event.id} style={{ padding: "10px 14px 10px 18px" }}>
+              <div className={styles.eventTop}>
+                <div className={styles.eventTitle} style={{ fontSize: 14 }}>{event.title}</div>
+                <span style={{ padding: "4px 8px", borderRadius: 999, background: tone.background, color: tone.color, fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>{event.status || "sent"}</span>
+              </div>
+              <div className={styles.eventMeta} style={{ marginTop: 5 }}>{event.label || "Email"} · {event.at ? formatDateTime(event.at) : "Unknown time"}</div>
+              {event.recipient ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>Delivered to {event.recipient}</div> : null}
+            </article>;
+          }
+          return <article id={`comm-${event.id}`} className={`${styles.event} ${styles[`event_${event.kind}`] || ""} ${event.kind === "text" && event.direction ? styles[`event_text_${event.direction}`] || "" : ""} ${filter === "all" ? styles.eventCompact : ""}`} key={event.id}>
+            <div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={`${styles.eventKind} ${styles[`kind_${event.kind}`] || ""}`}>{timelineLabel(event)}</span></div>
+            <div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}</div>
+            {event.body ? <div className={styles.eventBody}>{event.body}</div> : null}
+            {event.href ? <a className={styles.eventLink} href={event.href} target="_blank" rel="noreferrer">Listen to recording ↗</a> : null}
+          </article>;
+        })}
       </div> : null}
 
       {!visible.length && !loading && filter !== "outbound" ? <div className={styles.placeholder}>No {filter === "all" ? "communication" : filter} activity is linked yet.</div> : null}
