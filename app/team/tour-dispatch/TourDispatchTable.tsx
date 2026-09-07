@@ -41,6 +41,20 @@ type ManifestGroup = {
   rows: TourDispatchRow[];
 };
 
+type ManifestTheme = "poison" | "hells" | "discovery" | "proR" | "default";
+
+const EXPERIENCE_THEME: Record<string, ManifestTheme> = {
+  "16190": "poison",
+  "13804": "poison",
+  "11126": "hells",
+  "13799": "hells",
+  "19043": "hells",
+  "17328": "hells",
+  "16417": "discovery",
+  "15783": "proR",
+  "18197": "proR",
+};
+
 function keyFor(row: TourDispatchRow) { return `${row.store_visit_id}:${row.vehicle_slot}`; }
 function formatTime(value: string) {
   const match = value.match(/(?:T|\s)(\d{2}):(\d{2})/);
@@ -56,6 +70,21 @@ function experienceKey(row: TourDispatchRow) {
 }
 function manifestKey(row: TourDispatchRow) {
   return `${row.visit_date}|${experienceKey(row)}|${normalizeStart(row.visit_start_time)}`;
+}
+function manifestTheme(group: ManifestGroup): ManifestTheme {
+  for (const row of group.rows) {
+    for (const id of row.source_experience_ids ?? []) {
+      if (EXPERIENCE_THEME[id]) return EXPERIENCE_THEME[id];
+    }
+  }
+  return "default";
+}
+function manifestThemeClass(theme: ManifestTheme) {
+  if (theme === "poison") return styles.themePoison;
+  if (theme === "hells") return styles.themeHells;
+  if (theme === "discovery") return styles.themeDiscovery;
+  if (theme === "proR") return styles.themeProR;
+  return styles.themeDefault;
 }
 function departureLocked(status: string) { return ["checkout_queued", "checking_out", "out"].includes(status); }
 function returnInProgress(status: string) { return ["checkin_queued", "checking_in"].includes(status); }
@@ -251,7 +280,8 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
 
   return <div className={styles.manifestList}>{grouped.map((group) => {
     const assignedGuide = guideMap.get(group.key) ?? "";
-    return <section className={styles.manifestGroup} key={group.key}>
+    const theme = manifestTheme(group);
+    return <section className={`${styles.manifestGroup} ${manifestThemeClass(theme)}`} key={group.key}>
       <div className={styles.manifestHeader}>
         <div>
           <div className={styles.manifestEyebrow}>Tour Manifest</div>
