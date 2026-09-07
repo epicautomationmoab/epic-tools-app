@@ -1,4 +1,4 @@
-const EPIC_SIGNATURE_LOGO_URL = "https://team.myepicreservation.com/api/assets/epic-email-logo";
+const EPIC_SIGNATURE_LOGO_CID = "epic-signature-logo";
 
 function escapeHtml(value: string) {
   return value
@@ -24,7 +24,7 @@ export function renderEpicSignatureHtml(senderFirstName: string) {
   const firstName = escapeHtml(senderFirstName || "Epic Team");
   return `<div style="margin-top:28px;padding-top:18px;border-top:1px solid #e6e6e6;font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:14px;line-height:1.5">
     <div style="font-weight:700;margin-bottom:10px">${firstName}</div>
-    <img src="${EPIC_SIGNATURE_LOGO_URL}" alt="Epic 4X4 Adventures" width="320" style="display:block;width:320px;max-width:100%;height:auto;margin:0 0 12px 0;border:0">
+    <img src="cid:${EPIC_SIGNATURE_LOGO_CID}" alt="Epic 4X4 Adventures" width="320" style="display:block;width:320px;max-width:100%;height:auto;margin:0 0 12px 0;border:0">
     <div style="font-weight:700">Epic 4X4 Adventures</div>
     <div>Moab, Utah</div>
     <div><a href="tel:+14352202700" style="color:#1f2937;text-decoration:none">(435) 220-2700</a></div>
