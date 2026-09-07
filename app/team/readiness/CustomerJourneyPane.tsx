@@ -18,6 +18,7 @@ type CommunicationEvent = {
 };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null };
+type EmailHistoryItem = { id: string; direction: "outbound"; at: string; label: string; subject: string; communication_type: string; recipient: string | null; provider_message_id: string | null; status: string; error: string | null };
 type MessageTemplate = { template_id: string; name: string; message_body: string; sort_order: number; active: boolean; updated_at: string; updated_by: string | null };
 
 const GUEST_PORTAL_BASE_URL = "https://team.myepicreservation.com";
@@ -60,6 +61,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   const [filter, setFilter] = useState<CommunicationFilter>("outbound");
   const [calls, setCalls] = useState<CallRailCall[]>([]);
   const [messages, setMessages] = useState<CallRailMessage[]>([]);
+  const [emails, setEmails] = useState<EmailHistoryItem[]>([]);
   const [effectivePhone, setEffectivePhone] = useState(row.customer_phone || "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -81,12 +83,18 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
     if (!silent) setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/team/readiness/callrail?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Unable to load communication activity.");
-      setCalls(payload.calls || []);
-      setMessages(payload.messages || []);
-      if (typeof payload.customer_phone === "string") setEffectivePhone(payload.customer_phone);
+      const [callrailResponse, emailResponse] = await Promise.all([
+        fetch(`/api/team/readiness/callrail?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" }),
+        fetch(`/api/team/readiness/email-history?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" }),
+      ]);
+      const callrailPayload = await callrailResponse.json();
+      const emailPayload = await emailResponse.json();
+      if (!callrailResponse.ok) throw new Error(callrailPayload.error || "Unable to load communication activity.");
+      if (!emailResponse.ok) throw new Error(emailPayload.error || "Unable to load email history.");
+      setCalls(callrailPayload.calls || []);
+      setMessages(callrailPayload.messages || []);
+      setEmails(emailPayload.emails || []);
+      if (typeof callrailPayload.customer_phone === "string") setEffectivePhone(callrailPayload.customer_phone);
     } catch (err) {
       if (!silent) setError(err instanceof Error ? err.message : "Unable to load communication activity.");
     } finally {
@@ -194,13 +202,14 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   const events = useMemo(() => {
     const callEvents: CommunicationEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", direction: call.direction, at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || call.transcription, href: call.recording_url }));
     const textEvents: CommunicationEvent[] = messages.map((message) => ({ id: `text-${message.message_id}`, kind: "text", direction: message.direction, at: message.sent_at || message.first_received_at, title: message.direction === "outbound" ? "Text sent" : "Text received", meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "), body: message.message_body || "(No message body)" }));
-    return [...callEvents, ...textEvents].sort((a, b) => {
+    const emailEvents: CommunicationEvent[] = emails.map((email) => ({ id: `email-${email.id}`, kind: "email", direction: "outbound", at: email.at, title: email.label, meta: [email.status, email.recipient].filter(Boolean).join(" · "), body: email.subject }));
+    return [...callEvents, ...textEvents, ...emailEvents].sort((a, b) => {
       if (!a.at && !b.at) return 0;
       if (!a.at) return 1;
       if (!b.at) return -1;
       return new Date(b.at).getTime() - new Date(a.at).getTime();
     });
-  }, [calls, messages]);
+  }, [calls, messages, emails]);
 
   const visible = useMemo(() => {
     if (filter === "outbound") return [];
@@ -230,7 +239,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
 
   const hasCalls = calls.length > 0;
   const hasTexts = messages.length > 0;
-  const hasEmails = false;
+  const hasEmails = emails.length > 0;
   const filters: Array<[CommunicationFilter, string]> = [["outbound","Outbound"],["call","Calls"],["text","Texts"],["email","Emails"],["all","All"]];
   const firstName = row.customer_name.split(" ")[0] || "Guest";
   const emailHref = row.customer_email ? `mailto:${row.customer_email}` : "";
@@ -302,8 +311,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
         </article>)}
       </div> : null}
 
-      {!visible.length && !loading && filter !== "email" && filter !== "outbound" ? <div className={styles.placeholder}>No {filter === "all" ? "communication" : filter} activity is linked yet.</div> : null}
-      {filter === "email" ? <div className={styles.placeholder}>Email history will appear here as we connect Resend and Gmail. This tab will show both inbound and outbound email.</div> : null}
+      {!visible.length && !loading && filter !== "outbound" ? <div className={styles.placeholder}>No {filter === "all" ? "communication" : filter} activity is linked yet.</div> : null}
       {filter === "text" ? textComposer : null}
 
       {manageTemplatesOpen ? <div className={styles.templateManagerBackdrop} onMouseDown={() => setManageTemplatesOpen(false)}>
