@@ -88,13 +88,20 @@ export async function GET(request: NextRequest) {
   if (!confirmation) return NextResponse.json({ error: "Confirmation is required." }, { status: 400 });
 
   try {
-    const reservations = await rest<Array<{ id: string; customer_phone: string | null }>>(
-      `operational_reservations?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=id,customer_phone&limit=1`,
+    const reservations = await rest<Array<{
+      id: string;
+      customer_phone: string | null;
+      trip_method_name: string | null;
+      reserved_at: string | null;
+      trip_reserved_at: string | null;
+    }>>(
+      `operational_reservations?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=${encodeURIComponent("id,customer_phone,trip_method_name,reserved_at,trip_reserved_at")}&order=reserved_at.asc.nullslast&limit=1`,
     );
-    const reservationId = reservations[0]?.id;
-    if (!reservationId) return NextResponse.json({ ok: true, customer_phone: null, calls: [], messages: [] });
+    const reservation = reservations[0];
+    const reservationId = reservation?.id;
+    if (!reservationId) return NextResponse.json({ ok: true, customer_phone: null, booking_method: null, booked_at: null, calls: [], messages: [] });
 
-    const normalizedPhone = await readinessPhoneForConfirmation(confirmation, reservations[0]?.customer_phone || null);
+    const normalizedPhone = await readinessPhoneForConfirmation(confirmation, reservation.customer_phone || null);
     const callSelect = "callrail_call_id,start_time,last_received_at,direction,answered,voicemail,duration_seconds,customer_name,customer_phone_number,recording_player_url,recording_url,call_summary,transcription_text,lead_score,lead_explanation,sentiment,call_highlights,speaker_percent,keywords,source_name,campaign,medium,device_type,customer_city,customer_state,landing_page_url,referring_url,timeline_url,person_resource_id,lead_status,first_touch,last_touch";
 
     const [normalizedCalls, messages] = await Promise.all([
@@ -152,7 +159,15 @@ export async function GET(request: NextRequest) {
       received_at: call.last_received_at,
     }));
 
-    return NextResponse.json({ ok: true, reservation_id: reservationId, customer_phone: normalizedPhone, calls, messages });
+    return NextResponse.json({
+      ok: true,
+      reservation_id: reservationId,
+      customer_phone: normalizedPhone,
+      booking_method: reservation.trip_method_name,
+      booked_at: reservation.reserved_at || reservation.trip_reserved_at,
+      calls,
+      messages,
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load CallRail activity." }, { status: 500 });
   }
