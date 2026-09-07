@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
+    const threadId = gmailPayload.threadId || null;
     await rest("guest_communications", {
       method: "POST",
       headers: { Prefer: "return=minimal" },
@@ -169,6 +170,7 @@ export async function POST(request: NextRequest) {
         customer_email: recipient,
         status: "sent",
         provider_message_id: gmailPayload.id,
+        provider_thread_id: threadId,
         sent_at: now,
         queued_at: now,
         subject,
@@ -181,7 +183,31 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    return NextResponse.json({ ok: true, message_id: gmailPayload.id, thread_id: gmailPayload.threadId || null, recipient });
+    const reservations = await rest<Array<{ id: string }>>(
+      `operational_reservations?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=id&limit=1`,
+    );
+    await rest("gmail_messages", {
+      method: "POST",
+      headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+      body: JSON.stringify({
+        mailbox_email: EXPECTED_MAILBOX,
+        gmail_message_id: gmailPayload.id,
+        gmail_thread_id: threadId,
+        direction: "outbound",
+        from_email: EXPECTED_MAILBOX,
+        to_emails: [recipient],
+        subject,
+        body_text: body,
+        sent_at: now,
+        matched_confirmation_code: confirmation,
+        matched_reservation_id: reservations[0]?.id || null,
+        match_method: "epic_send",
+        match_confidence: "high",
+        updated_at: now,
+      }),
+    });
+
+    return NextResponse.json({ ok: true, message_id: gmailPayload.id, thread_id: threadId, recipient });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to send guest email." }, { status: 500 });
   }
