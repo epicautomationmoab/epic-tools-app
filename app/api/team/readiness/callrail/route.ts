@@ -38,6 +38,15 @@ function normalizePhone(input: string | null) {
   return `+${digits}`;
 }
 
+function bookingSoldBy(method: string | null, tripPayload: unknown) {
+  if (tripPayload && typeof tripPayload === "object") {
+    const creator = (tripPayload as { created_by_user_avatar?: { full_name?: unknown } }).created_by_user_avatar;
+    if (creator && typeof creator.full_name === "string" && creator.full_name.trim()) return creator.full_name.trim();
+  }
+  if (method?.trim().toLowerCase() === "e-commerce") return "Online";
+  return null;
+}
+
 async function readinessPhoneForConfirmation(confirmation: string, fallback: string | null) {
   const rows = await rest<Array<{ customer_phone: string | null }>>(
     `guest_readiness_with_handoff_v?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=customer_phone&limit=1`,
@@ -94,12 +103,13 @@ export async function GET(request: NextRequest) {
       trip_method_name: string | null;
       reserved_at: string | null;
       trip_reserved_at: string | null;
+      trip_payload: unknown;
     }>>(
-      `operational_reservations?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=${encodeURIComponent("id,customer_phone,trip_method_name,reserved_at,trip_reserved_at")}&order=reserved_at.asc.nullslast&limit=1`,
+      `operational_reservations?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=${encodeURIComponent("id,customer_phone,trip_method_name,reserved_at,trip_reserved_at,trip_payload")}&order=reserved_at.asc.nullslast&limit=1`,
     );
     const reservation = reservations[0];
     const reservationId = reservation?.id;
-    if (!reservationId) return NextResponse.json({ ok: true, customer_phone: null, booking_method: null, booked_at: null, calls: [], messages: [] });
+    if (!reservationId) return NextResponse.json({ ok: true, customer_phone: null, booking_method: null, booked_at: null, booking_sold_by: null, calls: [], messages: [] });
 
     const normalizedPhone = await readinessPhoneForConfirmation(confirmation, reservation.customer_phone || null);
     const callSelect = "callrail_call_id,start_time,last_received_at,direction,answered,voicemail,duration_seconds,customer_name,customer_phone_number,recording_player_url,recording_url,call_summary,transcription_text,lead_score,lead_explanation,sentiment,call_highlights,speaker_percent,keywords,source_name,campaign,medium,device_type,customer_city,customer_state,landing_page_url,referring_url,timeline_url,person_resource_id,lead_status,first_touch,last_touch";
@@ -165,6 +175,7 @@ export async function GET(request: NextRequest) {
       customer_phone: normalizedPhone,
       booking_method: reservation.trip_method_name,
       booked_at: reservation.reserved_at || reservation.trip_reserved_at,
+      booking_sold_by: bookingSoldBy(reservation.trip_method_name, reservation.trip_payload),
       calls,
       messages,
     });
