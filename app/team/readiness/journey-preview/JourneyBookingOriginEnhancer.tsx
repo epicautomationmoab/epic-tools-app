@@ -43,15 +43,10 @@ function addFact(container: HTMLElement, label: string, value: string, key: stri
 export default function JourneyBookingOriginEnhancer({ row }: { row: ReadinessRow }) {
   useEffect(() => {
     let cancelled = false;
-    let observer: MutationObserver | null = null;
+    let timer: number | null = null;
 
-    async function apply() {
-      const drawer = document.querySelector<HTMLElement>('[role="dialog"][aria-label$="reservation details"]');
-      if (!drawer) return;
-      const facts = findFactsContainer(drawer);
-      if (!facts) return;
-
-      facts.querySelectorAll("[data-journey-booking-origin]").forEach((node) => node.remove());
+    async function renderInto(facts: HTMLElement) {
+      if (facts.querySelector("[data-journey-booking-origin]")) return;
 
       try {
         const response = await fetch(`/api/team/readiness/callrail?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" });
@@ -69,14 +64,22 @@ export default function JourneyBookingOriginEnhancer({ row }: { row: ReadinessRo
       }
     }
 
-    const schedule = () => window.requestAnimationFrame(() => void apply());
-    observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true });
-    void apply();
+    function tryRender() {
+      const drawer = document.querySelector<HTMLElement>('[role="dialog"][aria-label$="reservation details"]');
+      const facts = drawer ? findFactsContainer(drawer) : null;
+      if (facts) {
+        if (timer !== null) window.clearInterval(timer);
+        timer = null;
+        void renderInto(facts);
+      }
+    }
+
+    tryRender();
+    timer = window.setInterval(tryRender, 100);
 
     return () => {
       cancelled = true;
-      observer?.disconnect();
+      if (timer !== null) window.clearInterval(timer);
       document.querySelectorAll("[data-journey-booking-origin]").forEach((node) => node.remove());
     };
   }, [row.confirmation_code]);
