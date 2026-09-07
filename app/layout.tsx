@@ -9,6 +9,11 @@ import "./readiness-overrides.css";
 export const metadata: Metadata = {
   title: "EpicTools",
   description: "Epic 4x4 guest readiness tools",
+  icons: {
+    icon: "/epic-logo.png",
+    shortcut: "/epic-logo.png",
+    apple: "/epic-logo.png",
+  },
 };
 
 export default function RootLayout({
