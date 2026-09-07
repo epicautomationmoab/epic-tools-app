@@ -17,11 +17,12 @@ type CommunicationEvent = {
   direction?: string | null;
   label?: string | null;
   recipient?: string | null;
+  sender?: string | null;
   status?: string | null;
 };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null };
-type EmailHistoryItem = { id: string; direction: "outbound"; at: string; label: string; subject: string; communication_type: string; recipient: string | null; provider_message_id: string | null; status: string; error: string | null };
+type EmailHistoryItem = { id: string; direction: "outbound" | "inbound"; at: string; label: string; subject: string; communication_type: string; recipient: string | null; sender?: string | null; body?: string | null; provider_message_id: string | null; status: string; error: string | null };
 type MessageTemplate = { template_id: string; name: string; message_body: string; sort_order: number; active: boolean; updated_at: string; updated_by: string | null };
 
 const GUEST_PORTAL_BASE_URL = "https://team.myepicreservation.com";
@@ -51,7 +52,7 @@ function timelineLabel(event: CommunicationEvent) {
 }
 function statusTone(status: string | null | undefined) {
   const value = (status || "").toLowerCase();
-  if (value === "delivered" || value === "sent") return { background: "#e8f6ee", color: "#188a4b" };
+  if (value === "delivered" || value === "sent" || value === "received") return { background: "#e8f6ee", color: "#188a4b" };
   if (value === "failed" || value === "bounced") return { background: "#fff0ed", color: "#b42318" };
   if (value === "suppressed") return { background: "#f1f3f5", color: "#5f6a76" };
   return { background: "#fff3d8", color: "#8a5a00" };
@@ -215,13 +216,15 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
     const emailEvents: CommunicationEvent[] = emails.map((email) => ({
       id: `email-${email.id}`,
       kind: "email",
-      direction: "outbound",
+      direction: email.direction,
       at: email.at,
       title: email.subject,
-      meta: email.label,
+      meta: email.direction === "inbound" ? [email.label, email.sender ? `from ${email.sender}` : null].filter(Boolean).join(" · ") : email.label,
       label: email.label,
       recipient: email.recipient,
+      sender: email.sender,
       status: email.status,
+      body: email.body,
     }));
     return [...callEvents, ...textEvents, ...emailEvents].sort((a, b) => {
       if (!a.at && !b.at) return 0;
@@ -326,13 +329,16 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
         {visible.map((event) => {
           if (filter === "email" && event.kind === "email") {
             const tone = statusTone(event.status);
+            const inbound = event.direction === "inbound";
             return <article id={`comm-${event.id}`} className={`${styles.event} ${styles.event_email}`} key={event.id} style={{ padding: "10px 14px 10px 18px" }}>
               <div className={styles.eventTop}>
                 <div className={styles.eventTitle} style={{ fontSize: 14 }}>{event.title}</div>
-                <span style={{ padding: "4px 8px", borderRadius: 999, background: tone.background, color: tone.color, fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>{event.status || "sent"}</span>
+                <span style={{ padding: "4px 8px", borderRadius: 999, background: tone.background, color: tone.color, fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>{inbound ? "received" : event.status || "sent"}</span>
               </div>
-              <div className={styles.eventMeta} style={{ marginTop: 5 }}>{event.label || "Email"} · {event.at ? formatDateTime(event.at) : "Unknown time"}</div>
-              {event.recipient ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>Delivered to {event.recipient}</div> : null}
+              <div className={styles.eventMeta} style={{ marginTop: 5 }}>{inbound ? "Reply to Hello" : event.label || "Email"} · {event.at ? formatDateTime(event.at) : "Unknown time"}</div>
+              {inbound && event.sender ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>From {event.sender}</div> : null}
+              {!inbound && event.recipient ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>Delivered to {event.recipient}</div> : null}
+              {inbound && event.body ? <div className={styles.eventBody} style={{ marginTop: 9 }}>{event.body}</div> : null}
             </article>;
           }
           return <article id={`comm-${event.id}`} className={`${styles.event} ${styles[`event_${event.kind}`] || ""} ${event.kind === "text" && event.direction ? styles[`event_text_${event.direction}`] || "" : ""} ${filter === "all" ? styles.eventCompact : ""}`} key={event.id}>
