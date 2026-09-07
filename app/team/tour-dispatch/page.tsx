@@ -1,8 +1,6 @@
-import { cookies } from "next/headers";
 import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
-import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
 import TourDispatchTable, { type TourDispatchRow } from "./TourDispatchTable";
 import { PrintAllVehicleTagsButton } from "./NativePrintButton";
@@ -21,10 +19,6 @@ function mountainDateString() {
 }
 
 export default async function TourDispatchPage() {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("epic_access_token")?.value;
-  const profile = await getAuthenticatedTeamProfile(accessToken);
-
   const params = new URLSearchParams({
     select: "store_visit_id,readiness_id,confirmation_code,customer_name,product_display_name,visit_start_time,total_vehicle_count,vehicle_slot,vehicle_label,checkout_mileage,checkout_engine_hours,checkout_status,checkin_status",
     visit_date: `eq.${mountainDateString()}`,
@@ -54,7 +48,6 @@ export default async function TourDispatchPage() {
         <header className={shellStyles.topbar}>
           <div className={shellStyles.titleBlock}><h1>Tour Dispatch</h1><HeaderClock /></div>
           <div className={shellStyles.headerActions}>
-            {profile ? <span>{profile.display_name}</span> : null}
             <LogoutButton />
           </div>
         </header>
