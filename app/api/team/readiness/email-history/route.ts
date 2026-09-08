@@ -94,8 +94,6 @@ export async function GET(request: NextRequest) {
   if (!confirmation) return NextResponse.json({ error: "Confirmation is required." }, { status: 400 });
 
   try {
-    // Keep Hello reasonably fresh whenever Customer Communications is in use.
-    // The sync service self-throttles to avoid repeatedly hitting Gmail during the 3-second UI polling loop.
     await syncHelloInbox().catch(() => null);
 
     const [communications, inbound] = await Promise.all([
@@ -107,30 +105,35 @@ export async function GET(request: NextRequest) {
       ),
     ]);
 
-    const resendMessageIds = communications
-      .filter((row) => row.communication_type !== "manual_guest_email")
+    const messageIds = communications
       .map((row) => row.provider_message_id)
       .filter((value): value is string => Boolean(value));
 
     let deliveries: DeliveryRow[] = [];
-    if (resendMessageIds.length) {
-      const inList = `(${resendMessageIds.map((id) => `\"${id.replaceAll('"', '')}\"`).join(",")})`;
+    if (messageIds.length) {
+      const inList = `(${messageIds.map((id) => `\"${id.replaceAll('"', '')}\"`).join(",")})`;
       deliveries = await rest<DeliveryRow[]>(
-        `guest_email_delivery_events?provider_message_id=in.${encodeURIComponent(inList)}&select=${encodeURIComponent("provider_message_id,event_type,event_at")}&order=event_at.desc&limit=500`,
+        `guest_email_delivery_events?provider_message_id=in.${encodeURIComponent(inList)}&select=${encodeURIComponent("provider_message_id,event_type,event_at")}&order=event_at.asc&limit=2000`,
       );
     }
 
-    const latestByMessage = new Map<string, DeliveryRow>();
+    const eventsByMessage = new Map<string, DeliveryRow[]>();
     for (const delivery of deliveries) {
-      if (!latestByMessage.has(delivery.provider_message_id)) latestByMessage.set(delivery.provider_message_id, delivery);
+      const current = eventsByMessage.get(delivery.provider_message_id) || [];
+      current.push(delivery);
+      eventsByMessage.set(delivery.provider_message_id, current);
     }
 
     const outboundEmails = communications
       .filter((row) => row.sent_at || row.provider_message_id || row.status === "sent" || row.status === "failed")
       .map((row) => {
-        const delivery = row.communication_type !== "manual_guest_email" && row.provider_message_id
-          ? latestByMessage.get(row.provider_message_id) ?? null
-          : null;
+        const events = row.provider_message_id ? eventsByMessage.get(row.provider_message_id) || [] : [];
+        const transportEvents = events.filter((event) => event.event_type !== "email.opened");
+        const latestTransport = transportEvents.length ? transportEvents[transportEvents.length - 1] : null;
+        const openEvents = events.filter((event) => event.event_type === "email.opened");
+        const firstOpenedAt = openEvents[0]?.event_at || null;
+        const lastOpenedAt = openEvents.length ? openEvents[openEvents.length - 1].event_at : null;
+
         return {
           id: row.id,
           direction: "outbound" as const,
@@ -144,8 +147,11 @@ export async function GET(request: NextRequest) {
           body: row.body_text,
           provider_message_id: row.provider_message_id,
           provider_thread_id: row.provider_thread_id,
-          status: deliveryLabel(delivery?.event_type ?? null, row.status),
+          status: deliveryLabel(latestTransport?.event_type ?? null, row.status),
           error: row.last_error,
+          open_count: openEvents.length,
+          first_opened_at: firstOpenedAt,
+          last_opened_at: lastOpenedAt,
         };
       });
 
@@ -164,6 +170,9 @@ export async function GET(request: NextRequest) {
       provider_thread_id: row.gmail_thread_id,
       status: "received",
       error: null,
+      open_count: 0,
+      first_opened_at: null,
+      last_opened_at: null,
       match_method: row.match_method,
       match_confidence: row.match_confidence,
     }));
