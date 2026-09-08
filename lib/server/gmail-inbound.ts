@@ -1,10 +1,10 @@
 import { getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
 
-const EXPECTED_MAILBOX = "hello@epic4x4adventures.com";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
+const EPIC_MAILBOXES = ["hello@epic4x4adventures.com", "customerservice@epic4x4adventures.com"] as const;
 
-type Connection = { refresh_token: string; gmail_history_id: string | null; last_inbound_sync_at: string | null };
+type Connection = { mailbox_email:string; refresh_token: string; gmail_history_id: string | null; last_inbound_sync_at: string | null };
 type GmailHeader = { name?: string; value?: string };
 type GmailPart = { mimeType?: string; body?: { data?: string }; parts?: GmailPart[] };
 type GmailMessage = { id: string; threadId?: string; internalDate?: string; payload?: GmailPart & { headers?: GmailHeader[] } };
@@ -171,16 +171,10 @@ async function matchMessage(fromEmail: string, threadId: string | null): Promise
   return { confirmation: null, reservationId: null, opportunityId: null, method: null, confidence: null };
 }
 
-export async function syncHelloInbox({ force = false }: { force?: boolean } = {}) {
-  const connections = await rest<Connection[]>(
-    `google_mailbox_connections?mailbox_email=eq.${encodeURIComponent(EXPECTED_MAILBOX)}&select=refresh_token,gmail_history_id,last_inbound_sync_at&limit=1`,
-  );
-  const connection = connections[0];
-  if (!connection?.refresh_token) throw new Error("Hello Gmail is not connected.");
-
+async function syncMailbox(mailbox:string, connection:Connection, force:boolean) {
   if (!force && connection.last_inbound_sync_at) {
     const age = Date.now() - new Date(connection.last_inbound_sync_at).getTime();
-    if (Number.isFinite(age) && age < 45_000) return { ok: true, skipped: true, processed: 0, matched: 0, unmatched: 0 };
+    if (Number.isFinite(age) && age < 45_000) return { mailbox, ok:true, skipped:true, processed:0, matched:0, unmatched:0 };
   }
 
   const token = await accessToken(connection.refresh_token);
@@ -189,17 +183,14 @@ export async function syncHelloInbox({ force = false }: { force?: boolean } = {}
   if (connection.gmail_history_id) ids = await historyInboxIds(token, connection.gmail_history_id);
   if (ids === null) ids = await fallbackInboxIds(token);
 
-  let processed = 0;
-  let matched = 0;
-  let unmatched = 0;
-
+  let processed = 0, matched = 0, unmatched = 0;
   for (const id of ids) {
-    const existing = await rest<Array<{ gmail_message_id: string }>>(`gmail_messages?gmail_message_id=eq.${encodeURIComponent(id)}&select=gmail_message_id&limit=1`);
+    const existing = await rest<Array<{ gmail_message_id: string }>>(`gmail_messages?mailbox_email=eq.${encodeURIComponent(mailbox)}&gmail_message_id=eq.${encodeURIComponent(id)}&select=gmail_message_id&limit=1`);
     if (existing.length) continue;
 
     const message = await gmail<GmailMessage>(token, `/messages/${encodeURIComponent(id)}?format=full`);
     const fromEmail = emailFromHeader(header(message, "From"));
-    if (!fromEmail || fromEmail === EXPECTED_MAILBOX) continue;
+    if (!fromEmail || EPIC_MAILBOXES.includes(fromEmail as typeof EPIC_MAILBOXES[number])) continue;
     const toEmails = emailsFromHeader(header(message, "To"));
     const subject = header(message, "Subject") || "(No subject)";
     const bodyText = textFromPart(message.payload).slice(0, 100_000);
@@ -211,7 +202,7 @@ export async function syncHelloInbox({ force = false }: { force?: boolean } = {}
       method: "POST",
       headers: { Prefer: "return=minimal" },
       body: JSON.stringify({
-        mailbox_email: EXPECTED_MAILBOX,
+        mailbox_email: mailbox,
         gmail_message_id: message.id,
         gmail_thread_id: threadId,
         direction: "inbound",
@@ -234,11 +225,21 @@ export async function syncHelloInbox({ force = false }: { force?: boolean } = {}
     if (match.reservationId || match.opportunityId || match.confirmation) matched += 1; else unmatched += 1;
   }
 
-  await rest(`google_mailbox_connections?mailbox_email=eq.${encodeURIComponent(EXPECTED_MAILBOX)}`, {
+  await rest(`google_mailbox_connections?mailbox_email=eq.${encodeURIComponent(mailbox)}`, {
     method: "PATCH",
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify({ gmail_history_id: profile.historyId || connection.gmail_history_id, last_inbound_sync_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
   });
 
-  return { ok: true, skipped: false, processed, matched, unmatched, history_id: profile.historyId || null };
+  return { mailbox, ok:true, skipped:false, processed, matched, unmatched, history_id:profile.historyId||null };
 }
+
+export async function syncEpicInboxes({ force = false }: { force?: boolean } = {}) {
+  const connections = await rest<Connection[]>(`google_mailbox_connections?mailbox_email=in.(${EPIC_MAILBOXES.map(encodeURIComponent).join(",")})&select=mailbox_email,refresh_token,gmail_history_id,last_inbound_sync_at`);
+  const byMailbox = new Map(connections.map(c=>[c.mailbox_email.toLowerCase(),c]));
+  const results=[];
+  for(const mailbox of EPIC_MAILBOXES){const connection=byMailbox.get(mailbox);if(!connection){results.push({mailbox,ok:false,connected:false,processed:0,matched:0,unmatched:0});continue;}results.push(await syncMailbox(mailbox,connection,force));}
+  return { ok:true, mailboxes:results, processed:results.reduce((s,r)=>s+(r.processed||0),0), matched:results.reduce((s,r)=>s+(r.matched||0),0), unmatched:results.reduce((s,r)=>s+(r.unmatched||0),0) };
+}
+
+export async function syncHelloInbox(options:{force?:boolean}={}) { return syncEpicInboxes(options); }
