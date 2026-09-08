@@ -35,10 +35,16 @@ type TripWorksPayload = {
 
 type TripSafeSelection = "purchased" | "declined" | "unknown";
 
-const TRIPSAFE_TITLE = "optional travel protection";
+const LEGACY_TRIPSAFE_TITLE = "optional travel protection";
 
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase().replace(/[’]/g, "'");
+}
+
+function isTripSafeTitle(value: string | null | undefined) {
+  const title = normalize(value);
+  return title === LEGACY_TRIPSAFE_TITLE ||
+    (title.includes("tripsafe") && title.includes("protection"));
 }
 
 function unwrapPayload(value: Record<string, unknown> | null): TripWorksPayload | null {
@@ -61,7 +67,7 @@ function collectOrderAddons(order: TripWorksTripOrder) {
 function tripSafeSelection(addons: TripWorksAddon[]): TripSafeSelection {
   const selections = new Set(
     addons
-      .filter((addon) => normalize(addon.experience_addon?.title) === TRIPSAFE_TITLE)
+      .filter((addon) => isTripSafeTitle(addon.experience_addon?.title))
       .map((addon) => normalize(addon.name))
       .map((name) => {
         if (!name.includes("tripsafe")) return "unknown" as const;
@@ -154,7 +160,7 @@ async function getLatestTripSafeSelection(
 function addonsForSelection(selection: "purchased" | "declined"): TripWorksAddon[] {
   return [{
     name: selection === "purchased" ? "Yes, please add TripSafe" : "No, don't add TripSafe",
-    experience_addon: { title: "Optional Travel Protection" },
+    experience_addon: { title: "Optional TripSafe Itinerary Protection" },
   }];
 }
 
