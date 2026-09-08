@@ -1,33 +1,41 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-const REFRESH_INTERVAL_MS = 10_000;
-const MIN_REFRESH_GAP_MS = 1_500;
+const REFRESH_INTERVAL_MS = 30_000;
+const MIN_REFRESH_GAP_MS = 5_000;
 const SYNC_EVENT = "epic-readiness-synced";
 
 export default function AutoRefresh() {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const pendingRef = useRef(false);
+  const lastRefreshAtRef = useRef(0);
 
   useEffect(() => {
-    let lastRefreshAt = 0;
+    pendingRef.current = isPending;
+  }, [isPending]);
 
+  useEffect(() => {
     function refreshWhenVisible() {
       if (document.visibilityState !== "visible") return;
+      if (pendingRef.current) return;
 
       const now = Date.now();
-      if (now - lastRefreshAt < MIN_REFRESH_GAP_MS) return;
+      if (now - lastRefreshAtRef.current < MIN_REFRESH_GAP_MS) return;
 
-      lastRefreshAt = now;
-      router.refresh();
+      lastRefreshAtRef.current = now;
+      pendingRef.current = true;
+
+      startTransition(() => {
+        router.refresh();
+      });
+
       window.dispatchEvent(new Event(SYNC_EVENT));
     }
 
-    const intervalId = window.setInterval(
-      refreshWhenVisible,
-      REFRESH_INTERVAL_MS,
-    );
+    const intervalId = window.setInterval(refreshWhenVisible, REFRESH_INTERVAL_MS);
 
     document.addEventListener("visibilitychange", refreshWhenVisible);
     window.addEventListener("focus", refreshWhenVisible);
@@ -37,7 +45,7 @@ export default function AutoRefresh() {
       document.removeEventListener("visibilitychange", refreshWhenVisible);
       window.removeEventListener("focus", refreshWhenVisible);
     };
-  }, [router]);
+  }, [router, startTransition]);
 
   return null;
 }
