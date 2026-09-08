@@ -19,10 +19,13 @@ type CommunicationEvent = {
   recipient?: string | null;
   sender?: string | null;
   status?: string | null;
+  openCount?: number;
+  firstOpenedAt?: string | null;
+  lastOpenedAt?: string | null;
 };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null };
-type EmailHistoryItem = { id: string; direction: "outbound" | "inbound"; at: string; label: string; subject: string; communication_type: string; recipient: string | null; sender?: string | null; body?: string | null; provider_message_id: string | null; status: string; error: string | null };
+type EmailHistoryItem = { id: string; direction: "outbound" | "inbound"; at: string; label: string; subject: string; communication_type: string; recipient: string | null; sender?: string | null; body?: string | null; provider_message_id: string | null; status: string; error: string | null; open_count?: number; first_opened_at?: string | null; last_opened_at?: string | null };
 type MessageTemplate = { template_id: string; name: string; message_body: string; sort_order: number; active: boolean; updated_at: string; updated_by: string | null };
 
 const GUEST_PORTAL_BASE_URL = "https://team.myepicreservation.com";
@@ -219,12 +222,15 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       direction: email.direction,
       at: email.at,
       title: email.subject,
-      meta: email.direction === "inbound" ? [email.label, email.sender ? `from ${email.sender}` : null].filter(Boolean).join(" · ") : email.label,
+      meta: email.direction === "inbound" ? [email.label, email.sender ? `from ${email.sender}` : null].filter(Boolean).join(" · ") : [email.label, email.open_count ? `opened ${email.open_count}×` : null].filter(Boolean).join(" · "),
       label: email.label,
       recipient: email.recipient,
       sender: email.sender,
       status: email.status,
       body: email.body,
+      openCount: email.open_count || 0,
+      firstOpenedAt: email.first_opened_at || null,
+      lastOpenedAt: email.last_opened_at || null,
     }));
     return [...callEvents, ...textEvents, ...emailEvents].sort((a, b) => {
       if (!a.at && !b.at) return 0;
@@ -333,11 +339,15 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
             return <article id={`comm-${event.id}`} className={`${styles.event} ${styles.event_email}`} key={event.id} style={{ padding: "10px 14px 10px 18px" }}>
               <div className={styles.eventTop}>
                 <div className={styles.eventTitle} style={{ fontSize: 14 }}>{event.title}</div>
-                <span style={{ padding: "4px 8px", borderRadius: 999, background: tone.background, color: tone.color, fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>{inbound ? "received" : event.status || "sent"}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <span style={{ padding: "4px 8px", borderRadius: 999, background: tone.background, color: tone.color, fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>{inbound ? "received" : event.status || "sent"}</span>
+                  {!inbound && event.openCount ? <span style={{ padding: "4px 8px", borderRadius: 999, background: "#eef4ff", color: "#2457a6", fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>Opened {event.openCount}×</span> : null}
+                </div>
               </div>
               <div className={styles.eventMeta} style={{ marginTop: 5 }}>{inbound ? "Reply to Hello" : event.label || "Email"} · {event.at ? formatDateTime(event.at) : "Unknown time"}</div>
               {inbound && event.sender ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>From {event.sender}</div> : null}
               {!inbound && event.recipient ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>Delivered to {event.recipient}</div> : null}
+              {!inbound && event.openCount && event.lastOpenedAt ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>Last opened {formatDateTime(event.lastOpenedAt)}{event.openCount > 1 && event.firstOpenedAt ? ` · First opened ${formatDateTime(event.firstOpenedAt)}` : ""}</div> : null}
               {inbound && event.body ? <div className={styles.eventBody} style={{ marginTop: 9 }}>{event.body}</div> : null}
             </article>;
           }

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
@@ -25,10 +26,10 @@ function base64Url(value: string) {
   return Buffer.from(value, "utf8").toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
 }
 
-function buildRawMessage(to: string, subject: string, body: string, senderFirstName: string) {
+function buildRawMessage(to: string, subject: string, body: string, senderFirstName: string, trackingUrl: string) {
   const altBoundary = `epic_alt_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const plainText = `${body}\n\n${renderEpicPlainTextSignature(senderFirstName)}`;
-  const html = renderEpicEmailHtml(body, senderFirstName);
+  const html = `${renderEpicEmailHtml(body, senderFirstName)}<img src="${trackingUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;opacity:0" />`;
   const lines = [
     `From: ${senderFirstName} at Epic 4X4 Adventures <${EXPECTED_MAILBOX}>`,
     `To: ${to}`,
@@ -123,13 +124,15 @@ export async function POST(request: NextRequest) {
     }
 
     const senderFirstName = firstNameFromDisplayName(profile.display_name);
+    const communicationId = randomUUID();
+    const trackingUrl = new URL(`/api/email/open/${communicationId}`, request.nextUrl.origin).toString();
     const gmailResponse = await fetch(GMAIL_SEND_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${tokenPayload.access_token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ raw: buildRawMessage(recipient, subject, body, senderFirstName) }),
+      body: JSON.stringify({ raw: buildRawMessage(recipient, subject, body, senderFirstName, trackingUrl) }),
       cache: "no-store",
     });
     const gmailPayload = await gmailResponse.json();
@@ -143,6 +146,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: { Prefer: "return=minimal" },
       body: JSON.stringify({
+        id: communicationId,
         confirmation_code: confirmation,
         communication_type: "manual_guest_email",
         customer_name: guest?.customer_name || null,
