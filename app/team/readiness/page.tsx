@@ -4,6 +4,7 @@ import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
 import ReadinessTable from "./ReadinessTable";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
+import ReadinessRealtimeRefresh from "./ReadinessRealtimeRefresh";
 import AutoCancellationPopupWatcher from "./AutoCancellationPopupWatcher";
 import LastSynced from "./LastSynced";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
@@ -41,6 +42,7 @@ export default async function TeamReadinessPage() {
   return (
     <div className={styles.page}>
       <AutoRefresh />
+      <ReadinessRealtimeRefresh />
       <AutoCancellationPopupWatcher />
       <PortalEmailEnhancer />
       <PortalQrEnhancer />
