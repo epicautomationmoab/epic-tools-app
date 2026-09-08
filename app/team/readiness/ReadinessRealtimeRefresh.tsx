@@ -35,6 +35,7 @@ export default function ReadinessRealtimeRefresh() {
   useEffect(() => {
     const config = realtimeUrl();
     if (!config) return;
+    const { url, key } = config;
 
     let socket: WebSocket | null = null;
     let heartbeatId: number | null = null;
@@ -69,7 +70,7 @@ export default function ReadinessRealtimeRefresh() {
 
     function connect() {
       if (stopped) return;
-      socket = new WebSocket(config.url);
+      socket = new WebSocket(url);
 
       socket.addEventListener("open", () => {
         send("phx_join", CHANNEL_TOPIC, {
@@ -85,7 +86,7 @@ export default function ReadinessRealtimeRefresh() {
             ],
             private: false,
           },
-          access_token: config.key,
+          access_token: key,
         });
 
         heartbeatId = window.setInterval(() => {
