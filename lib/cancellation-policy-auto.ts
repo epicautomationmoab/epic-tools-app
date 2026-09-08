@@ -17,11 +17,17 @@ type TripWorksAddon = {
   } | null;
 };
 
-const TRIPSAFE_EXPERIENCE_ADDON_TITLE = "optional travel protection";
+const LEGACY_TRIPSAFE_EXPERIENCE_ADDON_TITLE = "optional travel protection";
 const CANCELLATION_WINDOW_HOURS = 48;
 
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase().replace(/[’]/g, "'");
+}
+
+function isTripSafeExperienceAddonTitle(value: string | null | undefined) {
+  const title = normalize(value);
+  return title === LEGACY_TRIPSAFE_EXPERIENCE_ADDON_TITLE ||
+    (title.includes("tripsafe") && title.includes("protection"));
 }
 
 function selectionFromName(value: string | null | undefined): TripSafeAddonSelection {
@@ -35,7 +41,7 @@ function selectionFromName(value: string | null | undefined): TripSafeAddonSelec
 export function getTripSafeSelection(addons: TripWorksAddon[] | null | undefined): TripSafeAddonSelection {
   const selections = new Set(
     (addons ?? [])
-      .filter((addon) => normalize(addon.experience_addon?.title) === TRIPSAFE_EXPERIENCE_ADDON_TITLE)
+      .filter((addon) => isTripSafeExperienceAddonTitle(addon.experience_addon?.title))
       .map((addon) => selectionFromName(addon.name))
       .filter((selection) => selection !== "unknown"),
   );
