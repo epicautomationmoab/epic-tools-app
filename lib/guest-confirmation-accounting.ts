@@ -92,6 +92,8 @@ const UNKNOWN_POLICY = "Your reservation is subject to Epic 4X4 Adventures cance
 
 export function buildCancellationPolicyText(choice: string | null, policyStatus?: TripSafeStatus | null) {
   if (policyStatus === "confirmed_within_48") return WITHIN_48_POLICY;
+  if (policyStatus === "purchased") return PURCHASED_POLICY;
+  if (policyStatus === "declined") return DECLINED_POLICY;
 
   const normalized = choice?.trim().toLowerCase() ?? "";
   if (normalized.startsWith("yes")) return PURCHASED_POLICY;
