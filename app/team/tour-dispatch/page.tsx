@@ -2,7 +2,7 @@ import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
-import TourDispatchTable, { type TourDispatchRow, type TourManifestGuide } from "./TourDispatchTable";
+import TourDispatchTable, { type TourDispatchRow } from "./TourDispatchTable";
 import { PrintAllVehicleTagsButton } from "./NativePrintButton";
 import shellStyles from "../readiness/ReadinessShell.module.css";
 import styles from "./TourDispatch.module.css";
@@ -19,30 +19,17 @@ function mountainDateString() {
 }
 
 export default async function TourDispatchPage() {
-  const today = mountainDateString();
-
   const params = new URLSearchParams({
-    select: "store_visit_id,readiness_id,confirmation_code,customer_name,product_display_name,visit_start_time,visit_date,source_experience_ids,total_vehicle_count,vehicle_slot,vehicle_label,checkout_mileage,checkout_engine_hours,checkout_status,checkin_status",
-    visit_date: `eq.${today}`,
+    select: "store_visit_id,readiness_id,confirmation_code,customer_name,product_display_name,visit_start_time,total_vehicle_count,vehicle_slot,vehicle_label,checkout_mileage,checkout_engine_hours,checkout_status,checkin_status",
+    visit_date: `eq.${mountainDateString()}`,
     order: "visit_start_time.asc,customer_name.asc,vehicle_slot.asc",
     limit: "200",
   });
 
-  const guideParams = new URLSearchParams({
-    select: "visit_date,experience_key,visit_start_time,guide_name",
-    visit_date: `eq.${today}`,
-    order: "visit_start_time.asc,experience_key.asc",
-    limit: "100",
-  });
-
   let rows: TourDispatchRow[] = [];
-  let guides: TourManifestGuide[] = [];
   let error = "";
   try {
-    [rows, guides] = await Promise.all([
-      supabaseSelect<TourDispatchRow>("tour_vehicle_dispatch_roster_v", params),
-      supabaseSelect<TourManifestGuide>("tour_manifest_guides", guideParams),
-    ]);
+    rows = await supabaseSelect<TourDispatchRow>("tour_vehicle_dispatch_roster_v", params);
   } catch (err) {
     error = err instanceof Error ? err.message : "Unable to load today's tours.";
   }
@@ -66,10 +53,10 @@ export default async function TourDispatchPage() {
         </header>
         <section className={styles.content}>
           <div className={styles.introRow}>
-            <div className={styles.intro}>Today’s MPWR tour manifest. Tours are grouped by experience and departure time, with guests alphabetized inside each manifest.</div>
+            <div className={styles.intro}>Today’s guest-driven MPWR tour vehicles. Enter the assigned car number, starting mileage, and engine hours to prepare the vehicle checkout.</div>
             {!error && rows.length ? <div className={styles.printAllWrap}><PrintAllVehicleTagsButton className={styles.printAllButton} cards={printCards} /></div> : null}
           </div>
-          {error ? <div className={shellStyles.error}>{error}</div> : <TourDispatchTable rows={rows} guides={guides} />}
+          {error ? <div className={shellStyles.error}>{error}</div> : <TourDispatchTable rows={rows} />}
         </section>
       </main>
     </div>

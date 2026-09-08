@@ -19,16 +19,14 @@ import LogoutButton from "./LogoutButton";
 import SharedActionPinEnhancer from "./SharedActionPinEnhancer";
 import AdventureAssureEnhancer from "./AdventureAssureEnhancer";
 import ContactSaveEnhancer from "./ContactSaveEnhancer";
-import StaffNotesDrawerEnhancer from "./StaffNotesDrawerEnhancer";
 import EmailDeliveryAlert from "./EmailDeliveryAlert";
 import EmailDeliveryDrawerEnhancer from "./EmailDeliveryDrawerEnhancer";
 import ReservationDeepLinkEnhancer from "./ReservationDeepLinkEnhancer";
 import NoShowEnhancer from "./NoShowEnhancer";
+import CallRailActivityDrawerEnhancer from "./CallRailActivityDrawerEnhancer";
 import MpwrFinancePanel from "./MpwrFinancePanel";
-import JourneyPreviewOverlay from "./journey-preview/JourneyPreviewOverlay";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
-import "./journey-preview/preview.css";
 
 export default async function TeamReadinessPage() {
   let rows: ReadinessRow[] = [];
@@ -59,8 +57,7 @@ export default async function TeamReadinessPage() {
       <AdventureAssureEnhancer rows={rows} />
       <NoShowEnhancer rows={rows} />
       <ContactSaveEnhancer />
-      <StaffNotesDrawerEnhancer />
-      <JourneyPreviewOverlay rows={rows} />
+      <CallRailActivityDrawerEnhancer />
       <CallAttentionRowEnhancer context="readiness" />
 
       <TeamSidebar active="Guest Readiness" />
