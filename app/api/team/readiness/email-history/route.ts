@@ -44,6 +44,18 @@ type CommunicationRow = {
   sender_name: string | null;
 };
 
+type CommunicationAttemptRow = {
+  id: string;
+  communication_id: string;
+  attempt_type: string;
+  recipient_email: string | null;
+  status: string;
+  requested_by: string | null;
+  provider_message_id: string | null;
+  sending_at: string | null;
+  sent_at: string | null;
+};
+
 type DeliveryRow = {
   provider_message_id: string;
   event_type: string;
@@ -86,6 +98,19 @@ function deliveryLabel(eventType: string | null, fallback: string) {
   return fallback;
 }
 
+function engagementFor(messageId: string | null, eventsByMessage: Map<string, DeliveryRow[]>) {
+  const events = messageId ? eventsByMessage.get(messageId) || [] : [];
+  const transportEvents = events.filter((event) => event.event_type !== "email.opened");
+  const latestTransport = transportEvents.length ? transportEvents[transportEvents.length - 1] : null;
+  const openEvents = events.filter((event) => event.event_type === "email.opened");
+  return {
+    latestTransport,
+    openCount: openEvents.length,
+    firstOpenedAt: openEvents[0]?.event_at || null,
+    lastOpenedAt: openEvents.length ? openEvents[openEvents.length - 1].event_at : null,
+  };
+}
+
 export async function GET(request: NextRequest) {
   const profile = await requireEmployee(request);
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
@@ -105,15 +130,28 @@ export async function GET(request: NextRequest) {
       ),
     ]);
 
-    const messageIds = communications
-      .map((row) => row.provider_message_id)
-      .filter((value): value is string => Boolean(value));
+    const communicationById = new Map(communications.map((row) => [row.id, row]));
+    const communicationIds = communications.map((row) => row.id);
+
+    let attempts: CommunicationAttemptRow[] = [];
+    if (communicationIds.length) {
+      const inList = `(${communicationIds.map((id) => `\"${id.replaceAll('"', '')}\"`).join(",")})`;
+      attempts = await rest<CommunicationAttemptRow[]>(
+        `guest_communication_attempts?communication_id=in.${encodeURIComponent(inList)}&attempt_type=eq.manual_resend&select=${encodeURIComponent("id,communication_id,attempt_type,recipient_email,status,requested_by,provider_message_id,sending_at,sent_at")}&order=sent_at.asc&limit=200`,
+      );
+    }
+
+    const messageIds = [
+      ...communications.map((row) => row.provider_message_id),
+      ...attempts.map((row) => row.provider_message_id),
+    ].filter((value): value is string => Boolean(value));
 
     let deliveries: DeliveryRow[] = [];
     if (messageIds.length) {
-      const inList = `(${messageIds.map((id) => `\"${id.replaceAll('"', '')}\"`).join(",")})`;
+      const uniqueMessageIds = [...new Set(messageIds)];
+      const inList = `(${uniqueMessageIds.map((id) => `\"${id.replaceAll('"', '')}\"`).join(",")})`;
       deliveries = await rest<DeliveryRow[]>(
-        `guest_email_delivery_events?provider_message_id=in.${encodeURIComponent(inList)}&select=${encodeURIComponent("provider_message_id,event_type,event_at")}&order=event_at.asc&limit=2000`,
+        `guest_email_delivery_events?provider_message_id=in.${encodeURIComponent(inList)}&select=${encodeURIComponent("provider_message_id,event_type,event_at")}&order=event_at.asc&limit=3000`,
       );
     }
 
@@ -127,13 +165,7 @@ export async function GET(request: NextRequest) {
     const outboundEmails = communications
       .filter((row) => row.sent_at || row.provider_message_id || row.status === "sent" || row.status === "failed")
       .map((row) => {
-        const events = row.provider_message_id ? eventsByMessage.get(row.provider_message_id) || [] : [];
-        const transportEvents = events.filter((event) => event.event_type !== "email.opened");
-        const latestTransport = transportEvents.length ? transportEvents[transportEvents.length - 1] : null;
-        const openEvents = events.filter((event) => event.event_type === "email.opened");
-        const firstOpenedAt = openEvents[0]?.event_at || null;
-        const lastOpenedAt = openEvents.length ? openEvents[openEvents.length - 1].event_at : null;
-
+        const engagement = engagementFor(row.provider_message_id, eventsByMessage);
         return {
           id: row.id,
           direction: "outbound" as const,
@@ -147,13 +179,38 @@ export async function GET(request: NextRequest) {
           body: row.body_text,
           provider_message_id: row.provider_message_id,
           provider_thread_id: row.provider_thread_id,
-          status: deliveryLabel(latestTransport?.event_type ?? null, row.status),
+          status: deliveryLabel(engagement.latestTransport?.event_type ?? null, row.status),
           error: row.last_error,
-          open_count: openEvents.length,
-          first_opened_at: firstOpenedAt,
-          last_opened_at: lastOpenedAt,
+          open_count: engagement.openCount,
+          first_opened_at: engagement.firstOpenedAt,
+          last_opened_at: engagement.lastOpenedAt,
         };
       });
+
+    const resendEmails = attempts.flatMap((attempt) => {
+      const parent = communicationById.get(attempt.communication_id);
+      if (!parent || parent.communication_type !== "initial_guest_portal") return [];
+      const engagement = engagementFor(attempt.provider_message_id, eventsByMessage);
+      return [{
+        id: `attempt-${attempt.id}`,
+        direction: "outbound" as const,
+        at: attempt.sent_at || attempt.sending_at || parent.created_at,
+        label: "Confirmation Email · Resent",
+        subject: subjectForType(parent.communication_type, parent.subject),
+        communication_type: "initial_guest_portal_resend",
+        recipient: attempt.recipient_email || parent.customer_email,
+        sender: parent.sender_email,
+        sender_name: attempt.requested_by || parent.sender_name,
+        body: parent.body_text,
+        provider_message_id: attempt.provider_message_id,
+        provider_thread_id: null,
+        status: deliveryLabel(engagement.latestTransport?.event_type ?? null, attempt.status || "sent"),
+        error: null,
+        open_count: engagement.openCount,
+        first_opened_at: engagement.firstOpenedAt,
+        last_opened_at: engagement.lastOpenedAt,
+      }];
+    });
 
     const inboundEmails = inbound.map((row) => ({
       id: row.id,
@@ -177,7 +234,8 @@ export async function GET(request: NextRequest) {
       match_confidence: row.match_confidence,
     }));
 
-    const emails = [...outboundEmails, ...inboundEmails].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    const emails = [...outboundEmails, ...resendEmails, ...inboundEmails]
+      .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
     return NextResponse.json({ ok: true, emails });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load email history." }, { status: 500 });
