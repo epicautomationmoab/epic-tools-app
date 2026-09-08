@@ -167,7 +167,9 @@ export default function NoShowEnhancer({ rows }: { rows: NoShowRow[] }) {
     }
 
     function enhanceDrawer() {
-      const drawer = document.querySelector<HTMLElement>("[role='dialog']");
+      const drawer = document.querySelector<HTMLElement>(
+        "[role='dialog'][aria-label$=' reservation details']:not([aria-label$=' historical reservation details'])",
+      );
       if (!drawer || !selectedReadinessId.current) return;
 
       const readinessId = selectedReadinessId.current;
