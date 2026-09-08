@@ -5,6 +5,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/google/gmail/cron",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/guest-communications/run-reminders",
       "schedule": "0 14,15 * * *"
     },
