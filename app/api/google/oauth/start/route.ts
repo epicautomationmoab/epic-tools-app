@@ -1,6 +1,11 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import {
+  authCookieOptions,
+  getAuthenticatedTeamProfile,
+  refreshSessionWithRefreshToken,
+  type SupabaseSession,
+} from "@/lib/team-auth";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const OAUTH_STATE_COOKIE = "epic_google_oauth_state";
@@ -10,6 +15,7 @@ const ALLOWED_MAILBOXES = new Set([
   DEFAULT_MAILBOX,
   "customerservice@epic4x4adventures.com",
 ]);
+const REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -17,11 +23,34 @@ function requiredEnv(name: string) {
   return value;
 }
 
-export async function GET(request: NextRequest) {
-  const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
-  if (!profile || profile.role !== "admin") {
-    return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+async function resolveAdmin(request: NextRequest) {
+  let profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+  let refreshedSession: SupabaseSession | null = null;
+
+  if (!profile) {
+    const refreshToken = request.cookies.get("epic_refresh_token")?.value;
+    if (refreshToken) {
+      try {
+        refreshedSession = await refreshSessionWithRefreshToken(refreshToken);
+        profile = await getAuthenticatedTeamProfile(refreshedSession.access_token);
+      } catch {
+        refreshedSession = null;
+      }
+    }
   }
+
+  return profile?.role === "admin" ? { profile, refreshedSession } : null;
+}
+
+function applyRefreshedSession(response: NextResponse, session: SupabaseSession | null) {
+  if (!session) return;
+  response.cookies.set("epic_access_token", session.access_token, authCookieOptions(session.expires_in ?? 60 * 60));
+  response.cookies.set("epic_refresh_token", session.refresh_token, authCookieOptions(REFRESH_COOKIE_MAX_AGE));
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await resolveAdmin(request);
+  if (!auth) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
 
   try {
     const requestedMailbox = (request.nextUrl.searchParams.get("mailbox") || DEFAULT_MAILBOX).trim().toLowerCase();
@@ -54,6 +83,7 @@ export async function GET(request: NextRequest) {
     };
     response.cookies.set(OAUTH_STATE_COOKIE, state, cookieOptions);
     response.cookies.set(OAUTH_MAILBOX_COOKIE, requestedMailbox, cookieOptions);
+    applyRefreshedSession(response, auth.refreshedSession);
     return response;
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to start Google authorization." }, { status: 500 });
