@@ -79,16 +79,24 @@ export default function ContactSaveEnhancer() {
       event.preventDefault();
       event.stopPropagation();
       target.disabled = true;
-      const originalLabel = target.textContent;
+      const originalLabel = target.textContent || "Save";
       target.textContent = "Saving...";
 
       try {
         await saveContactOverride(confirmationCode, field, value);
         target.textContent = "Saved ✓";
-        window.setTimeout(() => window.location.reload(), 450);
+
+        window.dispatchEvent(new CustomEvent("readiness-contact-saved", {
+          detail: { confirmationCode, field, value },
+        }));
+
+        window.setTimeout(() => {
+          target.disabled = false;
+          target.textContent = originalLabel;
+        }, 1200);
       } catch (error) {
         target.disabled = false;
-        target.textContent = originalLabel || "Save";
+        target.textContent = originalLabel;
         window.alert(
           error instanceof Error ? error.message : "Unable to save guest contact information.",
         );
