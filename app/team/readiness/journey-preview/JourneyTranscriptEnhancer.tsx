@@ -11,7 +11,7 @@ function styleButton(button:HTMLButtonElement){
   Object.assign(button.style,{marginTop:"8px",marginRight:"8px",border:"1px solid #cad6e4",background:"#fff",color:"#184f9d",borderRadius:"8px",padding:"7px 10px",fontSize:"12px",fontWeight:"800",cursor:"pointer"});
 }
 function stylePanel(panel:HTMLDivElement){
-  Object.assign(panel.style,{marginTop:"9px",padding:"14px",border:"1px solid #d7e1ec",borderRadius:"10px",background:"#f7faff",fontSize:"13px",color:"#253141",display:"grid",gap:"10px"});
+  Object.assign(panel.style,{marginTop:"9px",padding:"14px",border:"1px solid #d7e1ec",borderRadius:"10px",background:"#f7faff",fontSize:"13px",color:"#253141",gap:"10px"});
 }
 function parseTranscript(transcript:string):TranscriptTurn[]{
   const parts=transcript.split(/\b(Agent|Caller):\s*/g).filter(Boolean);
@@ -62,13 +62,19 @@ async function enhance(row:ReadinessRow){
     article.dataset.transcriptReady="true";
     const button=document.createElement("button");
     button.type="button";
-    button.textContent="View Transcript";
+    button.textContent="Show Transcript";
+    button.setAttribute("aria-expanded","false");
     styleButton(button);
     const panel=document.createElement("div");
-    panel.hidden=true;
     stylePanel(panel);
     renderTranscript(panel,transcript);
-    button.addEventListener("click",()=>{panel.hidden=!panel.hidden;button.textContent=panel.hidden?"View Transcript":"Hide Transcript";});
+    panel.style.display="none";
+    button.addEventListener("click",()=>{
+      const opening=panel.style.display==="none";
+      panel.style.display=opening?"grid":"none";
+      button.textContent=opening?"Hide Transcript":"Show Transcript";
+      button.setAttribute("aria-expanded",opening?"true":"false");
+    });
     article.append(button,panel);
   }
 }
