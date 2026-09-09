@@ -195,7 +195,6 @@ export async function POST(request: Request) {
     const { data, error } = await resend.emails.send({
       from: requiredEnv("GUEST_EMAIL_FROM"),
       to: recipient,
-      bcc: requiredEnv("GUEST_EMAIL_BCC"),
       replyTo: requiredEnv("GUEST_EMAIL_REPLY_TO"),
       template: {
         id: templateId,
