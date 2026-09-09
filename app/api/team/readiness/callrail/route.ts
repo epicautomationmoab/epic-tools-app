@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
-import { sendCallRailSms } from "@/lib/server/callrail";
+import { formatCallRailConversationalTranscript, getCallRailCall, sendCallRailSms } from "@/lib/server/callrail";
 
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -10,10 +10,11 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
-async function rest<T>(path: string): Promise<T> {
+async function rest<T>(path: string, init?: RequestInit): Promise<T> {
   const { url, key } = getSupabaseConfig();
   const response = await fetch(`${url}/rest/v1/${path}`, {
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    ...init,
+    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...(init?.headers || {}) },
     cache: "no-store",
   });
   const text = await response.text();
@@ -44,6 +45,14 @@ function bookingSoldBy(method: string | null, tripPayload: unknown) {
     if (creator && typeof creator.full_name === "string" && creator.full_name.trim()) return creator.full_name.trim();
   }
   if (method?.trim().toLowerCase() === "e-commerce") return "Online";
+  return null;
+}
+
+function callRailString(payload: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
   return null;
 }
 
@@ -89,6 +98,35 @@ type NormalizedCall = {
   last_touch: Record<string, unknown> | null;
 };
 
+async function enrichCallFromCallRail(call: NormalizedCall): Promise<NormalizedCall> {
+  if (call.transcription_text) return call;
+  try {
+    const payload = await getCallRailCall(call.callrail_call_id);
+    const transcript = formatCallRailConversationalTranscript(payload.conversational_transcript) || callRailString(payload, "transcription");
+    const summary = callRailString(payload, "call_summary", "summary") || call.call_summary;
+    const recordingUrl = callRailString(payload, "recording") || call.recording_url;
+    const recordingPlayerUrl = callRailString(payload, "recording_player") || call.recording_player_url;
+    if (!transcript && !summary && !recordingUrl && !recordingPlayerUrl) return call;
+
+    const updates = {
+      transcription_text: transcript || call.transcription_text,
+      call_summary: summary,
+      recording_url: recordingUrl,
+      recording_player_url: recordingPlayerUrl,
+      last_received_at: new Date().toISOString(),
+    };
+    await rest<void>(`callrail_calls?callrail_call_id=eq.${encodeURIComponent(call.callrail_call_id)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(updates),
+    });
+    return { ...call, ...updates };
+  } catch (error) {
+    console.warn("Unable to enrich CallRail transcript", call.callrail_call_id, error);
+    return call;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const profile = await requireEmployee(request);
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
@@ -114,7 +152,7 @@ export async function GET(request: NextRequest) {
     const normalizedPhone = await readinessPhoneForConfirmation(confirmation, reservation.customer_phone || null);
     const callSelect = "callrail_call_id,start_time,last_received_at,direction,answered,voicemail,duration_seconds,customer_name,customer_phone_number,recording_player_url,recording_url,call_summary,transcription_text,lead_score,lead_explanation,sentiment,call_highlights,speaker_percent,keywords,source_name,campaign,medium,device_type,customer_city,customer_state,landing_page_url,referring_url,timeline_url,person_resource_id,lead_status,first_touch,last_touch";
 
-    const [normalizedCalls, messages] = await Promise.all([
+    const [storedCalls, messages] = await Promise.all([
       rest<NormalizedCall[]>(
         `callrail_calls?matched_reservation_id=eq.${encodeURIComponent(reservationId)}&select=${encodeURIComponent(callSelect)}&order=start_time.asc.nullslast,last_received_at.asc&limit=500`,
       ),
@@ -135,6 +173,7 @@ export async function GET(request: NextRequest) {
         : Promise.resolve([]),
     ]);
 
+    const normalizedCalls = await Promise.all(storedCalls.map(enrichCallFromCallRail));
     const calls = normalizedCalls.map((call) => ({
       id: call.callrail_call_id,
       at: call.start_time || call.last_received_at,
