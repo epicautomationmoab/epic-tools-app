@@ -346,7 +346,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
               </div>
               <div className={styles.eventMeta} style={{ marginTop: 5 }}>{inbound ? "Reply to Hello" : event.label || "Email"} · {event.at ? formatDateTime(event.at) : "Unknown time"}</div>
               {inbound && event.sender ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>From {event.sender}</div> : null}
-              {!inbound && event.recipient ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>Delivered to {event.recipient}</div> : null}
+              {!inbound && event.recipient ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>Sent to {event.recipient}</div> : null}
               {!inbound && event.openCount && event.lastOpenedAt ? <div className={styles.eventMeta} style={{ marginTop: 4 }}>Last opened {formatDateTime(event.lastOpenedAt)}{event.openCount > 1 && event.firstOpenedAt ? ` · First opened ${formatDateTime(event.firstOpenedAt)}` : ""}</div> : null}
               {inbound && event.body ? <div className={styles.eventBody} style={{ marginTop: 9 }}>{event.body}</div> : null}
             </article>;
