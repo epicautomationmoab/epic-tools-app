@@ -152,10 +152,15 @@ export async function GET(request: NextRequest) {
     const normalizedPhone = await readinessPhoneForConfirmation(confirmation, reservation.customer_phone || null);
     const callSelect = "callrail_call_id,start_time,last_received_at,direction,answered,voicemail,duration_seconds,customer_name,customer_phone_number,recording_player_url,recording_url,call_summary,transcription_text,lead_score,lead_explanation,sentiment,call_highlights,speaker_percent,keywords,source_name,campaign,medium,device_type,customer_city,customer_state,landing_page_url,referring_url,timeline_url,person_resource_id,lead_status,first_touch,last_touch";
 
-    const [storedCalls, messages] = await Promise.all([
+    const [reservationCalls, phoneCalls, messages] = await Promise.all([
       rest<NormalizedCall[]>(
         `callrail_calls?matched_reservation_id=eq.${encodeURIComponent(reservationId)}&select=${encodeURIComponent(callSelect)}&order=start_time.asc.nullslast,last_received_at.asc&limit=500`,
       ),
+      normalizedPhone
+        ? rest<NormalizedCall[]>(
+            `callrail_calls?normalized_customer_phone=eq.${encodeURIComponent(normalizedPhone)}&select=${encodeURIComponent(callSelect)}&order=start_time.asc.nullslast,last_received_at.asc&limit=500`,
+          )
+        : Promise.resolve([]),
       normalizedPhone
         ? rest<Array<{
             message_id: string;
@@ -172,6 +177,9 @@ export async function GET(request: NextRequest) {
           )
         : Promise.resolve([]),
     ]);
+
+    const storedCalls = [...new Map([...reservationCalls, ...phoneCalls].map((call) => [call.callrail_call_id, call])).values()]
+      .sort((a, b) => new Date(a.start_time || a.last_received_at).getTime() - new Date(b.start_time || b.last_received_at).getTime());
 
     const normalizedCalls = await Promise.all(storedCalls.map(enrichCallFromCallRail));
     const calls = normalizedCalls.map((call) => ({
