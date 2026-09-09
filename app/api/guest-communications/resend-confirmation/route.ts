@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
 
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
-      from: requiredEnv("GUEST_EMAIL_FROM"), to: recipientEmail, bcc: requiredEnv("GUEST_EMAIL_BCC"), replyTo: requiredEnv("GUEST_EMAIL_REPLY_TO"),
+      from: requiredEnv("GUEST_EMAIL_FROM"), to: recipientEmail, replyTo: requiredEnv("GUEST_EMAIL_REPLY_TO"),
       template: { id: requiredEnv("RESEND_CONFIRMATION_TEMPLATE_ID"), variables: {
         ARRIVAL_INSTRUCTIONS: "Please arrive 15 minutes before your scheduled departure time.",
         CANCELLATION_POLICY_TEXT: buildCancellationPolicyText(financial.travel_protection_choice, policyDecision.status),
