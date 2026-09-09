@@ -219,7 +219,7 @@ export async function POST(request: Request) {
 
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
-      from: requiredEnv("GUEST_EMAIL_FROM"), to: recipient, bcc: requiredEnv("GUEST_EMAIL_BCC"), replyTo: requiredEnv("GUEST_EMAIL_REPLY_TO"),
+      from: requiredEnv("GUEST_EMAIL_FROM"), to: recipient, replyTo: requiredEnv("GUEST_EMAIL_REPLY_TO"),
       template: { id: templateIdFor(communication.communication_type), variables },
     }, { idempotencyKey: `guest-communication-${communication.id}` });
 
