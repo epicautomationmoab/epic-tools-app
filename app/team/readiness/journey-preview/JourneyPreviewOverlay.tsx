@@ -7,6 +7,7 @@ import JourneyEmailComposerEnhancer from "./JourneyEmailComposerEnhancer";
 import JourneyCallClassificationEnhancer from "./JourneyCallClassificationEnhancer";
 import JourneyReachOutLabelEnhancer from "./JourneyReachOutLabelEnhancer";
 import JourneyBookingTimelineEnhancer from "./JourneyBookingTimelineEnhancer";
+import JourneyTranscriptEnhancer from "./JourneyTranscriptEnhancer";
 
 function normalizedText(element: Element | null) {
   return element?.textContent?.replace(/\s+/g, " ").trim().toLowerCase() || "";
@@ -103,6 +104,7 @@ export default function JourneyPreviewOverlay({ rows }: { rows: ReadinessRow[] }
       <JourneyCallClassificationEnhancer row={selected} />
       <JourneyReachOutLabelEnhancer />
       <JourneyBookingTimelineEnhancer row={selected} />
+      <JourneyTranscriptEnhancer row={selected} />
     </>
   ) : null;
 }
