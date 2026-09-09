@@ -45,6 +45,37 @@ async function resolveIdentifiers() {
   return identifiersPromise;
 }
 
+export async function getCallRailCall(callId: string) {
+  const { accountId } = await resolveIdentifiers();
+  const fields = [
+    "transcription",
+    "conversational_transcript",
+    "call_summary",
+    "recording",
+    "recording_player",
+    "recording_duration",
+    "sentiment",
+    "call_highlights",
+    "speaker_percent",
+    "lead_status",
+  ].join(",");
+  return callRailGet(`/v3/a/${encodeURIComponent(accountId)}/calls/${encodeURIComponent(callId)}.json?fields=${encodeURIComponent(fields)}`);
+}
+
+export function formatCallRailConversationalTranscript(value: unknown) {
+  if (!Array.isArray(value)) return null;
+  const lines = value.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const row = item as Record<string, unknown>;
+    const phrase = typeof row.phrase === "string" ? row.phrase.trim() : "";
+    if (!phrase) return [];
+    const speakerRaw = typeof row.speaker === "string" ? row.speaker.trim().toLowerCase() : "";
+    const speaker = speakerRaw === "caller" ? "Guest" : speakerRaw === "agent" ? "Epic" : "Speaker";
+    return [`${speaker}: ${phrase}`];
+  });
+  return lines.length ? lines.join("\n\n") : null;
+}
+
 export async function getCallRailTextConversation(conversationId: string) {
   const { accountId } = await resolveIdentifiers();
   return callRailGet(`/v3/a/${encodeURIComponent(accountId)}/text-messages/${encodeURIComponent(conversationId)}.json?per_page=100&with_msg_errors=true`);
