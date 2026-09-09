@@ -22,6 +22,8 @@ type CommunicationRow = {
   test_recipient_email: string | null;
 };
 
+type ReadinessContactRow = { effective_email: string | null };
+
 type GuestPortalRow = {
   product_display_name: string;
   visit_start_time: string;
@@ -126,6 +128,15 @@ async function loadNextCommunication() {
   return fetchOneCommunication(new URLSearchParams({ select: "*", communication_type: "eq.initial_guest_portal", status: "eq.ready", customer_email: "not.is.null", order: "ready_at.asc,queued_at.asc", limit: "1" }));
 }
 
+async function loadEffectiveEmail(confirmationCode: string, fallback: string | null) {
+  const config = getSupabaseConfig();
+  const params = new URLSearchParams({ select: "effective_email", confirmation_code: `eq.${confirmationCode}`, limit: "1" });
+  const response = await fetch(`${config.url}/rest/v1/dashboard_guest_readiness_sot?${params}`, { headers: supabaseHeaders(config.key), cache: "no-store" });
+  if (!response.ok) throw new Error(`Unable to load effective guest email: ${await response.text()}`);
+  const rows = (await response.json()) as ReadinessContactRow[];
+  return rows[0]?.effective_email?.trim() || fallback?.trim() || null;
+}
+
 async function loadGuestPortalRows(token: string) {
   const config = getSupabaseConfig();
   const params = new URLSearchParams({ select: "*", guest_portal_token: `eq.${token}`, order: "visit_start_time.asc" });
@@ -191,9 +202,10 @@ export async function POST(request: Request) {
   await updateCommunication(communication.id, { status: "sending", attempt_count: (communication.attempt_count ?? 0) + 1, last_attempt_at: attemptTime, last_error: null });
 
   try {
+    const effectiveEmail = await loadEffectiveEmail(communication.confirmation_code, communication.customer_email);
     const configuredMode = process.env.GUEST_EMAIL_MODE?.trim().toLowerCase() ?? "test";
     const mustUseTestRecipient = configuredMode !== "production" || communication.test_mode === true;
-    const recipient = mustUseTestRecipient ? communication.test_recipient_email || requiredEnv("GUEST_EMAIL_TEST_RECIPIENT") : communication.customer_email;
+    const recipient = mustUseTestRecipient ? communication.test_recipient_email || requiredEnv("GUEST_EMAIL_TEST_RECIPIENT") : effectiveEmail;
     if (!recipient) throw new Error("No recipient email address is available.");
 
     const readiness = buildReadinessMessage(portalRows);
@@ -201,7 +213,7 @@ export async function POST(request: Request) {
     const portalUrl = `${requiredEnv("GUEST_PORTAL_BASE_URL").replace(/\/+$/, "")}/guest/${communication.guest_portal_token}`;
     const variables: Record<string, string> = {
       ARRIVAL_INSTRUCTIONS: "Please arrive 15 minutes before your scheduled departure time.", CONFIRMATION_CODE: communication.confirmation_code,
-      DIRECTIONS_URL: location.directionsUrl, GUEST_NAME: firstName(communication.customer_name), INTENDED_RECIPIENT: communication.customer_email ?? "",
+      DIRECTIONS_URL: location.directionsUrl, GUEST_NAME: firstName(communication.customer_name), INTENDED_RECIPIENT: effectiveEmail ?? "",
       LOCATION_SUMMARY: location.address, PORTAL_URL: portalUrl, READINESS_HEADLINE: readiness.headline, READINESS_MESSAGE: readiness.message,
       RESERVATION_SUMMARY: buildReservationSummary(portalRows),
     };
@@ -226,7 +238,7 @@ export async function POST(request: Request) {
     if (error) throw new Error(error.message);
     if (!data?.id) throw new Error("Resend did not return a message ID.");
     await updateCommunication(communication.id, { status: "sent", provider_message_id: data.id, sent_at: new Date().toISOString(), ready_at: communication.scheduled_for ?? attemptTime, test_mode: mustUseTestRecipient, test_recipient_email: mustUseTestRecipient ? recipient : null, last_error: null });
-    return NextResponse.json({ ok: true, sent: true, communicationId: communication.id, confirmationCode: communication.confirmation_code, communicationType: communication.communication_type, recipient, intendedRecipient: communication.customer_email, testMode: mustUseTestRecipient, providerMessageId: data.id });
+    return NextResponse.json({ ok: true, sent: true, communicationId: communication.id, confirmationCode: communication.confirmation_code, communicationType: communication.communication_type, recipient, intendedRecipient: effectiveEmail, testMode: mustUseTestRecipient, providerMessageId: data.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown email sender error.";
     await updateCommunication(communication.id, { status: "failed", last_error: message.slice(0, 1000) });
