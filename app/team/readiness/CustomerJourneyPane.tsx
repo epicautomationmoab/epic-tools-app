@@ -222,7 +222,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       direction: email.direction,
       at: email.at,
       title: email.subject,
-      meta: email.direction === "inbound" ? [email.label, email.sender ? `from ${email.sender}` : null].filter(Boolean).join(" · ") : [email.label, email.open_count ? `opened ${email.open_count}×` : null].filter(Boolean).join(" · "),
+      meta: email.direction === "inbound" ? [email.label, email.sender ? `from ${email.sender}` : null].filter(Boolean).join(" · ") : email.label,
       label: email.label,
       recipient: email.recipient,
       sender: email.sender,
@@ -341,7 +341,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
                 <div className={styles.eventTitle} style={{ fontSize: 14 }}>{event.title}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   <span style={{ padding: "4px 8px", borderRadius: 999, background: tone.background, color: tone.color, fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>{inbound ? "received" : event.status || "sent"}</span>
-                  {!inbound && event.openCount ? <span style={{ padding: "4px 8px", borderRadius: 999, background: "#eef4ff", color: "#2457a6", fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>Opened {event.openCount}×</span> : null}
+                  {!inbound && event.openCount ? <span style={{ padding: "4px 8px", borderRadius: 999, background: "#eef4ff", color: "#2457a6", fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>Opened {event.openCount}X</span> : null}
                 </div>
               </div>
               <div className={styles.eventMeta} style={{ marginTop: 5 }}>{inbound ? "Reply to Hello" : event.label || "Email"} · {event.at ? formatDateTime(event.at) : "Unknown time"}</div>
@@ -353,7 +353,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
           }
           return <article id={`comm-${event.id}`} className={`${styles.event} ${styles[`event_${event.kind}`] || ""} ${event.kind === "text" && event.direction ? styles[`event_text_${event.direction}`] || "" : ""} ${filter === "all" ? styles.eventCompact : ""}`} key={event.id}>
             <div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={`${styles.eventKind} ${styles[`kind_${event.kind}`] || ""}`}>{timelineLabel(event)}</span></div>
-            <div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}</div>
+            <div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}{event.kind === "email" && event.openCount ? <> · <strong style={{ fontWeight: 800 }}>Opened {event.openCount}X</strong></> : null}</div>
             {event.body ? <div className={styles.eventBody}>{event.body}</div> : null}
             {event.href ? <a className={styles.eventLink} href={event.href} target="_blank" rel="noreferrer">Listen to recording ↗</a> : null}
           </article>;
