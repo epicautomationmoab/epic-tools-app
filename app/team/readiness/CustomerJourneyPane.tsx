@@ -171,7 +171,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to send text message.");
-      if (typeof payload.customer_phone === "string") setEffectivePhone(payload.customer_phone);
+      if (typeof payload.customer_phone === "string") setEffectivePhone(callrailPayload.customer_phone);
       setSmsText("");
       setSmsStatus("Sent ✓");
       window.setTimeout(() => setSmsStatus(""), 2500);
@@ -333,7 +333,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
 
       {filter !== "outbound" ? <div className={`${styles.timeline} ${filter === "all" ? styles.timelineAll : ""}`}>
         {visible.map((event) => {
-          if (filter === "email" && event.kind === "email") {
+          if ((filter === "email" || filter === "all") && event.kind === "email") {
             const tone = statusTone(event.status);
             const inbound = event.direction === "inbound";
             return <article id={`comm-${event.id}`} className={`${styles.event} ${styles.event_email}`} key={event.id} style={{ padding: "10px 14px 10px 18px" }}>
