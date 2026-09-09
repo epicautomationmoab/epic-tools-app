@@ -183,14 +183,17 @@ export async function POST(request: NextRequest) {
     if (!communicationId) return NextResponse.json({ ok: true, matched: false });
 
     if (eventType === "email.delivered") {
-      const response = await fetch(`${url}/rest/v1/guest_email_delivery_incidents?provider_message_id=eq.${encodeURIComponent(messageId)}&status=neq.resolved`, {
+      const incidentFilter = confirmationCode
+        ? `confirmation_code=eq.${encodeURIComponent(confirmationCode)}&status=neq.resolved`
+        : `provider_message_id=eq.${encodeURIComponent(messageId)}&status=neq.resolved`;
+      const response = await fetch(`${url}/rest/v1/guest_email_delivery_incidents?${incidentFilter}`, {
         method: "PATCH",
         headers: { ...headers(key), Prefer: "return=minimal" },
         body: JSON.stringify({
           status: "resolved",
           resolved_by: "resend_delivery",
           resolved_at: eventAt,
-          resolution_note: "Resend reported successful delivery.",
+          resolution_note: "A confirmation email for this reservation was successfully delivered by Resend.",
           updated_at: new Date().toISOString(),
         }),
       });
