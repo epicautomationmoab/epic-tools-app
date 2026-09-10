@@ -171,7 +171,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to send text message.");
-      if (typeof payload.customer_phone === "string") setEffectivePhone(callrailPayload.customer_phone);
+      if (typeof payload.customer_phone === "string") setEffectivePhone(payload.customer_phone);
       setSmsText("");
       setSmsStatus("Sent ✓");
       window.setTimeout(() => setSmsStatus(""), 2500);
