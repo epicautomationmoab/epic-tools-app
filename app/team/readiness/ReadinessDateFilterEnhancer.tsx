@@ -24,8 +24,16 @@ function findTimeFilterGroup() {
 }
 
 function findReadinessBody() {
-  const table = document.querySelector('table');
-  return table?.querySelector("tbody") as HTMLTableSectionElement | null;
+  const tables = Array.from(document.querySelectorAll("table"));
+  const readinessTable = tables.find((table) => {
+    const headings = Array.from(table.querySelectorAll("thead th"))
+      .map((heading) => heading.textContent?.trim())
+      .filter(Boolean);
+
+    return headings.includes("Visit") && headings.includes("Guest") && headings.includes("Activity");
+  });
+
+  return readinessTable?.querySelector("tbody") as HTMLTableSectionElement | null;
 }
 
 export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessRow[] }) {
@@ -87,6 +95,20 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
     group.addEventListener("click", onTimeFilterClick);
     return () => group.removeEventListener("click", onTimeFilterClick);
   }, [target]);
+
+  useEffect(() => {
+    if (!selectedDate || !activeButtonClass) return;
+
+    const group = findTimeFilterGroup();
+    const allButton = Array.from(group?.querySelectorAll("button") ?? []).find(
+      (button) => button.textContent?.trim() === "All",
+    );
+
+    activeButtonClass
+      .split(/\s+/)
+      .filter(Boolean)
+      .forEach((className) => allButton?.classList.remove(className));
+  }, [selectedDate, activeButtonClass]);
 
   useEffect(() => {
     const body = findReadinessBody();
