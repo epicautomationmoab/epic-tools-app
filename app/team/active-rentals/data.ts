@@ -57,14 +57,17 @@ async function fetchJson<T>(path: string, params: URLSearchParams): Promise<T[]>
 
 export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
   const today = mountainDateKey();
+  const yesterday = mountainDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
   const readinessParams = new URLSearchParams({
     select: "readiness_id,visit_start_time,confirmation_code,customer_name,business_line,product_display_name,rental_duration,total_vehicle_count,vehicle_breakdown",
     business_line: "eq.rental",
     archived_at: "is.null",
-    visit_start_time: `lt.${today}T00:00:00`,
+    live_dashboard_visible: "eq.true",
+    visit_start_time: `gte.${yesterday}T00:00:00`,
     order: "visit_start_time.asc",
     limit: "500",
   });
+  readinessParams.append("visit_start_time", `lt.${today}T00:00:00`);
 
   const readinessRows = await fetchJson<ReadinessSourceRow>("guest_readiness_operational", readinessParams);
   if (readinessRows.length === 0) return [];
