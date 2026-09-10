@@ -2,6 +2,7 @@ import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
 import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
 import ReadinessTable from "./ReadinessTable";
+import ReadinessDateFilterEnhancer from "./ReadinessDateFilterEnhancer";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
 import ReadinessRealtimeRefresh from "./ReadinessRealtimeRefresh";
@@ -64,6 +65,7 @@ export default async function TeamReadinessPage() {
       <StaffNotesDrawerEnhancer />
       <JourneyPreviewOverlay rows={rows} />
       <CallAttentionRowEnhancer context="readiness" />
+      <ReadinessDateFilterEnhancer rows={rows} />
 
       <TeamSidebar active="Guest Readiness" />
 
