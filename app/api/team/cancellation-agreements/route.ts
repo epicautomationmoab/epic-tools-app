@@ -27,6 +27,7 @@ type AgreementRequest = {
   id: string;
   readiness_id: string;
   confirmation_code: string;
+  customer_name: string | null;
   customer_phone: string | null;
   customer_email: string | null;
   tripsafe_status: TripSafeStatus;
@@ -82,6 +83,10 @@ function normalizeEmail(value: string) {
   return email;
 }
 
+function normalizeName(value: string | null | undefined) {
+  return (value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 function tokenHash(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -120,7 +125,7 @@ async function loadLatestAgreement(readinessId: string) {
   const rows = await supabaseSelect<AgreementRequest>(
     "cancellation_agreement_requests",
     new URLSearchParams({
-      select: "id,readiness_id,confirmation_code,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,podium_delivery_status,email_delivery_status,delivery_mode,last_error,expires_at,created_at",
+      select: "id,readiness_id,confirmation_code,customer_name,customer_phone,customer_email,tripsafe_status,status,sent_by,sent_at,opened_at,accepted_at,podium_delivery_status,email_delivery_status,delivery_mode,last_error,expires_at,created_at",
       readiness_id: `eq.${readinessId}`,
       order: "created_at.desc",
       limit: "1",
@@ -192,7 +197,7 @@ export async function DELETE(request: NextRequest) {
     const agreement = await loadLatestAgreement(readinessId);
     if (!agreement) return NextResponse.json({ error: "Agreement was not found." }, { status: 404 });
     if (agreement.status === "accepted") {
-      return NextResponse.json({ error: "Accepted agreements cannot be reset." }, { status: 409 });
+      return NextResponse.json({ error: "Accepted agreements cannot be reset. If the reservation name changed, use Reset for new guest instead." }, { status: 409 });
     }
 
     if (["created", "sent", "opened"].includes(agreement.status)) {
@@ -217,6 +222,7 @@ export async function POST(request: NextRequest) {
     readinessId?: string;
     tripSafeStatus?: TripSafeStatus;
     policyOverride?: boolean;
+    replacementAccepted?: boolean;
     sentBy?: string;
     deliveryMode?: "sms" | "email" | "both" | "copy";
     phone?: string;
@@ -243,7 +249,18 @@ export async function POST(request: NextRequest) {
     if (!readiness) return NextResponse.json({ error: "Reservation was not found." }, { status: 404 });
 
     const existingAgreement = await loadLatestAgreement(readinessId);
-    if (deliveryMode !== "copy" && blocksDuplicateSend(existingAgreement)) {
+    const replacingAcceptedForNameChange = Boolean(
+      body.replacementAccepted
+      && existingAgreement?.status === "accepted"
+      && normalizeName(existingAgreement.customer_name)
+      && normalizeName(existingAgreement.customer_name) !== normalizeName(readiness.customer_name),
+    );
+
+    if (body.replacementAccepted && !replacingAcceptedForNameChange) {
+      return NextResponse.json({ error: "A replacement acknowledgement is only allowed when the accepted agreement belongs to a different guest name." }, { status: 409 });
+    }
+
+    if (deliveryMode !== "copy" && blocksDuplicateSend(existingAgreement) && !replacingAcceptedForNameChange) {
       return NextResponse.json({
         ok: true,
         duplicatePrevented: true,
