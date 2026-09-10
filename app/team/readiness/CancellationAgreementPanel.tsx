@@ -8,6 +8,7 @@ type TripSafeStatus = "declined" | "purchased" | "confirmed_within_48";
 
 type AgreementStatus = {
   id: string;
+  customer_name: string | null;
   status: "created" | "sent" | "opened" | "accepted" | "failed" | "expired";
   tripsafe_status: TripSafeStatus;
   delivery_mode: "sms" | "email" | "both" | "copy";
@@ -55,6 +56,10 @@ function policyLabel(status: TripSafeStatus) {
   return "TripSafe Declined — 48-Hour Policy";
 }
 
+function normalizeName(value: string | null | undefined) {
+  return (value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 export default function CancellationAgreementPanel({
   row,
   autoOpen = false,
@@ -66,6 +71,7 @@ export default function CancellationAgreementPanel({
   const [tripSafeStatus, setTripSafeStatus] = useState<TripSafeStatus>("declined");
   const [policyDecision, setPolicyDecision] = useState<PolicyDecision | null>(null);
   const [overridePolicy, setOverridePolicy] = useState(false);
+  const [replacingAccepted, setReplacingAccepted] = useState(false);
   const [sentBy, setSentBy] = useState("");
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -140,11 +146,12 @@ export default function CancellationAgreementPanel({
     setAgreement(null);
     setPolicyDecision(null);
     setOverridePolicy(false);
+    setReplacingAccepted(false);
     setError("");
     setPhone(row.customer_phone || "");
     setEmail(row.customer_email || "");
     void loadStatus();
-  }, [row.readiness_id, row.customer_phone, row.customer_email, autoOpen]);
+  }, [row.readiness_id, row.customer_name, row.customer_phone, row.customer_email, autoOpen]);
 
   useEffect(() => {
     if (!agreement || !["created", "sent", "opened"].includes(agreement.status)) return;
@@ -174,6 +181,7 @@ export default function CancellationAgreementPanel({
           readinessId: row.readiness_id,
           tripSafeStatus,
           policyOverride: Boolean(policyDecision?.status && overridePolicy),
+          replacementAccepted: replacingAccepted,
           sentBy: authProfile ? undefined : sentBy,
           deliveryMode: mode,
           phone,
@@ -186,6 +194,7 @@ export default function CancellationAgreementPanel({
         await navigator.clipboard.writeText(data.agreementUrl);
         setCopied(true);
       }
+      setReplacingAccepted(false);
       await loadStatus(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to send agreement.");
@@ -214,7 +223,12 @@ export default function CancellationAgreementPanel({
     }
   }
 
-  const canSend = !agreement || ["failed", "expired"].includes(agreement.status);
+  const acceptedNameChanged = Boolean(
+    agreement?.status === "accepted"
+    && normalizeName(agreement.customer_name)
+    && normalizeName(agreement.customer_name) !== normalizeName(row.customer_name),
+  );
+  const canSend = replacingAccepted || !agreement || ["failed", "expired"].includes(agreement.status);
   const canReset = Boolean(agreement && ["created", "sent", "opened"].includes(agreement.status));
   const workstationBlocked = authProfile?.role === "workstation";
   const automaticPolicy = Boolean(policyDecision?.status);
@@ -324,7 +338,7 @@ export default function CancellationAgreementPanel({
                   <strong>{statusLabel(agreement.status)}</strong>
                   <span>
                     {agreement.status === "accepted"
-                      ? `${agreement.signer_name || row.customer_name} · ${agreement.accepted_at ? new Date(agreement.accepted_at).toLocaleString() : "recorded"}`
+                      ? `${agreement.signer_name || agreement.customer_name || row.customer_name} · ${agreement.accepted_at ? new Date(agreement.accepted_at).toLocaleString() : "recorded"}`
                       : `${agreement.tripsafe_status === "purchased"
                         ? "TripSafe purchased — 1-hour policy"
                         : agreement.tripsafe_status === "confirmed_within_48"
@@ -339,6 +353,23 @@ export default function CancellationAgreementPanel({
                       {resetting ? "Resetting…" : "Reset agreement"}
                     </button>
                   ) : null}
+                  {acceptedNameChanged && !replacingAccepted ? (
+                    <button
+                      type="button"
+                      className={styles.resetButton}
+                      onClick={() => {
+                        if (window.confirm(`The accepted acknowledgement belongs to ${agreement.customer_name || agreement.signer_name || "the prior guest"}. Keep that audit record and send a new acknowledgement to ${row.customer_name}?`)) {
+                          setReplacingAccepted(true);
+                          setPhone(row.customer_phone || "");
+                          setEmail(row.customer_email || "");
+                          if (policyDecision?.status) setTripSafeStatus(policyDecision.status);
+                        }
+                      }}
+                    >
+                      Reset for new guest
+                    </button>
+                  ) : null}
+                  {replacingAccepted ? <small>Prior acceptance will be preserved. Send a new acknowledgement to {row.customer_name} below.</small> : null}
                 </div>
               ) : null}
 
@@ -420,12 +451,17 @@ export default function CancellationAgreementPanel({
 
                   {podiumConfigured || emailConfigured ? (
                     <button type="button" disabled={sending || copying || workstationBlocked} onClick={() => void createAgreement(deliveryMode)}>
-                      {sending ? "Sending…" : "Send Agreement"}
+                      {sending ? "Sending…" : replacingAccepted ? "Send New Agreement" : "Send Agreement"}
                     </button>
                   ) : null}
                   <button type="button" className={styles.copyButton} disabled={sending || copying || workstationBlocked} onClick={() => void createAgreement("copy")}>
-                    {copying ? "Creating…" : copied ? "Link Copied" : "Copy Link"}
+                    {copying ? "Creating…" : copied ? "Link Copied" : replacingAccepted ? "Copy New Link" : "Copy Link"}
                   </button>
+                  {replacingAccepted ? (
+                    <button type="button" className={styles.textButton} onClick={() => setReplacingAccepted(false)}>
+                      Cancel new guest reset
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
 
