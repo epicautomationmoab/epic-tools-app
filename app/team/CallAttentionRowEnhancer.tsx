@@ -7,6 +7,9 @@ type Alert = {
   alert_kind:string; customer_name:string|null; phone:string|null; confirmation_code:string|null;
 };
 
+const READINESS_SYNC_EVENT = "epic-readiness-synced";
+const FALLBACK_REFRESH_MS = 30000;
+
 function compact(value:string|null|undefined){return (value||"").toLowerCase().replace(/[^a-z0-9]/g,"")}
 function phoneDigits(value:string|null|undefined){const d=(value||"").replace(/\D/g,"");return d.slice(-10)}
 function clearAlertStyle(row:HTMLElement){
@@ -22,6 +25,7 @@ function clearAlertStyle(row:HTMLElement){
 export default function CallAttentionRowEnhancer({context}:{context:"leads"|"readiness"}){
   useEffect(()=>{
     let stopped=false;
+    let requestInFlight=false;
     const clickHandler=(event:Event)=>{
       const row=(event.currentTarget as HTMLElement);
       const id=row.dataset.callAttentionTarget;
@@ -33,7 +37,8 @@ export default function CallAttentionRowEnhancer({context}:{context:"leads"|"rea
     };
 
     async function refresh(){
-      if(stopped||document.visibilityState!=="visible")return;
+      if(stopped||requestInFlight||document.visibilityState!=="visible")return;
+      requestInFlight=true;
       try{
         const response=await fetch(`/api/team/call-attention?context=${context}`,{cache:"no-store"});
         const payload=await response.json(); if(!response.ok)return;
@@ -59,10 +64,24 @@ export default function CallAttentionRowEnhancer({context}:{context:"leads"|"rea
           const first=row.querySelector("td");
           if(first){const badge=document.createElement("div");badge.dataset.callAttentionBadge="1";badge.textContent=match.alert_kind==="abandoned_call"?"ABANDONED CALL":"MISSED CALL";Object.assign(badge.style,{display:"inline-block",marginTop:"5px",padding:"3px 7px",borderRadius:"999px",background:"#b42318",color:"white",fontSize:"10px",fontWeight:"900",letterSpacing:".06em"});first.appendChild(badge)}
         }
-      }catch{}
+      }catch{}finally{requestInFlight=false}
     }
-    void refresh(); const timer=window.setInterval(()=>void refresh(),3000);
-    return()=>{stopped=true;window.clearInterval(timer);document.querySelectorAll("main table tbody tr").forEach(node=>{const row=node as HTMLElement;if(row.dataset.callAttentionBound==="1")row.removeEventListener("click",clickHandler)})};
+
+    const onReadinessSynced=()=>{if(context==="readiness")void refresh()};
+    const onVisibilityChange=()=>{if(document.visibilityState==="visible")void refresh()};
+
+    void refresh();
+    window.addEventListener(READINESS_SYNC_EVENT,onReadinessSynced);
+    document.addEventListener("visibilitychange",onVisibilityChange);
+    const timer=window.setInterval(()=>void refresh(),FALLBACK_REFRESH_MS);
+
+    return()=>{
+      stopped=true;
+      window.clearInterval(timer);
+      window.removeEventListener(READINESS_SYNC_EVENT,onReadinessSynced);
+      document.removeEventListener("visibilitychange",onVisibilityChange);
+      document.querySelectorAll("main table tbody tr").forEach(node=>{const row=node as HTMLElement;if(row.dataset.callAttentionBound==="1")row.removeEventListener("click",clickHandler)})
+    };
   },[context]);
   return null;
 }
