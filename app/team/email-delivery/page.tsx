@@ -2,6 +2,7 @@ import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
+import TourReturnExceptionActions from "./TourReturnExceptionActions";
 import styles from "../readiness/ReadinessShell.module.css";
 
 function requiredEnv(name: string) {
@@ -25,6 +26,10 @@ async function rest<T>(table: string, params: URLSearchParams): Promise<T[]> {
   });
   if (!response.ok) throw new Error(`Unable to load ${table}: ${await response.text()}`);
   return response.json() as Promise<T[]>;
+}
+
+function quotedIn(values: string[]) {
+  return values.map((value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
 }
 
 function mountainDateString() {
@@ -81,6 +86,20 @@ type MissingMpwrException = {
   live_dashboard_visible: boolean;
 };
 
+type ReadinessMpwrEvidence = {
+  source_store_visit_id: string | null;
+  confirmation_code: string;
+  mpwr_confirmation_number: string | null;
+  mpwr_reservation_url: string | null;
+  mpwr_waiver_url: string | null;
+};
+
+type QueueMpwrEvidence = {
+  confirmation_code: string;
+  mpwr_confirmation_number: string | null;
+  mpwr_waiver_url: string | null;
+};
+
 type TourReturnException = {
   store_visit_id: string;
   readiness_id: string | null;
@@ -105,9 +124,10 @@ async function getEmailIncidents() {
 }
 
 async function getMissingMpwr() {
-  // requires_mpwr is Patti's Store Visit classification and is intentionally
-  // read from Patti rather than inferred from the app-facing readiness view.
-  const rows = await rest<MissingMpwrException>("portal_patti_store_visits", new URLSearchParams({
+  // Patti owns requires_mpwr. MPWR existence, however, must be checked against
+  // the working Readiness record and Rhett queue so stale Patti MPWR fields do
+  // not create false exceptions.
+  const candidates = await rest<MissingMpwrException>("portal_patti_store_visits", new URLSearchParams({
     select: "store_visit_id,visit_start_time,confirmation_code,customer_name,business_line,product_display_name,requires_mpwr,mpwr_confirmation_number,mpwr_waiver_url,live_dashboard_visible",
     requires_mpwr: "eq.true",
     live_dashboard_visible: "eq.true",
@@ -115,7 +135,49 @@ async function getMissingMpwr() {
     limit: "500",
   }));
 
-  return rows.filter((row) => !row.mpwr_confirmation_number?.trim() && !row.mpwr_waiver_url?.trim());
+  if (!candidates.length) return [];
+
+  const storeVisitIds = [...new Set(candidates.map((row) => row.store_visit_id).filter(Boolean))];
+  const confirmationCodes = [...new Set(candidates.map((row) => row.confirmation_code).filter(Boolean))];
+  const readinessEvidence: ReadinessMpwrEvidence[] = [];
+  const queueEvidence: QueueMpwrEvidence[] = [];
+
+  for (let index = 0; index < storeVisitIds.length; index += 100) {
+    const batch = storeVisitIds.slice(index, index + 100);
+    readinessEvidence.push(...await rest<ReadinessMpwrEvidence>("guest_readiness_operational", new URLSearchParams({
+      select: "source_store_visit_id,confirmation_code,mpwr_confirmation_number,mpwr_reservation_url,mpwr_waiver_url",
+      source_store_visit_id: `in.(${quotedIn(batch)})`,
+      limit: "1000",
+    })));
+  }
+
+  for (let index = 0; index < confirmationCodes.length; index += 100) {
+    const batch = confirmationCodes.slice(index, index + 100);
+    queueEvidence.push(...await rest<QueueMpwrEvidence>("mpwr_agent_queue", new URLSearchParams({
+      select: "confirmation_code,mpwr_confirmation_number,mpwr_waiver_url",
+      confirmation_code: `in.(${quotedIn(batch)})`,
+      limit: "2000",
+    })));
+  }
+
+  const storeVisitsWithMpwr = new Set(
+    readinessEvidence
+      .filter((row) => row.mpwr_confirmation_number?.trim() || row.mpwr_reservation_url?.trim() || row.mpwr_waiver_url?.trim())
+      .map((row) => row.source_store_visit_id)
+      .filter((value): value is string => Boolean(value)),
+  );
+  const confirmationsWithMpwr = new Set(
+    queueEvidence
+      .filter((row) => row.mpwr_confirmation_number?.trim() || row.mpwr_waiver_url?.trim())
+      .map((row) => row.confirmation_code),
+  );
+
+  return candidates.filter((row) =>
+    !row.mpwr_confirmation_number?.trim() &&
+    !row.mpwr_waiver_url?.trim() &&
+    !storeVisitsWithMpwr.has(row.store_visit_id) &&
+    !confirmationsWithMpwr.has(row.confirmation_code)
+  );
 }
 
 async function getTourReturnExceptions() {
@@ -135,12 +197,11 @@ async function getTourReturnExceptions() {
 async function getGuestNames(confirmationCodes: string[]) {
   if (!confirmationCodes.length) return new Map<string, string>();
 
-  const quotedCodes = confirmationCodes.map((code) => `"${code.replace(/"/g, "\\\"")}"`).join(",");
   const rows = await rest<{ confirmation_code: string; customer_name: string | null }>(
     "guest_communications",
     new URLSearchParams({
       select: "confirmation_code,customer_name",
-      confirmation_code: `in.(${quotedCodes})`,
+      confirmation_code: `in.(${quotedIn(confirmationCodes)})`,
       communication_type: "eq.initial_guest_portal",
       limit: "500",
     }),
@@ -227,7 +288,7 @@ export default async function ExceptionsPage() {
                   <div style={{ marginTop: 4, color: "#394452" }}>{row.product_display_name}</div>
                   <div style={{ marginTop: 6, color: "#a73b2e", fontSize: 13, fontWeight: 650 }}>Checkout: {row.checkout_status} · Check-in: {row.checkin_status}</div>
                 </div>
-                <Link href={`/team/readiness?confirmation=${encodeURIComponent(row.confirmation_code)}`} style={actionStyle}>Open Reservation</Link>
+                <TourReturnExceptionActions storeVisitId={row.store_visit_id} vehicleSlot={row.vehicle_slot} checkinStatus={row.checkin_status} />
               </article>
             ))}
           </section>
@@ -236,7 +297,7 @@ export default async function ExceptionsPage() {
             <div style={sectionHeadStyle}>
               <div>
                 <strong>Missing MPWR</strong>
-                <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}><code>requires_mpwr = true</code> but no MPWR booking data is present.</div>
+                <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}><code>requires_mpwr = true</code> and no MPWR booking evidence exists in Patti, Readiness, or Rhett.</div>
               </div>
               <span style={missingMpwr.length ? badgeStyle : { ...badgeStyle, background: "#eef7f1", color: "#187a45" }}>{missingMpwr.length}</span>
             </div>
