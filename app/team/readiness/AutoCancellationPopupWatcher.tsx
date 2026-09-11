@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import CancellationAgreementPanel from "./CancellationAgreementPanel";
 
-const POLL_INTERVAL_MS = 1500;
+const POLL_INTERVAL_MS = 15000;
 const NOTIFICATION_PROMPT_DISMISSED_KEY = "epic-booking-notification-prompt-dismissed";
 
 type CandidateResponse = {
