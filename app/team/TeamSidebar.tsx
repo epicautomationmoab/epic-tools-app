@@ -104,7 +104,7 @@ export default async function TeamSidebar({ active }: Props) {
           return item.external ? (
             <a key={item.label} href={item.href} className={className} target="_blank" rel="noreferrer">{content}</a>
           ) : (
-            <Link key={item.label} href={item.href} className={className}>{content}</Link>
+            <Link key={item.label} href={item.href} className={className} prefetch={false}>{content}</Link>
           );
         })}
       </nav>
