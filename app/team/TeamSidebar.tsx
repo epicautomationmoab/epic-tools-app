@@ -11,7 +11,7 @@ type Props = {
     | "Deposits On-Hold"
     | "Tour Dispatch"
     | "Previous Guest Lookup"
-    | "Exceptions"
+    | "Email Delivery"
     | "Referral Partners"
     | "Manage Users";
 };
@@ -22,7 +22,7 @@ const baseNavItems = [
   { label: "Deposits On-Hold", href: "/team/deposits-on-hold", external: false },
   { label: "Tour Dispatch", href: "/team/tour-dispatch", external: false },
   { label: "Previous Guest Lookup", href: "/team/previous-guests", external: false },
-  { label: "Exceptions", href: "/team/email-delivery", external: false },
+  { label: "Email Delivery", href: "/team/email-delivery", external: false },
   { label: "Reservations", href: "https://epic4x4.tripworks.com", external: true },
   { label: "MPWR", href: "https://mpwr-hq.poladv.com/orders", external: true },
 ] as const;
