@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import CancellationAgreementPanel from "./CancellationAgreementPanel";
 
-const POLL_INTERVAL_MS = 15000;
+const READINESS_SYNC_EVENT = "epic-readiness-synced";
 const NOTIFICATION_PROMPT_DISMISSED_KEY = "epic-booking-notification-prompt-dismissed";
 
 type CandidateResponse = {
@@ -118,7 +118,6 @@ export default function AutoCancellationPopupWatcher() {
 
   useEffect(() => {
     let cancelled = false;
-    let timer: number | null = null;
     let requestInFlight = false;
 
     function showNext() {
@@ -145,17 +144,27 @@ export default function AutoCancellationPopupWatcher() {
         }
         showNext();
       } catch {
-        // Front-screen popup polling retries on the next interval. Background alerts use web push instead.
+        // The next Readiness realtime signal or tab resume will retry.
       } finally {
         requestInFlight = false;
       }
     }
 
-    void checkForNewBookings();
-    timer = window.setInterval(() => void checkForNewBookings(), POLL_INTERVAL_MS);
+    function onReadinessSynced() {
+      void checkForNewBookings();
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") void checkForNewBookings();
+    }
+
+    window.addEventListener(READINESS_SYNC_EVENT, onReadinessSynced);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
       cancelled = true;
-      if (timer !== null) window.clearInterval(timer);
+      window.removeEventListener(READINESS_SYNC_EVENT, onReadinessSynced);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
