@@ -68,17 +68,17 @@ type EmailIncident = {
   created_at: string;
 };
 
-type ReadinessException = {
-  readiness_id: string | null;
+type MissingMpwrException = {
+  store_visit_id: string;
   visit_start_time: string;
   confirmation_code: string;
   customer_name: string;
   business_line: string;
   product_display_name: string;
-  requires_mpwr: boolean | null;
+  requires_mpwr: boolean;
   mpwr_confirmation_number: string | null;
-  mpwr_reservation_url: string | null;
-  handoff_status: string | null;
+  mpwr_waiver_url: string | null;
+  live_dashboard_visible: boolean;
 };
 
 type TourReturnException = {
@@ -105,18 +105,17 @@ async function getEmailIncidents() {
 }
 
 async function getMissingMpwr() {
-  const rows = await rest<ReadinessException>("guest_readiness_with_handoff_v", new URLSearchParams({
-    select: "readiness_id,visit_start_time,confirmation_code,customer_name,business_line,product_display_name,requires_mpwr,mpwr_confirmation_number,mpwr_reservation_url,handoff_status",
+  // requires_mpwr is Patti's Store Visit classification and is intentionally
+  // read from Patti rather than inferred from the app-facing readiness view.
+  const rows = await rest<MissingMpwrException>("portal_patti_store_visits", new URLSearchParams({
+    select: "store_visit_id,visit_start_time,confirmation_code,customer_name,business_line,product_display_name,requires_mpwr,mpwr_confirmation_number,mpwr_waiver_url,live_dashboard_visible",
     requires_mpwr: "eq.true",
+    live_dashboard_visible: "eq.true",
     order: "visit_start_time.asc",
     limit: "500",
   }));
 
-  const terminal = new Set(["checked_in", "tour_returned", "rental_out", "rental_returned"]);
-  return rows.filter((row) => {
-    if (row.handoff_status && terminal.has(row.handoff_status)) return false;
-    return !row.mpwr_confirmation_number?.trim() && !row.mpwr_reservation_url?.trim();
-  });
+  return rows.filter((row) => !row.mpwr_confirmation_number?.trim() && !row.mpwr_waiver_url?.trim());
 }
 
 async function getTourReturnExceptions() {
@@ -161,7 +160,7 @@ function Empty({ children }: { children: React.ReactNode }) {
 
 export default async function ExceptionsPage() {
   let emailIncidents: EmailIncident[] = [];
-  let missingMpwr: ReadinessException[] = [];
+  let missingMpwr: MissingMpwrException[] = [];
   let tourReturns: TourReturnException[] = [];
   let guestNames = new Map<string, string>();
   let error = "";
@@ -237,12 +236,12 @@ export default async function ExceptionsPage() {
             <div style={sectionHeadStyle}>
               <div>
                 <strong>Missing MPWR</strong>
-                <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}><code>requires_mpwr = true</code> but no MPWR confirmation or reservation URL is present.</div>
+                <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}><code>requires_mpwr = true</code> but no MPWR booking data is present.</div>
               </div>
               <span style={missingMpwr.length ? badgeStyle : { ...badgeStyle, background: "#eef7f1", color: "#187a45" }}>{missingMpwr.length}</span>
             </div>
             {missingMpwr.length === 0 ? <Empty>No active reservations are missing required MPWR data.</Empty> : missingMpwr.map((row) => (
-              <article key={row.readiness_id || `${row.confirmation_code}-${row.visit_start_time}`} style={rowStyle}>
+              <article key={row.store_visit_id || `${row.confirmation_code}-${row.visit_start_time}`} style={rowStyle}>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{row.customer_name}</div>
                   <strong>{row.confirmation_code}</strong>
