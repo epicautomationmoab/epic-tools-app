@@ -4,6 +4,7 @@ import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
 import TourReturnExceptionActions from "./TourReturnExceptionActions";
 import styles from "../readiness/ReadinessShell.module.css";
+import exceptionStyles from "./Exceptions.module.css";
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -124,9 +125,6 @@ async function getEmailIncidents() {
 }
 
 async function getMissingMpwr() {
-  // Patti owns requires_mpwr. MPWR existence, however, must be checked against
-  // the working Readiness record and Rhett queue so stale Patti MPWR fields do
-  // not create false exceptions.
   const candidates = await rest<MissingMpwrException>("portal_patti_store_visits", new URLSearchParams({
     select: "store_visit_id,visit_start_time,confirmation_code,customer_name,business_line,product_display_name,requires_mpwr,mpwr_confirmation_number,mpwr_waiver_url,live_dashboard_visible",
     requires_mpwr: "eq.true",
@@ -209,14 +207,12 @@ async function getGuestNames(confirmationCodes: string[]) {
   return new Map(rows.filter((row) => row.customer_name?.trim()).map((row) => [row.confirmation_code, row.customer_name!.trim()]));
 }
 
-const sectionStyle = { background: "#fff", border: "1px solid #dfe4e9", borderRadius: 14, overflow: "hidden", marginBottom: 18 } as const;
-const sectionHeadStyle = { padding: "18px 20px", borderBottom: "1px solid #e6e9ed", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 } as const;
-const badgeStyle = { minWidth: 28, height: 28, padding: "0 8px", borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff1ef", color: "#a73b2e", fontWeight: 800 } as const;
-const rowStyle = { display: "grid", gridTemplateColumns: "190px minmax(320px, 1fr) auto", gap: 24, alignItems: "center", padding: "20px", borderBottom: "1px solid #eef0f2" } as const;
-const actionStyle = { whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none" } as const;
-
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p style={{ padding: 20, margin: 0, color: "#6f7885" }}>{children}</p>;
+  return <p className={exceptionStyles.empty}>{children}</p>;
+}
+
+function CountBadge({ count }: { count: number }) {
+  return <span className={`${exceptionStyles.countBadge} ${count ? exceptionStyles.countActive : exceptionStyles.countClear}`}>{count}</span>;
 }
 
 export default async function ExceptionsPage() {
@@ -261,84 +257,94 @@ export default async function ExceptionsPage() {
         <section className={styles.content}>
           {error ? <div className={styles.error}>{error}</div> : null}
 
+          {!error && total > 0 ? (
+            <div className={exceptionStyles.summaryBar}>
+              <div>
+                <div className={exceptionStyles.summaryTitle}>Active Exceptions</div>
+                <div className={exceptionStyles.summaryText}>Items below still need attention. Resolved items disappear automatically.</div>
+              </div>
+              <span className={exceptionStyles.summaryCount}>{total}</span>
+            </div>
+          ) : null}
+
           {!error && total === 0 ? (
-            <section style={{ ...sectionStyle, padding: 24 }}>
-              <strong style={{ color: "#187a45", fontSize: 18 }}>All clear</strong>
-              <p style={{ margin: "6px 0 0", color: "#6f7885" }}>No active operational exceptions need attention.</p>
+            <section className={exceptionStyles.allClear}>
+              <div className={exceptionStyles.allClearTitle}>All clear</div>
+              <p className={exceptionStyles.allClearText}>No active operational exceptions need attention.</p>
             </section>
           ) : null}
 
-          <section style={sectionStyle}>
-            <div style={sectionHeadStyle}>
+          <section className={exceptionStyles.section}>
+            <div className={`${exceptionStyles.sectionHeader} ${exceptionStyles.returnHeader}`}>
               <div>
-                <strong>Tour Return Exceptions</strong>
-                <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}>Prior-day tour vehicles still out or not fully checked in after Tour Dispatch rolled over.</div>
+                <div className={exceptionStyles.sectionTitle}>Tour Return Exceptions</div>
+                <div className={exceptionStyles.sectionDescription}>Prior-day tour vehicles still out or not fully checked in after Tour Dispatch rolled over.</div>
               </div>
-              <span style={tourReturns.length ? badgeStyle : { ...badgeStyle, background: "#eef7f1", color: "#187a45" }}>{tourReturns.length}</span>
+              <CountBadge count={tourReturns.length} />
             </div>
             {tourReturns.length === 0 ? <Empty>No unresolved prior-day tour returns.</Empty> : tourReturns.map((row) => (
-              <article key={`${row.store_visit_id}-${row.vehicle_slot}`} style={rowStyle}>
+              <article key={`${row.store_visit_id}-${row.vehicle_slot}`} className={`${exceptionStyles.exceptionRow} ${exceptionStyles.returnRow}`}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{row.customer_name}</div>
-                  <strong>{row.confirmation_code}</strong>
-                  <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatVisitDate(row.visit_date)} · Car {row.vehicle_label || row.vehicle_slot}</div>
+                  <div className={exceptionStyles.customerName}>{row.customer_name}</div>
+                  <div className={exceptionStyles.confirmation}>{row.confirmation_code}</div>
+                  <div className={exceptionStyles.meta}>{formatVisitDate(row.visit_date)} · Car {row.vehicle_label || row.vehicle_slot}</div>
                 </div>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 16 }}>Tour vehicle was not fully returned</div>
-                  <div style={{ marginTop: 4, color: "#394452" }}>{row.product_display_name}</div>
-                  <div style={{ marginTop: 6, color: "#a73b2e", fontSize: 13, fontWeight: 650 }}>Checkout: {row.checkout_status} · Check-in: {row.checkin_status}</div>
+                  <div className={exceptionStyles.problemTitle}>Tour vehicle was not fully returned</div>
+                  <div className={exceptionStyles.detail}>{row.product_display_name}</div>
+                  <div className={exceptionStyles.returnStatus}>Checkout: {row.checkout_status} · Check-in: {row.checkin_status}</div>
                 </div>
                 <TourReturnExceptionActions storeVisitId={row.store_visit_id} vehicleSlot={row.vehicle_slot} checkinStatus={row.checkin_status} />
               </article>
             ))}
           </section>
 
-          <section style={sectionStyle}>
-            <div style={sectionHeadStyle}>
+          <section className={exceptionStyles.section}>
+            <div className={`${exceptionStyles.sectionHeader} ${exceptionStyles.mpwrHeader}`}>
               <div>
-                <strong>Missing MPWR</strong>
-                <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}><code>requires_mpwr = true</code> and no MPWR booking evidence exists in Patti, Readiness, or Rhett.</div>
+                <div className={exceptionStyles.sectionTitle}>Missing MPWR</div>
+                <div className={exceptionStyles.sectionDescription}><code>requires_mpwr = true</code> and no MPWR booking evidence exists in Patti, Readiness, or Rhett.</div>
               </div>
-              <span style={missingMpwr.length ? badgeStyle : { ...badgeStyle, background: "#eef7f1", color: "#187a45" }}>{missingMpwr.length}</span>
+              <CountBadge count={missingMpwr.length} />
             </div>
             {missingMpwr.length === 0 ? <Empty>No active reservations are missing required MPWR data.</Empty> : missingMpwr.map((row) => (
-              <article key={row.store_visit_id || `${row.confirmation_code}-${row.visit_start_time}`} style={rowStyle}>
+              <article key={row.store_visit_id || `${row.confirmation_code}-${row.visit_start_time}`} className={`${exceptionStyles.exceptionRow} ${exceptionStyles.mpwrRow}`}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{row.customer_name}</div>
-                  <strong>{row.confirmation_code}</strong>
-                  <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatMoabTime(row.visit_start_time)}</div>
+                  <div className={exceptionStyles.customerName}>{row.customer_name}</div>
+                  <div className={exceptionStyles.confirmation}>{row.confirmation_code}</div>
+                  <div className={exceptionStyles.meta}>{formatMoabTime(row.visit_start_time)}</div>
                 </div>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 16 }}>Required MPWR booking data is missing</div>
-                  <div style={{ marginTop: 4, color: "#394452" }}>{row.product_display_name} · {row.business_line}</div>
-                  <div style={{ marginTop: 6, color: "#a73b2e", fontSize: 13, fontWeight: 650 }}>Rhett/MPWR needs review before this reservation can be considered ready.</div>
+                  <div className={exceptionStyles.problemTitle}>Required MPWR booking data is missing</div>
+                  <div className={exceptionStyles.detail}>{row.product_display_name} · {row.business_line}</div>
+                  <div className={exceptionStyles.mpwrStatus}>Rhett/MPWR needs review before this reservation can be considered ready.</div>
                 </div>
-                <Link href={`/team/readiness?confirmation=${encodeURIComponent(row.confirmation_code)}`} style={actionStyle}>Open Reservation</Link>
+                <Link href={`/team/readiness?confirmation=${encodeURIComponent(row.confirmation_code)}`} className={exceptionStyles.actionLink}>Open Reservation</Link>
               </article>
             ))}
           </section>
 
-          <section style={sectionStyle}>
-            <div style={sectionHeadStyle}>
+          <section className={exceptionStyles.section}>
+            <div className={`${exceptionStyles.sectionHeader} ${exceptionStyles.emailHeader}`}>
               <div>
-                <strong>Email Delivery Exceptions</strong>
-                <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}>Confirmation emails that could not be delivered and still need attention.</div>
+                <div className={exceptionStyles.sectionTitle}>Email Delivery Exceptions</div>
+                <div className={exceptionStyles.sectionDescription}>Confirmation emails that could not be delivered and still need attention.</div>
               </div>
-              <span style={emailIncidents.length ? badgeStyle : { ...badgeStyle, background: "#eef7f1", color: "#187a45" }}>{emailIncidents.length}</span>
+              <CountBadge count={emailIncidents.length} />
             </div>
             {emailIncidents.length === 0 ? <Empty>No unresolved email delivery problems.</Empty> : emailIncidents.map((incident) => (
-              <article key={incident.id} style={rowStyle}>
+              <article key={incident.id} className={`${exceptionStyles.exceptionRow} ${exceptionStyles.emailRow}`}>
                 <div>
-                  {guestNames.get(incident.confirmation_code) ? <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{guestNames.get(incident.confirmation_code)}</div> : null}
-                  <strong>{incident.confirmation_code}</strong>
-                  <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatMoabTime(incident.created_at)}</div>
+                  {guestNames.get(incident.confirmation_code) ? <div className={exceptionStyles.customerName}>{guestNames.get(incident.confirmation_code)}</div> : null}
+                  <div className={exceptionStyles.confirmation}>{incident.confirmation_code}</div>
+                  <div className={exceptionStyles.meta}>{formatMoabTime(incident.created_at)}</div>
                 </div>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 16 }}>Email delivery problem</div>
-                  <div style={{ marginTop: 4, color: "#394452" }}>Confirmation email could not be delivered to <strong>{incident.recipient_email || "the guest"}</strong>.</div>
-                  <div style={{ marginTop: 6, color: "#a73b2e", fontSize: 13, fontWeight: 650 }}>Check the guest&apos;s email address and resend the confirmation.</div>
+                  <div className={exceptionStyles.problemTitle}>Email delivery problem</div>
+                  <div className={exceptionStyles.detail}>Confirmation email could not be delivered to <strong>{incident.recipient_email || "the guest"}</strong>.</div>
+                  <div className={exceptionStyles.emailStatus}>Check the guest&apos;s email address and resend the confirmation.</div>
                 </div>
-                <Link href={`/team/readiness?confirmation=${encodeURIComponent(incident.confirmation_code)}`} style={actionStyle}>Open Reservation</Link>
+                <Link href={`/team/readiness?confirmation=${encodeURIComponent(incident.confirmation_code)}`} className={exceptionStyles.actionLink}>Open Reservation</Link>
               </article>
             ))}
           </section>
