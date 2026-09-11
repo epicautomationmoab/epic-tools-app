@@ -1,7 +1,6 @@
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
-import LogoutButton from "../readiness/LogoutButton";
 import TourReturnExceptionActions from "./TourReturnExceptionActions";
 import styles from "../readiness/ReadinessShell.module.css";
 import exceptionStyles from "./Exceptions.module.css";
@@ -245,12 +244,6 @@ export default async function ExceptionsPage() {
             <h1>Exceptions</h1>
             <HeaderClock />
             <p>Operational items that fell outside the normal automated workflow and need attention.</p>
-          </div>
-          <div className={styles.headerActions}>
-            <Link className={styles.actionButton} href="/team/readiness">Guest Readiness</Link>
-            <Link className={styles.actionButton} href="/team/arrival-board">Arrival Board</Link>
-            <Link className={`${styles.actionButton} ${styles.kioskButton}`} href="/kiosk">Kiosk</Link>
-            <LogoutButton />
           </div>
         </header>
 
