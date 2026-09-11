@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseSelect } from "@/lib/server/supabase-rest";
+import { supabaseRpc, supabaseSelect } from "@/lib/server/supabase-rest";
 
 type RosterRow = {
   store_visit_id: string;
@@ -7,6 +7,7 @@ type RosterRow = {
   vehicle_slot: number;
   vehicle_label: string | null;
   visit_date: string;
+  checkout_status: string;
   checkin_status: string;
 };
 
@@ -15,6 +16,12 @@ type CheckinJob = {
   status: string;
   instruction_snapshot: Record<string, unknown> | null;
   created_at: string;
+};
+
+type ReleaseResult = {
+  dispatch_id: string;
+  job_id: string | null;
+  checkin_status: string;
 };
 
 function requiredEnv(name: string) {
@@ -70,17 +77,22 @@ async function run(request: Request) {
       return NextResponse.json({ ok: true, skipped: true, reason: "Not 11 PM America/Denver." });
     }
 
+    // At 11 PM all tours should be back. Recover both failure cases before the
+    // dispatch page rolls to the next day at midnight:
+    // 1) prepared = guide never clicked Return, so release it automatically.
+    // 2) checkin_queued = it was released but Axel did not finish, so retry once.
     const rosterParams = new URLSearchParams({
-      select: "store_visit_id,confirmation_code,vehicle_slot,vehicle_label,visit_date,checkin_status",
+      select: "store_visit_id,confirmation_code,vehicle_slot,vehicle_label,visit_date,checkout_status,checkin_status",
       visit_date: `eq.${date}`,
-      checkin_status: "eq.checkin_queued",
+      checkout_status: "eq.out",
+      checkin_status: "in.(prepared,checkin_queued)",
       order: "confirmation_code.asc,vehicle_slot.asc",
       limit: "200",
     });
     const outstanding = await supabaseSelect<RosterRow>("tour_vehicle_dispatch_roster_v", rosterParams);
 
     if (!outstanding.length) {
-      return NextResponse.json({ ok: true, date, found: 0, retried: 0, results: [] });
+      return NextResponse.json({ ok: true, date, found: 0, released: 0, retried: 0, results: [] });
     }
 
     const jobParams = new URLSearchParams({
@@ -93,43 +105,70 @@ async function run(request: Request) {
       order: "created_at.desc",
       limit: "200",
     });
-    const jobs = await supabaseSelect<CheckinJob>("tour_vehicle_jobs", jobParams);
+    const retryableJobs = await supabaseSelect<CheckinJob>("tour_vehicle_jobs", jobParams);
 
     const results = [];
     for (const row of outstanding) {
-      const job = jobs.find((candidate) => {
-        const packet = candidate.instruction_snapshot ?? {};
-        return String(packet.store_visit_id ?? "") === row.store_visit_id && Number(packet.vehicle_slot) === row.vehicle_slot;
-      });
-
-      if (!job?.id) {
-        results.push({
-          confirmation_code: row.confirmation_code,
-          vehicle_slot: row.vehicle_slot,
-          vehicle_label: row.vehicle_label,
-          retried: false,
-          error: "No retryable Axel In shadow_ready job found.",
-        });
-        continue;
-      }
-
       try {
+        if (row.checkin_status === "prepared") {
+          const release = await supabaseRpc<ReleaseResult[]>("release_tour_vehicle_checkin_shadow", {
+            p_store_visit_id: row.store_visit_id,
+            p_vehicle_slot: row.vehicle_slot,
+            p_released_by: "11 PM Tour Check-In Sweep",
+          });
+          const released = release?.[0];
+          if (!released?.job_id || released.checkin_status !== "checkin_queued") {
+            throw new Error("Prepared check-in could not be released.");
+          }
+          await triggerAxelIn(released.job_id);
+          results.push({
+            confirmation_code: row.confirmation_code,
+            vehicle_slot: row.vehicle_slot,
+            vehicle_label: row.vehicle_label,
+            prior_status: row.checkin_status,
+            action: "auto_released_and_triggered",
+            job_id: released.job_id,
+            ok: true,
+          });
+          continue;
+        }
+
+        const job = retryableJobs.find((candidate) => {
+          const packet = candidate.instruction_snapshot ?? {};
+          return String(packet.store_visit_id ?? "") === row.store_visit_id && Number(packet.vehicle_slot) === row.vehicle_slot;
+        });
+        if (!job?.id) {
+          results.push({
+            confirmation_code: row.confirmation_code,
+            vehicle_slot: row.vehicle_slot,
+            vehicle_label: row.vehicle_label,
+            prior_status: row.checkin_status,
+            action: "retry_not_available",
+            ok: false,
+            error: "No retryable Axel In shadow_ready job found.",
+          });
+          continue;
+        }
+
         await triggerAxelIn(job.id);
         results.push({
           confirmation_code: row.confirmation_code,
           vehicle_slot: row.vehicle_slot,
           vehicle_label: row.vehicle_label,
+          prior_status: row.checkin_status,
+          action: "retry_triggered",
           job_id: job.id,
-          retried: true,
+          ok: true,
         });
       } catch (error) {
         results.push({
           confirmation_code: row.confirmation_code,
           vehicle_slot: row.vehicle_slot,
           vehicle_label: row.vehicle_label,
-          job_id: job.id,
-          retried: false,
-          error: error instanceof Error ? error.message : "Unable to trigger Axel In.",
+          prior_status: row.checkin_status,
+          action: row.checkin_status === "prepared" ? "auto_release_failed" : "retry_failed",
+          ok: false,
+          error: error instanceof Error ? error.message : "Unable to recover tour vehicle check-in.",
         });
       }
     }
@@ -139,7 +178,8 @@ async function run(request: Request) {
       ok: true,
       date,
       found: outstanding.length,
-      retried: results.filter((result) => result.retried).length,
+      released: results.filter((result) => result.action === "auto_released_and_triggered" && result.ok).length,
+      retried: results.filter((result) => result.action === "retry_triggered" && result.ok).length,
       results,
     });
   } catch (error) {
