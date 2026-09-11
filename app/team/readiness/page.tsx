@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import TeamSidebar from "../TeamSidebar";
 import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
 import ReadinessTable from "./ReadinessTable";
@@ -29,17 +30,47 @@ import NoShowEnhancer from "./NoShowEnhancer";
 import MpwrFinancePanel from "./MpwrFinancePanel";
 import JourneyPreviewOverlay from "./journey-preview/JourneyPreviewOverlay";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
+import { getTodayReadinessRows } from "@/lib/readiness-today";
 import styles from "./ReadinessShell.module.css";
 import "./journey-preview/preview.css";
 
+function ReadinessData({ rows, error = "" }: { rows: ReadinessRow[]; error?: string }) {
+  return (
+    <>
+      <SignedWaiverDrawerEnhancer rows={rows} />
+      <AdventureAssureEnhancer rows={rows} />
+      <NoShowEnhancer rows={rows} />
+      <JourneyPreviewOverlay rows={rows} />
+      <ReadinessDateFilterEnhancer rows={rows} />
+
+      <section className={styles.content}>
+        {error ? <div className={styles.error}>{error}</div> : null}
+        <EmailDeliveryAlert />
+        <MpwrFinancePanel rows={rows} />
+        <ReadinessTable rows={rows} />
+      </section>
+    </>
+  );
+}
+
+async function FullReadinessData() {
+  try {
+    const rows = await getReadinessRows();
+    return <ReadinessData rows={rows} />;
+  } catch (err) {
+    const error = err instanceof Error ? err.message : "Unable to load full readiness rows.";
+    return <div className={styles.content}><div className={styles.error}>{error}</div></div>;
+  }
+}
+
 export default async function TeamReadinessPage() {
-  let rows: ReadinessRow[] = [];
-  let error = "";
+  let todayRows: ReadinessRow[] = [];
+  let todayError = "";
 
   try {
-    rows = await getReadinessRows();
+    todayRows = await getTodayReadinessRows();
   } catch (err) {
-    error = err instanceof Error ? err.message : "Unable to load readiness rows.";
+    todayError = err instanceof Error ? err.message : "Unable to load today's readiness rows.";
   }
 
   return (
@@ -57,15 +88,10 @@ export default async function TeamReadinessPage() {
       <EmailDeliveryDrawerEnhancer />
       <ReservationDeepLinkEnhancer />
       <OhvDrawerEnhancer />
-      <SignedWaiverDrawerEnhancer rows={rows} />
       <SharedActionPinEnhancer />
-      <AdventureAssureEnhancer rows={rows} />
-      <NoShowEnhancer rows={rows} />
       <ContactSaveEnhancer />
       <StaffNotesDrawerEnhancer />
-      <JourneyPreviewOverlay rows={rows} />
       <CallAttentionRowEnhancer context="readiness" />
-      <ReadinessDateFilterEnhancer rows={rows} />
 
       <TeamSidebar active="Guest Readiness" />
 
@@ -80,12 +106,9 @@ export default async function TeamReadinessPage() {
           </div>
         </header>
 
-        <section className={styles.content}>
-          {error ? <div className={styles.error}>{error}</div> : null}
-          <EmailDeliveryAlert />
-          <MpwrFinancePanel rows={rows} />
-          <ReadinessTable rows={rows} />
-        </section>
+        <Suspense fallback={<ReadinessData rows={todayRows} error={todayError} />}>
+          <FullReadinessData />
+        </Suspense>
       </main>
     </div>
   );
