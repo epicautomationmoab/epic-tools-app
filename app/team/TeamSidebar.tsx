@@ -2,7 +2,6 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { getCarryoverRentalCount } from "./active-rentals/data";
-import LiveCallScreenPop from "./LiveCallScreenPop";
 import styles from "./readiness/ReadinessShell.module.css";
 
 type Props = {
@@ -11,7 +10,6 @@ type Props = {
     | "Held-Over Rentals"
     | "Deposits On-Hold"
     | "Tour Dispatch"
-    | "Sales & Leads"
     | "Previous Guest Lookup"
     | "Email Delivery"
     | "Referral Partners"
@@ -23,7 +21,6 @@ const baseNavItems = [
   { label: "Held-Over Rentals", href: "/team/active-rentals", external: false },
   { label: "Deposits On-Hold", href: "/team/deposits-on-hold", external: false },
   { label: "Tour Dispatch", href: "/team/tour-dispatch", external: false },
-  { label: "Sales & Leads", href: "/team/leads", external: false },
   { label: "Previous Guest Lookup", href: "/team/previous-guests", external: false },
   { label: "Email Delivery", href: "/team/email-delivery", external: false },
   { label: "Reservations", href: "https://epic4x4.tripworks.com", external: true },
@@ -73,49 +70,46 @@ export default async function TeamSidebar({ active }: Props) {
     : baseNavItems;
 
   return (
-    <>
-      <LiveCallScreenPop />
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>
-          <img src="/epic-logo.png" alt="Epic 4X4 Adventures" />
-        </div>
+    <aside className={styles.sidebar}>
+      <div className={styles.brand}>
+        <img src="/epic-logo.png" alt="Epic 4X4 Adventures" />
+      </div>
 
-        <nav className={styles.nav} aria-label="EpicTools navigation">
-          {navItems.map((item) => {
-            const className = item.label === active ? styles.active : undefined;
-            const content = (
-              <>
-                <span aria-hidden="true">◇</span>
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {item.label === "Held-Over Rentals" && activeRentalCount > 0 ? (
-                  <span
-                    aria-label={`${activeRentalCount} held-over rental${activeRentalCount === 1 ? "" : "s"}`}
-                    style={{ minWidth: 22, height: 22, padding: "0 7px", borderRadius: 999, display: "inline-grid", placeItems: "center", background: "#ffc107", color: "#202733", fontSize: 11, fontWeight: 900, lineHeight: 1 }}
-                  >
-                    {activeRentalCount}
-                  </span>
-                ) : null}
-                {item.label === "Deposits On-Hold" && depositNeedsReviewCount > 0 ? (
-                  <span
-                    aria-label={`${depositNeedsReviewCount} deposit release${depositNeedsReviewCount === 1 ? "" : "s"} need review`}
-                    title={`${depositNeedsReviewCount} Victor deposit release${depositNeedsReviewCount === 1 ? "" : "s"} need review`}
-                    style={{ minWidth: 22, height: 22, padding: "0 6px", borderRadius: 999, display: "inline-grid", gridAutoFlow: "column", gap: 3, placeItems: "center", background: "#ffc107", color: "#202733", fontSize: 11, fontWeight: 900, lineHeight: 1 }}
-                  >
-                    <span aria-hidden="true">⚠️</span>{depositNeedsReviewCount}
-                  </span>
-                ) : null}
-              </>
-            );
-            return item.external ? (
-              <a key={item.label} href={item.href} className={className} target="_blank" rel="noreferrer">{content}</a>
-            ) : (
-              <Link key={item.label} href={item.href} className={className}>{content}</Link>
-            );
-          })}
-        </nav>
+      <nav className={styles.nav} aria-label="EpicTools navigation">
+        {navItems.map((item) => {
+          const className = item.label === active ? styles.active : undefined;
+          const content = (
+            <>
+              <span aria-hidden="true">◇</span>
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {item.label === "Held-Over Rentals" && activeRentalCount > 0 ? (
+                <span
+                  aria-label={`${activeRentalCount} held-over rental${activeRentalCount === 1 ? "" : "s"}`}
+                  style={{ minWidth: 22, height: 22, padding: "0 7px", borderRadius: 999, display: "inline-grid", placeItems: "center", background: "#ffc107", color: "#202733", fontSize: 11, fontWeight: 900, lineHeight: 1 }}
+                >
+                  {activeRentalCount}
+                </span>
+              ) : null}
+              {item.label === "Deposits On-Hold" && depositNeedsReviewCount > 0 ? (
+                <span
+                  aria-label={`${depositNeedsReviewCount} deposit release${depositNeedsReviewCount === 1 ? "" : "s"} need review`}
+                  title={`${depositNeedsReviewCount} Victor deposit release${depositNeedsReviewCount === 1 ? "" : "s"} need review`}
+                  style={{ minWidth: 22, height: 22, padding: "0 6px", borderRadius: 999, display: "inline-grid", gridAutoFlow: "column", gap: 3, placeItems: "center", background: "#ffc107", color: "#202733", fontSize: 11, fontWeight: 900, lineHeight: 1 }}
+                >
+                  <span aria-hidden="true">⚠️</span>{depositNeedsReviewCount}
+                </span>
+              ) : null}
+            </>
+          );
+          return item.external ? (
+            <a key={item.label} href={item.href} className={className} target="_blank" rel="noreferrer">{content}</a>
+          ) : (
+            <Link key={item.label} href={item.href} className={className}>{content}</Link>
+          );
+        })}
+      </nav>
 
-        <div className={styles.sidebarPhoto} />
-      </aside>
-    </>
+      <div className={styles.sidebarPhoto} />
+    </aside>
   );
 }
