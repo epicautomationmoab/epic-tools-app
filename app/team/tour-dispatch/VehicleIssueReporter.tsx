@@ -66,10 +66,10 @@ export function VehicleIssueReporter({ row, guideName }: { row: VehicleIssueRepo
         height: 34,
         marginLeft: 7,
         padding: 0,
-        border: "1px solid #c7a34a",
+        border: "1px solid #d49f00",
         borderRadius: 7,
-        background: "#fff8df",
-        color: "#7b5a08",
+        background: "#ffbf00",
+        color: "#2f2600",
         fontSize: 16,
         lineHeight: 1,
         fontWeight: 900,
@@ -139,10 +139,39 @@ export function VehicleIssueReporter({ row, guideName }: { row: VehicleIssueRepo
             ["maintenance", "Maintenance", "Routine repair or inspection."],
             ["urgent", "Urgent", "Needs attention before next use."],
             ["critical", "Critical / Safety", "Possible safety issue; immediate attention."],
-          ] as const).map(([value, title, detail]) => <label key={value} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 34, padding: "5px 8px", border: escalation === value ? "1px solid #b7bec6" : "1px solid #e1e5e9", borderRadius: 7, background: escalation === value ? "#f6f8fa" : "#fff", cursor: "pointer" }}>
-            <input type="radio" name={`issue-${row.store_visit_id}-${row.vehicle_slot}`} checked={escalation === value} onChange={() => setEscalation(value)} />
-            <span style={{ fontSize: 11, lineHeight: 1.25 }}><strong>{title}</strong> <span style={{ color: "#707a84" }}>— {detail}</span></span>
-          </label>)}
+          ] as const).map(([value, title, detail]) => {
+            const selected = escalation === value;
+            return <button
+              key={value}
+              type="button"
+              onClick={() => setEscalation(value)}
+              aria-pressed={selected}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                minHeight: 38,
+                padding: "7px 10px",
+                border: selected ? "1px solid #8d98a3" : "1px solid #dfe4e8",
+                borderRadius: 7,
+                background: selected ? "#f4f6f8" : "#fff",
+                color: "#24303a",
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              <span aria-hidden="true" style={{
+                width: 14,
+                height: 14,
+                flex: "0 0 14px",
+                borderRadius: "50%",
+                border: selected ? "4px solid #2563eb" : "1.5px solid #8b949e",
+                background: selected ? "#fff" : "transparent",
+                boxSizing: "border-box",
+              }} />
+              <span style={{ fontSize: 11, lineHeight: 1.25 }}><strong>{title}</strong> <span style={{ color: "#707a84" }}>— {detail}</span></span>
+            </button>;
+          })}
         </div>
 
         {message ? <div style={{ marginTop: 9, fontSize: 11, color: message.startsWith("Report saved") ? "#2c6b46" : "#9b3030" }}>{message}</div> : null}
