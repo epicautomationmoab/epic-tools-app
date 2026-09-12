@@ -30,6 +30,8 @@ export type ReadinessRow = {
   requires_mpwr?: boolean | null;
   premier_adventure_assure?: boolean | null;
   adventure_assure_level?: string | null;
+  belt_tire_protection?: boolean | null;
+  overnight_addon?: boolean | null;
   ohv_required: boolean | null;
   ohv_certificate_uploaded: boolean | null;
   attention_flags: string[] | null;
@@ -122,11 +124,31 @@ export async function getReadinessRows() {
   const params = new URLSearchParams({ select: "*", limit: "500" });
   const rows = await fetchView<ReadinessRow>("guest_readiness_with_handoff_v", params);
   const confirmationCodes = [...new Set(rows.map((row) => row.confirmation_code).filter((code): code is string => Boolean(code)))];
+  const readinessIds = [...new Set(rows.map((row) => row.readiness_id).filter((id): id is string => Boolean(id)))];
   const portalTokenByConfirmationCode = new Map<string, string>();
+  const overnightByReadinessId = new Map<string, boolean | null>();
   const epicDocumentDeliveryFailuresByConfirmationCode = new Map<
     string,
     Array<{ name: string; email?: string | null; error?: string | null }>
   >();
+
+  for (let index = 0; index < readinessIds.length; index += 100) {
+    const batch = readinessIds.slice(index, index + 100);
+    const quotedIds = batch.map((id) => `"${id.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+    const overnightParams = new URLSearchParams({
+      select: "readiness_id,overnight_addon",
+      readiness_id: `in.(${quotedIds})`,
+      limit: "1000",
+    });
+    const overnightRows = await fetchView<{ readiness_id: string; overnight_addon: boolean | null }>(
+      "guest_readiness_operational",
+      overnightParams,
+      true,
+    );
+    for (const overnightRow of overnightRows) {
+      overnightByReadinessId.set(overnightRow.readiness_id, overnightRow.overnight_addon);
+    }
+  }
 
   for (let index = 0; index < confirmationCodes.length; index += 100) {
     const batch = confirmationCodes.slice(index, index + 100);
@@ -179,6 +201,7 @@ export async function getReadinessRows() {
       ...row,
       handoff_status: row.handoff_status === "tour_returned" ? "checked_in" : row.handoff_status,
       guest_portal_token: portalTokenByConfirmationCode.get(row.confirmation_code) ?? null,
+      overnight_addon: row.readiness_id ? (overnightByReadinessId.get(row.readiness_id) ?? null) : null,
       epic_document_delivery_failures:
         epicDocumentDeliveryFailuresByConfirmationCode.get(row.confirmation_code) ?? [],
     }))
