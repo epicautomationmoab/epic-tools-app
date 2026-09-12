@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PrintSingleVehicleTagButton } from "./NativePrintButton";
+import { VehicleIssueReporter } from "./VehicleIssueReporter";
 import styles from "./TourDispatch.module.css";
 
 export type TourDispatchRow = {
@@ -315,6 +316,7 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
               {status === "out" && !returnInProgress(checkinStatus) && !returnComplete(checkinStatus) ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
               {returnInProgress(checkinStatus) ? <><span className={styles.axelPill}>Check-In In Progress…</span><button type="button" onClick={() => retryCheckin(row)} disabled={busy}>{busy ? "Retrying…" : "Try Again"}</button></> : null}
               {returnComplete(checkinStatus) ? <span className={styles.statusPill}>Vehicle Returned</span> : null}
+              {(status === "out" || returnInProgress(checkinStatus) || returnComplete(checkinStatus)) ? <VehicleIssueReporter row={row} guideName={assignedGuide} /> : null}
               {message ? <span className={message.includes("Unable") || message.includes("Enter ") ? styles.error : styles.saved}>{message}</span> : null}
             </td>
           </tr>;
