@@ -15,8 +15,9 @@ type MenuState = {
   width: number;
 } | null;
 
-type ReadinessRowWithBeltTire = ReadinessRow & {
+type ReadinessRowWithRentalExtras = ReadinessRow & {
   belt_tire_protection?: boolean | null;
+  overnight_addon?: boolean | null;
 };
 
 function formatWallTime(value: string) {
@@ -142,7 +143,7 @@ export default function AdventureAssureEnhancer({ rows }: { rows: ReadinessRow[]
         if (!tireHeader) {
           tireHeader = document.createElement("th");
           tireHeader.dataset.beltTireColumn = "true";
-          tireHeader.setAttribute("aria-label", "Tire and Belt Damage Protection");
+          tireHeader.setAttribute("aria-label", "Rental protection and overnight indicators");
           tireHeader.style.width = "34px";
           tireHeader.style.minWidth = "34px";
           tireHeader.style.paddingLeft = "2px";
@@ -175,17 +176,33 @@ export default function AdventureAssureEnhancer({ rows }: { rows: ReadinessRow[]
           }
 
           const readinessRow = resolveReadinessRow(tableRow, liveRows) as
-            | ReadinessRowWithBeltTire
+            | ReadinessRowWithRentalExtras
             | null;
-          const desiredText = readinessRow?.belt_tire_protection === true ? "🛞" : "";
+          const hasBeltTire = readinessRow?.belt_tire_protection === true;
+          const hasOvernight = readinessRow?.overnight_addon === true;
+          const desiredText = hasBeltTire && hasOvernight
+            ? "🛞🌙"
+            : hasBeltTire
+              ? "🛞"
+              : hasOvernight
+                ? "🌙"
+                : "";
+
+          tireCell.style.fontSize = hasBeltTire && hasOvernight ? "15px" : "20px";
+          tireCell.style.letterSpacing = hasBeltTire && hasOvernight ? "-3px" : "normal";
 
           if (tireCell.textContent !== desiredText) {
             tireCell.textContent = desiredText;
           }
 
           if (desiredText) {
-            tireCell.title = "Tire and Belt Damage Protection";
-            tireCell.setAttribute("aria-label", "Tire and Belt Damage Protection purchased");
+            const label = hasBeltTire && hasOvernight
+              ? "Tire and Belt Damage Protection · Overnight Add-On"
+              : hasBeltTire
+                ? "Tire and Belt Damage Protection"
+                : "Overnight Add-On";
+            tireCell.title = label;
+            tireCell.setAttribute("aria-label", label);
           } else {
             tireCell.removeAttribute("title");
             tireCell.removeAttribute("aria-label");
