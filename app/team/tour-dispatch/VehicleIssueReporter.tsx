@@ -62,15 +62,12 @@ export function VehicleIssueReporter({ row, guideName }: { row: VehicleIssueRepo
       title="Report car trouble"
       aria-label={`Report car trouble for ${car}`}
       style={{
-        width: 34,
-        height: 34,
         marginLeft: 7,
         padding: 0,
-        border: "1px solid #d49f00",
-        borderRadius: 7,
-        background: "#ffbf00",
-        color: "#2f2600",
-        fontSize: 16,
+        border: 0,
+        background: "transparent",
+        color: "#ffbf00",
+        fontSize: 19,
         lineHeight: 1,
         fontWeight: 900,
         cursor: "pointer",
