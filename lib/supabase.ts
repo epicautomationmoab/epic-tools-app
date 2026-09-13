@@ -78,6 +78,26 @@ export type ArrivalBoardRow = {
   handoff_status?: "checked_in" | "tour_returned" | "rental_out" | "rental_returned" | null;
 };
 
+type OperationalReservationAccountingRow = {
+  confirmation_code: string;
+  tripworks_trip_id: string;
+  latest_payload: unknown;
+  trip_payload: unknown;
+};
+
+type OperationalTripOrderAccountingRow = {
+  tripworks_trip_id: string;
+  experience_name: string | null;
+  start_time: string | null;
+  total_sales_cents: number | null;
+  experience_total_cents: number | null;
+  is_cancelled: boolean | null;
+  trip_order_status_slug: string | null;
+};
+
+const SAN_JUAN_COUNTY_SALES_TAX_RATE = 0.0635;
+const UTAH_RENTAL_VEHICLE_TAX_RATE = 0.025;
+
 function getSupabaseConfig(useSecretKey = false) {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = useSecretKey
@@ -120,6 +140,52 @@ async function fetchView<T>(viewName: string, searchParams: URLSearchParams, use
   return response.json() as Promise<T[]>;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function successfulGuestPaymentsCents(payload: unknown) {
+  const record = asRecord(payload);
+  const payments = Array.isArray(record?.payments) ? record.payments : [];
+
+  return payments.reduce((sum, payment) => {
+    const row = asRecord(payment);
+    if (!row) return sum;
+    const status = asRecord(row.status)?.name;
+    const direction = asRecord(row.direction)?.name;
+    const amount = asNumber(row.amount);
+    if (status !== "Successful" || direction !== "Payment" || amount === null) return sum;
+    return sum + Math.round(amount);
+  }, 0);
+}
+
+function wallTimestampKey(value: string | null | undefined) {
+  return value?.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2}):(\d{2})/)?.slice(1).join(" ") ?? "";
+}
+
+function activityKey(confirmationCode: string, startTime: string | null | undefined, experienceName: string | null | undefined) {
+  return `${confirmationCode}|${wallTimestampKey(startTime)}|${experienceName?.trim().toLowerCase() ?? ""}`;
+}
+
+function rentalActivityCustomerTotalCents(order: OperationalTripOrderAccountingRow) {
+  const totalSales = Math.max(order.total_sales_cents ?? 0, 0);
+  const rentalExperience = Math.max(order.experience_total_cents ?? 0, 0);
+  const countySalesTax = Math.round(totalSales * SAN_JUAN_COUNTY_SALES_TAX_RATE);
+  const rentalVehicleTax = Math.round(rentalExperience * UTAH_RENTAL_VEHICLE_TAX_RATE);
+  return totalSales + countySalesTax + rentalVehicleTax;
+}
+
 export async function getReadinessRows() {
   const params = new URLSearchParams({ select: "*", limit: "500" });
   const rows = await fetchView<ReadinessRow>("guest_readiness_with_handoff_v", params);
@@ -127,6 +193,7 @@ export async function getReadinessRows() {
   const readinessIds = [...new Set(rows.map((row) => row.readiness_id).filter((id): id is string => Boolean(id)))];
   const portalTokenByConfirmationCode = new Map<string, string>();
   const overnightByReadinessId = new Map<string, boolean | null>();
+  const fullyCoveredRentalActivities = new Set<string>();
   const epicDocumentDeliveryFailuresByConfirmationCode = new Map<
     string,
     Array<{ name: string; email?: string | null; error?: string | null }>
@@ -164,7 +231,12 @@ export async function getReadinessRows() {
       copy_email_status: "eq.failed",
       limit: "1000",
     });
-    const [portalRows, failedEpicDocs] = await Promise.all([
+    const accountingReservationParams = new URLSearchParams({
+      select: "confirmation_code,tripworks_trip_id,latest_payload,trip_payload",
+      confirmation_code: `in.(${quotedCodes})`,
+      limit: "1000",
+    });
+    const [portalRows, failedEpicDocs, accountingReservations] = await Promise.all([
       fetchView<{ confirmation_code: string; guest_portal_token: string | null }>(
         "guest_portal_v",
         portalParams,
@@ -176,7 +248,61 @@ export async function getReadinessRows() {
         signer_email: string | null;
         copy_email_error: string | null;
       }>("epic_waiver_signatures", failedEpicDocParams, true),
+      fetchView<OperationalReservationAccountingRow>(
+        "operational_reservations",
+        accountingReservationParams,
+        true,
+      ),
     ]);
+
+    const tripIds = [...new Set(accountingReservations.map((row) => row.tripworks_trip_id).filter(Boolean))];
+    if (tripIds.length > 0) {
+      const quotedTripIds = tripIds.map((id) => `"${id.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+      const tripOrderParams = new URLSearchParams({
+        select: "tripworks_trip_id,experience_name,start_time,total_sales_cents,experience_total_cents,is_cancelled,trip_order_status_slug",
+        tripworks_trip_id: `in.(${quotedTripIds})`,
+        limit: "2000",
+      });
+      const tripOrders = await fetchView<OperationalTripOrderAccountingRow>(
+        "operational_trip_orders",
+        tripOrderParams,
+        true,
+      );
+      const tripOrdersByTrip = new Map<string, OperationalTripOrderAccountingRow[]>();
+      for (const order of tripOrders) {
+        const list = tripOrdersByTrip.get(order.tripworks_trip_id) ?? [];
+        list.push(order);
+        tripOrdersByTrip.set(order.tripworks_trip_id, list);
+      }
+
+      for (const reservation of accountingReservations) {
+        const activeOrders = (tripOrdersByTrip.get(reservation.tripworks_trip_id) ?? [])
+          .filter((order) => order.is_cancelled !== true && order.trip_order_status_slug !== "cancelled")
+          .sort((a, b) => (a.start_time ?? "").localeCompare(b.start_time ?? ""));
+
+        // Only override the umbrella balance when multiple active rental activities share
+        // one TripWorks confirmation. Successful payments are applied chronologically to
+        // prove that an earlier activity is fully covered. Any activity we cannot prove is
+        // fully covered keeps the original umbrella balance and remains blocked.
+        if (activeOrders.length < 2) continue;
+
+        let availablePayments = Math.max(
+          successfulGuestPaymentsCents(reservation.latest_payload),
+          successfulGuestPaymentsCents(reservation.trip_payload),
+        );
+
+        for (const order of activeOrders) {
+          const activityTotal = rentalActivityCustomerTotalCents(order);
+          if (activityTotal <= 0) continue;
+          if (availablePayments + 1 < activityTotal) break;
+
+          availablePayments -= activityTotal;
+          fullyCoveredRentalActivities.add(
+            activityKey(reservation.confirmation_code, order.start_time, order.experience_name),
+          );
+        }
+      }
+    }
 
     for (const portalRow of portalRows) {
       if (portalRow.confirmation_code && portalRow.guest_portal_token && !portalTokenByConfirmationCode.has(portalRow.confirmation_code)) {
@@ -197,14 +323,27 @@ export async function getReadinessRows() {
   }
 
   return rows
-    .map((row) => ({
-      ...row,
-      handoff_status: row.handoff_status === "tour_returned" ? "checked_in" : row.handoff_status,
-      guest_portal_token: portalTokenByConfirmationCode.get(row.confirmation_code) ?? null,
-      overnight_addon: row.readiness_id ? (overnightByReadinessId.get(row.readiness_id) ?? null) : null,
-      epic_document_delivery_failures:
-        epicDocumentDeliveryFailuresByConfirmationCode.get(row.confirmation_code) ?? [],
-    }))
+    .map((row) => {
+      const activityIsCovered =
+        row.business_line === "rental" &&
+        fullyCoveredRentalActivities.has(
+          activityKey(row.confirmation_code, row.visit_start_time, row.product_display_name),
+        );
+
+      return {
+        ...row,
+        amount_due_cents: activityIsCovered ? 0 : row.amount_due_cents,
+        is_paid: activityIsCovered ? true : row.is_paid,
+        attention_flags: activityIsCovered
+          ? (row.attention_flags ?? []).filter((flag) => flag !== "payment")
+          : row.attention_flags,
+        handoff_status: row.handoff_status === "tour_returned" ? "checked_in" : row.handoff_status,
+        guest_portal_token: portalTokenByConfirmationCode.get(row.confirmation_code) ?? null,
+        overnight_addon: row.readiness_id ? (overnightByReadinessId.get(row.readiness_id) ?? null) : null,
+        epic_document_delivery_failures:
+          epicDocumentDeliveryFailuresByConfirmationCode.get(row.confirmation_code) ?? [],
+      };
+    })
     .sort((a, b) => a.visit_start_time.localeCompare(b.visit_start_time) || a.customer_name.localeCompare(b.customer_name));
 }
 
