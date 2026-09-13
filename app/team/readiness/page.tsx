@@ -26,6 +26,7 @@ import EmailDeliveryAlert from "./EmailDeliveryAlert";
 import EmailDeliveryDrawerEnhancer from "./EmailDeliveryDrawerEnhancer";
 import ReservationDeepLinkEnhancer from "./ReservationDeepLinkEnhancer";
 import NoShowEnhancer from "./NoShowEnhancer";
+import RentalVehicleIssueEnhancer from "./RentalVehicleIssueEnhancer";
 import MpwrFinancePanel from "./MpwrFinancePanel";
 import JourneyPreviewOverlay from "./journey-preview/JourneyPreviewOverlay";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
@@ -61,6 +62,7 @@ export default async function TeamReadinessPage() {
       <SharedActionPinEnhancer />
       <AdventureAssureEnhancer rows={rows} />
       <NoShowEnhancer rows={rows} />
+      <RentalVehicleIssueEnhancer rows={rows} />
       <ContactSaveEnhancer />
       <StaffNotesDrawerEnhancer />
       <JourneyPreviewOverlay rows={rows} />
