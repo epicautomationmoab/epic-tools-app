@@ -32,9 +32,14 @@ function buttonText(button: HTMLButtonElement) {
 export default function C360Bridge({ row, onClose }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const openedRef = useRef(false);
+  const onCloseRef = useRef(onClose);
 
   useEffect(() => {
-    const root = hostRef.current;
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const root = hostRef.current as HTMLDivElement | null;
     if (!root) return;
 
     let stopped = false;
@@ -51,7 +56,7 @@ export default function C360Bridge({ row, onClose }: Props) {
         openedRef.current = true;
       } else if (openedRef.current) {
         openedRef.current = false;
-        onClose?.();
+        onCloseRef.current?.();
       }
     }
 
@@ -86,7 +91,7 @@ export default function C360Bridge({ row, onClose }: Props) {
       stopped = true;
       observer.disconnect();
     };
-  }, [row.readiness_id, row.confirmation_code, onClose]);
+  }, [row.readiness_id, row.confirmation_code]);
 
   return (
     <>
