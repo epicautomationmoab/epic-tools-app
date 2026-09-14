@@ -18,16 +18,33 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) throw new Error(text || `Supabase request failed (${response.status}).`);
   return text ? JSON.parse(text) as T : undefined as T;
 }
+
+type VisitIdentity = { readiness_id:string; notes:string|null };
+
+async function lookupVisit(view:string, field:"readiness_id"|"confirmation_code", value:string) {
+  const rows = await rest<VisitIdentity[]>(`${view}?${field}=eq.${encodeURIComponent(value)}&select=readiness_id,notes&limit=1`);
+  return rows[0] || null;
+}
+
 async function resolveVisit(request: NextRequest, body?: any) {
   const readinessId = String(body?.readiness_id || request.nextUrl.searchParams.get("readiness_id") || "").trim();
   const confirmation = String(body?.confirmation || request.nextUrl.searchParams.get("confirmation") || "").trim().toUpperCase();
+
   if (readinessId) {
-    const rows = await rest<Array<{ readiness_id:string; notes:string|null }>>(`guest_readiness_with_handoff_v?readiness_id=eq.${encodeURIComponent(readinessId)}&select=readiness_id,notes&limit=1`);
-    return rows[0] || { readiness_id: readinessId, notes: null };
+    return (
+      await lookupVisit("guest_readiness_with_handoff_v", "readiness_id", readinessId)
+    ) || (
+      await lookupVisit("guest_readiness_history_search_v", "readiness_id", readinessId)
+    ) || { readiness_id: readinessId, notes: null };
   }
+
   if (!confirmation) return null;
-  const rows = await rest<Array<{ readiness_id:string; notes:string|null }>>(`guest_readiness_with_handoff_v?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=readiness_id,notes&limit=1`);
-  return rows[0] || null;
+
+  return (
+    await lookupVisit("guest_readiness_with_handoff_v", "confirmation_code", confirmation)
+  ) || (
+    await lookupVisit("guest_readiness_history_search_v", "confirmation_code", confirmation)
+  );
 }
 async function saveLegacy(readinessId:string, noteText:string) {
   await rest("rpc/save_guest_readiness_note", { method:"POST", body:JSON.stringify({ p_readiness_id:readinessId, p_notes:noteText }) });
