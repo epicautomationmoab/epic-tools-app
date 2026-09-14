@@ -39,7 +39,7 @@ export default function C360Bridge({ row, onClose }: Props) {
   }, [onClose]);
 
   useEffect(() => {
-    const root = hostRef.current as HTMLDivElement | null;
+    const root: HTMLDivElement = hostRef.current!;
     if (!root) return;
 
     let stopped = false;
