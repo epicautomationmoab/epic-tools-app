@@ -7,6 +7,7 @@ type PortalPayload = { reservation?: { activities?: PortalActivity[] } };
 
 type PreferencePayload = {
   sendMode?: "review_request" | "thank_you_only";
+  jobStatus?: "pending" | "processing" | "sent" | "failed" | "cancelled" | null;
   error?: string;
 };
 
@@ -120,22 +121,24 @@ export default function PostVisitReviewToggleEnhancer() {
         const activity = bestActivityMatch(portal.reservation?.activities ?? [], businessLine, drawer);
         if (!activity) return;
 
+        let preference: PreferencePayload | null = null;
+        try {
+          const response = await fetch(`/api/team/post-visit-email/preference?readinessId=${encodeURIComponent(activity.readinessId)}`, { cache: "no-store" });
+          preference = (await response.json()) as PreferencePayload;
+          if (!response.ok) preference = null;
+        } catch {
+          preference = null;
+        }
+
+        if (preference?.jobStatus === "sent" || preference?.jobStatus === "cancelled") return;
         if (drawer.querySelector("#post-visit-review-toggle")) return;
 
         const button = document.createElement("button");
         button.type = "button";
         button.id = "post-visit-review-toggle";
         styleButton(button);
-        applyMode(button, "review_request");
+        applyMode(button, preference?.sendMode === "thank_you_only" ? "thank_you_only" : "review_request");
         rail.appendChild(button);
-
-        try {
-          const response = await fetch(`/api/team/post-visit-email/preference?readinessId=${encodeURIComponent(activity.readinessId)}`, { cache: "no-store" });
-          const data = (await response.json()) as PreferencePayload;
-          if (response.ok && data.sendMode) applyMode(button, data.sendMode);
-        } catch {
-          // Default remains review_request if the preference cannot be read.
-        }
 
         button.addEventListener("click", async () => {
           const current = button.dataset.sendMode === "thank_you_only" ? "thank_you_only" : "review_request";
