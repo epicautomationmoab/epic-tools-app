@@ -66,11 +66,14 @@ type MpwrWaiver = {
   last_verified_at: string | null;
 };
 
+type PortalRow = {
+  confirmation_code: string;
+  guest_portal_token: string | null;
+};
+
 function hasPreviewAccess(request: NextRequest) {
   const previewToken = process.env.EPIC_PREVIEW_TOKEN;
-  return Boolean(
-    previewToken && request.cookies.get("epic_preview_access")?.value === previewToken,
-  );
+  return Boolean(previewToken && request.cookies.get("epic_preview_access")?.value === previewToken);
 }
 
 async function authorized(request: NextRequest) {
@@ -81,17 +84,11 @@ async function authorized(request: NextRequest) {
 }
 
 function cleanSearchTerm(value: string) {
-  return value
-    .trim()
-    .replace(/[(),]/g, " ")
-    .replace(/\s+/g, " ")
-    .slice(0, 100);
+  return value.trim().replace(/[(),]/g, " ").replace(/\s+/g, " ").slice(0, 100);
 }
 
 function quoteList(values: string[]) {
-  return values
-    .map((value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`)
-    .join(",");
+  return values.map((value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
 }
 
 export async function GET(request: NextRequest) {
@@ -117,42 +114,28 @@ export async function GET(request: NextRequest) {
       clauses.push(`customer_phone_last_four.eq.${digits.slice(-4)}`);
     }
 
-    const params = new URLSearchParams({
-      select: "*",
-      or: `(${clauses.join(",")})`,
-      order: "visit_start_time.desc",
-      limit: "50",
-    });
-
     const rows = await supabaseSelect<HistoryRow>(
       "guest_readiness_history_search_v",
-      params,
+      new URLSearchParams({
+        select: "*",
+        or: `(${clauses.join(",")})`,
+        order: "visit_start_time.desc",
+        limit: "50",
+      }),
     );
 
     if (!rows.length) return NextResponse.json({ rows: [] });
 
-    const storeVisitIds = [
-      ...new Set(
-        rows
-          .map((row) => row.source_store_visit_id)
-          .filter((value): value is string => Boolean(value)),
-      ),
-    ];
-    const mpwrConfirmations = [
-      ...new Set(
-        rows
-          .map((row) => row.mpwr_confirmation_number)
-          .filter((value): value is string => Boolean(value)),
-      ),
-    ];
+    const storeVisitIds = [...new Set(rows.map((row) => row.source_store_visit_id).filter((value): value is string => Boolean(value)))];
+    const mpwrConfirmations = [...new Set(rows.map((row) => row.mpwr_confirmation_number).filter((value): value is string => Boolean(value)))];
+    const confirmationCodes = [...new Set(rows.map((row) => row.confirmation_code).filter(Boolean))];
 
-    const [epicDocuments, mpwrWaivers] = await Promise.all([
+    const [epicDocuments, mpwrWaivers, portalRows] = await Promise.all([
       storeVisitIds.length
         ? supabaseSelect<EpicDocument>(
             "epic_store_visit_document_evidence_v",
             new URLSearchParams({
-              select:
-                "store_visit_id,waiver_id,signer_name,signer_email,signer_phone,waiver_is_adult,signer_category,waiver_type_name,signed_pdf_url,received_at",
+              select: "store_visit_id,waiver_id,signer_name,signer_email,signer_phone,waiver_is_adult,signer_category,waiver_type_name,signed_pdf_url,received_at",
               store_visit_id: `in.(${quoteList(storeVisitIds)})`,
               order: "received_at.asc",
               limit: "1000",
@@ -163,10 +146,19 @@ export async function GET(request: NextRequest) {
         ? supabaseSelect<MpwrWaiver>(
             "scout_mpwr_waivers",
             new URLSearchParams({
-              select:
-                "mpwr_confirmation_number,rider_name,rider_email,waiver_url,is_minor,is_passenger,waiver_sequence_number,last_verified_at",
+              select: "mpwr_confirmation_number,rider_name,rider_email,waiver_url,is_minor,is_passenger,waiver_sequence_number,last_verified_at",
               mpwr_confirmation_number: `in.(${quoteList(mpwrConfirmations)})`,
               order: "waiver_sequence_number.asc,last_verified_at.asc",
+              limit: "1000",
+            }),
+          )
+        : Promise.resolve([]),
+      confirmationCodes.length
+        ? supabaseSelect<PortalRow>(
+            "guest_portal_v",
+            new URLSearchParams({
+              select: "confirmation_code,guest_portal_token",
+              confirmation_code: `in.(${quoteList(confirmationCodes)})`,
               limit: "1000",
             }),
           )
@@ -187,23 +179,26 @@ export async function GET(request: NextRequest) {
       mpwrByConfirmation.set(waiver.mpwr_confirmation_number, current);
     }
 
+    const portalTokenByConfirmation = new Map<string, string>();
+    for (const portalRow of portalRows) {
+      if (portalRow.guest_portal_token) {
+        portalTokenByConfirmation.set(portalRow.confirmation_code, portalRow.guest_portal_token);
+      }
+    }
+
     return NextResponse.json({
       rows: rows.map((row) => ({
         ...row,
+        guest_portal_token: portalTokenByConfirmation.get(row.confirmation_code) ?? null,
         is_paid: (row.amount_due_cents ?? 0) <= 0,
-        requires_mpwr:
-          (row.mpwr_document_expected_count ?? 0) > 0 ||
-          Boolean(row.mpwr_confirmation_number),
+        requires_mpwr: (row.mpwr_document_expected_count ?? 0) > 0 || Boolean(row.mpwr_confirmation_number),
         epic_document_count_label: `${row.epic_document_received_count ?? 0}/${row.epic_document_expected_count ?? row.expected_guest_count ?? 0}`,
         epic_document_count_color: "gray",
         epic_document_signers: row.source_store_visit_id
           ? (epicByStoreVisit.get(row.source_store_visit_id) ?? []).map((document) => ({
               name: document.signer_name,
               document_url: document.signed_pdf_url,
-              is_minor_or_child:
-                document.waiver_is_adult === null
-                  ? document.signer_category === "minor"
-                  : !document.waiver_is_adult,
+              is_minor_or_child: document.waiver_is_adult === null ? document.signer_category === "minor" : !document.waiver_is_adult,
               is_waiver_adult: document.waiver_is_adult,
             }))
           : [],
