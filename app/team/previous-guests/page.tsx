@@ -1,15 +1,14 @@
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
 import HistoricalReadinessSearch from "../readiness/HistoricalReadinessSearch";
-import HistoricalPostVisitToggleEnhancer from "../readiness/HistoricalPostVisitToggleEnhancer";
 import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
 import styles from "../readiness/ReadinessShell.module.css";
+import "../readiness/journey-preview/preview.css";
 
 export default function PreviousGuestsPage() {
   return (
     <div className={styles.page}>
-      <HistoricalPostVisitToggleEnhancer />
       <TeamSidebar active="Previous Guest Lookup" />
 
       <main className={styles.main}>

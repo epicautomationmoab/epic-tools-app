@@ -7,6 +7,7 @@ import LogoutButton from "../readiness/LogoutButton";
 import { getHeldOverRentals } from "./data";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "../readiness/ReadinessShell.module.css";
+import "../readiness/journey-preview/preview.css";
 
 export default async function ActiveRentalsPage() {
   let rows: ReadinessRow[] = [];

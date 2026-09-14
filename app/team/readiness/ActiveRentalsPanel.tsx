@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
+import C360Bridge from "./C360Bridge";
 
 function formatStart(value: string) {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
@@ -60,6 +61,7 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
   const [returnedIds, setReturnedIds] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [selectedRow, setSelectedRow] = useState<ReadinessRow | null>(null);
 
   const heldOverRows = rows.filter((row) => row.readiness_id && !returnedIds.has(row.readiness_id));
 
@@ -69,6 +71,7 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
     try {
       await markRentalReturned(readinessId);
       setReturnedIds((current) => new Set(current).add(readinessId));
+      if (selectedRow?.readiness_id === readinessId) setSelectedRow(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to mark rental returned.");
     } finally {
@@ -77,57 +80,77 @@ export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {
   }
 
   return (
-    <section aria-label="Held-Over Rentals" style={{ border: "1px solid #d9dee6", borderRadius: 12, background: "#fff", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,.04)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", borderBottom: "1px solid #e7ebf0", background: "#f8fafc" }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 900, color: "#202733" }}>Held-Over Rentals</div>
-          <div style={{ marginTop: 2, fontSize: 12, color: "#6b7280" }}>Prior-day rentals not marked Rental Returned</div>
+    <>
+      <section aria-label="Held-Over Rentals" style={{ border: "1px solid #d9dee6", borderRadius: 12, background: "#fff", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,.04)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", borderBottom: "1px solid #e7ebf0", background: "#f8fafc" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: "#202733" }}>Held-Over Rentals</div>
+            <div style={{ marginTop: 2, fontSize: 12, color: "#6b7280" }}>Prior-day rentals not marked Rental Returned</div>
+          </div>
+          <div style={{ minWidth: 30, height: 30, padding: "0 9px", borderRadius: 999, display: "grid", placeItems: "center", background: heldOverRows.length ? "#ffc107" : "#eceff3", color: "#202733", fontWeight: 900, fontSize: 13 }}>
+            {heldOverRows.length}
+          </div>
         </div>
-        <div style={{ minWidth: 30, height: 30, padding: "0 9px", borderRadius: 999, display: "grid", placeItems: "center", background: heldOverRows.length ? "#ffc107" : "#eceff3", color: "#202733", fontWeight: 900, fontSize: 13 }}>
-          {heldOverRows.length}
-        </div>
-      </div>
 
-      {error ? <div style={{ padding: "10px 14px", color: "#a61b1b", fontSize: 13, fontWeight: 700 }}>{error}</div> : null}
+        {error ? <div style={{ padding: "10px 14px", color: "#a61b1b", fontSize: 13, fontWeight: 700 }}>{error}</div> : null}
 
-      {heldOverRows.length === 0 ? (
-        <div style={{ padding: "14px 16px", color: "#7a7f87", fontSize: 13 }}>No held-over rentals.</div>
-      ) : (
-        <div>
-          {heldOverRows.map((row, index) => {
-            const readinessId = row.readiness_id!;
-            const saving = savingId === readinessId;
-            return (
-              <div key={readinessId} style={{ display: "grid", gridTemplateColumns: "minmax(180px,1.2fr) minmax(170px,1fr) minmax(155px,.8fr) auto", gap: 14, alignItems: "center", padding: "12px 14px", borderTop: index === 0 ? "none" : "1px solid #eef1f4", background: "#fff" }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 900, color: "#202733", fontSize: 14 }}>{row.customer_name}</div>
-                  <div style={{ marginTop: 3, color: "#6b7280", fontSize: 12 }}>{row.confirmation_code}</div>
-                </div>
-
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#343a46" }}>{vehicleLabel(row)}</div>
-                  <div style={{ marginTop: 3, color: "#6b7280", fontSize: 12 }}>{row.rental_duration || "Rental"}</div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 900, color: "#6b7280", textTransform: "uppercase", letterSpacing: ".04em" }}>Rental date</div>
-                  <div style={{ marginTop: 3, fontSize: 13, fontWeight: 800, color: "#343a46" }}>{formatStart(row.visit_start_time)}</div>
-                  <div style={{ marginTop: 3, fontSize: 11, color: "#7a7f87" }}>Status: {row.handoff_status || "No handoff recorded"}</div>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => complete(readinessId)}
-                  style={{ border: "1px solid #b10707", borderRadius: 8, background: saving ? "#f3d6d6" : "#b10707", color: "#fff", padding: "9px 13px", fontWeight: 900, fontSize: 12, cursor: saving ? "wait" : "pointer", whiteSpace: "nowrap" }}
+        {heldOverRows.length === 0 ? (
+          <div style={{ padding: "14px 16px", color: "#7a7f87", fontSize: 13 }}>No held-over rentals.</div>
+        ) : (
+          <div>
+            {heldOverRows.map((row, index) => {
+              const readinessId = row.readiness_id!;
+              const saving = savingId === readinessId;
+              return (
+                <div
+                  key={readinessId}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open ${row.customer_name} reservation details`}
+                  onClick={() => setSelectedRow(row)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedRow(row);
+                    }
+                  }}
+                  style={{ display: "grid", gridTemplateColumns: "minmax(180px,1.2fr) minmax(170px,1fr) minmax(155px,.8fr) auto", gap: 14, alignItems: "center", padding: "12px 14px", borderTop: index === 0 ? "none" : "1px solid #eef1f4", background: "#fff", cursor: "pointer" }}
                 >
-                  {saving ? "Saving…" : "Rental Returned"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 900, color: "#202733", fontSize: 14 }}>{row.customer_name}</div>
+                    <div style={{ marginTop: 3, color: "#6b7280", fontSize: 12 }}>{row.confirmation_code}</div>
+                  </div>
+
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#343a46" }}>{vehicleLabel(row)}</div>
+                    <div style={{ marginTop: 3, color: "#6b7280", fontSize: 12 }}>{row.rental_duration || "Rental"}</div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: "#6b7280", textTransform: "uppercase", letterSpacing: ".04em" }}>Rental date</div>
+                    <div style={{ marginTop: 3, fontSize: 13, fontWeight: 800, color: "#343a46" }}>{formatStart(row.visit_start_time)}</div>
+                    <div style={{ marginTop: 3, fontSize: 11, color: "#7a7f87" }}>Status: {row.handoff_status || "No handoff recorded"}</div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void complete(readinessId);
+                    }}
+                    style={{ border: "1px solid #b10707", borderRadius: 8, background: saving ? "#f3d6d6" : "#b10707", color: "#fff", padding: "9px 13px", fontWeight: 900, fontSize: 12, cursor: saving ? "wait" : "pointer", whiteSpace: "nowrap" }}
+                  >
+                    {saving ? "Saving…" : "Rental Returned"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {selectedRow ? <C360Bridge row={selectedRow} onClose={() => setSelectedRow(null)} /> : null}
+    </>
   );
 }

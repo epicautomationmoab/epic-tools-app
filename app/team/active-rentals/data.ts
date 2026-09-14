@@ -11,19 +11,6 @@ function mountainDateKey(date = new Date()) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-type ReadinessSourceRow = Pick<
-  ReadinessRow,
-  | "readiness_id"
-  | "visit_start_time"
-  | "confirmation_code"
-  | "customer_name"
-  | "business_line"
-  | "product_display_name"
-  | "rental_duration"
-  | "total_vehicle_count"
-  | "vehicle_breakdown"
->;
-
 type HandoffRow = {
   readiness_id: string;
   handoff_status: string;
@@ -32,6 +19,11 @@ type HandoffRow = {
 
 type NoShowRow = {
   readiness_id: string;
+};
+
+type PortalRow = {
+  confirmation_code: string;
+  guest_portal_token: string | null;
 };
 
 function supabaseServerConfig() {
@@ -55,26 +47,27 @@ async function fetchJson<T>(path: string, params: URLSearchParams): Promise<T[]>
   return response.json() as Promise<T[]>;
 }
 
+function quoteList(values: string[]) {
+  return values.map((value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+}
+
 export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
   const today = mountainDateKey();
   const yesterday = mountainDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
   const readinessParams = new URLSearchParams({
-    select: "readiness_id,visit_start_time,confirmation_code,customer_name,business_line,product_display_name,rental_duration,total_vehicle_count,vehicle_breakdown",
+    select: "*",
     business_line: "eq.rental",
-    archived_at: "is.null",
-    live_dashboard_visible: "eq.true",
     visit_start_time: `gte.${yesterday}T00:00:00`,
     order: "visit_start_time.asc",
     limit: "500",
   });
   readinessParams.append("visit_start_time", `lt.${today}T00:00:00`);
 
-  const readinessRows = await fetchJson<ReadinessSourceRow>("guest_readiness_operational", readinessParams);
+  const readinessRows = await fetchJson<ReadinessRow>("guest_readiness_with_handoff_v", readinessParams);
   if (readinessRows.length === 0) return [];
 
-  const readinessIds = readinessRows
-    .map((row) => row.readiness_id)
-    .filter((id): id is string => Boolean(id));
+  const readinessIds = readinessRows.map((row) => row.readiness_id).filter((id): id is string => Boolean(id));
+  const confirmationCodes = [...new Set(readinessRows.map((row) => row.confirmation_code).filter(Boolean))];
   const quotedIds = readinessIds.map((id) => `"${id}"`).join(",");
   const handoffParams = new URLSearchParams({
     select: "readiness_id,handoff_status,updated_at",
@@ -87,10 +80,16 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
     readiness_id: `in.(${quotedIds})`,
     limit: "1000",
   });
+  const portalParams = new URLSearchParams({
+    select: "confirmation_code,guest_portal_token",
+    confirmation_code: `in.(${quoteList(confirmationCodes)})`,
+    limit: "1000",
+  });
 
-  const [handoffs, noShows] = await Promise.all([
+  const [handoffs, noShows, portalRows] = await Promise.all([
     fetchJson<HandoffRow>("epic_operational_handoffs", handoffParams),
     fetchJson<NoShowRow>("epic_no_show_status", noShowParams),
+    fetchJson<PortalRow>("guest_portal_v", portalParams),
   ]);
 
   const noShowReadinessIds = new Set(noShows.map((row) => row.readiness_id));
@@ -101,6 +100,11 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
     }
   }
 
+  const portalTokenByConfirmation = new Map<string, string>();
+  for (const portalRow of portalRows) {
+    if (portalRow.guest_portal_token) portalTokenByConfirmation.set(portalRow.confirmation_code, portalRow.guest_portal_token);
+  }
+
   return readinessRows
     .filter((row) => {
       if (!row.readiness_id) return true;
@@ -109,22 +113,7 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
     })
     .map((row) => ({
       ...row,
-      handoff_status: row.readiness_id
-        ? (latestHandoffByReadinessId.get(row.readiness_id)?.handoff_status as ReadinessRow["handoff_status"] | undefined) ?? null
-        : null,
-      expected_guest_count: null,
-      epic_document_count_label: "",
-      epic_document_count_color: "gray",
-      mpwr_confirmation_number: null,
-      amount_due_cents: null,
-      is_paid: null,
-      ohv_required: null,
-      ohv_certificate_uploaded: null,
-      attention_flags: null,
-      tripworks_booking_url: null,
-      mpwr_reservation_url: null,
-      epic_document_signers: null,
-      mpwr_waivers: null,
+      guest_portal_token: portalTokenByConfirmation.get(row.confirmation_code) ?? null,
     }));
 }
 
