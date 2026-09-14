@@ -36,11 +36,24 @@ import "./journey-preview/preview.css";
 export default async function TeamReadinessPage() {
   let rows: ReadinessRow[] = [];
   let error = "";
+  const startedAt = Date.now();
+  let loadOutcome: "success" | "error" = "success";
 
   try {
     rows = await getReadinessRows();
   } catch (err) {
+    loadOutcome = "error";
     error = err instanceof Error ? err.message : "Unable to load readiness rows.";
+  } finally {
+    console.info(
+      JSON.stringify({
+        event: "guest_readiness_load_timing",
+        measured_at: new Date().toISOString(),
+        duration_ms: Date.now() - startedAt,
+        row_count: rows.length,
+        outcome: loadOutcome,
+      }),
+    );
   }
 
   return (
