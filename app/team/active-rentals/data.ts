@@ -11,19 +11,6 @@ function mountainDateKey(date = new Date()) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-type ReadinessSourceRow = Pick<
-  ReadinessRow,
-  | "readiness_id"
-  | "visit_start_time"
-  | "confirmation_code"
-  | "customer_name"
-  | "business_line"
-  | "product_display_name"
-  | "rental_duration"
-  | "total_vehicle_count"
-  | "vehicle_breakdown"
->;
-
 type HandoffRow = {
   readiness_id: string;
   handoff_status: string;
@@ -59,7 +46,7 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
   const today = mountainDateKey();
   const yesterday = mountainDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
   const readinessParams = new URLSearchParams({
-    select: "readiness_id,visit_start_time,confirmation_code,customer_name,business_line,product_display_name,rental_duration,total_vehicle_count,vehicle_breakdown",
+    select: "*",
     business_line: "eq.rental",
     archived_at: "is.null",
     live_dashboard_visible: "eq.true",
@@ -69,7 +56,7 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
   });
   readinessParams.append("visit_start_time", `lt.${today}T00:00:00`);
 
-  const readinessRows = await fetchJson<ReadinessSourceRow>("guest_readiness_operational", readinessParams);
+  const readinessRows = await fetchJson<ReadinessRow>("guest_readiness_with_handoff_v", readinessParams);
   if (readinessRows.length === 0) return [];
 
   const readinessIds = readinessRows
@@ -101,31 +88,11 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
     }
   }
 
-  return readinessRows
-    .filter((row) => {
-      if (!row.readiness_id) return true;
-      if (noShowReadinessIds.has(row.readiness_id)) return false;
-      return latestHandoffByReadinessId.get(row.readiness_id)?.handoff_status !== "rental_returned";
-    })
-    .map((row) => ({
-      ...row,
-      handoff_status: row.readiness_id
-        ? (latestHandoffByReadinessId.get(row.readiness_id)?.handoff_status as ReadinessRow["handoff_status"] | undefined) ?? null
-        : null,
-      expected_guest_count: null,
-      epic_document_count_label: "",
-      epic_document_count_color: "gray",
-      mpwr_confirmation_number: null,
-      amount_due_cents: null,
-      is_paid: null,
-      ohv_required: null,
-      ohv_certificate_uploaded: null,
-      attention_flags: null,
-      tripworks_booking_url: null,
-      mpwr_reservation_url: null,
-      epic_document_signers: null,
-      mpwr_waivers: null,
-    }));
+  return readinessRows.filter((row) => {
+    if (!row.readiness_id) return true;
+    if (noShowReadinessIds.has(row.readiness_id)) return false;
+    return latestHandoffByReadinessId.get(row.readiness_id)?.handoff_status !== "rental_returned";
+  });
 }
 
 export async function getCarryoverRentalCount() {
