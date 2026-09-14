@@ -40,6 +40,14 @@ export default function StaffNotesDrawerEnhancer() {
       const confirmation = confirmationFromDrawer(drawer);
       if (!confirmation) return;
 
+      const shell = document.createElement("section");
+      shell.dataset.staffNotesEnhanced = "true";
+      shell.style.cssText = "margin-top:24px;border:1px solid #ead891;background:#fffbea;border-radius:12px;padding:18px;";
+      shell.innerHTML = `<h3 style="margin:0;color:#7a5b00;font-size:20px">Important Notes</h3><div style="margin-top:12px;padding:12px;border:1px dashed #d9c978;border-radius:9px;background:#fff;color:#7b8491;font-size:12px">Loading notes…</div>`;
+      old.insertAdjacentElement("beforebegin", shell);
+      old.style.display = "none";
+      drawer.dataset.staffNotesReady = "true";
+
       busy = true;
       try {
         const response = await fetch(`/api/team/readiness/notes?confirmation=${encodeURIComponent(confirmation)}`, { cache:"no-store" });
@@ -50,13 +58,6 @@ export default function StaffNotesDrawerEnhancer() {
         const legacy = typeof payload.legacy_note === "string" && payload.legacy_note.trim()
           ? { note_id:"legacy", note_text:payload.legacy_note.trim(), created_by:null, created_at:"", updated_at:"" }
           : null;
-
-        const shell = document.createElement("section");
-        shell.dataset.staffNotesEnhanced = "true";
-        shell.style.cssText = "margin-top:24px;border:1px solid #ead891;background:#fffbea;border-radius:12px;padding:18px;";
-        old.insertAdjacentElement("beforebegin", shell);
-        old.style.display = "none";
-        drawer.dataset.staffNotesReady = "true";
 
         let items = legacy ? [legacy, ...notes] : [...notes];
         let composerOpen = false;
@@ -123,6 +124,7 @@ export default function StaffNotesDrawerEnhancer() {
         render();
       } catch (error) {
         console.error("Readiness notes enhancement failed", error);
+        shell.innerHTML = `<h3 style="margin:0;color:#7a5b00;font-size:20px">Important Notes</h3><div style="margin-top:12px;padding:12px;border:1px solid #f0c7bd;border-radius:9px;background:#fff;color:#b42318;font-size:12px">Unable to load durable notes. Close and reopen this reservation to retry.</div>`;
       } finally { busy = false; }
     }
 
