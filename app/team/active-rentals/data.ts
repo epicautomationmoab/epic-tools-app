@@ -11,6 +11,19 @@ function mountainDateKey(date = new Date()) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+type ReadinessSourceRow = Pick<
+  ReadinessRow,
+  | "readiness_id"
+  | "visit_start_time"
+  | "confirmation_code"
+  | "customer_name"
+  | "business_line"
+  | "product_display_name"
+  | "rental_duration"
+  | "total_vehicle_count"
+  | "vehicle_breakdown"
+>;
+
 type HandoffRow = {
   readiness_id: string;
   handoff_status: string;
@@ -54,21 +67,28 @@ function quoteList(values: string[]) {
 export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
   const today = mountainDateKey();
   const yesterday = mountainDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+  // IMPORTANT: held-over detection must read the operational table directly.
+  // The app-facing readiness view is intentionally optimized for live/current readiness
+  // and can exclude prior-day rows that still need a Rental Returned handoff.
   const readinessParams = new URLSearchParams({
-    select: "*",
+    select: "readiness_id,visit_start_time,confirmation_code,customer_name,business_line,product_display_name,rental_duration,total_vehicle_count,vehicle_breakdown",
     business_line: "eq.rental",
+    archived_at: "is.null",
+    live_dashboard_visible: "eq.true",
     visit_start_time: `gte.${yesterday}T00:00:00`,
     order: "visit_start_time.asc",
     limit: "500",
   });
   readinessParams.append("visit_start_time", `lt.${today}T00:00:00`);
 
-  const readinessRows = await fetchJson<ReadinessRow>("guest_readiness_with_handoff_v", readinessParams);
+  const readinessRows = await fetchJson<ReadinessSourceRow>("guest_readiness_operational", readinessParams);
   if (readinessRows.length === 0) return [];
 
   const readinessIds = readinessRows.map((row) => row.readiness_id).filter((id): id is string => Boolean(id));
   const confirmationCodes = [...new Set(readinessRows.map((row) => row.confirmation_code).filter(Boolean))];
   const quotedIds = readinessIds.map((id) => `"${id}"`).join(",");
+
   const handoffParams = new URLSearchParams({
     select: "readiness_id,handoff_status,updated_at",
     readiness_id: `in.(${quotedIds})`,
@@ -113,7 +133,23 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
     })
     .map((row) => ({
       ...row,
+      handoff_status: row.readiness_id
+        ? (latestHandoffByReadinessId.get(row.readiness_id)?.handoff_status as ReadinessRow["handoff_status"] | undefined) ?? null
+        : null,
       guest_portal_token: portalTokenByConfirmation.get(row.confirmation_code) ?? null,
+      expected_guest_count: null,
+      epic_document_count_label: "",
+      epic_document_count_color: "gray",
+      mpwr_confirmation_number: null,
+      amount_due_cents: null,
+      is_paid: null,
+      ohv_required: null,
+      ohv_certificate_uploaded: null,
+      attention_flags: null,
+      tripworks_booking_url: null,
+      mpwr_reservation_url: null,
+      epic_document_signers: null,
+      mpwr_waivers: null,
     }));
 }
 
