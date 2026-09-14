@@ -34,19 +34,19 @@ export default function C360Bridge({ row, onClose }: Props) {
   const openedRef = useRef(false);
 
   useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
+    const root = hostRef.current;
+    if (!root) return;
 
     let stopped = false;
     let attempts = 0;
 
     function hideReadinessChrome() {
-      for (const child of Array.from(host.children) as HTMLElement[]) {
+      for (const child of Array.from(root.children) as HTMLElement[]) {
         const containsDialog = Boolean(child.querySelector('[role="dialog"]'));
         child.style.display = containsDialog ? "" : "none";
       }
 
-      const dialog = host.querySelector<HTMLElement>('[role="dialog"][aria-label$="reservation details"]');
+      const dialog = root.querySelector<HTMLElement>('[role="dialog"][aria-label$="reservation details"]');
       if (dialog) {
         openedRef.current = true;
       } else if (openedRef.current) {
@@ -59,13 +59,13 @@ export default function C360Bridge({ row, onClose }: Props) {
       if (stopped) return;
       attempts += 1;
 
-      const allButtons = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      const allButtons = Array.from(root.querySelectorAll<HTMLButtonElement>("button"))
         .filter((button) => buttonText(button) === "All");
       for (const button of allButtons) button.click();
 
       window.requestAnimationFrame(() => {
         if (stopped) return;
-        const target = Array.from(host.querySelectorAll<HTMLTableRowElement>("tbody tr"))
+        const target = Array.from(root.querySelectorAll<HTMLTableRowElement>("tbody tr"))
           .find((tr) => tr.textContent?.includes(row.confirmation_code));
         if (target) {
           target.click();
@@ -78,7 +78,7 @@ export default function C360Bridge({ row, onClose }: Props) {
     }
 
     const observer = new MutationObserver(hideReadinessChrome);
-    observer.observe(host, { childList: true, subtree: true });
+    observer.observe(root, { childList: true, subtree: true });
     hideReadinessChrome();
     window.requestAnimationFrame(openReservation);
 
