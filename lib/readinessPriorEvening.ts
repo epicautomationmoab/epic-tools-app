@@ -61,7 +61,7 @@ export async function getPriorEveningReadinessIds(readinessIds: string[]) {
 }
 
 export function shiftWallDateBackOneDay(value: string) {
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!match) return value;
 
   const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
@@ -70,5 +70,9 @@ export function shiftWallDateBackOneDay(value: string) {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}${match[4]}`;
+
+  // Prior Evening Pickup is an operational 5:00 PM arrival on the day
+  // before the TripWorks rental start. The source reservation time remains
+  // unchanged; only the Readiness row uses this operational timestamp.
+  return `${year}-${month}-${day} 17:00:00`;
 }
