@@ -65,16 +65,14 @@ export default function PriorEveningPickupEnhancer({ rows }: { rows: ReadinessRo
           const visitCell = tableRow.cells[0];
           if (!visitCell) continue;
 
-          const lines = visitCell.querySelectorAll<HTMLElement>("div");
-          if (lines.length < 2) continue;
-
-          lines[1].textContent = "Prior Eve Pickup";
+          // Keep the operational date/time rendered by Readiness itself (5:00 PM
+          // on the prior day) so the row both displays and sorts correctly.
           const original = readinessRow.original_visit_start_time;
           if (original) {
-            visitCell.title = `TripWorks start: ${formatDate(original)} · ${formatWallTime(original)}`;
+            visitCell.title = `Prior Evening Pickup · TripWorks start: ${formatDate(original)} · ${formatWallTime(original)}`;
             visitCell.setAttribute(
               "aria-label",
-              `Prior evening pickup. TripWorks start ${formatDate(original)} at ${formatWallTime(original)}`,
+              `Prior evening pickup at 5:00 PM. TripWorks start ${formatDate(original)} at ${formatWallTime(original)}`,
             );
           }
         }
