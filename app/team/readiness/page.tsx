@@ -3,6 +3,7 @@ import TeamSidebar from "../TeamSidebar";
 import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
 import ReadinessTable from "./ReadinessTable";
 import ReadinessDateFilterEnhancer from "./ReadinessDateFilterEnhancer";
+import PriorEveningPickupEnhancer from "./PriorEveningPickupEnhancer";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
 import ReadinessRealtimeRefresh from "./ReadinessRealtimeRefresh";
@@ -30,17 +31,52 @@ import RentalVehicleIssueEnhancer from "./RentalVehicleIssueEnhancer";
 import MpwrFinancePanel from "./MpwrFinancePanel";
 import JourneyPreviewOverlay from "./journey-preview/JourneyPreviewOverlay";
 import { getReadinessRows, type ReadinessRow } from "@/lib/supabase";
+import {
+  getPriorEveningReadinessIds,
+  shiftWallDateBackOneDay,
+} from "@/lib/readinessPriorEvening";
 import styles from "./ReadinessShell.module.css";
 import "./journey-preview/preview.css";
 
+type OperationalReadinessRow = ReadinessRow & {
+  pickup_prior_evening?: boolean | null;
+  original_visit_start_time?: string | null;
+};
+
 export default async function TeamReadinessPage() {
-  let rows: ReadinessRow[] = [];
+  let rows: OperationalReadinessRow[] = [];
   let error = "";
   const startedAt = Date.now();
   let loadOutcome: "success" | "error" = "success";
 
   try {
-    rows = await getReadinessRows();
+    const sourceRows = await getReadinessRows();
+    const priorEveningIds = await getPriorEveningReadinessIds(
+      sourceRows
+        .map((row) => row.readiness_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+
+    rows = sourceRows
+      .map((row): OperationalReadinessRow => {
+        const isPriorEvening = Boolean(
+          row.readiness_id && priorEveningIds.has(row.readiness_id),
+        );
+
+        if (!isPriorEvening) return row;
+
+        return {
+          ...row,
+          pickup_prior_evening: true,
+          original_visit_start_time: row.visit_start_time,
+          visit_start_time: shiftWallDateBackOneDay(row.visit_start_time),
+        };
+      })
+      .sort(
+        (a, b) =>
+          a.visit_start_time.localeCompare(b.visit_start_time) ||
+          a.customer_name.localeCompare(b.customer_name),
+      );
   } catch (err) {
     loadOutcome = "error";
     error = err instanceof Error ? err.message : "Unable to load readiness rows.";
@@ -76,6 +112,7 @@ export default async function TeamReadinessPage() {
       <AdventureAssureEnhancer rows={rows} />
       <NoShowEnhancer rows={rows} />
       <RentalVehicleIssueEnhancer rows={rows} />
+      <PriorEveningPickupEnhancer rows={rows} />
       <ContactSaveEnhancer />
       <StaffNotesDrawerEnhancer />
       <JourneyPreviewOverlay rows={rows} />
