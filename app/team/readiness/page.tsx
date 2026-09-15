@@ -3,7 +3,6 @@ import TeamSidebar from "../TeamSidebar";
 import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
 import ReadinessTable from "./ReadinessTable";
 import ReadinessDateFilterEnhancer from "./ReadinessDateFilterEnhancer";
-import PriorEveningPickupEnhancer from "./PriorEveningPickupEnhancer";
 import HeaderClock from "./HeaderClock";
 import AutoRefresh from "./AutoRefresh";
 import ReadinessRealtimeRefresh from "./ReadinessRealtimeRefresh";
@@ -112,7 +111,6 @@ export default async function TeamReadinessPage() {
       <AdventureAssureEnhancer rows={rows} />
       <NoShowEnhancer rows={rows} />
       <RentalVehicleIssueEnhancer rows={rows} />
-      <PriorEveningPickupEnhancer rows={rows} />
       <ContactSaveEnhancer />
       <StaffNotesDrawerEnhancer />
       <JourneyPreviewOverlay rows={rows} />
