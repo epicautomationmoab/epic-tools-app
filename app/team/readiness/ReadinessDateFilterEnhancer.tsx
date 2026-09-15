@@ -8,15 +8,54 @@ function visitDateKey(value: string) {
   return value.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? "";
 }
 
-function formatSelectedDate(value: string) {
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return "Select Date";
+function dateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+function dateFromKey(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function formatSelectedDate(value: string) {
+  const date = dateFromKey(value);
+  if (!date) return "Select Date";
+
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
   }).format(date);
+}
+
+function formatMonth(value: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(value);
+}
+
+function startOfMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), 1);
+}
+
+function addMonths(value: Date, amount: number) {
+  return new Date(value.getFullYear(), value.getMonth() + amount, 1);
+}
+
+function calendarDays(month: Date) {
+  const first = startOfMonth(month);
+  const start = new Date(first);
+  start.setDate(first.getDate() - first.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return date;
+  });
 }
 
 function findTimeFilterGroup() {
@@ -39,10 +78,12 @@ function findReadinessBody() {
 export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessRow[] }) {
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [baseButtonClass, setBaseButtonClass] = useState("");
   const [activeButtonClass, setActiveButtonClass] = useState("");
-  const inputRef = useRef<HTMLInputElement | null>(null);
   const suppressClearRef = useRef(false);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
 
   const dateByConfirmation = useMemo(() => {
     const map = new Map<string, string>();
@@ -53,6 +94,9 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
     });
     return map;
   }, [rows]);
+
+  const days = useMemo(() => calendarDays(visibleMonth), [visibleMonth]);
+  const todayKey = dateKey(new Date());
 
   useEffect(() => {
     const group = findTimeFilterGroup();
@@ -84,6 +128,8 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
       if (!button || !group.contains(button)) return;
       if (button.dataset.readinessDateFilter === "true") return;
 
+      setCalendarOpen(false);
+
       if (suppressClearRef.current) {
         suppressClearRef.current = false;
         return;
@@ -95,6 +141,27 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
     group.addEventListener("click", onTimeFilterClick);
     return () => group.removeEventListener("click", onTimeFilterClick);
   }, [target]);
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!pickerRef.current?.contains(event.target as Node)) {
+        setCalendarOpen(false);
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCalendarOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [calendarOpen]);
 
   useEffect(() => {
     if (!selectedDate || !activeButtonClass) return;
@@ -150,21 +217,18 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
     };
   }, [selectedDate, dateByConfirmation]);
 
-  function openDatePicker() {
-    const input = inputRef.current;
-    if (!input) return;
-
-    if (typeof input.showPicker === "function") {
-      input.showPicker();
-    } else {
-      input.focus();
-      input.click();
-    }
+  function toggleCalendar() {
+    setCalendarOpen((open) => {
+      const next = !open;
+      if (next) {
+        const selected = dateFromKey(selectedDate);
+        setVisibleMonth(startOfMonth(selected ?? new Date()));
+      }
+      return next;
+    });
   }
 
   function selectDate(value: string) {
-    if (!value) return;
-
     const group = findTimeFilterGroup();
     const allButton = Array.from(group?.querySelectorAll("button") ?? []).find(
       (button) => button.textContent?.trim() === "All",
@@ -176,6 +240,7 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
     }
 
     setSelectedDate(value);
+    setCalendarOpen(false);
   }
 
   if (!target) return null;
@@ -185,31 +250,116 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
     .join(" ");
 
   return createPortal(
-    <>
+    <div ref={pickerRef} style={{ position: "relative", display: "inline-flex" }}>
       <button
         type="button"
         className={buttonClass}
         data-readiness-date-filter="true"
-        onClick={openDatePicker}
+        onClick={toggleCalendar}
+        aria-haspopup="dialog"
+        aria-expanded={calendarOpen}
         aria-label={selectedDate ? `Selected date ${formatSelectedDate(selectedDate)}` : "Select date"}
       >
         {selectedDate ? formatSelectedDate(selectedDate) : "Select Date"}
       </button>
-      <input
-        ref={inputRef}
-        type="date"
-        value={selectedDate}
-        onChange={(event) => selectDate(event.target.value)}
-        aria-label="Select readiness date"
-        style={{
-          position: "absolute",
-          width: 1,
-          height: 1,
-          opacity: 0,
-          pointerEvents: "none",
-        }}
-      />
-    </>,
+
+      {calendarOpen ? (
+        <div
+          role="dialog"
+          aria-label="Select readiness date"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            left: 0,
+            zIndex: 1000,
+            width: 292,
+            padding: 14,
+            border: "1px solid #dfe4e9",
+            borderRadius: 12,
+            background: "#fff",
+            boxShadow: "0 12px 30px rgba(15, 23, 42, 0.18)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <strong style={{ fontSize: 14, color: "#202733" }}>{formatMonth(visibleMonth)}</strong>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button
+                type="button"
+                onClick={() => setVisibleMonth((month) => addMonths(month, -1))}
+                aria-label="Previous month"
+                style={{ width: 34, height: 34, border: 0, borderRadius: 8, background: "transparent", fontSize: 20, cursor: "pointer" }}
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibleMonth((month) => addMonths(month, 1))}
+                aria-label="Next month"
+                style={{ width: 34, height: 34, border: 0, borderRadius: 8, background: "transparent", fontSize: 20, cursor: "pointer" }}
+              >
+                ›
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 4 }}>
+            {["S", "M", "T", "W", "T", "F", "S"].map((label, index) => (
+              <div key={`${label}-${index}`} style={{ textAlign: "center", fontSize: 11, fontWeight: 800, color: "#7a8490", padding: "4px 0" }}>
+                {label}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+            {days.map((day) => {
+              const key = dateKey(day);
+              const isCurrentMonth = day.getMonth() === visibleMonth.getMonth();
+              const isSelected = key === selectedDate;
+              const isToday = key === todayKey;
+
+              return (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => selectDate(key)}
+                  aria-label={new Intl.DateTimeFormat("en-US", { dateStyle: "full" }).format(day)}
+                  aria-pressed={isSelected}
+                  style={{
+                    height: 34,
+                    border: isToday && !isSelected ? "1px solid #ff6b1a" : "1px solid transparent",
+                    borderRadius: 8,
+                    background: isSelected ? "#ff6b1a" : "transparent",
+                    color: isSelected ? "#fff" : isCurrentMonth ? "#202733" : "#a7afb8",
+                    fontWeight: isSelected || isToday ? 800 : 600,
+                    cursor: "pointer",
+                    fontSize: 13,
+                  }}
+                >
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 10, borderTop: "1px solid #edf0f3" }}>
+            <button
+              type="button"
+              onClick={() => selectDate(todayKey)}
+              style={{ border: 0, background: "transparent", color: "#1769aa", fontWeight: 800, cursor: "pointer", padding: "6px 4px" }}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setCalendarOpen(false)}
+              style={{ border: 0, background: "transparent", color: "#5f6a76", fontWeight: 800, cursor: "pointer", padding: "6px 4px" }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>,
     target,
   );
 }
