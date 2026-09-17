@@ -130,13 +130,22 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
               <div className="waiver-eyebrow">03 · Rental Agreement</div>
               {role === "driver" ? <>
                 <div className="waiver-minor-ack">
-                  <div className="waiver-minor-heading">DRIVER RESPONSIBILITY — V2 DRAFTING NOTE</div>
-                  <p>A Driver is any person who operates an Epic vehicle during the rental. The final agreement will make clear that each Driver accepts the operating, financial, and contractual responsibilities applicable to any Epic vehicle that person operates during the rental, regardless of which individual is listed as the vehicle's checkout driver in Epic's or Polaris's systems.</p>
+                  <div className="waiver-minor-heading">DRIVER AGREEMENT — V2 DRAFT</div>
+                  <p><strong>Driver</strong> means any person who operates an Epic vehicle during the rental. By signing as a Driver, I accept the operating, financial, and contractual responsibilities that apply to any Epic vehicle I operate during the rental.</p>
+                  <p>My responsibility as a Driver is based on my actual operation of an Epic vehicle and is not limited or eliminated because another person is listed as the checkout driver in Epic's or Polaris's systems.</p>
+                  <p>I understand that off-highway vehicle use in Moab is inherently risky. I am responsible for operating within my own skill and experience, selecting routes and terrain appropriate to my ability, observing current and changing conditions, maintaining control of the vehicle, and deciding whether to proceed on any road, trail, obstacle, or area.</p>
                 </div>
                 <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: session.rental_terms_html || "" }} />
+                <p><small><strong>Preview note:</strong> The current master rental terms are shown below for drafting reference. Before launch, Responsible Party language and any terms that should apply only to Drivers will be rewritten into the V2 Driver agreement and reviewed by counsel.</small></p>
               </> : <>
-                <p><strong>V2 drafting note:</strong> The Passenger path will include the participation, risk, terrain, and parent/minor terms that apply to a passenger without imposing Driver operating or financial obligations.</p>
-                <div className="waiver-legal"><p>Passenger-specific agreement content will be inserted here after final legal wording is approved.</p></div>
+                <div className="waiver-minor-ack">
+                  <div className="waiver-minor-heading">PASSENGER AGREEMENT — V2 DRAFT</div>
+                  <p>I will participate in this rental as a Passenger and will not operate an Epic vehicle.</p>
+                  <p>I understand that riding in an off-highway vehicle in Moab is an inherently risky recreational activity. Terrain may include steep grades, ledges, rocks, technical obstacles, exposure, loose surfaces, changing trail conditions, limited visibility, other trail users, and other hazards capable of causing serious bodily injury or death.</p>
+                  <p>I acknowledge Epic's information regarding Prohibited Terrain and High-Consequence Terrain. I understand that High-Consequence designations are not an exhaustive list of hazardous terrain and that the absence of a road, trail, obstacle, or area from a warning or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate.</p>
+                  <p>I understand that route selection, terrain decisions, and vehicle operation are the responsibility of the Driver. By signing as a Passenger, I am not accepting the Driver's vehicle-operation or financial obligations solely because I am participating in the rental.</p>
+                </div>
+                <p><small><strong>Preview note:</strong> This is the first substantive Passenger draft. Final release/waiver language and interaction with the Polaris passenger waiver will be reviewed before launch.</small></p>
               </>}
             </section>
 
