@@ -153,6 +153,72 @@
   font-weight: 600;
 }
 
+.manifestControls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.bulkActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.bulkActions button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(20, 27, 34, 0.14);
+}
+
+.bulkActions button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.bulkCheckoutButton {
+  background: var(--manifest-accent);
+  color: #fff;
+}
+
+.bulkCheckoutButton:hover:not(:disabled) {
+  background: var(--manifest-dark);
+}
+
+.bulkCheckinButton {
+  background: #2f6a49;
+  color: #fff;
+}
+
+.bulkCheckinButton:hover:not(:disabled) {
+  background: #25563b;
+}
+
+.groupStatus,
+.groupError {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.groupStatus {
+  color: #2c6b46;
+}
+
+.groupError {
+  color: #9b3030;
+}
+
 .guideField {
   display: grid;
   grid-template-columns: auto minmax(160px, 220px);
@@ -387,5 +453,7 @@
   .content { padding: 20px 16px 32px; }
   .introRow { align-items: flex-start; flex-direction: column; }
   .manifestHeader { align-items: flex-start; flex-direction: column; }
+  .manifestControls { width: 100%; align-items: flex-start; justify-content: flex-start; flex-direction: column; }
+  .bulkActions { justify-content: flex-start; }
   .guideField { width: 100%; max-width: 420px; min-width: 0; }
 }
