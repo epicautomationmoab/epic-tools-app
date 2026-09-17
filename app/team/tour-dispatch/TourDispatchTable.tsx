@@ -188,7 +188,9 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
   const [statuses, setStatuses] = useState<Record<string, string>>(Object.fromEntries(rows.map((row) => [keyFor(row), row.checkout_status])));
   const [checkinStatuses, setCheckinStatuses] = useState<Record<string, string>>(Object.fromEntries(rows.map((row) => [keyFor(row), row.checkin_status])));
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [busyGroupKey, setBusyGroupKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
+  const [groupMessages, setGroupMessages] = useState<Record<string, string>>({});
 
   function reconcileAfterAction() {
     for (const delay of [2000, 6000, 15000, 30000]) window.setTimeout(() => router.refresh(), delay);
@@ -216,44 +218,61 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
     setMessages((current) => ({ ...current, [key]: "" }));
   }
 
-  async function queueCheckout(row: TourDispatchRow) {
+  async function queueCheckoutRequest(row: TourDispatchRow) {
     const key = keyFor(row);
     const draft = drafts[key];
     if (!draft?.car.trim() || !draft.mileage.trim() || !draft.hours.trim()) {
-      setMessages((current) => ({ ...current, [key]: "Enter car #, mileage, and hours." }));
-      return;
+      throw new Error("Enter car #, mileage, and hours.");
     }
+    const response = await fetch("/api/team/tour-dispatch", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        store_visit_id: row.store_visit_id,
+        vehicle_slot: row.vehicle_slot,
+        vehicle_label: draft.car.trim(),
+        checkout_mileage: Number(draft.mileage),
+        checkout_engine_hours: Number(draft.hours),
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload?.error || "Unable to prepare checkout.");
+    setStatuses((current) => ({ ...current, [key]: payload?.checkout_status || "checkout_queued" }));
+    setCheckinStatuses((current) => ({ ...current, [key]: payload?.checkin_status || "prepared" }));
+    setMessages((current) => ({ ...current, [key]: "Checkout prepared." }));
+    return payload;
+  }
+
+  async function queueCheckout(row: TourDispatchRow) {
+    const key = keyFor(row);
     setBusyKey(key);
     try {
-      const response = await fetch("/api/team/tour-dispatch", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ store_visit_id: row.store_visit_id, vehicle_slot: row.vehicle_slot, vehicle_label: draft.car.trim(), checkout_mileage: Number(draft.mileage), checkout_engine_hours: Number(draft.hours) }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error || "Unable to prepare checkout.");
-      setStatuses((current) => ({ ...current, [key]: payload?.checkout_status || "checkout_queued" }));
-      setCheckinStatuses((current) => ({ ...current, [key]: payload?.checkin_status || "prepared" }));
-      setMessages((current) => ({ ...current, [key]: "Checkout prepared." }));
+      await queueCheckoutRequest(row);
       reconcileAfterAction();
     } catch (error) {
       setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to prepare checkout." }));
     } finally { setBusyKey(null); }
   }
 
+  async function releaseCheckinRequest(row: TourDispatchRow) {
+    const key = keyFor(row);
+    const response = await fetch("/api/team/tour-dispatch/checkin", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store_visit_id: row.store_visit_id, vehicle_slot: row.vehicle_slot }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload?.error || "Unable to record vehicle return.");
+    setCheckinStatuses((current) => ({ ...current, [key]: "checkin_queued" }));
+    const checkinNote = payload?.axel_ready ? " Check-in package released." : " Check-in is pending.";
+    const tourNote = payload?.tour_returned ? " Tour is returned." : "";
+    setMessages((current) => ({ ...current, [key]: `Vehicle return recorded.${checkinNote}${tourNote}` }));
+    return payload;
+  }
+
   async function releaseCheckin(row: TourDispatchRow) {
     const key = keyFor(row);
     setBusyKey(key);
     try {
-      const response = await fetch("/api/team/tour-dispatch/checkin", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ store_visit_id: row.store_visit_id, vehicle_slot: row.vehicle_slot }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error || "Unable to record vehicle return.");
-      setCheckinStatuses((current) => ({ ...current, [key]: "checkin_queued" }));
-      const checkinNote = payload?.axel_ready ? " Check-in package released." : " Check-in is pending.";
-      const tourNote = payload?.tour_returned ? " Tour is returned." : "";
-      setMessages((current) => ({ ...current, [key]: `Vehicle return recorded.${checkinNote}${tourNote}` }));
+      await releaseCheckinRequest(row);
       reconcileAfterAction();
     } catch (error) {
       setMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "Unable to record vehicle return." }));
@@ -277,11 +296,114 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
     } finally { setBusyKey(null); }
   }
 
+  async function queueAllCheckouts(group: ManifestGroup) {
+    const eligible = group.rows.filter((row) => !departureLocked(statuses[keyFor(row)] ?? row.checkout_status));
+    if (!eligible.length) return;
+    const incomplete = eligible.filter((row) => {
+      const draft = drafts[keyFor(row)];
+      return !draft?.car.trim() || !draft.mileage.trim() || !draft.hours.trim();
+    });
+    if (incomplete.length) {
+      setGroupMessages((current) => ({ ...current, [group.key]: `Complete car #, mileage, and hours for all ${incomplete.length} remaining vehicle${incomplete.length === 1 ? "" : "s"}.` }));
+      return;
+    }
+
+    setBusyGroupKey(`${group.key}:checkout`);
+    setGroupMessages((current) => ({ ...current, [group.key]: "Queuing all checkouts…" }));
+    let queued = 0;
+    const failures: string[] = [];
+    for (const row of eligible) {
+      try {
+        await queueCheckoutRequest(row);
+        queued++;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to prepare checkout.";
+        failures.push(`${row.customer_name}: ${message}`);
+        setMessages((current) => ({ ...current, [keyFor(row)]: message }));
+      }
+    }
+    setGroupMessages((current) => ({
+      ...current,
+      [group.key]: failures.length
+        ? `${queued} checkout${queued === 1 ? "" : "s"} queued. ${failures.length} need attention.`
+        : `${queued} checkout${queued === 1 ? "" : "s"} queued for Axel.`,
+    }));
+    setBusyGroupKey(null);
+    reconcileAfterAction();
+  }
+
+  async function releaseAllCheckins(group: ManifestGroup) {
+    const eligible = group.rows.filter((row) => {
+      const key = keyFor(row);
+      const status = statuses[key] ?? row.checkout_status;
+      const checkinStatus = checkinStatuses[key] ?? row.checkin_status;
+      return status === "out" && !returnInProgress(checkinStatus) && !returnComplete(checkinStatus);
+    });
+    if (!eligible.length) return;
+
+    setBusyGroupKey(`${group.key}:checkin`);
+    setGroupMessages((current) => ({ ...current, [group.key]: "Queuing all vehicle check-ins…" }));
+    let queued = 0;
+    const failures: string[] = [];
+    for (const row of eligible) {
+      try {
+        await releaseCheckinRequest(row);
+        queued++;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to record vehicle return.";
+        failures.push(`${row.customer_name}: ${message}`);
+        setMessages((current) => ({ ...current, [keyFor(row)]: message }));
+      }
+    }
+    setGroupMessages((current) => ({
+      ...current,
+      [group.key]: failures.length
+        ? `${queued} check-in${queued === 1 ? "" : "s"} queued. ${failures.length} need attention.`
+        : `${queued} check-in${queued === 1 ? "" : "s"} queued for Axel.`,
+    }));
+    setBusyGroupKey(null);
+    reconcileAfterAction();
+  }
+
+  function groupStatusText(group: ManifestGroup) {
+    let returned = 0;
+    let checkingIn = 0;
+    let out = 0;
+    let checkingOut = 0;
+    for (const row of group.rows) {
+      const key = keyFor(row);
+      const status = statuses[key] ?? row.checkout_status;
+      const checkinStatus = checkinStatuses[key] ?? row.checkin_status;
+      if (returnComplete(checkinStatus)) returned++;
+      else if (returnInProgress(checkinStatus)) checkingIn++;
+      else if (status === "out") out++;
+      else if (["checkout_queued", "checking_out"].includes(status)) checkingOut++;
+    }
+    const parts = [`${returned} of ${group.rows.length} returned`];
+    if (checkingIn) parts.push(`${checkingIn} checking in`);
+    if (out) parts.push(`${out} out`);
+    if (checkingOut) parts.push(`${checkingOut} checking out`);
+    return parts.join(" · ");
+  }
+
   if (!rows.length) return <div className={styles.empty}>No MPWR tour vehicles are scheduled for today.</div>;
 
   return <div className={styles.manifestList}>{grouped.map((group) => {
     const assignedGuide = guideMap.get(group.key) ?? "";
     const theme = manifestTheme(group);
+    const checkoutEligible = group.rows.filter((row) => !departureLocked(statuses[keyFor(row)] ?? row.checkout_status));
+    const checkoutReady = checkoutEligible.length > 0 && checkoutEligible.every((row) => {
+      const draft = drafts[keyFor(row)];
+      return Boolean(draft?.car.trim() && draft.mileage.trim() && draft.hours.trim());
+    });
+    const checkinEligible = group.rows.filter((row) => {
+      const key = keyFor(row);
+      const status = statuses[key] ?? row.checkout_status;
+      const checkinStatus = checkinStatuses[key] ?? row.checkin_status;
+      return status === "out" && !returnInProgress(checkinStatus) && !returnComplete(checkinStatus);
+    });
+    const checkoutGroupBusy = busyGroupKey === `${group.key}:checkout`;
+    const checkinGroupBusy = busyGroupKey === `${group.key}:checkin`;
     return <section className={`${styles.manifestGroup} ${manifestThemeClass(theme)}`} key={group.key}>
       <div className={styles.manifestHeader}>
         <div>
@@ -290,9 +412,16 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
             <h2>{group.activity}</h2>
             <span className={styles.manifestTime}>{formatTime(group.visitStartTime)}</span>
           </div>
-          <div className={styles.manifestMeta}>{group.rows.length} {group.rows.length === 1 ? "vehicle" : "vehicles"}</div>
+          <div className={styles.manifestMeta}>{group.rows.length} {group.rows.length === 1 ? "vehicle" : "vehicles"} · {groupStatusText(group)}</div>
+          {groupMessages[group.key] ? <div className={groupMessages[group.key].includes("attention") || groupMessages[group.key].includes("Complete") ? styles.groupError : styles.groupStatus}>{groupMessages[group.key]}</div> : null}
         </div>
-        <GuideField group={group} initialValue={assignedGuide} />
+        <div className={styles.manifestControls}>
+          <div className={styles.bulkActions}>
+            {checkoutEligible.length > 0 ? <button type="button" className={styles.bulkCheckoutButton} onClick={() => queueAllCheckouts(group)} disabled={!checkoutReady || checkoutGroupBusy || checkinGroupBusy}>{checkoutGroupBusy ? "Queuing Checkouts…" : "Queue All Checkouts"}</button> : null}
+            {checkinEligible.length > 0 ? <button type="button" className={styles.bulkCheckinButton} onClick={() => releaseAllCheckins(group)} disabled={checkoutGroupBusy || checkinGroupBusy}>{checkinGroupBusy ? "Queuing Check-Ins…" : "Check In All Vehicles"}</button> : null}
+          </div>
+          <GuideField group={group} initialValue={assignedGuide} />
+        </div>
       </div>
       <div className={styles.tableWrap}><table className={styles.table}>
         <thead><tr><th>Name</th><th>Car #</th><th>Mileage</th><th>Hours</th><th aria-label="Vehicle action" /></tr></thead>
