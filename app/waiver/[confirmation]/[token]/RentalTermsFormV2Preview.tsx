@@ -127,7 +127,21 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
             </section>
 
             <section className="waiver-section">
-              <div className="waiver-eyebrow">03 · Minor Participants</div>
+              <div className="waiver-eyebrow">03 · Rental Agreement</div>
+              {role === "driver" ? <>
+                <div className="waiver-minor-ack">
+                  <div className="waiver-minor-heading">DRIVER RESPONSIBILITY — V2 DRAFTING NOTE</div>
+                  <p>A Driver is any person who operates an Epic vehicle during the rental. The final agreement will make clear that each Driver accepts the operating, financial, and contractual responsibilities applicable to any Epic vehicle that person operates during the rental, regardless of which individual is listed as the vehicle's checkout driver in Epic's or Polaris's systems.</p>
+                </div>
+                <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: session.rental_terms_html || "" }} />
+              </> : <>
+                <p><strong>V2 drafting note:</strong> The Passenger path will include the participation, risk, terrain, and parent/minor terms that apply to a passenger without imposing Driver operating or financial obligations.</p>
+                <div className="waiver-legal"><p>Passenger-specific agreement content will be inserted here after final legal wording is approved.</p></div>
+              </>}
+            </section>
+
+            <section className="waiver-section">
+              <div className="waiver-eyebrow">04 · Minor Participants</div>
               <h3>Are you the parent or legal guardian of any minor participant(s) on this reservation?</h3>
               <label className="waiver-choice"><input type="radio" name="minors" checked={hasMinors === false} onChange={() => setHasMinors(false)} />No.</label>
               <label className="waiver-choice"><input type="radio" name="minors" checked={hasMinors === true} onChange={() => setHasMinors(true)} />Yes.</label>
@@ -150,20 +164,6 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
                 </div>)}
                 <button type="button" className="waiver-button waiver-secondary" onClick={addMinor}>Add Another Minor</button>
               </div> : null}
-            </section>
-
-            <section className="waiver-section">
-              <div className="waiver-eyebrow">04 · Rental Agreement</div>
-              {role === "driver" ? <>
-                <div className="waiver-minor-ack">
-                  <div className="waiver-minor-heading">DRIVER RESPONSIBILITY — V2 DRAFTING NOTE</div>
-                  <p>A Driver is any person who operates an Epic vehicle during the rental. The final agreement will make clear that each Driver accepts the operating, financial, and contractual responsibilities applicable to any Epic vehicle that person operates during the rental, regardless of which individual is listed as the vehicle's checkout driver in Epic's or Polaris's systems.</p>
-                </div>
-                <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: session.rental_terms_html || "" }} />
-              </> : <>
-                <p><strong>V2 drafting note:</strong> The Passenger path will include the participation, risk, terrain, and parent/minor terms that apply to a passenger without imposing Driver operating or financial obligations.</p>
-                <div className="waiver-legal"><p>Passenger-specific agreement content will be inserted here after final legal wording is approved.</p></div>
-              </>}
             </section>
 
             <section className="waiver-section">
