@@ -13,8 +13,7 @@ type RentalSession = {
   total_vehicle_count: number;
 };
 
-type Role = "responsible_party" | "adult_participant";
-type ResponsibilityScope = "all_reservation_vehicles" | "assigned_vehicle_only";
+type Role = "driver" | "passenger";
 type Minor = { firstName: string; lastName: string; dob: string; relationship: string };
 
 function formatPhone(value: string | null) {
@@ -32,8 +31,6 @@ function emptyMinor(): Minor {
 export default function RentalTermsFormV2Preview({ session }: { session: RentalSession }) {
   const vehicleCount = Math.max(1, Number(session.total_vehicle_count) || 1);
   const [role, setRole] = useState<Role | null>(null);
-  const [willDrive, setWillDrive] = useState<boolean | null>(null);
-  const [scope, setScope] = useState<ResponsibilityScope>(vehicleCount > 1 ? "all_reservation_vehicles" : "assigned_vehicle_only");
   const [hasMinors, setHasMinors] = useState<boolean | null>(null);
   const [minors, setMinors] = useState<Minor[]>([emptyMinor()]);
   const [firstName, setFirstName] = useState("");
@@ -56,19 +53,18 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
       })
     : "—";
   const reservingPartyPhone = formatPhone(session.customer_phone);
+  const signerLabel = role === "driver" ? "Driver" : "Passenger";
 
-  const signerLabel = role === "responsible_party" ? "Responsible Party" : "Adult Participant";
   const summary = useMemo(() => {
-    if (!role) return "Choose a role to preview the agreement flow.";
+    if (!role) return "Choose Driver or Passenger to preview the agreement flow.";
     const parts = [signerLabel];
-    if (willDrive === true) parts.push("Authorized Driver");
-    if (willDrive === false) parts.push("Passenger Only");
     if (hasMinors) parts.push(`${minors.length} minor participant${minors.length === 1 ? "" : "s"}`);
-    if (role === "responsible_party") {
-      parts.push(scope === "all_reservation_vehicles" ? "Responsible for all reservation vehicles" : "Responsible for assigned vehicle only");
-    }
     return parts.join(" · ");
-  }, [role, signerLabel, willDrive, hasMinors, minors.length, scope]);
+  }, [role, signerLabel, hasMinors, minors.length]);
+
+  function chooseRole(nextRole: Role) {
+    setRole(nextRole);
+  }
 
   function addMinor() {
     setMinors((current) => [...current, emptyMinor()]);
@@ -104,13 +100,14 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
             <div className="waiver-eyebrow">01 · Your Role</div>
             <h3>How are you participating in this rental?</h3>
             <label className="waiver-choice">
-              <input type="radio" name="role" checked={role === "responsible_party"} onChange={() => setRole("responsible_party")} />
-              <span><strong>Responsible Party</strong><br />I am accepting financial and contractual responsibility for one or more vehicles on this reservation.</span>
+              <input type="radio" name="role" checked={role === "driver"} onChange={() => chooseRole("driver")} />
+              <span><strong>Driver</strong><br />I will operate an Epic vehicle during this rental.</span>
             </label>
             <label className="waiver-choice">
-              <input type="radio" name="role" checked={role === "adult_participant"} onChange={() => setRole("adult_participant")} />
-              <span><strong>Other Adult Participant</strong><br />I am participating as a driver or passenger but am not accepting Responsible Party financial obligations by signing this agreement.</span>
+              <input type="radio" name="role" checked={role === "passenger"} onChange={() => chooseRole("passenger")} />
+              <span><strong>Passenger</strong><br />I will participate as a passenger and will not operate an Epic vehicle during this rental.</span>
             </label>
+            <p><small>This reservation includes {vehicleCount} vehicle{vehicleCount === 1 ? "" : "s"}. Readiness will require at least {vehicleCount} signed Driver{vehicleCount === 1 ? "" : "s"} before the rental is ready.</small></p>
           </section>
 
           {role ? <>
@@ -129,25 +126,8 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
               </div>
             </section>
 
-            {role === "responsible_party" && vehicleCount > 1 ? (
-              <section className="waiver-section">
-                <div className="waiver-eyebrow">03 · Responsibility Scope</div>
-                <h3>This reservation includes {vehicleCount} vehicles.</h3>
-                <p>Choose the scope of financial and contractual responsibility you are accepting.</p>
-                <label className="waiver-choice"><input type="radio" name="scope" checked={scope === "all_reservation_vehicles"} onChange={() => setScope("all_reservation_vehicles")} />I accept responsibility for <strong>all vehicles on this reservation</strong>.</label>
-                <label className="waiver-choice"><input type="radio" name="scope" checked={scope === "assigned_vehicle_only"} onChange={() => setScope("assigned_vehicle_only")} />I accept responsibility <strong>only for the vehicle assigned to me at checkout</strong>.</label>
-              </section>
-            ) : null}
-
             <section className="waiver-section">
-              <div className="waiver-eyebrow">{role === "responsible_party" && vehicleCount > 1 ? "04" : "03"} · Driver Status</div>
-              <h3>Will you operate a vehicle?</h3>
-              <label className="waiver-choice"><input type="radio" name="driver" checked={willDrive === true} onChange={() => setWillDrive(true)} />Yes — I will be an Authorized Driver.</label>
-              <label className="waiver-choice"><input type="radio" name="driver" checked={willDrive === false} onChange={() => setWillDrive(false)} />No — I will participate as a passenger only.</label>
-            </section>
-
-            <section className="waiver-section">
-              <div className="waiver-eyebrow">{role === "responsible_party" && vehicleCount > 1 ? "05" : "04"} · Minor Participants</div>
+              <div className="waiver-eyebrow">03 · Minor Participants</div>
               <h3>Are you the parent or legal guardian of any minor participant(s) on this reservation?</h3>
               <label className="waiver-choice"><input type="radio" name="minors" checked={hasMinors === false} onChange={() => setHasMinors(false)} />No.</label>
               <label className="waiver-choice"><input type="radio" name="minors" checked={hasMinors === true} onChange={() => setHasMinors(true)} />Yes.</label>
@@ -173,13 +153,21 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
             </section>
 
             <section className="waiver-section">
-              <div className="waiver-eyebrow">{role === "responsible_party" && vehicleCount > 1 ? "06" : "05"} · Rental Agreement</div>
-              {role === "adult_participant" ? <p><strong>V2 drafting note:</strong> The final launch version will display the Epic rental terms that apply to an adult participant without transferring Responsible Party financial obligations. The role-specific legal copy is intentionally not active yet.</p> : null}
-              {role === "responsible_party" ? <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: session.rental_terms_html || "" }} /> : <div className="waiver-legal"><p>Adult Participant agreement content will be inserted here after final legal wording is approved.</p></div>}
+              <div className="waiver-eyebrow">04 · Rental Agreement</div>
+              {role === "driver" ? <>
+                <div className="waiver-minor-ack">
+                  <div className="waiver-minor-heading">DRIVER RESPONSIBILITY — V2 DRAFTING NOTE</div>
+                  <p>A Driver is any person who operates an Epic vehicle during the rental. The final agreement will make clear that each Driver accepts the operating, financial, and contractual responsibilities applicable to any Epic vehicle that person operates during the rental, regardless of which individual is listed as the vehicle's checkout driver in Epic's or Polaris's systems.</p>
+                </div>
+                <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: session.rental_terms_html || "" }} />
+              </> : <>
+                <p><strong>V2 drafting note:</strong> The Passenger path will include the participation, risk, terrain, and parent/minor terms that apply to a passenger without imposing Driver operating or financial obligations.</p>
+                <div className="waiver-legal"><p>Passenger-specific agreement content will be inserted here after final legal wording is approved.</p></div>
+              </>}
             </section>
 
             <section className="waiver-section">
-              <div className="waiver-eyebrow">{role === "responsible_party" && vehicleCount > 1 ? "07" : "06"} · Acknowledgment & Signature</div>
+              <div className="waiver-eyebrow">05 · Acknowledgment & Signature</div>
               <label className="waiver-consent"><input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} /><span>I have reviewed the agreement sections applicable to my role and understand the selections shown below.</span></label>
               <div className="waiver-consent-card"><strong>{summary}</strong></div>
               <p><strong>Preview only:</strong> signature capture and submission are deliberately disabled on this branch so no V2 agreement can accidentally be recorded as a live agreement.</p>
