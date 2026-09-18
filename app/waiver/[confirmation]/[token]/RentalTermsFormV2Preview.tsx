@@ -18,50 +18,159 @@ type Minor = { firstName: string; lastName: string; dob: string; relationship: s
 
 
 const DRIVER_AGREEMENT_V2_HTML = `
-  <p><strong>Driver Agreement.</strong> Driver means any person who operates an Epic vehicle during the rental. By signing as a Driver, you accept the operating, financial, and contractual responsibilities that apply to any Epic vehicle you operate during the rental, regardless of which individual is listed as the checkout driver in Epic's or Polaris's systems.</p>
+  <p>As a <strong>Driver</strong>, you are entering into a binding agreement with Epic 4X4 Adventures, Inc. (“Epic”). You accept financial and contractual responsibility for the Epic vehicle or vehicles you operate during the rental and for compliance with these Terms &amp; Conditions. These Terms &amp; Conditions are separate from and supplemental to any agreements entered into through Polaris Adventures and form part of your rental agreement with Epic.</p>
+
+  <p><strong>Driver</strong> means any person who operates an Epic vehicle during the rental. Each Driver is individually responsible for the operating, financial, and contractual obligations applicable to any Epic vehicle they operate, regardless of which individual is listed as the vehicle’s checkout driver in Epic’s or Polaris’s systems.</p>
 
   <p>Off-highway vehicle use in Moab is an inherently risky recreational activity. Terrain may include steep grades, ledges, rocks, technical obstacles, exposure, loose surfaces, changing trail conditions, limited visibility, other trail users, and other hazards capable of causing vehicle damage, serious bodily injury, or death.</p>
 
-  <p>Epic provides operating requirements, safety information, trail information, and vehicle-use restrictions so Drivers can make informed decisions during the rental. Epic does not determine whether a particular road, trail, obstacle, or area is appropriate for an individual Driver.</p>
+  <p>Epic provides operating requirements, safety information, trail information, and vehicle-use restrictions to help renters and Drivers make informed decisions during the rental. Epic does not determine whether a particular road, trail, obstacle, or area is appropriate for an individual Driver.</p>
 
-  <p>Each Driver is responsible for operating within their own skill and experience, selecting routes and terrain appropriate to their ability, observing current and changing conditions, maintaining control of the vehicle, and deciding whether to proceed on any road, trail, obstacle, or area. Each Driver is also responsible for knowing their location, route, direction of travel, and the terrain ahead.</p>
+  <p>Each Driver is responsible for operating within their own skill and experience, selecting routes and terrain appropriate to their ability, observing current and changing conditions, maintaining control of the vehicle, and deciding whether to proceed on any road, trail, obstacle, or area.</p>
 
-  <p>The absence of a road, trail, obstacle, or area from any warning, High-Consequence, or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate for any particular Driver. Hazards capable of causing serious injury, death, vehicle damage, or difficult recovery may exist anywhere within Moab's trail system.</p>
+  <p>The absence of a road, trail, obstacle, or area from any warning, High-Consequence, or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate for any particular Driver. Hazards capable of causing serious injury, death, vehicle damage, or difficult recovery may exist anywhere within Moab’s trail system.</p>
 
-  <h4>1. Driver Requirements and Vehicle Use</h4>
-  <p>You are expected to operate only within your skill and experience and in compliance with applicable laws, trail regulations, land-use requirements, vehicle operating requirements, and the terms of this Agreement. You must follow vehicle operating instructions and use required safety equipment. Reckless, careless, unlawful, abusive, negligent, or unauthorized use, or operation outside your skill and experience, may affect available damage protection and may result in full financial responsibility where permitted by the applicable agreements and law.</p>
-  <p>Do not race, tow, intentionally use the vehicle for recreational mudding, water play, or sand play, tamper with tracking or vehicle systems, operate while impaired, or intentionally misuse the vehicle. Open alcoholic beverages are not permitted in the vehicle during the rental period. Overnight rentals must be parked by 10:00 PM unless Epic has specifically provided different operating instructions.</p>
-  <p>Navigation tools and route information may be incomplete or inaccurate. You remain responsible for navigation, route selection, and the terrain ahead.</p>
+  <p>You are expected to comply with all applicable laws, trail regulations, land-use requirements, vehicle operating requirements, and the terms of this agreement while using the vehicle. Responsible operation helps protect Epic’s vehicles, other trail users, and Moab’s public lands.</p>
 
-  <h4>2. Geographic Boundaries and Terrain</h4>
-  <p>Vehicles must remain within Epic's authorized operating area and applicable public-land rules. Highway 191 is prohibited north of the Highway 279/Potash intersection and south of Red Desert RV Park, except that southbound Highway 191 may be used to return from trail access north of the Potash intersection. Highway 128 is prohibited beyond the Onion Creek intersection.</p>
-  <p><strong>Prohibited Trails:</strong> Pritchett Canyon, Cliffhanger Trail, and Moab Rim Trail.</p>
-  <p><strong>Prohibited Obstacles:</strong> Hell's Gate, Escalator, Staircase, Tip Over Challenge, Mickey's Hot Tub, and Devil's Hot Tub.</p>
-  <p><strong>High-Consequence Terrain:</strong> Golden Spike, Gold Bar Rim, Behind the Rocks, Steel Bender, Rusty Nail, Flat Iron Mesa, Kane Creek, and Top of the World. Epic recommends avoiding High-Consequence Terrain. This list is not exhaustive and does not imply that unlisted terrain is safe, easy, suitable, or appropriate.</p>
+  <h4>1. SAFETY &amp; EQUIPMENT USE</h4>
+  <p>Epic vehicles may be operated only on designated routes within Grand County and San Juan County, Utah. Vehicles may not be operated recklessly, carelessly, unlawfully, or beyond the Driver’s skill and experience.</p>
 
-  <h4>3. Cleaning and Condition</h4>
-  <p>Do not wash, rinse, pressure wash, or otherwise clean the vehicle during the rental. Standard post-rental cleaning is included. Excessive contamination, mud, debris, staining, or other extraordinary cleaning needs may result in cleaning charges starting at $250.</p>
+  <p>All Drivers must comply with posted trail regulations, speed limits, applicable laws, vehicle operating requirements, and Epic operating requirements provided for the rental.</p>
 
-  <h4>4. Financial Responsibility and Charges</h4>
-  <p>Each Driver is financially and contractually responsible for properly due charges associated with any Epic vehicle they operate, including damage, loss, administrative charges, shop costs, excessive cleaning, towing, recovery, extraction, transportation, Loss of Use where recoverable, prohibited-use charges, and other amounts properly due under this Agreement and applicable Polaris Adventures agreements.</p>
-  <p>Epic may rely on photographs, incident reports, repair documentation, invoices, GPS or telemetry data, inspection findings, video, staff observations, and other relevant evidence when evaluating amounts due. A payment dispute or chargeback does not eliminate amounts that are otherwise properly due.</p>
+  <p>Utah law requires each Driver to complete the Utah OHV Education Course and carry a valid certificate while operating an off-highway vehicle. Proof of certification is required at check-out.</p>
 
-  <h4>5. Recovery</h4>
-  <p>Recovery, extraction, towing, or transport of a stuck, disabled, abandoned, or otherwise unrecoverable vehicle is separate from vehicle damage and from any damage-protection product. Except for a purely mechanical failure not caused or contributed to by the Driver, recovery costs are the responsibility of the Driver whose operation resulted in the need for recovery.</p>
-  <p>Recovery from Prohibited Terrain or High-Consequence Terrain starts at $2,500 and may increase based on the actual resources required, including personnel, equipment, vehicles, time, operational disruption, technical difficulty, risk, and third-party costs. Recovery may be performed by Epic, a third party, or both. Recovery timing is not guaranteed.</p>
+  <p>Damage resulting from abuse, reckless or negligent operation, unauthorized use, or operation beyond the Driver’s skill or experience may result in loss of damage protection and full financial responsibility.</p>
 
-  <h4>6. Damage Protection Review</h4>
-  <p>Epic reviews and evaluates damage incidents and applies the applicable damage-protection terms to vehicles rented through Epic. Damage protection may be limited or void where permitted by the applicable agreement for violations including reckless operation, operation outside skill and experience, intentional or willful disregard of operating requirements or warnings, Prohibited Terrain use, failure to report or cooperate, fraud or misrepresentation, or other conduct excluded by the applicable protection terms.</p>
-  <p>Any uncovered amounts remain the responsibility of the Driver or Drivers legally and contractually responsible for the loss.</p>
+  <h4>2. OPERATING BOUNDARIES, PROHIBITED &amp; HIGH-CONSEQUENCE TERRAIN</h4>
+  <p><strong>Operating Boundaries</strong></p>
+  <p>Epic vehicles may be operated only within the authorized rental area and may not be driven beyond the following roadway boundaries:</p>
+  <ul>
+    <li>Highway 191 northbound beyond the Highway 279 / Potash Road intersection</li>
+    <li>Highway 191 southbound beyond Red Desert RV Park</li>
+    <li>Highway 128 beyond the Onion Creek Road intersection</li>
+  </ul>
+  <p>Travel on Highway 191 southbound from trail access points north of the Highway 279 / Potash Road intersection is permitted when returning toward Moab.</p>
 
-  <h4>7. Security Deposit and Payment Authorization</h4>
-  <p>Epic may require a security deposit or card authorization. Any deposit or authorization is not a cap on liability. By signing, you authorize Epic to apply available funds or charge the payment method on file for amounts properly due under this Agreement, subject to applicable law and payment-network rules.</p>
+  <p><strong>Prohibited Terrain</strong></p>
+  <p>Epic vehicles may not be operated on or used to attempt the following trails and obstacles:</p>
+  <p><strong>Trails</strong></p>
+  <ul>
+    <li>Pritchett Canyon</li>
+    <li>Cliffhanger Trail</li>
+    <li>Moab Rim Trail</li>
+  </ul>
+  <p><strong>Obstacles</strong></p>
+  <ul>
+    <li>Hell’s Gate</li>
+    <li>Escalator</li>
+    <li>Staircase</li>
+    <li>Tip Over Challenge</li>
+    <li>Mickey’s Hot Tub</li>
+    <li>Devil’s Hot Tub</li>
+  </ul>
 
-  <h4>8. Evidence, Enforcement, and Remedies</h4>
-  <p>Violations of this Agreement may result in termination of the rental without refund, additional charges, recovery costs, and limitations on available damage protection where permitted by the applicable agreements. Epic may use GPS, telemetry, inspections, photographs, video, reports, and staff observations to determine compliance and document incidents.</p>
+  <p>Entering Prohibited Terrain or attempting a prohibited obstacle is a violation of this agreement and may void applicable damage protection. The Driver whose operation results in the violation may be held fully responsible for resulting vehicle damage, recovery, Loss of Use, and other related costs.</p>
 
-  <h4>9. Supplemental Agreement</h4>
-  <p>This Agreement is separate from and supplemental to applicable Polaris Adventures agreements. By signing as a Driver, you acknowledge that you have reviewed this Agreement and accept the operating, financial, and contractual responsibilities that apply to any Epic vehicle you operate during the rental.</p>
+  <p><strong>High-Consequence Terrain</strong></p>
+  <p>Epic identifies certain additional trails and obstacles as High-Consequence Terrain because errors, changing conditions, or loss of vehicle control may result in serious injury or death, significant vehicle damage, and difficult recovery. Epic recommends avoiding High-Consequence Terrain.</p>
+
+  <p>High-Consequence Terrain includes, but is not limited to:</p>
+  <ul>
+    <li>Golden Spike</li>
+    <li>Gold Bar Rim</li>
+    <li>Behind the Rocks</li>
+    <li>Steel Bender</li>
+    <li>Rusty Nail</li>
+    <li>Flat Iron Mesa</li>
+    <li>Kane Creek</li>
+    <li>Top Of The World</li>
+  </ul>
+
+  <p>High-Consequence designations are provided as additional information and are not an exhaustive list of hazardous terrain. The absence of a trail or obstacle from this designation does not mean Epic represents it as safe, easy, suitable, or appropriate for any Driver.</p>
+
+  <p>You are responsible for knowing your location, route, and direction of travel and for determining whether the terrain ahead is within your skill and experience.</p>
+
+  <p>You are expected to operate only within your skill and experience. If you choose to include High-Consequence Terrain in your experience, you accept the increased risks and consequences associated with that choice.</p>
+
+  <p>Damage occurring in High-Consequence Terrain may be evaluated in determining whether the vehicle was operated outside the Driver’s skill or experience, recklessly, or with intentional or willful disregard for the risk of damage, which may affect or void applicable damage protection.</p>
+
+  <p>Recovery from High-Consequence Terrain is subject to substantially increased recovery fees as described in this agreement.</p>
+
+  <h4>3. CLEANING &amp; WASHING</h4>
+  <p>Do not wash, rinse, pressure wash, or otherwise clean the vehicle during the rental. Improper water exposure can damage mechanical and electrical components. Standard cleaning is included with your rental.</p>
+
+  <p>Excessive mud, debris, interior contamination, roof buildup, or other cleaning beyond normal recreational use may result in a cleaning fee starting at $250.</p>
+
+  <h4>4. CHARGES, DISPUTES &amp; COLLECTION</h4>
+  <p>Each Driver authorizes charges arising from any Epic vehicle they operate during the rental, including damage or loss, administrative and shop fees, cleaning, towing, recovery, extraction, transport, Loss of Use, prohibited-use charges, and other amounts due under these Terms &amp; Conditions.</p>
+
+  <p>Epic may provide supporting documentation including photographs, incident records, repair documentation, invoices, and other available evidence.</p>
+
+  <p>A payment dispute or chargeback does not eliminate amounts properly due under this agreement. Epic may pursue unpaid amounts and any remedies available under Utah law, including applicable collection costs, attorney fees, and court costs.</p>
+
+  <h4>5. OPERATING RULES AND PROHIBITED CONDUCT</h4>
+  <p>All Drivers must operate Epic vehicles responsibly, within their skill and experience, and in compliance with applicable laws, trail regulations, and these Terms &amp; Conditions.</p>
+
+  <p>The following requirements apply:</p>
+  <ul>
+    <li>No racing, contests of speed, or performance driving</li>
+    <li>Remain on designated OHV routes and obey posted signs and trail regulations</li>
+    <li>Do not intentionally use the vehicle for recreational mudding, water play, or sand play</li>
+    <li>UTVs may be driven on public roads only as reasonably necessary to access or return from trailheads</li>
+    <li>Overnight rentals must be parked by 10:00 PM</li>
+    <li>No towing or being towed</li>
+    <li>Do not alter, disable, or tamper with the vehicle or any installed equipment</li>
+  </ul>
+
+  <p>Navigation tools, maps, GPS systems, suggested routes, overlays, and other visual indicators are provided for convenience only. They may be incomplete, inaccurate, delayed, unavailable, or affected by loss of cellular or satellite signal. You remain responsible for knowing your location, selecting your route, assessing the terrain ahead, and making your own driving decisions.</p>
+
+  <p><strong>Prohibited Conduct — Zero Tolerance</strong></p>
+  <p>The following conduct is strictly prohibited:</p>
+  <ul>
+    <li>Operating the vehicle under the influence of alcohol, drugs, or any impairing substance</li>
+    <li>Possessing open containers of alcohol in the vehicle during the rental period</li>
+    <li>Intentional misuse, reckless operation, or use clearly inconsistent with normal recreational operation</li>
+    <li>Entering Prohibited Terrain or attempting prohibited obstacles</li>
+    <li>Tampering with or disabling vehicle tracking, telemetry, or safety equipment</li>
+  </ul>
+
+  <p>Prohibited conduct may result in immediate termination of the rental without refund and may void applicable damage protection or coverage limitations. The Driver whose operation or conduct caused the violation may be held fully responsible for resulting damage, recovery, Loss of Use, and other related costs.</p>
+
+  <p>Epic may rely on GPS records, vehicle telemetry, inspection findings, photographs, video, incident reports, and staff observations when determining compliance with these Terms &amp; Conditions.</p>
+
+  <h4>6. SECURITY DEPOSIT</h4>
+  <p>A security deposit or credit card authorization may be required before vehicle release. Each Driver authorizes Epic to apply available deposit funds or payment authorization toward amounts properly due from that Driver under these Terms &amp; Conditions, including damage, recovery, cleaning, Loss of Use, prohibited-use charges, and other rental-related costs.</p>
+
+  <p>Any deposit or authorization does not limit a Driver’s financial obligations under this agreement.</p>
+
+  <h4>7. VEHICLE RECOVERY</h4>
+  <p>If a vehicle becomes stuck, disabled, abandoned, inoperable, or otherwise cannot be returned under its own power, recovery may be required.</p>
+
+  <p>Recovery may include dispatch, labor, towing, extraction, winching, transport, specialized equipment, coordination, and third-party recovery services. Recovery charges are separate from vehicle damage charges and are not included in any damage-protection plan.</p>
+
+  <p>The Driver whose operation results in the need for recovery is responsible for recovery charges arising from that vehicle, except when recovery is required solely because of a mechanical failure not caused or contributed to by the renter or Driver.</p>
+
+  <p>Recovery from Prohibited or High-Consequence Terrain starts at $2,500 and may increase based on location, terrain, technical difficulty, personnel and equipment required, time involved, operational disruption, risk, and third-party recovery costs. Recovery may be performed by Epic personnel, third-party recovery providers, or both.</p>
+
+  <p>Recovery timing depends on location, terrain, weather, safety conditions, and resource availability. Immediate recovery is not guaranteed.</p>
+
+  <h4>8. DAMAGE PROTECTION REVIEW</h4>
+  <p>Epic reviews and evaluates damage incidents and applies applicable damage-protection terms to vehicles rented through Epic.</p>
+
+  <p>Following an incident, Epic may review vehicle condition, GPS and telemetry data, photographs, incident reports, Driver statements, trail location, operating behavior, and other available information to determine whether the vehicle was operated in compliance with these Terms &amp; Conditions and applicable damage-protection requirements.</p>
+
+  <p>Epic may determine that damage protection is limited or void when the circumstances establish a violation of applicable rental or protection terms, including reckless operation, operation outside the Driver’s skill or experience, intentional misuse, willful disregard for the risk of damage, or other prohibited conduct.</p>
+
+  <p>Any amounts not covered by applicable damage protection remain the responsibility of the Driver or Drivers responsible under these Terms &amp; Conditions.</p>
+
+  <h4>9. AGREEMENT ACKNOWLEDGMENT</h4>
+  <p>By signing this agreement, each Driver:</p>
+  <ul>
+    <li>Acknowledges that these Terms &amp; Conditions are separate from and supplemental to applicable Polaris Adventures agreements</li>
+    <li>Accepts financial and contractual responsibility for any Epic vehicle they operate during the rental as provided in these Terms &amp; Conditions</li>
+    <li>Understands that violations may result in termination of the rental, loss or limitation of damage protection, additional charges, or other remedies</li>
+    <li>Authorizes Epic to charge amounts properly due from that Driver under these Terms &amp; Conditions, including damage, recovery, cleaning, Loss of Use, prohibited-use charges, and other rental-related costs</li>
+  </ul>
 `;
 
 const PASSENGER_AGREEMENT_V2_HTML = `
