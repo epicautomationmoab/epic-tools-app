@@ -71,7 +71,7 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 type MailboxConnection = { refresh_token: string };
-type GuestRow = { customer_email: string | null; customer_name: string | null };
+type GuestRow = { effective_email: string | null; customer_name: string | null };
 
 export async function POST(request: NextRequest) {
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
@@ -91,10 +91,10 @@ export async function POST(request: NextRequest) {
     if (body.length > 20000) return NextResponse.json({ error: "Message is too long." }, { status: 400 });
 
     const guests = await rest<GuestRow[]>(
-      `guest_readiness_with_handoff_v?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=${encodeURIComponent("customer_email,customer_name")}&limit=1`,
+      `dashboard_guest_readiness_sot?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=${encodeURIComponent("effective_email,customer_name")}&limit=1`,
     );
     const guest = guests[0];
-    const recipient = guest?.customer_email?.trim().toLowerCase();
+    const recipient = guest?.effective_email?.trim().toLowerCase();
     if (!recipient || !recipient.includes("@")) {
       return NextResponse.json({ error: "This reservation does not have a valid customer email address." }, { status: 400 });
     }
