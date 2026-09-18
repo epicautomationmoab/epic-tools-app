@@ -16,6 +16,70 @@ type RentalSession = {
 type Role = "driver" | "passenger";
 type Minor = { firstName: string; lastName: string; dob: string; relationship: string };
 
+
+const DRIVER_AGREEMENT_V2_HTML = `
+  <p><strong>Driver Agreement.</strong> Driver means any person who operates an Epic vehicle during the rental. By signing as a Driver, you accept the operating, financial, and contractual responsibilities that apply to any Epic vehicle you operate during the rental, regardless of which individual is listed as the checkout driver in Epic's or Polaris's systems.</p>
+
+  <p>Off-highway vehicle use in Moab is an inherently risky recreational activity. Terrain may include steep grades, ledges, rocks, technical obstacles, exposure, loose surfaces, changing trail conditions, limited visibility, other trail users, and other hazards capable of causing vehicle damage, serious bodily injury, or death.</p>
+
+  <p>Epic provides operating requirements, safety information, trail information, and vehicle-use restrictions so Drivers can make informed decisions during the rental. Epic does not determine whether a particular road, trail, obstacle, or area is appropriate for an individual Driver.</p>
+
+  <p>Each Driver is responsible for operating within their own skill and experience, selecting routes and terrain appropriate to their ability, observing current and changing conditions, maintaining control of the vehicle, and deciding whether to proceed on any road, trail, obstacle, or area. Each Driver is also responsible for knowing their location, route, direction of travel, and the terrain ahead.</p>
+
+  <p>The absence of a road, trail, obstacle, or area from any warning, High-Consequence, or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate for any particular Driver. Hazards capable of causing serious injury, death, vehicle damage, or difficult recovery may exist anywhere within Moab's trail system.</p>
+
+  <h4>1. Driver Requirements and Vehicle Use</h4>
+  <p>You are expected to operate only within your skill and experience and in compliance with applicable laws, trail regulations, land-use requirements, vehicle operating requirements, and the terms of this Agreement. You must follow vehicle operating instructions and use required safety equipment. Reckless, careless, unlawful, abusive, negligent, or unauthorized use, or operation outside your skill and experience, may affect available damage protection and may result in full financial responsibility where permitted by the applicable agreements and law.</p>
+  <p>Do not race, tow, intentionally use the vehicle for recreational mudding, water play, or sand play, tamper with tracking or vehicle systems, operate while impaired, or intentionally misuse the vehicle. Open alcoholic beverages are not permitted in the vehicle during the rental period. Overnight rentals must be parked by 10:00 PM unless Epic has specifically provided different operating instructions.</p>
+  <p>Navigation tools and route information may be incomplete or inaccurate. You remain responsible for navigation, route selection, and the terrain ahead.</p>
+
+  <h4>2. Geographic Boundaries and Terrain</h4>
+  <p>Vehicles must remain within Epic's authorized operating area and applicable public-land rules. Highway 191 is prohibited north of the Highway 279/Potash intersection and south of Red Desert RV Park, except that southbound Highway 191 may be used to return from trail access north of the Potash intersection. Highway 128 is prohibited beyond the Onion Creek intersection.</p>
+  <p><strong>Prohibited Trails:</strong> Pritchett Canyon, Cliffhanger Trail, and Moab Rim Trail.</p>
+  <p><strong>Prohibited Obstacles:</strong> Hell's Gate, Escalator, Staircase, Tip Over Challenge, Mickey's Hot Tub, and Devil's Hot Tub.</p>
+  <p><strong>High-Consequence Terrain:</strong> Golden Spike, Gold Bar Rim, Behind the Rocks, Steel Bender, Rusty Nail, Flat Iron Mesa, Kane Creek, and Top of the World. Epic recommends avoiding High-Consequence Terrain. This list is not exhaustive and does not imply that unlisted terrain is safe, easy, suitable, or appropriate.</p>
+
+  <h4>3. Cleaning and Condition</h4>
+  <p>Do not wash, rinse, pressure wash, or otherwise clean the vehicle during the rental. Standard post-rental cleaning is included. Excessive contamination, mud, debris, staining, or other extraordinary cleaning needs may result in cleaning charges starting at $250.</p>
+
+  <h4>4. Financial Responsibility and Charges</h4>
+  <p>Each Driver is financially and contractually responsible for properly due charges associated with any Epic vehicle they operate, including damage, loss, administrative charges, shop costs, excessive cleaning, towing, recovery, extraction, transportation, Loss of Use where recoverable, prohibited-use charges, and other amounts properly due under this Agreement and applicable Polaris Adventures agreements.</p>
+  <p>Epic may rely on photographs, incident reports, repair documentation, invoices, GPS or telemetry data, inspection findings, video, staff observations, and other relevant evidence when evaluating amounts due. A payment dispute or chargeback does not eliminate amounts that are otherwise properly due.</p>
+
+  <h4>5. Recovery</h4>
+  <p>Recovery, extraction, towing, or transport of a stuck, disabled, abandoned, or otherwise unrecoverable vehicle is separate from vehicle damage and from any damage-protection product. Except for a purely mechanical failure not caused or contributed to by the Driver, recovery costs are the responsibility of the Driver whose operation resulted in the need for recovery.</p>
+  <p>Recovery from Prohibited Terrain or High-Consequence Terrain starts at $2,500 and may increase based on the actual resources required, including personnel, equipment, vehicles, time, operational disruption, technical difficulty, risk, and third-party costs. Recovery may be performed by Epic, a third party, or both. Recovery timing is not guaranteed.</p>
+
+  <h4>6. Damage Protection Review</h4>
+  <p>Epic reviews and evaluates damage incidents and applies the applicable damage-protection terms to vehicles rented through Epic. Damage protection may be limited or void where permitted by the applicable agreement for violations including reckless operation, operation outside skill and experience, intentional or willful disregard of operating requirements or warnings, Prohibited Terrain use, failure to report or cooperate, fraud or misrepresentation, or other conduct excluded by the applicable protection terms.</p>
+  <p>Any uncovered amounts remain the responsibility of the Driver or Drivers legally and contractually responsible for the loss.</p>
+
+  <h4>7. Security Deposit and Payment Authorization</h4>
+  <p>Epic may require a security deposit or card authorization. Any deposit or authorization is not a cap on liability. By signing, you authorize Epic to apply available funds or charge the payment method on file for amounts properly due under this Agreement, subject to applicable law and payment-network rules.</p>
+
+  <h4>8. Evidence, Enforcement, and Remedies</h4>
+  <p>Violations of this Agreement may result in termination of the rental without refund, additional charges, recovery costs, and limitations on available damage protection where permitted by the applicable agreements. Epic may use GPS, telemetry, inspections, photographs, video, reports, and staff observations to determine compliance and document incidents.</p>
+
+  <h4>9. Supplemental Agreement</h4>
+  <p>This Agreement is separate from and supplemental to applicable Polaris Adventures agreements. By signing as a Driver, you acknowledge that you have reviewed this Agreement and accept the operating, financial, and contractual responsibilities that apply to any Epic vehicle you operate during the rental.</p>
+`;
+
+const PASSENGER_AGREEMENT_V2_HTML = `
+  <p><strong>Passenger Agreement.</strong> By signing as a Passenger, you confirm that you will participate in the rental as a passenger and will not operate an Epic vehicle.</p>
+
+  <p>Riding in an off-highway vehicle in Moab is an inherently risky recreational activity. Terrain may include steep grades, ledges, rocks, technical obstacles, exposure, loose surfaces, changing trail conditions, limited visibility, other trail users, and other hazards capable of causing serious bodily injury or death.</p>
+
+  <p>Epic provides safety information, trail information, and terrain warnings so participants can make informed decisions. Epic does not determine whether a particular road, trail, obstacle, or area is appropriate for an individual participant.</p>
+
+  <p><strong>Prohibited Terrain</strong> includes Pritchett Canyon, Cliffhanger Trail, Moab Rim Trail, Hell's Gate, Escalator, Staircase, Tip Over Challenge, Mickey's Hot Tub, and Devil's Hot Tub.</p>
+
+  <p><strong>High-Consequence Terrain</strong> includes Golden Spike, Gold Bar Rim, Behind the Rocks, Steel Bender, Rusty Nail, Flat Iron Mesa, Kane Creek, and Top of the World. Epic recommends avoiding High-Consequence Terrain. This list is not exhaustive, and the absence of a road, trail, obstacle, or area from any warning or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate.</p>
+
+  <p>You understand that route selection, terrain decisions, and vehicle operation are the responsibility of the Driver. By signing as a Passenger, you are not accepting the Driver's vehicle-operation, damage, recovery, or other financial obligations solely because you are participating in the rental.</p>
+
+  <p>This Passenger Agreement is separate from and supplemental to applicable Polaris Adventures participant or passenger agreements. Final release and waiver language will be reviewed by counsel before production launch.</p>
+`;
+
 function formatPhone(value: string | null) {
   if (!value) return null;
   const digits = value.replace(/\D/g, "");
@@ -129,23 +193,11 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
             <section className="waiver-section">
               <div className="waiver-eyebrow">03 · Rental Agreement</div>
               {role === "driver" ? <>
-                <div className="waiver-minor-ack">
-                  <div className="waiver-minor-heading">DRIVER AGREEMENT — V2 DRAFT</div>
-                  <p><strong>Driver</strong> means any person who operates an Epic vehicle during the rental. By signing as a Driver, I accept the operating, financial, and contractual responsibilities that apply to any Epic vehicle I operate during the rental.</p>
-                  <p>My responsibility as a Driver is based on my actual operation of an Epic vehicle and is not limited or eliminated because another person is listed as the checkout driver in Epic's or Polaris's systems.</p>
-                  <p>I understand that off-highway vehicle use in Moab is inherently risky. I am responsible for operating within my own skill and experience, selecting routes and terrain appropriate to my ability, observing current and changing conditions, maintaining control of the vehicle, and deciding whether to proceed on any road, trail, obstacle, or area.</p>
-                </div>
-                <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: session.rental_terms_html || "" }} />
-                <p><small><strong>Preview note:</strong> The current master rental terms are shown below for drafting reference. Before launch, Responsible Party language and any terms that should apply only to Drivers will be rewritten into the V2 Driver agreement and reviewed by counsel.</small></p>
+                <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: DRIVER_AGREEMENT_V2_HTML }} />
+                <p><small><strong>Preview note:</strong> This is Epic's V2 Driver agreement language for internal review and attorney review. Production remains unchanged.</small></p>
               </> : <>
-                <div className="waiver-minor-ack">
-                  <div className="waiver-minor-heading">PASSENGER AGREEMENT — V2 DRAFT</div>
-                  <p>I will participate in this rental as a Passenger and will not operate an Epic vehicle.</p>
-                  <p>I understand that riding in an off-highway vehicle in Moab is an inherently risky recreational activity. Terrain may include steep grades, ledges, rocks, technical obstacles, exposure, loose surfaces, changing trail conditions, limited visibility, other trail users, and other hazards capable of causing serious bodily injury or death.</p>
-                  <p>I acknowledge Epic's information regarding Prohibited Terrain and High-Consequence Terrain. I understand that High-Consequence designations are not an exhaustive list of hazardous terrain and that the absence of a road, trail, obstacle, or area from a warning or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate.</p>
-                  <p>I understand that route selection, terrain decisions, and vehicle operation are the responsibility of the Driver. By signing as a Passenger, I am not accepting the Driver's vehicle-operation or financial obligations solely because I am participating in the rental.</p>
-                </div>
-                <p><small><strong>Preview note:</strong> This is the first substantive Passenger draft. Final release/waiver language and interaction with the Polaris passenger waiver will be reviewed before launch.</small></p>
+                <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: PASSENGER_AGREEMENT_V2_HTML }} />
+                <p><small><strong>Preview note:</strong> This is Epic's V2 Passenger agreement language for internal review and attorney review. Production remains unchanged.</small></p>
               </>}
             </section>
 
