@@ -238,8 +238,27 @@ export async function syncEpicInboxes({ force = false }: { force?: boolean } = {
   const connections = await rest<Connection[]>(`google_mailbox_connections?mailbox_email=in.(${EPIC_MAILBOXES.map(encodeURIComponent).join(",")})&select=mailbox_email,refresh_token,gmail_history_id,last_inbound_sync_at`);
   const byMailbox = new Map(connections.map(c=>[c.mailbox_email.toLowerCase(),c]));
   const results=[];
-  for(const mailbox of EPIC_MAILBOXES){const connection=byMailbox.get(mailbox);if(!connection){results.push({mailbox,ok:false,connected:false,processed:0,matched:0,unmatched:0});continue;}results.push(await syncMailbox(mailbox,connection,force));}
-  return { ok:true, mailboxes:results, processed:results.reduce((s,r)=>s+(r.processed||0),0), matched:results.reduce((s,r)=>s+(r.matched||0),0), unmatched:results.reduce((s,r)=>s+(r.unmatched||0),0) };
+  for (const mailbox of EPIC_MAILBOXES) {
+    const connection=byMailbox.get(mailbox);
+    if (!connection) {
+      results.push({mailbox,ok:false,connected:false,processed:0,matched:0,unmatched:0,error:"Mailbox is not connected."});
+      continue;
+    }
+    try {
+      results.push(await syncMailbox(mailbox,connection,force));
+    } catch (error) {
+      const message=error instanceof Error?error.message:"Unknown Gmail sync error.";
+      console.error("[gmail-inbound] mailbox sync failed", { mailbox, message, stack:error instanceof Error?error.stack:null });
+      results.push({mailbox,ok:false,connected:true,processed:0,matched:0,unmatched:0,error:message});
+    }
+  }
+  return {
+    ok:results.every(r=>r.ok),
+    mailboxes:results,
+    processed:results.reduce((s,r)=>s+(r.processed||0),0),
+    matched:results.reduce((s,r)=>s+(r.matched||0),0),
+    unmatched:results.reduce((s,r)=>s+(r.unmatched||0),0),
+  };
 }
 
 export async function syncHelloInbox(options:{force?:boolean}={}) { return syncEpicInboxes(options); }
