@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import CallTranscript from "./CallTranscript";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./CustomerJourneyModal.module.css";
 
@@ -22,6 +23,7 @@ type CommunicationEvent = {
   openCount?: number;
   firstOpenedAt?: string | null;
   lastOpenedAt?: string | null;
+  transcript?: string | null;
 };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null };
@@ -214,7 +216,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   }
 
   const events = useMemo(() => {
-    const callEvents: CommunicationEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", direction: call.direction, at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || call.transcription, href: call.recording_url }));
+    const callEvents: CommunicationEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", direction: call.direction, at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || null, href: call.recording_url, transcript: call.transcription }));
     const textEvents: CommunicationEvent[] = messages.map((message) => ({ id: `text-${message.message_id}`, kind: "text", direction: message.direction, at: message.sent_at || message.first_received_at, title: message.direction === "outbound" ? "Text sent" : "Text received", meta: [message.direction, message.agent_name ? `by ${message.agent_name}` : null, message.status || null].filter(Boolean).join(" · "), body: message.message_body || "(No message body)" }));
     const emailEvents: CommunicationEvent[] = emails.map((email) => ({
       id: `email-${email.id}`,
@@ -356,6 +358,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
             <div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}{event.kind === "email" && event.openCount ? <> · <strong style={{ fontWeight: 800 }}>Opened {event.openCount}X</strong></> : null}</div>
             {event.body ? <div className={styles.eventBody}>{event.body}</div> : null}
             {event.href ? <a className={styles.eventLink} href={event.href} target="_blank" rel="noreferrer">Listen to recording ↗</a> : null}
+            {event.kind==="call"&&event.transcript?<CallTranscript transcript={event.transcript}/>:null}
           </article>;
         })}
       </div> : null}
