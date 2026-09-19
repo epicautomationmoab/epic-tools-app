@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import { getReadinessRows } from "@/lib/supabase";
 
 const SUPABASE_URL=(process.env.NEXT_PUBLIC_SUPABASE_URL||"https://kbuxcvqzicnydqllyong.supabase.co").replace(/\/+$/,"");
 const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||"";
@@ -19,11 +20,14 @@ export async function GET(request:NextRequest){
   const threadKey=request.nextUrl.searchParams.get("thread_key");
   try{
     if(threadKey){
-      const [notes,transfers]=await Promise.all([
+      const confirmation=request.nextUrl.searchParams.get("confirmation")?.trim().toUpperCase()||"";
+      const [notes,transfers,readinessRows]=await Promise.all([
         rpc(s.accessToken,"get_epic_inbox_thread_notes",{p_thread_key:threadKey}),
         rpc(s.accessToken,"get_epic_inbox_thread_transfers",{p_thread_key:threadKey}),
+        confirmation?getReadinessRows():Promise.resolve([]),
       ]);
-      return NextResponse.json({ok:true,notes:notes||[],transfers:transfers||[]});
+      const readiness=confirmation?(readinessRows as Array<{confirmation_code?:string}>).find(row=>row.confirmation_code===confirmation)||null:null;
+      return NextResponse.json({ok:true,notes:notes||[],transfers:transfers||[],readiness});
     }
     const queue=request.nextUrl.searchParams.get("queue");
     if(queue!=="rental_service"&&queue!=="tour_service")return NextResponse.json({error:"Valid service queue required."},{status:400});
