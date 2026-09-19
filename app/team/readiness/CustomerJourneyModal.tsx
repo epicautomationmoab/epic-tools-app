@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import CallTranscript from "./CallTranscript";
 import type { ReactNode } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./CustomerJourneyModal.module.css";
 
 type JourneyKind = "call" | "text" | "email" | "document" | "reservation" | "operation";
 type JourneyFilter = "all" | JourneyKind;
-type JourneyEvent = { id: string; kind: JourneyKind; at: string | null; title: string; meta: string; body?: string | null; href?: string | null };
+type JourneyEvent = { id: string; kind: JourneyKind; at: string | null; title: string; meta: string; body?: string | null; href?: string | null; transcript?: string | null };
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null; source_number: string | null; destination_number: string | null };
 
@@ -81,7 +82,7 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
   }, [row.confirmation_code]);
 
   const events = useMemo(() => {
-    const callEvents: JourneyEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || call.transcription, href: call.recording_url }));
+    const callEvents: JourneyEvent[] = calls.map((call) => ({ id: `call-${call.id}`, kind: "call", at: call.at, title: callTitle(call), meta: [call.direction, durationLabel(call.duration_seconds)].filter(Boolean).join(" · "), body: call.summary || call.lead_explanation || null, href: call.recording_url, transcript: call.transcription }));
     const textEvents: JourneyEvent[] = messages.map((message) => ({
       id: `text-${message.message_id}`,
       kind: "text",
@@ -139,7 +140,7 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
           <div className={styles.journeyHeader}><h3 className={styles.sectionTitle}>Customer Journey</h3><div className={styles.filters} aria-label="Journey filters">{filterOptions.map(([value,label]) => <button type="button" className={`${styles.filter} ${filter === value ? styles.filterActive : ""}`} key={value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>
           {activityLoading ? <div className={styles.placeholder}>Loading communication history…</div> : null}
           {activityError ? <div className={styles.timelineError}>{activityError}</div> : null}
-          <div className={styles.timeline}>{visibleEvents.map((event) => <article className={`${styles.event} ${styles[`event_${event.kind}`] || ""}`} key={event.id}><div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={`${styles.eventKind} ${styles[`kind_${event.kind}`] || ""}`}>{event.kind}</span></div><div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}</div>{event.body ? <div className={styles.eventBody}>{event.body}</div> : null}{event.href ? <a className={styles.eventLink} href={event.href} target="_blank" rel="noreferrer">Listen to recording ↗</a> : null}</article>)}</div>
+          <div className={styles.timeline}>{visibleEvents.map((event) => <article className={`${styles.event} ${styles[`event_${event.kind}`] || ""}`} key={event.id}><div className={styles.eventTop}><div className={styles.eventTitle}>{event.title}</div><span className={`${styles.eventKind} ${styles[`kind_${event.kind}`] || ""}`}>{event.kind}</span></div><div className={styles.eventMeta}>{event.at ? formatDateTime(event.at) : "Current state"}{event.meta ? ` · ${event.meta}` : ""}</div>{event.body ? <div className={styles.eventBody}>{event.body}</div> : null}{event.href ? <a className={styles.eventLink} href={event.href} target="_blank" rel="noreferrer">Listen to recording ↗</a> : null}{event.kind==="call"&&event.transcript?<CallTranscript transcript={event.transcript}/>:null}</article>)}</div>
           {!visibleEvents.length && !activityLoading ? <div className={styles.placeholder}>No {filter === "all" ? "journey" : filter} activity is linked yet.</div> : null}
           {filter === "email" ? <div className={styles.placeholder}>Email history will plug into this same timeline later.</div> : null}
         </main>
