@@ -188,7 +188,17 @@ async function syncMailbox(mailbox:string, connection:Connection, force:boolean)
     const existing = await rest<Array<{ gmail_message_id: string }>>(`gmail_messages?mailbox_email=eq.${encodeURIComponent(mailbox)}&gmail_message_id=eq.${encodeURIComponent(id)}&select=gmail_message_id&limit=1`);
     if (existing.length) continue;
 
-    const message = await gmail<GmailMessage>(token, `/messages/${encodeURIComponent(id)}?format=full`);
+    const messageResponse = await fetch(`${GMAIL_API}/messages/${encodeURIComponent(id)}?format=full`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    const messageText = await messageResponse.text();
+    if (messageResponse.status === 404) {
+      console.warn("[gmail-inbound] skipping missing Gmail message", { mailbox, gmail_message_id:id });
+      continue;
+    }
+    if (!messageResponse.ok) throw new Error(messageText || `Gmail message request failed (${messageResponse.status}).`);
+    const message = JSON.parse(messageText) as GmailMessage;
     const fromEmail = emailFromHeader(header(message, "From"));
     if (!fromEmail || EPIC_MAILBOXES.includes(fromEmail as typeof EPIC_MAILBOXES[number])) continue;
     const toEmails = emailsFromHeader(header(message, "To"));
