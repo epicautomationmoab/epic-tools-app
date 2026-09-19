@@ -15,7 +15,7 @@ function requiredEnv(name: string) {
 }
 
 function canSend(role?: string | null) {
-  return role === "admin" || role === "manager";
+  return Boolean(role && role !== "workstation");
 }
 
 function encodeSubject(subject: string) {
@@ -76,7 +76,7 @@ type GuestRow = { effective_email: string | null; customer_name: string | null }
 export async function POST(request: NextRequest) {
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
   if (!profile || !canSend(profile.role)) {
-    return NextResponse.json({ error: "Admin or Manager access is required to email guests." }, { status: 403 });
+    return NextResponse.json({ error: "Employee login is required to email guests." }, { status: 403 });
   }
 
   try {
