@@ -85,16 +85,6 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
   const suppressClearRef = useRef(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
 
-  const dateByConfirmation = useMemo(() => {
-    const map = new Map<string, string>();
-    rows.forEach((row) => {
-      if (row.confirmation_code) {
-        map.set(row.confirmation_code.trim().toUpperCase(), visitDateKey(row.visit_start_time));
-      }
-    });
-    return map;
-  }, [rows]);
-
   const days = useMemo(() => calendarDays(visibleMonth), [visibleMonth]);
   const todayKey = dateKey(new Date());
 
@@ -190,17 +180,12 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
           return;
         }
 
-        const rowText = tableRow.textContent?.toUpperCase() ?? "";
-        let rowDate = "";
+        const visitCell = tableRow.querySelector("td");
+        const rowDateLabel =
+          visitCell?.querySelector("div")?.textContent?.trim() ?? "";
 
-        for (const [confirmation, date] of dateByConfirmation) {
-          if (rowText.includes(confirmation)) {
-            rowDate = date;
-            break;
-          }
-        }
-
-        tableRow.style.display = rowDate === selectedDate ? "" : "none";
+        tableRow.style.display =
+          rowDateLabel === formatSelectedDate(selectedDate) ? "" : "none";
       });
     };
 
@@ -215,7 +200,7 @@ export default function ReadinessDateFilterEnhancer({ rows }: { rows: ReadinessR
         row.style.removeProperty("display");
       });
     };
-  }, [selectedDate, dateByConfirmation]);
+  }, [selectedDate]);
 
   function toggleCalendar() {
     setCalendarOpen((open) => {
