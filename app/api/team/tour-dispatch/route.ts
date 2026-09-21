@@ -80,11 +80,11 @@ export async function POST(request: NextRequest) {
     if (!vehicleLabel || !vehicleNumber) {
       return NextResponse.json({ error: "Enter a valid car number." }, { status: 400 });
     }
-    if (!Number.isFinite(checkoutMileage) || checkoutMileage < 0) {
-      return NextResponse.json({ error: "Enter valid mileage." }, { status: 400 });
+    if (!Number.isInteger(checkoutMileage) || checkoutMileage < 0) {
+      return NextResponse.json({ error: "Enter mileage as a whole number." }, { status: 400 });
     }
-    if (!Number.isFinite(checkoutEngineHours) || checkoutEngineHours < 0) {
-      return NextResponse.json({ error: "Enter valid engine hours." }, { status: 400 });
+    if (!Number.isInteger(checkoutEngineHours) || checkoutEngineHours < 0) {
+      return NextResponse.json({ error: "Enter engine hours as a whole number." }, { status: 400 });
     }
 
     const rosterParams = new URLSearchParams({
