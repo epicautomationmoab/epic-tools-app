@@ -224,14 +224,19 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
     if (!draft?.car.trim() || !draft.mileage.trim() || !draft.hours.trim()) {
       throw new Error("Enter car #, mileage, and hours.");
     }
+    const checkoutMileage = Number(draft.mileage);
+    const checkoutEngineHours = Number(draft.hours);
+    if (!Number.isInteger(checkoutMileage) || !Number.isInteger(checkoutEngineHours)) {
+      throw new Error("Mileage and hours must be whole numbers.");
+    }
     const response = await fetch("/api/team/tour-dispatch", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         store_visit_id: row.store_visit_id,
         vehicle_slot: row.vehicle_slot,
         vehicle_label: draft.car.trim(),
-        checkout_mileage: Number(draft.mileage),
-        checkout_engine_hours: Number(draft.hours),
+        checkout_mileage: checkoutMileage,
+        checkout_engine_hours: checkoutEngineHours,
       }),
     });
     const payload = await response.json().catch(() => ({}));
@@ -436,8 +441,8 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
           return <tr key={key}>
             <td><strong>{row.customer_name}</strong>{row.total_vehicle_count > 1 ? <span className={styles.slot}>Vehicle {row.vehicle_slot} of {row.total_vehicle_count}</span> : null}<PrintSingleVehicleTagButton className={styles.inlinePrintButton} card={{ customer_name: row.customer_name, product_display_name: row.product_display_name, visit_start_time: row.visit_start_time, confirmation_code: row.confirmation_code }} /></td>
             <td><input value={draft.car} onChange={(e) => updateDraft(key, "car", e.target.value)} disabled={locked} /></td>
-            <td><input value={draft.mileage} onChange={(e) => updateDraft(key, "mileage", e.target.value)} inputMode="decimal" disabled={locked} /></td>
-            <td><input value={draft.hours} onChange={(e) => updateDraft(key, "hours", e.target.value)} inputMode="decimal" disabled={locked} /></td>
+            <td><input value={draft.mileage} onChange={(e) => { if (/^\d*$/.test(e.target.value)) updateDraft(key, "mileage", e.target.value); }} inputMode="numeric" pattern="[0-9]*" disabled={locked} /></td>
+            <td><input value={draft.hours} onChange={(e) => { if (/^\d*$/.test(e.target.value)) updateDraft(key, "hours", e.target.value); }} inputMode="numeric" pattern="[0-9]*" disabled={locked} /></td>
             <td className={styles.saveCell}>
               {!locked ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Preparing…" : "Check Out Vehicle"}</button> : null}
               {status === "checkout_queued" ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Retrying…" : "Retry Checkout"}</button> : null}
