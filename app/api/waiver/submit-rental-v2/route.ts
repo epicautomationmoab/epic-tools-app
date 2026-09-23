@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendWaiverCopyEmail, waiverEmailConfigured } from "@/lib/server/waiver-email";
 import {
   RENTAL_V2_AGREEMENT_VERSION,
   RENTAL_V2_DRIVER_HTML,
@@ -52,6 +53,45 @@ async function deleteStoredSignature(url: string, key: string, storagePath: stri
     method: "DELETE",
     headers: { apikey: key, Authorization: `Bearer ${key}` },
   }).catch(() => undefined);
+}
+
+async function generateSignedPdf(url: string, key: string, signatureId: string, confirmationCode: string, publicToken: string) {
+  const response = await fetch(`${url}/functions/v1/generate-epic-rental-v2-pdf`, {
+    method: "POST",
+    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ signature_id: signatureId, confirmation_code: confirmationCode, public_token: publicToken }),
+    cache: "no-store",
+  });
+  const body = await response.text();
+  if (!response.ok) return { ok: false as const, error: body.slice(0, 500) };
+  return { ok: true as const, result: JSON.parse(body) as { storage_path?: string; sha256?: string; layout_version?: string } };
+}
+
+async function downloadSignedPdf(url: string, key: string, storagePath: string) {
+  const encodedPath = storagePath.split("/").map(encodeURIComponent).join("/");
+  const response = await fetch(`${url}/storage/v1/object/authenticated/epic-legal-documents/${encodedPath}`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Unable to retrieve signed agreement PDF: ${(await response.text()).slice(0, 300)}`);
+  return Buffer.from(await response.arrayBuffer());
+}
+
+async function updateCopyStatus(url: string, key: string, signatureId: string, patch: Record<string, unknown>) {
+  const response = await fetch(`${url}/rest/v1/epic_waiver_signatures?id=eq.${encodeURIComponent(signatureId)}`, {
+    method: "PATCH",
+    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Unable to update agreement email status: ${(await response.text()).slice(0, 300)}`);
+}
+
+function signerName(payload: Record<string, unknown>) {
+  return [payload.p_signer_first_name, payload.p_signer_middle_initial, payload.p_signer_last_name]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
 }
 
 export async function POST(request: Request) {
@@ -136,12 +176,71 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: body.slice(0, 500) }, { status: response.status });
     }
 
+    const result = JSON.parse(body);
+    const signatureId = result?.[0]?.signature_id;
+    let pdfGenerated = false;
+    let pdfResult: unknown = null;
+    let pdfError: string | null = null;
+    let copyEmailStatus: "sent" | "failed" | null = null;
+    let copyEmailError: string | null = null;
+
+    if (signatureId) {
+      const pdf = await generateSignedPdf(
+        c.url,
+        c.key,
+        signatureId,
+        payload.p_confirmation_code,
+        payload.p_public_token,
+      );
+      if (pdf.ok) {
+        pdfGenerated = true;
+        pdfResult = pdf.result;
+        try {
+          await updateCopyStatus(c.url, c.key, signatureId, { copy_email_status: "pending", copy_email_error: null });
+          if (!waiverEmailConfigured()) throw new Error("Agreement email delivery is not configured.");
+          const email = String(payload.p_signer_email ?? "").trim();
+          if (!email) throw new Error("Signer email address is missing.");
+          if (!pdf.result.storage_path) throw new Error("Signed PDF storage path was not returned.");
+          const pdfBytes = await downloadSignedPdf(c.url, c.key, pdf.result.storage_path);
+          const emailResult = await sendWaiverCopyEmail({
+            email,
+            signerName: signerName(payload),
+            pdf: pdfBytes,
+            idempotencyKey: `rental-v2-copy/${signatureId}`,
+            documentTitle: "Rental Agreement",
+            filename: "Epic-4X4-Signed-Rental-Agreement.pdf",
+          });
+          await updateCopyStatus(c.url, c.key, signatureId, {
+            copy_email_status: "sent",
+            copy_email_sent_at: new Date().toISOString(),
+            copy_email_message_id: emailResult.messageId,
+            copy_email_error: null,
+          });
+          copyEmailStatus = "sent";
+        } catch (emailError) {
+          copyEmailStatus = "failed";
+          copyEmailError = emailError instanceof Error ? emailError.message : "Unable to email signed agreement copy.";
+          await updateCopyStatus(c.url, c.key, signatureId, {
+            copy_email_status: "failed",
+            copy_email_error: copyEmailError,
+          }).catch(() => undefined);
+        }
+      } else {
+        pdfError = pdf.error;
+      }
+    } else {
+      pdfError = "Agreement was recorded but the signature id was not returned for PDF generation.";
+    }
+
     return NextResponse.json({
-      result: JSON.parse(body),
+      result,
       drawnSignatureStored: Boolean(storedPath),
       agreementContentVersion: RENTAL_V2_AGREEMENT_VERSION,
-      pdfGenerated: false,
-      pdfPending: true,
+      pdfGenerated,
+      pdfResult,
+      pdfError,
+      copyEmailStatus,
+      copyEmailError,
     });
   } catch (error) {
     if (storedPath) {
