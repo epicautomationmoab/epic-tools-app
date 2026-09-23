@@ -68,6 +68,10 @@ const DRIVER_AGREEMENT_V2_HTML = `
     <li>Mickey’s Hot Tub</li>
     <li>Devil’s Hot Tub</li>
   </ul>
+  <p><strong>Prohibited Use</strong></p>
+  <ul>
+    <li>Sand Dunes (Located at White Wash, Behind the Rocks, and Poison Spider)</li>
+  </ul>
 
   <p>Entering Prohibited Terrain or attempting a prohibited obstacle is a violation of this agreement and may void applicable damage protection. The Driver whose operation results in the violation may be held fully responsible for resulting vehicle damage, recovery, Loss of Use, and other related costs.</p>
 
@@ -82,7 +86,7 @@ const DRIVER_AGREEMENT_V2_HTML = `
     <li>Steel Bender</li>
     <li>Rusty Nail</li>
     <li>Flat Iron Mesa</li>
-    <li>Kane Creek</li>
+    <li>Kane Creek Canyon</li>
     <li>Top Of The World</li>
   </ul>
 
@@ -180,9 +184,9 @@ const PASSENGER_AGREEMENT_V2_HTML = `
 
   <p>Epic provides safety information, trail information, and terrain warnings so participants can make informed decisions. Epic does not determine whether a particular road, trail, obstacle, or area is appropriate for an individual participant.</p>
 
-  <p><strong>Prohibited Terrain</strong> includes Pritchett Canyon, Cliffhanger Trail, Moab Rim Trail, Hell's Gate, Escalator, Staircase, Tip Over Challenge, Mickey's Hot Tub, and Devil's Hot Tub.</p>
+  <p><strong>Prohibited Terrain and Use</strong> includes Pritchett Canyon, Cliffhanger Trail, Moab Rim Trail, Hell's Gate, Escalator, Staircase, Tip Over Challenge, Mickey's Hot Tub, Devil's Hot Tub, and Sand Dunes (Located at White Wash, Behind the Rocks, and Poison Spider).</p>
 
-  <p><strong>High-Consequence Terrain</strong> includes Golden Spike, Gold Bar Rim, Behind the Rocks, Steel Bender, Rusty Nail, Flat Iron Mesa, Kane Creek, and Top of the World. Epic recommends avoiding High-Consequence Terrain. This list is not exhaustive, and the absence of a road, trail, obstacle, or area from any warning or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate.</p>
+  <p><strong>High-Consequence Terrain</strong> includes Golden Spike, Gold Bar Rim, Behind the Rocks, Steel Bender, Rusty Nail, Flat Iron Mesa, Kane Creek Canyon, and Top of the World. Epic recommends avoiding High-Consequence Terrain. This list is not exhaustive, and the absence of a road, trail, obstacle, or area from any warning or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate.</p>
 
   <p>You understand that route selection, terrain decisions, and vehicle operation are the responsibility of the Driver. By signing as a Passenger, you are not accepting the Driver's vehicle-operation, damage, recovery, or other financial obligations solely because you are participating in the rental.</p>
 
