@@ -66,7 +66,9 @@ function formatPhone(value: string | null | undefined) {
 function docsCounts(row: ReadinessRow) {
   const received = row.epic_document_received_count ?? 0;
   const expected =
-    row.epic_document_expected_count ?? row.expected_guest_count ?? 0;
+    row.business_line === "rental"
+      ? row.expected_guest_count ?? 0
+      : row.epic_document_expected_count ?? row.expected_guest_count ?? 0;
   return { received, expected };
 }
 
