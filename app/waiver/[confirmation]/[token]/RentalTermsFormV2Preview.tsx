@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 type RentalSession = {
   confirmation_code: string;
@@ -217,6 +217,13 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
   const [phone, setPhone] = useState("");
   const [dob, setDob] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
+  const [signatureMethod, setSignatureMethod] = useState<"drawn" | "typed">("drawn");
+  const [typedSignature, setTypedSignature] = useState("");
+  const [drawing, setDrawing] = useState(false);
+  const [drawn, setDrawn] = useState(false);
+  const [signatureError, setSignatureError] = useState("");
+  const [signatureSuccess, setSignatureSuccess] = useState("");
+  const signatureCanvas = useRef<HTMLCanvasElement | null>(null);
 
   const activity = session.experience_name || session.experience_internal_name || "Epic 4X4 UTV Rental";
   const start = session.start_time
@@ -253,6 +260,87 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
 
   function updateMinor(index: number, key: keyof Minor, value: string) {
     setMinors((current) => current.map((minor, i) => i === index ? { ...minor, [key]: value } : minor));
+  }
+
+  const legalName = [firstName.trim(), middleInitial.trim(), lastName.trim()].filter(Boolean).join(" ");
+
+  function normalizeSignature(value: string) {
+    return value.trim().replace(/\./g, "").replace(/\s+/g, " ").toLowerCase();
+  }
+
+  function signaturePosition(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = signatureCanvas.current!;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (canvas.width / rect.width),
+      y: (event.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }
+
+  function beginSignature(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = signatureCanvas.current!;
+    canvas.setPointerCapture(event.pointerId);
+    const point = signaturePosition(event);
+    const context = canvas.getContext("2d")!;
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    setDrawing(true);
+    setSignatureError("");
+    setSignatureSuccess("");
+  }
+
+  function drawSignature(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawing) return;
+    const point = signaturePosition(event);
+    const context = signatureCanvas.current!.getContext("2d")!;
+    context.lineWidth = 3;
+    context.lineCap = "round";
+    context.strokeStyle = "#25292f";
+    context.lineTo(point.x, point.y);
+    context.stroke();
+    setDrawn(true);
+  }
+
+  function endSignature() {
+    setDrawing(false);
+  }
+
+  function clearSignature() {
+    const canvas = signatureCanvas.current;
+    if (canvas) canvas.getContext("2d")!.clearRect(0, 0, canvas.width, canvas.height);
+    setDrawn(false);
+    setSignatureError("");
+    setSignatureSuccess("");
+  }
+
+  function validatePreviewSignature() {
+    setSignatureError("");
+    setSignatureSuccess("");
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !dob) {
+      setSignatureError("Complete the participant information before signing.");
+      return;
+    }
+    if (hasMinors === null) {
+      setSignatureError("Please answer the Minor Participants question.");
+      return;
+    }
+    if (hasMinors && minors.some((minor) => !minor.firstName.trim() || !minor.lastName.trim() || !minor.dob || !minor.relationship.trim())) {
+      setSignatureError("Complete all information for each minor participant.");
+      return;
+    }
+    if (!acknowledged) {
+      setSignatureError("Please acknowledge the agreement before signing.");
+      return;
+    }
+    if (signatureMethod === "drawn" && !drawn) {
+      setSignatureError("Please sign in the signature box.");
+      return;
+    }
+    if (signatureMethod === "typed" && normalizeSignature(typedSignature) !== normalizeSignature(legalName)) {
+      setSignatureError("Your typed signature must match the full legal name entered above.");
+      return;
+    }
+    setSignatureSuccess("Signature captured and V2 form validation passed. Preview mode does not record or submit this agreement.");
   }
 
   return (
@@ -342,10 +430,50 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
 
             <section className="waiver-section">
               <div className="waiver-eyebrow">05 · Acknowledgment & Signature</div>
-              <label className="waiver-consent"><input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} /><span>I have reviewed the agreement sections applicable to my role and understand the selections shown below.</span></label>
+              <label className="waiver-consent">
+                <input type="checkbox" checked={acknowledged} onChange={(e) => { setAcknowledged(e.target.checked); setSignatureError(""); setSignatureSuccess(""); }} />
+                <span>
+                  <strong>I AGREE TO CONDUCT THIS TRANSACTION ELECTRONICALLY.</strong>
+                  <span className="waiver-consent-text"> By checking this box and signing electronically below, I confirm that I have reviewed the agreement applicable to my selected role and intend my electronic signature to have the same legal validity and binding effect as my handwritten signature.</span>
+                </span>
+              </label>
               <div className="waiver-consent-card"><strong>{summary}</strong></div>
-              <p><strong>Preview only:</strong> signature capture and submission are deliberately disabled on this branch so no V2 agreement can accidentally be recorded as a live agreement.</p>
-              <button type="button" className="waiver-button waiver-submit" disabled>Complete Rental Agreement — Preview Disabled</button>
+
+              <div className="waiver-signature-panel">
+                {signatureMethod === "drawn" ? <>
+                  <div className="waiver-signature-head">
+                    <div><strong>Sign Here</strong><p>Use your finger, mouse, or trackpad.</p></div>
+                    {drawn ? <span className="waiver-signature-ready">Signature captured</span> : null}
+                  </div>
+                  <div className="waiver-canvas-wrap">
+                    <canvas
+                      ref={signatureCanvas}
+                      width={900}
+                      height={220}
+                      className="waiver-canvas"
+                      onPointerDown={beginSignature}
+                      onPointerMove={drawSignature}
+                      onPointerUp={endSignature}
+                      onPointerCancel={endSignature}
+                    />
+                  </div>
+                  <div className="waiver-signature-actions">
+                    <button className="waiver-button waiver-secondary" type="button" onClick={clearSignature}>Clear Signature</button>
+                    <button className="waiver-link-button" type="button" onClick={() => { clearSignature(); setSignatureMethod("typed"); }}>Prefer to type your signature instead?</button>
+                  </div>
+                </> : <>
+                  <label className="waiver-field">Type your full legal name exactly as entered above
+                    <input className="waiver-input" value={typedSignature} onChange={(e) => { setTypedSignature(e.target.value); setSignatureError(""); setSignatureSuccess(""); }} />
+                  </label>
+                  <p>Must match: <strong>{legalName || "your participant name above"}</strong></p>
+                  <button className="waiver-link-button" type="button" onClick={() => { setTypedSignature(""); setSignatureMethod("drawn"); setSignatureError(""); setSignatureSuccess(""); }}>Prefer to draw your signature instead?</button>
+                </>}
+              </div>
+
+              {signatureError ? <div className="waiver-alert">{signatureError}</div> : null}
+              {signatureSuccess ? <div className="waiver-success">{signatureSuccess}</div> : null}
+              <p><strong>Preview safety:</strong> the signature experience is now wired in and validated, but this preview still does not write a signature to the database, generate a legal PDF, email a copy, or affect Guest Readiness.</p>
+              <button type="button" className="waiver-button waiver-submit" onClick={validatePreviewSignature}>Validate Signature — Preview Only</button>
             </section>
           </> : null}
         </article>
