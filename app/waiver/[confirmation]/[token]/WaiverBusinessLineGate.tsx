@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import RentalTermsForm from "./RentalTermsForm";
+import RentalTermsFormV2Preview from "./RentalTermsFormV2Preview";
 
 type Session = {
   confirmation_code: string;
@@ -18,6 +19,7 @@ type Session = {
 
 export default function WaiverBusinessLineGate({ children }: { children: ReactNode }) {
   const params = useParams<{ confirmation: string; token: string }>();
+  const searchParams = useSearchParams();
   const confirmation = decodeURIComponent(params.confirmation);
   const token = decodeURIComponent(params.token);
   const [session, setSession] = useState<Session | null>(null);
@@ -40,6 +42,9 @@ export default function WaiverBusinessLineGate({ children }: { children: ReactNo
   }
 
   if (!failed && session?.business_line === "rental") {
+    if (searchParams.get("v2") === "preview") {
+      return <RentalTermsFormV2Preview session={session} />;
+    }
     return <RentalTermsForm session={session} confirmation={confirmation} token={token} />;
   }
 
