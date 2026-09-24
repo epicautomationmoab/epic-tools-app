@@ -5,12 +5,16 @@ import {
   RENTAL_V2_DRIVER_HTML,
   RENTAL_V2_MINOR_ACK_HTML,
   RENTAL_V2_PASSENGER_HTML,
+  RENTAL_V2_RESERVING_PARTY_HTML,
 } from "@/lib/rental-agreement-v2-content";
 
 type RentalSession = {
   confirmation_code: string;
   customer_name: string | null;
   customer_phone: string | null;
+  customer_first_name: string | null;
+  customer_last_name: string | null;
+  customer_email: string | null;
   start_time: string | null;
   experience_name: string | null;
   experience_internal_name: string | null;
@@ -67,13 +71,20 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
     : "—";
   const reservingPartyPhone = formatPhone(session.customer_phone);
   const signerLabel = role === "driver" ? "Driver" : "Passenger";
+  const normalizeIdentity = (value: string | null | undefined) =>
+    String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+  const isReservingParty =
+    Boolean(session.customer_first_name && session.customer_last_name) &&
+    normalizeIdentity(firstName) === normalizeIdentity(session.customer_first_name) &&
+    normalizeIdentity(lastName) === normalizeIdentity(session.customer_last_name);
 
   const summary = useMemo(() => {
     if (!role) return "Choose Driver or Passenger to preview the agreement flow.";
     const parts = [signerLabel];
+    if (isReservingParty) parts.push("Reserving Party");
     if (hasMinors) parts.push(`${minors.length} minor participant${minors.length === 1 ? "" : "s"}`);
     return parts.join(" · ");
-  }, [role, signerLabel, hasMinors, minors.length]);
+  }, [role, signerLabel, hasMinors, minors.length, isReservingParty]);
 
   function chooseRole(nextRole: Role) {
     setRole(nextRole);
@@ -185,7 +196,7 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
             <span className="waiver-pill">V2 Preview</span>
           </div>
           <div className="waiver-details">
-            <div className="waiver-detail"><small>Reserving Party</small><strong>{session.customer_name || "—"}</strong>{reservingPartyPhone ? <span>{reservingPartyPhone}</span> : null}</div>
+            <div className="waiver-detail"><small>Reserving Party</small><strong>{session.customer_name || "—"}</strong>{reservingPartyPhone ? <span>{reservingPartyPhone}</span> : null}{isReservingParty ? <span><strong>You are the Reserving Party for this reservation.</strong></span> : null}</div>
             <div className="waiver-detail"><small>Rental</small><strong>{activity}</strong></div>
             <div className="waiver-detail"><small>Start Time</small><strong>{start}</strong></div>
           </div>
@@ -222,6 +233,16 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
 
             <section className="waiver-section">
               <div className="waiver-eyebrow">03 · Rental Agreement</div>
+              {isReservingParty ? <>
+                <div className="waiver-reservation">
+                  <div>
+                    <small>Additional responsibility</small>
+                    <h2>Reserving Party</h2>
+                  </div>
+                  <span className="waiver-pill">All reservation vehicles</span>
+                </div>
+                <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: RENTAL_V2_RESERVING_PARTY_HTML }} />
+              </> : null}
               {role === "driver" ? <>
                 <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: RENTAL_V2_DRIVER_HTML }} />
                 <p><small><strong>Preview note:</strong> This is Epic's V2 Driver agreement language for internal review and attorney review. Production remains unchanged.</small></p>
