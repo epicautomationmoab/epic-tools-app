@@ -180,6 +180,14 @@ Deno.serve(async (request: Request) => {
     field("Email", safe(sig.signer_email));
     field("Phone", safe(sig.signer_phone));
     field("Date of Birth", safe(sig.signer_dob));
+    field("Reserving Party", sig.is_reserving_party ? "YES - responsible for all reservation vehicles unless Epic established a different written arrangement" : "No");
+
+    if (sig.is_reserving_party && sig.signed_reserving_party_html) {
+      heading("Reserving Party Responsibility");
+      for (const block of htmlToBlocks(sig.signed_reserving_party_html)) {
+        paragraph(block.text, { bold: block.heading, size: block.heading ? 10.3 : 9.1, color: block.heading ? ACCENT : CHARCOAL, after: block.heading ? 8 : 6 });
+      }
+    }
 
     heading(sig.rental_role === "driver" ? "Driver Agreement" : "Passenger Agreement");
     for (const block of htmlToBlocks(sig.signed_agreement_html)) {
@@ -217,6 +225,7 @@ Deno.serve(async (request: Request) => {
       ["Confirmation", confirmation_code],
       ["Signature record", sig.id],
       ["Role", safe(sig.rental_role)],
+      ["Reserving Party", sig.is_reserving_party ? "yes" : "no"],
       ["Agreement content version", safe(sig.agreement_content_version)],
       ["Template version", safe(sig.waiver_template_version)],
       ["Signature method", safe(sig.signature_method)],
