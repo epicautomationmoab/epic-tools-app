@@ -2,6 +2,8 @@ alter table public.epic_waiver_signatures
   add column if not exists rental_role text,
   add column if not exists signed_agreement_html text,
   add column if not exists signed_minor_ack_html text,
+  add column if not exists signed_reserving_party_html text,
+  add column if not exists is_reserving_party boolean not null default false,
   add column if not exists agreement_content_version text;
 
 alter table public.epic_waiver_signatures
@@ -29,6 +31,7 @@ create or replace function public.submit_epic_rental_terms_v2(
   p_electronic_signature_consent boolean,
   p_agreement_html text,
   p_minor_ack_html text,
+  p_reserving_party_html text,
   p_agreement_content_version text,
   p_signer_ip_address text default null,
   p_signer_user_agent text default null
@@ -40,7 +43,8 @@ returns table(
   adult_signature_count integer,
   minor_covered_count integer,
   covered_participant_count integer,
-  rental_role text
+  rental_role text,
+  is_reserving_party boolean
 )
 language plpgsql
 security definer
@@ -56,6 +60,8 @@ declare
   v_minor jsonb;
   v_minor_count integer := 0;
   v_age integer;
+  v_reservation record;
+  v_is_reserving_party boolean := false;
 begin
   select s.*, t.template_version, t.business_line as template_business_line
   into v_session
@@ -131,6 +137,22 @@ begin
     end if;
   end if;
 
+  select o.customer_first_name, o.customer_last_name
+  into v_reservation
+  from public.operational_reservations o
+  where o.id = v_session.operational_reservation_id
+  limit 1;
+
+  v_is_reserving_party :=
+    nullif(trim(coalesce(v_reservation.customer_first_name, '')), '') is not null
+    and nullif(trim(coalesce(v_reservation.customer_last_name, '')), '') is not null
+    and lower(trim(v_reservation.customer_first_name)) = lower(trim(p_signer_first_name))
+    and lower(trim(v_reservation.customer_last_name)) = lower(trim(p_signer_last_name));
+
+  if v_is_reserving_party and nullif(trim(p_reserving_party_html), '') is null then
+    raise exception 'Reserving Party agreement snapshot is required.';
+  end if;
+
   insert into public.epic_waiver_signatures (
     waiver_session_id,
     operational_reservation_id,
@@ -162,6 +184,8 @@ begin
     rental_vehicle_count_at_signing,
     signed_agreement_html,
     signed_minor_ack_html,
+    signed_reserving_party_html,
+    is_reserving_party,
     agreement_content_version
   ) values (
     v_session.id,
@@ -194,6 +218,8 @@ begin
     null,
     p_agreement_html,
     case when coalesce(p_has_minors,false) then p_minor_ack_html else null end,
+    case when v_is_reserving_party then p_reserving_party_html else null end,
+    v_is_reserving_party,
     p_agreement_content_version
   ) returning id into v_signature_id;
 
@@ -247,8 +273,18 @@ begin
     s.adult_signature_count,
     s.minor_covered_count,
     s.covered_participant_count,
-    p_rental_role
+    p_rental_role,
+    v_is_reserving_party
   from public.epic_waiver_sessions s
   where s.id = v_session.id;
 end;
 $function$;
+
+
+revoke execute on function public.submit_epic_rental_terms_v2(
+  text,text,text,text,text,text,text,date,text,boolean,jsonb,text,text,text,boolean,text,text,text,text,text,text
+) from public, anon, authenticated;
+
+grant execute on function public.submit_epic_rental_terms_v2(
+  text,text,text,text,text,text,text,date,text,boolean,jsonb,text,text,text,boolean,text,text,text,text,text,text
+) to service_role;
