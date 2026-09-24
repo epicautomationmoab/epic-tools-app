@@ -56,7 +56,7 @@ export const RENTAL_V2_DRIVER_HTML = `
   <ul>
     <li>Sand Dunes (Located at White Wash, Behind the Rocks, and Poison Spider)</li>
   </ul>
-  <p>Entering Prohibited Terrain or attempting a prohibited obstacle is a violation of this agreement and may void applicable damage protection. The Driver whose operation results in the violation may be held fully responsible for resulting vehicle damage, recovery, Loss of Use, and other related costs.</p>
+  <p>Entering Prohibited Terrain or attempting a prohibited obstacle is a violation of this agreement and may void applicable damage protection. A Driver whose operation results in the violation remains individually responsible for the resulting consequences. The Reserving Party is separately responsible to Epic for amounts properly due for vehicles included in the reservation unless Epic has expressly established a different financial-responsibility arrangement in writing.</p>
   <p><strong>High-Consequence Terrain</strong></p>
   <p>Epic identifies certain additional trails and obstacles as High-Consequence Terrain because errors, changing conditions, or loss of vehicle control may result in serious injury or death, significant vehicle damage, and difficult recovery. Epic recommends avoiding High-Consequence Terrain.</p>
   <p>High-Consequence Terrain includes, but is not limited to:</p>
@@ -104,7 +104,7 @@ export const RENTAL_V2_DRIVER_HTML = `
     <li>Entering Prohibited Terrain or attempting prohibited obstacles</li>
     <li>Tampering with or disabling vehicle tracking, telemetry, or safety equipment</li>
   </ul>
-  <p>Prohibited conduct may result in immediate termination of the rental without refund and may void applicable damage protection or coverage limitations. The Driver whose operation or conduct caused the violation may be held fully responsible for resulting damage, recovery, Loss of Use, and other related costs.</p>
+  <p>Prohibited conduct may result in immediate termination of the rental without refund and may void applicable damage protection or coverage limitations. A Driver whose operation or conduct caused the violation remains individually responsible for the resulting consequences. The Reserving Party is separately responsible to Epic for amounts properly due for vehicles included in the reservation unless Epic has expressly established a different financial-responsibility arrangement in writing.</p>
   <p>Epic may rely on GPS records, vehicle telemetry, inspection findings, photographs, video, incident reports, and staff observations when determining compliance with these Terms &amp; Conditions.</p>
   <h4>6. SECURITY DEPOSIT</h4>
   <p>A security deposit or payment authorization may be required for each vehicle or for the reservation as a whole before vehicle release. Epic may apply available deposit funds or authorized payment methods associated with the reservation toward amounts properly due under these Terms &amp; Conditions.</p>
@@ -112,7 +112,7 @@ export const RENTAL_V2_DRIVER_HTML = `
   <h4>7. VEHICLE RECOVERY</h4>
   <p>If a vehicle becomes stuck, disabled, abandoned, inoperable, or otherwise cannot be returned under its own power, recovery may be required.</p>
   <p>Recovery may include dispatch, labor, towing, extraction, winching, transport, specialized equipment, coordination, and third-party recovery services. Recovery charges are separate from vehicle damage charges and are not included in any damage-protection plan.</p>
-  <p>The Driver whose operation results in the need for recovery is responsible for recovery charges arising from that vehicle, except when recovery is required solely because of a mechanical failure not caused or contributed to by the renter or Driver.</p>
+  <p>A Driver whose operation results in the need for recovery remains individually responsible for recovery charges arising from that vehicle, except when recovery is required solely because of a mechanical failure not caused or contributed to by the renter or Driver. The Reserving Party is separately responsible to Epic for recovery charges properly due for vehicles included in the reservation unless Epic has expressly established a different financial-responsibility arrangement in writing.</p>
   <p>Recovery from Prohibited or High-Consequence Terrain starts at $2,500 and may increase based on location, terrain, technical difficulty, personnel and equipment required, time involved, operational disruption, risk, and third-party recovery costs. Recovery may be performed by Epic personnel, third-party recovery providers, or both.</p>
   <p>Recovery timing depends on location, terrain, weather, safety conditions, and resource availability. Immediate recovery is not guaranteed.</p>
   <h4>8. DAMAGE PROTECTION REVIEW</h4>
@@ -136,6 +136,6 @@ export const RENTAL_V2_PASSENGER_HTML = `
   <p>Epic provides safety information, trail information, and terrain warnings so participants can make informed decisions. Epic does not determine whether a particular road, trail, obstacle, or area is appropriate for an individual participant.</p>
   <p><strong>Prohibited Terrain and Use</strong> includes Pritchett Canyon, Cliffhanger Trail, Moab Rim Trail, Hell's Gate, Escalator, Staircase, Tip Over Challenge, Mickey's Hot Tub, Devil's Hot Tub, and Sand Dunes (Located at White Wash, Behind the Rocks, and Poison Spider).</p>
   <p><strong>High-Consequence Terrain</strong> includes Golden Spike, Gold Bar Rim, Behind the Rocks, Steel Bender, Rusty Nail, Flat Iron Mesa, Kane Creek Canyon, and Top of the World. Epic recommends avoiding High-Consequence Terrain. This list is not exhaustive, and the absence of a road, trail, obstacle, or area from any warning or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate.</p>
-  <p>You understand that route selection, terrain decisions, and vehicle operation are the responsibility of the Driver. By signing as a Passenger, you are not accepting the Driver's vehicle-operation, damage, recovery, or other financial obligations solely because you are participating in the rental.</p>
+  <p>You understand that route selection, terrain decisions, and vehicle operation are the responsibility of the Driver. By signing as a Passenger, you are not accepting a Driver's vehicle-operation obligations solely because you are participating in the rental. If you are also the Reserving Party, your separate Reserving Party responsibilities apply to the vehicles included in the reservation.</p>
   <p>This Passenger Agreement is separate from and supplemental to applicable Polaris Adventures participant or passenger agreements. Final release and waiver language will be reviewed by counsel before production launch.</p>
 `;
