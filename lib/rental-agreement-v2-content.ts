@@ -1,8 +1,16 @@
-export const RENTAL_V2_AGREEMENT_VERSION = "rental-v2-preview-2026-09-23";
+export const RENTAL_V2_AGREEMENT_VERSION = "rental-v2-preview-2026-09-23-rp1";
 
 export const RENTAL_V2_MINOR_ACK_HTML = `
   <p>As the parent or legal guardian of the minor participant(s) identified below, I acknowledge that I have reviewed Epic's information regarding the inherent risks of UTV riding in Moab, including the possibility of serious injury or death, Prohibited Terrain, and High-Consequence Terrain.</p>
   <p>I understand that High-Consequence designations are not an exhaustive list of hazardous terrain and that Epic recommends avoiding High-Consequence Terrain. I authorize the minor participant(s) identified below to participate as passengers subject to applicable safety requirements.</p>
+`;
+
+export const RENTAL_V2_RESERVING_PARTY_HTML = `
+  <h4>RESERVING PARTY RESPONSIBILITY</h4>
+  <p><strong>Reserving Party</strong> means the person who makes or holds the reservation with Epic. The Reserving Party accepts financial and contractual responsibility to Epic for all Epic vehicles included in the reservation, including damage or loss, administrative and shop fees, cleaning, towing, recovery, extraction, transport, Loss of Use, prohibited-use charges, and other rental-related amounts properly due under the rental agreement, regardless of which authorized Driver was operating a vehicle when the charge arose.</p>
+  <p>Allowing another person to operate an Epic vehicle does not transfer, reduce, or eliminate the Reserving Party’s responsibility to Epic. Each Driver also remains individually responsible for their own operation, conduct, and compliance with these Terms &amp; Conditions while operating an Epic vehicle.</p>
+  <p>Epic is not required to determine or resolve how responsibility should be divided among members of a group before collecting amounts properly due under the rental agreement. Epic is also not required to seek payment from a Driver before collecting from the Reserving Party or applying an authorized security deposit or payment method associated with the reservation. Any allocation, reimbursement, or contribution among the Reserving Party, Drivers, or other members of the group is a matter between those individuals and does not affect Epic’s right to collect amounts properly due.</p>
+  <p>If members of a group wish to assume separate financial responsibility for individual vehicles, Epic may require separate security deposits or payment authorizations before vehicle release. Unless Epic expressly establishes a different financial-responsibility arrangement in writing, the Reserving Party remains responsible to Epic for all vehicles included in the reservation.</p>
 `;
 
 export const RENTAL_V2_DRIVER_HTML = `
@@ -71,7 +79,7 @@ export const RENTAL_V2_DRIVER_HTML = `
   <p>Do not wash, rinse, pressure wash, or otherwise clean the vehicle during the rental. Improper water exposure can damage mechanical and electrical components. Standard cleaning is included with your rental.</p>
   <p>Excessive mud, debris, interior contamination, roof buildup, or other cleaning beyond normal recreational use may result in a cleaning fee starting at $250.</p>
   <h4>4. CHARGES, DISPUTES &amp; COLLECTION</h4>
-  <p>Each Driver authorizes charges arising from any Epic vehicle they operate during the rental, including damage or loss, administrative and shop fees, cleaning, towing, recovery, extraction, transport, Loss of Use, prohibited-use charges, and other amounts due under these Terms &amp; Conditions.</p>
+  <p>Each Driver is financially responsible for amounts properly due arising from their operation of an Epic vehicle, including damage or loss, administrative and shop fees, cleaning, towing, recovery, extraction, transport, Loss of Use, prohibited-use charges, and other amounts due under these Terms &amp; Conditions. The Reserving Party is separately responsible to Epic for all vehicles included in the reservation as described in the Reserving Party Responsibility section when applicable.</p>
   <p>Epic may provide supporting documentation including photographs, incident records, repair documentation, invoices, and other available evidence.</p>
   <p>A payment dispute or chargeback does not eliminate amounts properly due under this agreement. Epic may pursue unpaid amounts and any remedies available under Utah law, including applicable collection costs, attorney fees, and court costs.</p>
   <h4>5. OPERATING RULES AND PROHIBITED CONDUCT</h4>
@@ -99,8 +107,8 @@ export const RENTAL_V2_DRIVER_HTML = `
   <p>Prohibited conduct may result in immediate termination of the rental without refund and may void applicable damage protection or coverage limitations. The Driver whose operation or conduct caused the violation may be held fully responsible for resulting damage, recovery, Loss of Use, and other related costs.</p>
   <p>Epic may rely on GPS records, vehicle telemetry, inspection findings, photographs, video, incident reports, and staff observations when determining compliance with these Terms &amp; Conditions.</p>
   <h4>6. SECURITY DEPOSIT</h4>
-  <p>A security deposit or credit card authorization may be required before vehicle release. Each Driver authorizes Epic to apply available deposit funds or payment authorization toward amounts properly due from that Driver under these Terms &amp; Conditions, including damage, recovery, cleaning, Loss of Use, prohibited-use charges, and other rental-related costs.</p>
-  <p>Any deposit or authorization does not limit a Driver’s financial obligations under this agreement.</p>
+  <p>A security deposit or payment authorization may be required for each vehicle or for the reservation as a whole before vehicle release. Epic may apply available deposit funds or authorized payment methods associated with the reservation toward amounts properly due under these Terms &amp; Conditions.</p>
+  <p>The amount, existence, exhaustion, or absence of a security deposit or payment authorization does not limit the Reserving Party’s or any Driver’s financial obligations under this agreement.</p>
   <h4>7. VEHICLE RECOVERY</h4>
   <p>If a vehicle becomes stuck, disabled, abandoned, inoperable, or otherwise cannot be returned under its own power, recovery may be required.</p>
   <p>Recovery may include dispatch, labor, towing, extraction, winching, transport, specialized equipment, coordination, and third-party recovery services. Recovery charges are separate from vehicle damage charges and are not included in any damage-protection plan.</p>
@@ -111,14 +119,14 @@ export const RENTAL_V2_DRIVER_HTML = `
   <p>Epic reviews and evaluates damage incidents and applies applicable damage-protection terms to vehicles rented through Epic.</p>
   <p>Following an incident, Epic may review vehicle condition, GPS and telemetry data, photographs, incident reports, Driver statements, trail location, operating behavior, and other available information to determine whether the vehicle was operated in compliance with these Terms &amp; Conditions and applicable damage-protection requirements.</p>
   <p>Epic may determine that damage protection is limited or void when the circumstances establish a violation of applicable rental or protection terms, including reckless operation, operation outside the Driver’s skill or experience, intentional misuse, willful disregard for the risk of damage, or other prohibited conduct.</p>
-  <p>Any amounts not covered by applicable damage protection remain the responsibility of the Driver or Drivers responsible under these Terms &amp; Conditions.</p>
+  <p>Any amounts not covered by applicable damage protection remain the responsibility of the Driver or Drivers responsible under these Terms &amp; Conditions and, where applicable, the Reserving Party.</p>
   <h4>9. AGREEMENT ACKNOWLEDGMENT</h4>
   <p>By signing this agreement, each Driver:</p>
   <ul>
     <li>Acknowledges that these Terms &amp; Conditions are separate from and supplemental to applicable Polaris Adventures agreements</li>
     <li>Accepts financial and contractual responsibility for any Epic vehicle they operate during the rental as provided in these Terms &amp; Conditions</li>
     <li>Understands that violations may result in termination of the rental, loss or limitation of damage protection, additional charges, or other remedies</li>
-    <li>Authorizes Epic to charge amounts properly due from that Driver under these Terms &amp; Conditions, including damage, recovery, cleaning, Loss of Use, prohibited-use charges, and other rental-related costs</li>
+    <li>Understands that amounts properly due may be collected from the responsible Driver and, where applicable, from the Reserving Party or an authorized security deposit or payment method associated with the reservation</li>
   </ul>
 `;
 
