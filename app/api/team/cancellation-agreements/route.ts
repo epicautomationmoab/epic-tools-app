@@ -50,8 +50,6 @@ type RequestIdentity = {
   workstation: boolean;
 };
 
-const EMAIL_IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
-
 function hasPreviewAccess(request: NextRequest) {
   const previewToken = process.env.EPIC_PREVIEW_TOKEN;
   return Boolean(previewToken && request.cookies.get("epic_preview_access")?.value === previewToken);
@@ -89,11 +87,6 @@ function normalizeName(value: string | null | undefined) {
 
 function tokenHash(token: string) {
   return createHash("sha256").update(token).digest("hex");
-}
-
-function emailIdempotencyKey(readinessId: string) {
-  const bucket = Math.floor(Date.now() / EMAIL_IDEMPOTENCY_WINDOW_MS);
-  return `cancellation-agreement/${readinessId}/${bucket}`;
 }
 
 async function loadReadiness(readinessId: string) {
@@ -348,7 +341,7 @@ export async function POST(request: NextRequest) {
             customerName: readiness.customer_name,
             confirmationCode: readiness.confirmation_code,
             agreementUrl,
-            idempotencyKey: emailIdempotencyKey(readiness.readiness_id),
+            idempotencyKey: `cancellation-agreement/${created.id}`,
           })
         : Promise.resolve(null),
     ]);
