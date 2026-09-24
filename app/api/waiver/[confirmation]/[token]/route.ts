@@ -83,15 +83,12 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     let tourActivityLabel: string | null = null;
 
     const reservationParams = new URLSearchParams({
-      select: "customer_phone,customer_first_name,customer_last_name,customer_email",
+      select: "customer_phone",
       confirmation_code: `eq.${confirmation}`,
       limit: "1",
     });
     const reservations = await getJson(`${c.url}/rest/v1/operational_reservations?${reservationParams.toString()}`, c.key);
     customerPhone = reservations?.[0]?.customer_phone ?? null;
-    const customerFirstName = reservations?.[0]?.customer_first_name ?? null;
-    const customerLastName = reservations?.[0]?.customer_last_name ?? null;
-    const customerEmail = reservations?.[0]?.customer_email ?? null;
 
     if (session.waiver_template_id) {
       const templateParams = new URLSearchParams({
@@ -141,9 +138,6 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
         start_time: denverWallTimeToIso(session.start_time ?? null),
         experience_name: businessLine === "tour" && tourActivityLabel ? tourActivityLabel : session.experience_name,
         customer_phone: customerPhone,
-        customer_first_name: customerFirstName,
-        customer_last_name: customerLastName,
-        customer_email: customerEmail,
         business_line: businessLine || "tour",
         rental_terms_html: rentalTermsHtml,
         total_vehicle_count: totalVehicleCount,
