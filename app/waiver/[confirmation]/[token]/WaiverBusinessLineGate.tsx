@@ -9,6 +9,9 @@ type Session = {
   confirmation_code: string;
   customer_name: string | null;
   customer_phone: string | null;
+  customer_first_name: string | null;
+  customer_last_name: string | null;
+  customer_email: string | null;
   start_time: string | null;
   experience_name: string | null;
   experience_internal_name: string | null;
