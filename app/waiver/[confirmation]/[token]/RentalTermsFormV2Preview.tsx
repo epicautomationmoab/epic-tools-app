@@ -11,9 +11,6 @@ type RentalSession = {
   confirmation_code: string;
   customer_name: string | null;
   customer_phone: string | null;
-  customer_first_name: string | null;
-  customer_last_name: string | null;
-  customer_email: string | null;
   start_time: string | null;
   experience_name: string | null;
   experience_internal_name: string | null;
@@ -188,7 +185,7 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
             <span className="waiver-pill">V2 Preview</span>
           </div>
           <div className="waiver-details">
-            <div className="waiver-detail"><small>Reserving Party</small><strong>{session.customer_name || "—"}</strong>{reservingPartyPhone ? <span>{reservingPartyPhone}</span> : null}</div>
+            <div className="waiver-detail"><small>Booking Contact</small><strong>{session.customer_name || "—"}</strong>{reservingPartyPhone ? <span>{reservingPartyPhone}</span> : null}</div>
             <div className="waiver-detail"><small>Rental</small><strong>{activity}</strong></div>
             <div className="waiver-detail"><small>Start Time</small><strong>{start}</strong></div>
           </div>
