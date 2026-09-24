@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./CancellationAgreementPanel.module.css";
 
@@ -266,7 +267,7 @@ export default function CancellationAgreementPanel({
         </section>
       ) : null}
 
-      {isOpen ? (
+      {isOpen && typeof document !== "undefined" ? createPortal(
         <div
           role="presentation"
           onMouseDown={(event) => {
@@ -469,7 +470,8 @@ export default function CancellationAgreementPanel({
               {copied ? <p className={styles.copied}>Secure agreement link copied. Paste it into any text or email.</p> : null}
             </section>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );
