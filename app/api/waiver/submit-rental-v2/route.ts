@@ -5,6 +5,7 @@ import {
   RENTAL_V2_DRIVER_HTML,
   RENTAL_V2_MINOR_ACK_HTML,
   RENTAL_V2_PASSENGER_HTML,
+  RENTAL_V2_RESERVING_PARTY_HTML,
 } from "@/lib/rental-agreement-v2-content";
 
 function config() {
@@ -159,6 +160,7 @@ export async function POST(request: Request) {
       p_electronic_signature_consent: Boolean(payload.p_electronic_signature_consent),
       p_agreement_html: payload.p_rental_role === "driver" ? RENTAL_V2_DRIVER_HTML : RENTAL_V2_PASSENGER_HTML,
       p_minor_ack_html: payload.p_has_minors ? RENTAL_V2_MINOR_ACK_HTML : null,
+      p_reserving_party_html: RENTAL_V2_RESERVING_PARTY_HTML,
       p_agreement_content_version: RENTAL_V2_AGREEMENT_VERSION,
       p_signer_ip_address: signerIp(request),
       p_signer_user_agent: request.headers.get("user-agent"),
