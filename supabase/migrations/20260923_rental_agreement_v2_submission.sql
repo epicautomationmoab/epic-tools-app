@@ -233,12 +233,12 @@ begin
     end loop;
   end if;
 
-  update public.epic_waiver_sessions
-  set adult_signature_count = adult_signature_count + 1,
-      minor_covered_count = minor_covered_count + v_minor_count,
-      covered_participant_count = covered_participant_count + 1 + v_minor_count,
+  update public.epic_waiver_sessions as session_row
+  set adult_signature_count = session_row.adult_signature_count + 1,
+      minor_covered_count = session_row.minor_covered_count + v_minor_count,
+      covered_participant_count = session_row.covered_participant_count + 1 + v_minor_count,
       updated_at = now()
-  where id = v_session.id;
+  where session_row.id = v_session.id;
 
   return query
   select
