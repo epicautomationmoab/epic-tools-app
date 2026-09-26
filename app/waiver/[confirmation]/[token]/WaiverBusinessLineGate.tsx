@@ -15,6 +15,7 @@ type Session = {
   business_line: string | null;
   rental_terms_html: string | null;
   total_vehicle_count: number;
+  rental_v2_enabled?: boolean;
 };
 
 export default function WaiverBusinessLineGate({ children }: { children: ReactNode }) {
@@ -42,6 +43,17 @@ export default function WaiverBusinessLineGate({ children }: { children: ReactNo
   }
 
   if (!failed && session?.business_line === "rental") {
+    if (session.rental_v2_enabled) {
+      return (
+        <RentalTermsFormV2Preview
+          session={session}
+          confirmation={confirmation}
+          token={token}
+          writeEnabled
+          productionMode
+        />
+      );
+    }
     if (searchParams.get("v2") === "preview") {
       return (
         <RentalTermsFormV2Preview
