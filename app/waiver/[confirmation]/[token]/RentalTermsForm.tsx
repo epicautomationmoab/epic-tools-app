@@ -11,6 +11,7 @@ type RentalSession = {
   experience_internal_name: string | null;
   rental_terms_html: string | null;
   total_vehicle_count: number;
+  guest_portal_token?: string | null;
 };
 
 type ResponsibilityScope = "all_reservation_vehicles" | "assigned_vehicle_only";
@@ -171,6 +172,12 @@ export default function RentalTermsForm({
       const json = await response.json();
       if (!response.ok) {
         setError(json.error || "Unable to submit rental agreement.");
+        return;
+      }
+      if (session.guest_portal_token) {
+        window.location.assign(
+          `/guest/${encodeURIComponent(session.guest_portal_token)}`,
+        );
         return;
       }
       setSuccess("Rental Terms & Conditions submitted successfully. A copy has been emailed to you for your records. You may now close this browser window.");
