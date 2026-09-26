@@ -563,7 +563,7 @@ export default function GuestPortalPage() {
                 : "Guide Services Agreement & Waiver";
 
               const epicInstructions = isRental
-                ? "Every participant must be accounted for. Adults sign as a Driver or Passenger, and minors are added by a parent or legal guardian. We also need at least one signed Driver for each rental vehicle."
+                ? "Every adult participant must complete an agreement. Children must be added to a parent or legal guardian agreement. Please complete as a Driver or Passenger. We require at least one signed Driver for each vehicle on your reservation."
                 : "Every participant must complete our guided services agreement. Adults complete for themselves, and a parent or legal guardian must complete the waiver for each minor.";
 
               const epicCountLabel = "participants";
