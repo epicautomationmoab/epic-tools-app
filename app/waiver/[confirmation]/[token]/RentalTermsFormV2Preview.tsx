@@ -34,7 +34,17 @@ function emptyMinor(): Minor {
   return { firstName: "", lastName: "", dob: "", relationship: "" };
 }
 
-export default function RentalTermsFormV2Preview({ session }: { session: RentalSession }) {
+export default function RentalTermsFormV2Preview({
+  session,
+  confirmation,
+  token,
+  writeEnabled = false,
+}: {
+  session: RentalSession;
+  confirmation: string;
+  token: string;
+  writeEnabled?: boolean;
+}) {
   const vehicleCount = Math.max(1, Number(session.total_vehicle_count) || 1);
   const [role, setRole] = useState<Role | null>(null);
   const [hasMinors, setHasMinors] = useState<boolean | null>(null);
@@ -52,6 +62,7 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
   const [drawn, setDrawn] = useState(false);
   const [signatureError, setSignatureError] = useState("");
   const [signatureSuccess, setSignatureSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const signatureCanvas = useRef<HTMLCanvasElement | null>(null);
 
   const activity = session.experience_name || session.experience_internal_name || "Epic 4X4 UTV Rental";
@@ -142,34 +153,107 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
     setSignatureSuccess("");
   }
 
-  function validatePreviewSignature() {
+  function validateSignature() {
     setSignatureError("");
     setSignatureSuccess("");
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !dob) {
       setSignatureError("Complete the participant information before signing.");
-      return;
+      return false;
     }
     if (hasMinors === null) {
       setSignatureError("Please answer the Minor Participants question.");
-      return;
+      return false;
     }
     if (hasMinors && minors.some((minor) => !minor.firstName.trim() || !minor.lastName.trim() || !minor.dob || !minor.relationship.trim())) {
       setSignatureError("Complete all information for each minor participant.");
-      return;
+      return false;
     }
     if (!acknowledged) {
       setSignatureError("Please acknowledge the agreement before signing.");
-      return;
+      return false;
     }
     if (signatureMethod === "drawn" && !drawn) {
       setSignatureError("Please sign in the signature box.");
-      return;
+      return false;
     }
     if (signatureMethod === "typed" && normalizeSignature(typedSignature) !== normalizeSignature(legalName)) {
       setSignatureError("Your typed signature must match the full legal name entered above.");
+      return false;
+    }
+    return true;
+  }
+
+  async function handleSignatureAction() {
+    if (!validateSignature()) return;
+
+    if (!writeEnabled) {
+      setSignatureSuccess("Signature captured and V2 form validation passed. Preview mode does not record or submit this agreement.");
       return;
     }
-    setSignatureSuccess("Signature captured and V2 form validation passed. Preview mode does not record or submit this agreement.");
+
+    setSubmitting(true);
+    setSignatureError("");
+    setSignatureSuccess("");
+
+    try {
+      const drawnSignaturePng =
+        signatureMethod === "drawn"
+          ? signatureCanvas.current?.toDataURL("image/png") ?? null
+          : null;
+
+      const response = await fetch("/api/waiver/submit-rental-v2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          p_confirmation_code: confirmation,
+          p_public_token: token,
+          p_signer_first_name: firstName.trim(),
+          p_signer_middle_initial: middleInitial.trim() || null,
+          p_signer_last_name: lastName.trim(),
+          p_signer_email: email.trim(),
+          p_signer_phone: phone.trim() || null,
+          p_signer_dob: dob,
+          p_rental_role: role,
+          p_has_minors: hasMinors === true,
+          p_minors: hasMinors ? minors : [],
+          p_signature_method: signatureMethod,
+          p_typed_signature_name:
+            signatureMethod === "typed" ? typedSignature.trim() : null,
+          drawn_signature_png: drawnSignaturePng,
+          p_electronic_signature_consent: acknowledged,
+          p_preview_write: true,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || "Unable to submit the V2 test agreement.");
+      }
+
+      const pdfStatus = result?.pdfGenerated
+        ? " Signed PDF generated."
+        : result?.pdfError
+          ? ` Agreement saved, but PDF generation needs review: ${result.pdfError}`
+          : "";
+      const emailStatus =
+        result?.copyEmailStatus === "sent"
+          ? " Signed copy emailed."
+          : result?.copyEmailStatus === "failed"
+            ? ` Email delivery needs review: ${result.copyEmailError || "unknown error"}`
+            : "";
+
+      setSignatureSuccess(
+        `V2 test agreement recorded successfully.${pdfStatus}${emailStatus}`,
+      );
+    } catch (error) {
+      setSignatureError(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit the V2 test agreement.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -177,7 +261,11 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
       <div className="waiver-shell">
         <div className="waiver-brand">Epic 4X4 Adventures</div>
         <h1 className="waiver-title">UTV Rental Agreement V2</h1>
-        <p className="waiver-subtitle">PREVIEW ONLY — this version does not replace the current live rental agreement and cannot be submitted.</p>
+        <p className="waiver-subtitle">
+          {writeEnabled
+            ? "CONTROLLED V2 TEST — this submission will be recorded in Epic's production legal-document system for testing."
+            : "PREVIEW ONLY — this version does not replace the current live rental agreement and cannot be submitted."}
+        </p>
         <div className="waiver-rule" />
         <article className="waiver-doc">
           <div className="waiver-reservation">
@@ -301,8 +389,24 @@ export default function RentalTermsFormV2Preview({ session }: { session: RentalS
 
               {signatureError ? <div className="waiver-alert">{signatureError}</div> : null}
               {signatureSuccess ? <div className="waiver-success">{signatureSuccess}</div> : null}
-              <p><strong>Preview safety:</strong> the signature experience is now wired in and validated, but this preview still does not write a signature to the database, generate a legal PDF, email a copy, or affect Guest Readiness.</p>
-              <button type="button" className="waiver-button waiver-submit" onClick={validatePreviewSignature}>Validate Signature — Preview Only</button>
+              <p>
+                <strong>{writeEnabled ? "Controlled test:" : "Preview safety:"}</strong>{" "}
+                {writeEnabled
+                  ? "This test path records the agreement, generates the V2 PDF, emails the signer copy, and feeds the V2 readiness counts."
+                  : "The signature experience is wired in and validated, but this preview does not write a signature to the database, generate a legal PDF, email a copy, or affect Guest Readiness."}
+              </p>
+              <button
+                type="button"
+                className="waiver-button waiver-submit"
+                onClick={handleSignatureAction}
+                disabled={submitting}
+              >
+                {submitting
+                  ? "Submitting V2 Test..."
+                  : writeEnabled
+                    ? "Submit V2 Test Agreement"
+                    : "Validate Signature — Preview Only"}
+              </button>
             </section>
           </> : null}
         </article>
