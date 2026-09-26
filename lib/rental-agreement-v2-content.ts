@@ -138,7 +138,7 @@ export const RENTAL_V2_DRIVER_HTML = `
 `;
 
 export const RENTAL_V2_PASSENGER_HTML = `
-  <p><strong>Passenger Agreement.</strong> By signing as a Passenger, you confirm that you will participate in the rental as a passenger and will not operate an Epic vehicle.</p>
+  <p><strong>Passenger Agreement.</strong> By signing as a Passenger, you acknowledge the inherent risks of riding in an off-highway vehicle in Moab and the terrain information provided by Epic. You understand that some terrain may carry serious consequences or may be beyond a Driver's skill and experience. You also confirm that you will participate in the rental as a passenger and will not operate an Epic vehicle.</p>
   <p>Riding in an off-highway vehicle in Moab is an inherently risky recreational activity. Terrain may include steep grades, ledges, rocks, technical obstacles, exposure, loose surfaces, changing trail conditions, limited visibility, other trail users, and other hazards capable of causing serious bodily injury or death.</p>
   <p>Epic provides safety information, trail information, and terrain warnings so participants can make informed decisions. Epic does not determine whether a particular road, trail, obstacle, or area is appropriate for an individual participant.</p>
   <p><strong>Prohibited Terrain and Use</strong> includes Pritchett Canyon, Cliffhanger Trail, Moab Rim Trail, Hell's Gate, Escalator, Staircase, Tip Over Challenge, Mickey's Hot Tub, Devil's Hot Tub, and Sand Dunes (Located at White Wash, Behind the Rocks, and Poison Spider).</p>
@@ -159,5 +159,5 @@ export const RENTAL_V2_PASSENGER_HTML = `
   <p>This list is not exhaustive and should not be considered a complete list of terrain with significant consequences. High-Consequence Terrain may include an entire trail, a specific obstacle or section of trail, or other terrain where location, exposure, grade, ledges, rocks, surface conditions, remoteness, vehicle position, or other circumstances make vehicle damage, rollover, immobilization, extraction, or recovery substantially more difficult or hazardous.</p>
   <p>The absence of a trail, obstacle, or area from these examples does not mean Epic represents it as safe, easy, suitable, recommended, or outside the definition of High-Consequence Terrain.</p>
   <p>You understand that route selection, terrain decisions, and vehicle operation are the responsibility of the Driver. By signing as a Passenger, you are not accepting a Driver's vehicle-operation, damage, recovery, or other financial obligations solely because you are participating in the rental.</p>
-  <p>This Passenger Agreement is separate from and supplemental to applicable Polaris Adventures participant or passenger agreements. Final release and waiver language will be reviewed by counsel before production launch.</p>
+  <p>This Passenger Agreement is separate from and supplemental to applicable Polaris Adventures participant or passenger agreements.</p>
 `;
