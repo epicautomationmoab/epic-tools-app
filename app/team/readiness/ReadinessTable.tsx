@@ -64,12 +64,24 @@ function formatPhone(value: string | null | undefined) {
 }
 
 function docsCounts(row: ReadinessRow) {
-  const received = row.epic_document_received_count ?? 0;
-  const expected =
-    row.business_line === "rental"
-      ? row.expected_guest_count ?? 0
-      : row.epic_document_expected_count ?? row.expected_guest_count ?? 0;
-  return { received, expected };
+  if (row.business_line === "rental") {
+    return {
+      received: row.rental_v2_agreements_received ?? 0,
+      expected: row.rental_v2_agreements_expected ?? row.expected_guest_count ?? 0,
+    };
+  }
+  return {
+    received: row.epic_document_received_count ?? 0,
+    expected: row.epic_document_expected_count ?? row.expected_guest_count ?? 0,
+  };
+}
+
+function driverCounts(row: ReadinessRow) {
+  if (row.business_line !== "rental") return { received: 0, expected: 0 };
+  return {
+    received: row.rental_v2_drivers_received ?? 0,
+    expected: row.rental_v2_drivers_expected ?? row.total_vehicle_count ?? 0,
+  };
 }
 
 function mpwrCounts(row: ReadinessRow) {
@@ -993,7 +1005,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
               <th className={styles.colGuest}>Guest</th>
               <th className={styles.colActivity}>Activity</th>
               <th className={styles.colVehicles}>Vehicles</th>
-              <th className={styles.colDocs}>Epic Docs</th>
+              <th className={styles.colDocs}>Epic</th>
               <th className={styles.colMpwr}>MPWR</th>
               <th className={styles.colAssure}>Adventure Assure</th>
               <th className={styles.colBalance}>Balance</th>
@@ -1056,14 +1068,35 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     <VehicleCell row={row} />
                   </td>
                   <td>
-                    <div
-                      className={`${styles.statusLine} ${docs.expected > 0 && docs.received >= docs.expected ? styles.waiversComplete : ""}`}
-                    >
-                      <span
-                        className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`}
-                      />
-                      {docs.received}/{docs.expected}
-                    </div>
+                    {row.business_line === "rental" ? (
+                      <>
+                        <div
+                          className={`${styles.statusLine} ${docs.expected > 0 && docs.received >= docs.expected ? styles.waiversComplete : ""}`}
+                        >
+                          <span
+                            className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`}
+                          />
+                          Agreements {docs.received}/{docs.expected}
+                        </div>
+                        <div
+                          className={`${styles.statusLine} ${driverCounts(row).expected > 0 && driverCounts(row).received >= driverCounts(row).expected ? styles.waiversComplete : ""}`}
+                        >
+                          <span
+                            className={`${styles.dot} ${statusClass(driverCounts(row).received, driverCounts(row).expected)}`}
+                          />
+                          Drivers {driverCounts(row).received}/{driverCounts(row).expected}
+                        </div>
+                      </>
+                    ) : (
+                      <div
+                        className={`${styles.statusLine} ${docs.expected > 0 && docs.received >= docs.expected ? styles.waiversComplete : ""}`}
+                      >
+                        <span
+                          className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`}
+                        />
+                        {docs.received}/{docs.expected}
+                      </div>
+                    )}
                     <div className={styles.subLine}>
                       {linkedValue(
                         row.confirmation_code,
@@ -1222,7 +1255,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                   docsCounts(selected).expected,
                 )}
               >
-                <span>Epic Docs</span>
+                <span>{selected.business_line === "rental" ? "Agreements" : "Epic Docs"}</span>
                 <strong
                   className={
                     docsCounts(selected).expected > 0 &&
@@ -1236,6 +1269,27 @@ await callReadinessRpc("manual_override_mpwr_information", {
                   {docsCounts(selected).expected}
                 </strong>
               </div>
+
+              {selected.business_line === "rental" ? (
+                <div
+                  className={drawerStatusCardClass(
+                    driverCounts(selected).received,
+                    driverCounts(selected).expected,
+                  )}
+                >
+                  <span>Drivers</span>
+                  <strong
+                    className={
+                      driverCounts(selected).expected > 0 &&
+                      driverCounts(selected).received >= driverCounts(selected).expected
+                        ? styles.drawerCompleteValue
+                        : undefined
+                    }
+                  >
+                    {driverCounts(selected).received}/{driverCounts(selected).expected}
+                  </strong>
+                </div>
+              ) : null}
 
               <div
                 className={drawerStatusCardClass(
@@ -1789,13 +1843,40 @@ await callReadinessRpc("manual_override_mpwr_information", {
               className={`${styles.drawerSection} ${styles.epicDocumentsSection}`}
             >
               <h3>
-                Epic Documents
+                {selected.business_line === "rental" ? "Epic Agreements" : "Epic Documents"}
                 <span className={styles.sectionCount}>
-                  {(selected.epic_document_signers ?? []).length}
+                  {selected.business_line === "rental"
+                    ? (selected.rental_v2_signers ?? []).length
+                    : (selected.epic_document_signers ?? []).length}
                 </span>
               </h3>
 
-              {(selected.epic_document_signers ?? []).length ? (
+              {selected.business_line === "rental" ? (
+                (selected.rental_v2_signers ?? []).length ? (
+                  <div className={styles.signerList}>
+                    {(selected.rental_v2_signers ?? []).map((signer, index) => (
+                      <div
+                        className={styles.signerRow}
+                        key={`${signer.signatureId}-${signer.role}-${index}`}
+                      >
+                        <strong className={styles.signerName}>{signer.name}</strong>
+                        <small className={styles.signerRole}>
+                          {signer.role === "minor"
+                            ? "Minor"
+                            : signer.role === "driver"
+                              ? "Driver"
+                              : "Passenger"}
+                        </small>
+                        <span className={styles.signerNoLink}>Signed</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.drawerEmpty}>
+                    No V2 rental agreement records were received.
+                  </p>
+                )
+              ) : (selected.epic_document_signers ?? []).length ? (
                 <div className={styles.signerList}>
                   {(selected.epic_document_signers ?? []).map(
                     (signer, index) => (
