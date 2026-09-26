@@ -186,28 +186,31 @@ It also already formats the intended display as:
 
 The Readiness table preview branch has already been adjusted so rental document expected count uses `expected_guest_count` rather than relying solely on the legacy Epic-document expected count.
 
-## What Is NOT Yet Wired Live
+## Readiness Integration Status
 
-The production readiness/dashboard stack still uses legacy concepts.
+The V2 readiness plumbing is now wired on the preview branch only. Production remains unchanged.
 
-Before cutover, the following must be changed together:
+Completed on the preview branch:
 
-1. Replace rental `Epic Docs` presentation with the V2 Agreement / Driver count model.
-2. Count signed V2 adults + listed minors against effective guest count.
-3. Count signed V2 Drivers against total vehicle count.
-4. Make the overall rental readiness gate require both counts.
-5. Update the team waiver/readiness API to return V2 role data instead of legacy responsibility-scope fields.
-6. Show signer detail as Driver, Passenger, or Minor in the readiness drawer.
-7. Update Guest Portal readiness counts to use the same source of truth.
-8. Update reminder / communication logic so it uses the same V2 readiness state.
-9. Verify people-count overrides update the V2 denominator consistently everywhere.
-10. Preserve Polaris readiness as a separate requirement and do not alter the Polaris waiver workflow.
+1. Rental dashboard presentation uses the V2 Agreement / Driver count model.
+2. Signed V2 adults + listed minors count against effective guest count.
+3. Signed V2 Drivers count against total vehicle count.
+4. Rental document readiness requires both participant coverage and Driver coverage.
+5. Team waiver API exposes V2 Driver / Passenger / Minor role data.
+6. Readiness drawer shows Driver, Passenger, and Minor labels.
+7. Guest Portal uses the same V2 readiness source.
+8. Reminder / communication logic uses the same V2 readiness source.
+9. People-count overrides update the V2 agreement denominator.
+10. Rental Arrival Board gating uses V2 readiness plus payment, MPWR, and OHV requirements.
+11. Duplicate adult/minor submissions are collapsed so they cannot inflate readiness; staff-facing exceptions are surfaced in the readiness drawer.
+12. Polaris readiness remains separate and unchanged.
+13. Rental Guest Portal document links on the preview branch route into the V2 preview form.
 
-The intended rental dashboard language is approximately:
+The intended rental dashboard language is:
 
 - `Agreements 4/4 · Drivers 2/2`
 
-The current live Guest Portal language such as "responsible party for each vehicle" is legacy language and should be replaced at V2 cutover, not incrementally during current staff training.
+None of this has been activated on production yet. The production database still lacks the V2 signer-role fields and V2 writes remain disabled.
 
 ## Training Timing
 
@@ -340,11 +343,11 @@ Do not launch until all are true:
 - [x] Rental expected agreement denominator concept set to guest count
 - [ ] V2 signed PDF verified end-to-end
 - [ ] V2 database writes verified end-to-end
-- [ ] V2 readiness participant-count logic wired into production stack
-- [ ] V2 Driver-count logic wired into production stack
-- [ ] Minor participant counting verified end-to-end
-- [ ] Guest Portal V2 language updated
-- [ ] Automated reminder logic updated
+- [x] V2 readiness participant-count logic wired on preview branch
+- [x] V2 Driver-count logic wired on preview branch
+- [ ] Minor participant counting verified end-to-end with real V2 writes
+- [x] Guest Portal V2 language updated on preview branch
+- [x] Automated reminder logic updated on preview branch
 - [ ] Polaris waiver flow verified unchanged
 - [ ] Remaining current-system training complete
 - [ ] V2 staff training complete
@@ -371,4 +374,4 @@ Do NOT restart the Responsible Party / Reserving Party design discussion. The se
 - group reimbursement disputes are not Epic's problem
 - readiness is Agreements x/y plus Drivers a/b
 
-The remaining work is integration, testing, training, and cutover — not conceptual redesign.
+The readiness/dashboard/Guest Portal/reminder integration is now implemented on the preview branch. The remaining work is backend activation, end-to-end testing, training confirmation, attorney review, and cutover — not conceptual redesign.
