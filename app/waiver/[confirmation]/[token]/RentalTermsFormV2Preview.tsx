@@ -439,7 +439,9 @@ export default function RentalTermsFormV2Preview({
                 disabled={submitting}
               >
                 {submitting
-                  ? "Submitting V2 Test..."
+                  ? productionMode
+                    ? "Submitting Agreement..."
+                    : "Submitting V2 Test..."
                   : writeEnabled
                     ? productionMode
                       ? "Submit Agreement"
