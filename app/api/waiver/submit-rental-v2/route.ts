@@ -102,9 +102,11 @@ export async function POST(request: Request) {
     const controlledPreviewWrite =
       process.env.VERCEL_ENV === "preview" &&
       payload.p_preview_write === true;
+    const liveWrite = process.env.ENABLE_RENTAL_V2_LIVE === "true";
     if (
       process.env.ENABLE_RENTAL_V2_PREVIEW_WRITES !== "true" &&
-      !controlledPreviewWrite
+      !controlledPreviewWrite &&
+      !liveWrite
     ) {
       return NextResponse.json(
         { error: "Rental V2 database writes are disabled outside the controlled preview test path." },
