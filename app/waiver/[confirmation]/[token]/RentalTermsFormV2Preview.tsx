@@ -16,6 +16,7 @@ type RentalSession = {
   experience_internal_name: string | null;
   rental_terms_html: string | null;
   total_vehicle_count: number;
+  guest_portal_token?: string | null;
 };
 
 type Role = "driver" | "passenger";
@@ -141,13 +142,21 @@ export default function RentalTermsFormV2Preview({
     setDrawn(true);
   }
 
-  function endSignature() {
+  function endSignature(event?: React.PointerEvent<HTMLCanvasElement>) {
+    if (event && signatureCanvas.current?.hasPointerCapture(event.pointerId)) {
+      signatureCanvas.current.releasePointerCapture(event.pointerId);
+    }
     setDrawing(false);
   }
 
   function clearSignature() {
     const canvas = signatureCanvas.current;
-    if (canvas) canvas.getContext("2d")!.clearRect(0, 0, canvas.width, canvas.height);
+    setDrawing(false);
+    if (canvas) {
+      const context = canvas.getContext("2d");
+      context?.beginPath();
+      context?.clearRect(0, 0, canvas.width, canvas.height);
+    }
     setDrawn(false);
     setSignatureError("");
     setSignatureSuccess("");
@@ -242,8 +251,19 @@ export default function RentalTermsFormV2Preview({
             ? ` Email delivery needs review: ${result.copyEmailError || "unknown error"}`
             : "";
 
+      const successMessage =
+        `V2 test agreement recorded successfully.${pdfStatus}${emailStatus}`;
+      setSignatureSuccess(successMessage);
+
+      if (session.guest_portal_token) {
+        window.location.assign(
+          `/guest/${encodeURIComponent(session.guest_portal_token)}`,
+        );
+        return;
+      }
+
       setSignatureSuccess(
-        `V2 test agreement recorded successfully.${pdfStatus}${emailStatus}`,
+        `${successMessage} You may now close this browser window.`,
       );
     } catch (error) {
       setSignatureError(
@@ -372,6 +392,7 @@ export default function RentalTermsFormV2Preview({
                       onPointerMove={drawSignature}
                       onPointerUp={endSignature}
                       onPointerCancel={endSignature}
+                      onPointerLeave={endSignature}
                     />
                   </div>
                   <div className="waiver-signature-actions">
