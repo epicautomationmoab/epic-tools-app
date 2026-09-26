@@ -6,6 +6,22 @@ function requiredEnv(name: string) {
   return value;
 }
 
+function normalizeFromAddress(value: string) {
+  const trimmed = value.trim().replace(/^["']|["']$/g, "").trim();
+  if (/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(trimmed)) return trimmed;
+  if (/^.+<[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>$/.test(trimmed)) return trimmed;
+  const emailMatch = trimmed.match(/([^\s<>]+@[^\s<>]+\.[^\s<>]+)/);
+  if (!emailMatch) {
+    throw new Error("GUEST_EMAIL_FROM does not contain a valid email address.");
+  }
+  const email = emailMatch[1];
+  const name = trimmed
+    .replace(email, "")
+    .replace(/[<>]/g, "")
+    .trim();
+  return name ? `${name} <${email}>` : email;
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -47,7 +63,7 @@ export async function sendWaiverCopyEmail(input: {
   const resend = new Resend(requiredEnv("RESEND_API_KEY"));
   const { data, error } = await resend.emails.send(
     {
-      from: requiredEnv("GUEST_EMAIL_FROM"),
+      from: normalizeFromAddress(requiredEnv("GUEST_EMAIL_FROM")),
       to: input.email,
       replyTo: process.env.GUEST_EMAIL_REPLY_TO?.trim() || undefined,
       subject: `Your signed Epic 4X4 Adventures ${documentTitle}`,
