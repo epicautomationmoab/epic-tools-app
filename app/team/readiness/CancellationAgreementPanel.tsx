@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./CancellationAgreementPanel.module.css";
 
@@ -253,12 +254,15 @@ export default function CancellationAgreementPanel({
             style={{
               width: "100%",
               marginTop: 12,
-              border: 0,
+              border: agreement ? "1px solid #d0d5dd" : "1px solid #bf452d",
               borderRadius: 10,
               padding: "12px 16px",
+              background: agreement ? "#f2f4f7" : "#bf452d",
+              color: agreement ? "#344054" : "#fff",
               font: "inherit",
-              fontWeight: 800,
+              fontWeight: 900,
               cursor: "pointer",
+              boxShadow: agreement ? "none" : "0 1px 2px rgba(16, 24, 40, 0.08)",
             }}
           >
             {agreement ? "View Cancellation Acknowledgement" : "Send Cancellation Acknowledgement"}
@@ -266,7 +270,7 @@ export default function CancellationAgreementPanel({
         </section>
       ) : null}
 
-      {isOpen ? (
+      {isOpen && typeof document !== "undefined" ? createPortal(
         <div
           role="presentation"
           onMouseDown={(event) => {
@@ -469,7 +473,8 @@ export default function CancellationAgreementPanel({
               {copied ? <p className={styles.copied}>Secure agreement link copied. Paste it into any text or email.</p> : null}
             </section>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );

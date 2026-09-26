@@ -55,6 +55,14 @@ type EpicDocument = {
   received_at: string | null;
 };
 
+type OwnedEpicDocument = {
+  id: string;
+  confirmation_code: string;
+  signer_full_name: string;
+  signer_email: string | null;
+  signed_at: string | null;
+};
+
 type MpwrWaiver = {
   mpwr_confirmation_number: string;
   rider_name: string;
@@ -130,7 +138,7 @@ export async function GET(request: NextRequest) {
     const mpwrConfirmations = [...new Set(rows.map((row) => row.mpwr_confirmation_number).filter((value): value is string => Boolean(value)))];
     const confirmationCodes = [...new Set(rows.map((row) => row.confirmation_code).filter(Boolean))];
 
-    const [epicDocuments, mpwrWaivers, portalRows] = await Promise.all([
+    const [epicDocuments, ownedEpicDocuments, mpwrWaivers, portalRows] = await Promise.all([
       storeVisitIds.length
         ? supabaseSelect<EpicDocument>(
             "epic_store_visit_document_evidence_v",
@@ -138,6 +146,18 @@ export async function GET(request: NextRequest) {
               select: "store_visit_id,waiver_id,signer_name,signer_email,signer_phone,waiver_is_adult,signer_category,waiver_type_name,signed_pdf_url,received_at",
               store_visit_id: `in.(${quoteList(storeVisitIds)})`,
               order: "received_at.asc",
+              limit: "1000",
+            }),
+          )
+        : Promise.resolve([]),
+      confirmationCodes.length
+        ? supabaseSelect<OwnedEpicDocument>(
+            "epic_waiver_signatures",
+            new URLSearchParams({
+              select: "id,confirmation_code,signer_full_name,signer_email,signed_at",
+              confirmation_code: `in.(${quoteList(confirmationCodes)})`,
+              archived_at: "is.null",
+              order: "signed_at.asc",
               limit: "1000",
             }),
           )
@@ -172,6 +192,13 @@ export async function GET(request: NextRequest) {
       epicByStoreVisit.set(document.store_visit_id, current);
     }
 
+    const ownedEpicByConfirmation = new Map<string, OwnedEpicDocument[]>();
+    for (const document of ownedEpicDocuments) {
+      const current = ownedEpicByConfirmation.get(document.confirmation_code) ?? [];
+      current.push(document);
+      ownedEpicByConfirmation.set(document.confirmation_code, current);
+    }
+
     const mpwrByConfirmation = new Map<string, MpwrWaiver[]>();
     for (const waiver of mpwrWaivers) {
       const current = mpwrByConfirmation.get(waiver.mpwr_confirmation_number) ?? [];
@@ -194,14 +221,22 @@ export async function GET(request: NextRequest) {
         requires_mpwr: (row.mpwr_document_expected_count ?? 0) > 0 || Boolean(row.mpwr_confirmation_number),
         epic_document_count_label: `${row.epic_document_received_count ?? 0}/${row.epic_document_expected_count ?? row.expected_guest_count ?? 0}`,
         epic_document_count_color: "gray",
-        epic_document_signers: row.source_store_visit_id
-          ? (epicByStoreVisit.get(row.source_store_visit_id) ?? []).map((document) => ({
-              name: document.signer_name,
-              document_url: document.signed_pdf_url,
-              is_minor_or_child: document.waiver_is_adult === null ? document.signer_category === "minor" : !document.waiver_is_adult,
-              is_waiver_adult: document.waiver_is_adult,
-            }))
-          : [],
+        epic_document_signers: [
+          ...(row.source_store_visit_id
+            ? (epicByStoreVisit.get(row.source_store_visit_id) ?? []).map((document) => ({
+                name: document.signer_name,
+                document_url: document.signed_pdf_url,
+                is_minor_or_child: document.waiver_is_adult === null ? document.signer_category === "minor" : !document.waiver_is_adult,
+                is_waiver_adult: document.waiver_is_adult,
+              }))
+            : []),
+          ...(ownedEpicByConfirmation.get(row.confirmation_code) ?? []).map((document) => ({
+            name: document.signer_full_name,
+            document_url: `/api/team/waivers/${document.id}/pdf`,
+            is_minor_or_child: false,
+            is_waiver_adult: true,
+          })),
+        ],
         mpwr_waivers: row.mpwr_confirmation_number
           ? (mpwrByConfirmation.get(row.mpwr_confirmation_number) ?? []).map((waiver) => ({
               name: waiver.rider_name,
