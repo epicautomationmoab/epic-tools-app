@@ -24,7 +24,9 @@ export async function GET(
 ) {
   try {
     const { token } = await context.params;
-    const readinessId = new URL(request.url).searchParams.get("readinessId")?.trim();
+    const requestUrl = new URL(request.url);
+    const readinessId = requestUrl.searchParams.get("readinessId")?.trim();
+    const v2Preview = requestUrl.searchParams.get("v2") === "preview";
 
     if (!token) {
       return NextResponse.json({ error: "Portal token is required." }, { status: 400 });
@@ -69,6 +71,7 @@ export async function GET(
     }
 
     const redirectUrl = new URL(documentUrl, request.url);
+    if (v2Preview) redirectUrl.searchParams.set("v2", "preview");
     return NextResponse.redirect(redirectUrl, 302);
   } catch (error) {
     return NextResponse.json(
