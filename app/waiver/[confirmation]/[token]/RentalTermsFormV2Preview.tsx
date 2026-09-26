@@ -40,11 +40,13 @@ export default function RentalTermsFormV2Preview({
   confirmation,
   token,
   writeEnabled = false,
+  productionMode = false,
 }: {
   session: RentalSession;
   confirmation: string;
   token: string;
   writeEnabled?: boolean;
+  productionMode?: boolean;
 }) {
   const vehicleCount = Math.max(1, Number(session.total_vehicle_count) || 1);
   const [role, setRole] = useState<Role | null>(null);
@@ -230,7 +232,7 @@ export default function RentalTermsFormV2Preview({
             signatureMethod === "typed" ? typedSignature.trim() : null,
           drawn_signature_png: drawnSignaturePng,
           p_electronic_signature_consent: acknowledged,
-          p_preview_write: true,
+          p_preview_write: !productionMode,
         }),
       });
 
@@ -286,17 +288,21 @@ export default function RentalTermsFormV2Preview({
     <main className="waiver-page">
       <div className="waiver-shell">
         <div className="waiver-brand">Epic 4X4 Adventures</div>
-        <h1 className="waiver-title">UTV Rental Agreement V2</h1>
-        <p className="waiver-subtitle">
-          {writeEnabled
-            ? "CONTROLLED V2 TEST — this submission will be recorded in Epic's production legal-document system for testing."
-            : "PREVIEW ONLY — this version does not replace the current live rental agreement and cannot be submitted."}
-        </p>
+        <h1 className="waiver-title">
+          {productionMode ? "UTV Rental Agreement" : "UTV Rental Agreement V2"}
+        </h1>
+        {!productionMode ? (
+          <p className="waiver-subtitle">
+            {writeEnabled
+              ? "CONTROLLED V2 TEST — this submission will be recorded in Epic's production legal-document system for testing."
+              : "PREVIEW ONLY — this version does not replace the current live rental agreement and cannot be submitted."}
+          </p>
+        ) : null}
         <div className="waiver-rule" />
         <article className="waiver-doc">
           <div className="waiver-reservation">
             <div><small>Reservation</small><h2>{session.confirmation_code}</h2></div>
-            <span className="waiver-pill">V2 Preview</span>
+            <span className="waiver-pill">{productionMode ? "Active" : "V2 Preview"}</span>
           </div>
           <div className="waiver-details">
             <div className="waiver-detail"><small>Booking Contact</small><strong>{session.customer_name || "—"}</strong>{reservingPartyPhone ? <span>{reservingPartyPhone}</span> : null}</div>
@@ -339,10 +345,10 @@ export default function RentalTermsFormV2Preview({
 
               {role === "driver" ? <>
                 <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: RENTAL_V2_DRIVER_HTML }} />
-                <p><small><strong>Preview note:</strong> This is Epic's V2 Driver agreement language for internal review and attorney review. Production remains unchanged.</small></p>
+                {!productionMode ? <p><small><strong>Preview note:</strong> This is Epic's V2 Driver agreement language for internal review and attorney review. Production remains unchanged.</small></p> : null}
               </> : <>
                 <div className="waiver-legal" dangerouslySetInnerHTML={{ __html: RENTAL_V2_PASSENGER_HTML }} />
-                <p><small><strong>Preview note:</strong> This is Epic's V2 Passenger agreement language for internal review and attorney review. Production remains unchanged.</small></p>
+                {!productionMode ? <p><small><strong>Preview note:</strong> This is Epic's V2 Passenger agreement language for internal review and attorney review. Production remains unchanged.</small></p> : null}
               </>}
             </section>
 
@@ -417,10 +423,14 @@ export default function RentalTermsFormV2Preview({
               {signatureError ? <div className="waiver-alert">{signatureError}</div> : null}
               {signatureSuccess ? <div className="waiver-success">{signatureSuccess}</div> : null}
               <p>
-                <strong>{writeEnabled ? "Controlled test:" : "Preview safety:"}</strong>{" "}
-                {writeEnabled
-                  ? "This test path records the agreement, generates the V2 PDF, emails the signer copy, and feeds the V2 readiness counts."
-                  : "The signature experience is wired in and validated, but this preview does not write a signature to the database, generate a legal PDF, email a copy, or affect Guest Readiness."}
+                {!productionMode ? (
+                  <>
+                    <strong>{writeEnabled ? "Controlled test:" : "Preview safety:"}</strong>{" "}
+                    {writeEnabled
+                      ? "This test path records the agreement, generates the V2 PDF, emails the signer copy, and feeds the V2 readiness counts."
+                      : "The signature experience is wired in and validated, but this preview does not write a signature to the database, generate a legal PDF, email a copy, or affect Guest Readiness."}
+                  </>
+                ) : null}
               </p>
               <button
                 type="button"
@@ -431,7 +441,9 @@ export default function RentalTermsFormV2Preview({
                 {submitting
                   ? "Submitting V2 Test..."
                   : writeEnabled
-                    ? "Submit V2 Test Agreement"
+                    ? productionMode
+                      ? "Submit Agreement"
+                      : "Submit V2 Test Agreement"
                     : "Validate Signature — Preview Only"}
               </button>
             </section>
