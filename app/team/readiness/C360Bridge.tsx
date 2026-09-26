@@ -44,7 +44,7 @@ export default function C360Bridge({ row, onClose }: Props) {
     let cancelled = false;
     setHydratedRow(null);
 
-    fetch(`/api/team/readiness-history?q=${encodeURIComponent(effectiveRow.confirmation_code)}`, {
+    fetch(`/api/team/readiness-history?q=${encodeURIComponent(row.confirmation_code)}`, {
       cache: "no-store",
     })
       .then(async (response) => {
@@ -65,11 +65,6 @@ export default function C360Bridge({ row, onClose }: Props) {
               candidate.visit_start_time === row.visit_start_time,
           ) ??
           candidates.find(
-            (candidate) =>
-              candidate.confirmation_code === row.confirmation_code &&
-              candidate.live_dashboard_visible !== false,
-          ) ??
-          candidates.find(
             (candidate) => candidate.confirmation_code === row.confirmation_code,
           );
         if (exact) setHydratedRow(exact);
@@ -81,7 +76,7 @@ export default function C360Bridge({ row, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [effectiveRow.readiness_id, effectiveRow.confirmation_code]);
+  }, [row.readiness_id, row.confirmation_code, row.visit_start_time]);
 
   useEffect(() => {
     const root: HTMLDivElement = hostRef.current!;
