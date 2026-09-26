@@ -17,6 +17,7 @@ type Session = {
   adult_signature_count: number;
   minor_covered_count: number;
   covered_participant_count: number;
+  guest_portal_token?: string | null;
 };
 
 type Minor = { first_name: string; last_name: string; dob: string };
@@ -206,6 +207,12 @@ export default function WaiverPage() {
       const json = await response.json();
       if (!response.ok) {
         setError(json.error || "Unable to submit waiver.");
+        return;
+      }
+      if (session.guest_portal_token) {
+        window.location.assign(
+          `/guest/${encodeURIComponent(session.guest_portal_token)}`,
+        );
         return;
       }
       setSuccess("Waiver submitted successfully. A copy has been emailed to you for your records. You may now close this browser window.");
