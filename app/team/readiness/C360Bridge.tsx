@@ -53,11 +53,25 @@ export default function C360Bridge({ row, onClose }: Props) {
       })
       .then((payload) => {
         if (cancelled) return;
-        const exact = (payload.rows ?? []).find(
-          (candidate) =>
-            candidate.readiness_id === row.readiness_id ||
-            candidate.confirmation_code === effectiveRow.confirmation_code,
-        );
+        const candidates = payload.rows ?? [];
+        const exactByReadinessId = row.readiness_id
+          ? candidates.find((candidate) => candidate.readiness_id === row.readiness_id)
+          : undefined;
+        const exact =
+          exactByReadinessId ??
+          candidates.find(
+            (candidate) =>
+              candidate.confirmation_code === row.confirmation_code &&
+              candidate.visit_start_time === row.visit_start_time,
+          ) ??
+          candidates.find(
+            (candidate) =>
+              candidate.confirmation_code === row.confirmation_code &&
+              candidate.live_dashboard_visible !== false,
+          ) ??
+          candidates.find(
+            (candidate) => candidate.confirmation_code === row.confirmation_code,
+          );
         if (exact) setHydratedRow(exact);
       })
       .catch(() => {
