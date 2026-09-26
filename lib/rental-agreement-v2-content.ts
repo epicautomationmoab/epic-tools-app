@@ -1,20 +1,20 @@
-export const RENTAL_V2_AGREEMENT_VERSION = "rental-v2-preview-2026-09-23-payments1";
+export const RENTAL_V2_AGREEMENT_VERSION = "rental-v2-final-2026-09-25";
 
 export const RENTAL_V2_MINOR_ACK_HTML = `
   <p>As the parent or legal guardian of the minor participant(s) identified below, I acknowledge that I have reviewed Epic's information regarding the inherent risks of UTV riding in Moab, including the possibility of serious injury or death, Prohibited Terrain, and High-Consequence Terrain.</p>
-  <p>I understand that High-Consequence designations are not an exhaustive list of hazardous terrain and that Epic recommends avoiding High-Consequence Terrain. I authorize the minor participant(s) identified below to participate as passengers subject to applicable safety requirements.</p>
+  <p>I understand that the named High-Consequence Terrain examples are not an exhaustive list of hazardous terrain and that High-Consequence Terrain may include an entire trail, a specific obstacle or section of trail, or other terrain based on its actual characteristics and consequences. Epic recommends avoiding High-Consequence Terrain. I authorize the minor participant(s) identified below to participate as passengers subject to applicable safety requirements.</p>
 `;
 
 export const RENTAL_V2_DRIVER_HTML = `
-  <p>As a <strong>Driver</strong>, you are entering into a binding agreement with Epic 4X4 Adventures, Inc. (“Epic”). You accept financial and contractual responsibility for the Epic vehicle or vehicles you operate during the rental and for compliance with these Terms &amp; Conditions. These Terms &amp; Conditions are separate from and supplemental to any agreements entered into through Polaris Adventures and form part of your rental agreement with Epic.</p>
-  <p><strong>Driver</strong> means any person who operates an Epic vehicle during the rental. Each Driver is individually responsible for the operating, financial, and contractual obligations applicable to any Epic vehicle they operate, regardless of which individual is listed as the vehicle’s checkout driver in Epic’s or Polaris’s systems.</p>
+  <p>As a <strong>Driver</strong>, you are entering into a binding agreement with Epic 4X4 Adventures, Inc. (“Epic”). You accept financial and contractual responsibility for the Epic vehicle or vehicles you operate during the rental and for compliance with these Terms &amp; Conditions. These Terms &amp; Conditions are separate from and supplemental to any agreements entered into through Polaris Adventures and form part of your rental agreement with Epic.</p>
+  <p><strong>Driver</strong> means any person who operates an Epic vehicle during the rental. Each Driver is individually responsible for the operating, financial, and contractual obligations applicable to any Epic vehicle they operate, regardless of which individual is listed as the vehicle’s checkout driver in Epic’s or Polaris’s systems.</p>
   <p>Off-highway vehicle use in Moab is an inherently risky recreational activity. Terrain may include steep grades, ledges, rocks, technical obstacles, exposure, loose surfaces, changing trail conditions, limited visibility, other trail users, and other hazards capable of causing vehicle damage, serious bodily injury, or death.</p>
   <p>Epic provides operating requirements, safety information, trail information, and vehicle-use restrictions to help renters and Drivers make informed decisions during the rental. Epic does not determine whether a particular road, trail, obstacle, or area is appropriate for an individual Driver.</p>
   <p>Each Driver is responsible for operating within their own skill and experience, selecting routes and terrain appropriate to their ability, observing current and changing conditions, maintaining control of the vehicle, and deciding whether to proceed on any road, trail, obstacle, or area.</p>
   <p>The absence of a road, trail, obstacle, or area from any warning, High-Consequence, or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate for any particular Driver. Hazards capable of causing serious injury, death, vehicle damage, or difficult recovery may exist anywhere within Moab’s trail system.</p>
   <p>You are expected to comply with all applicable laws, trail regulations, land-use requirements, vehicle operating requirements, and the terms of this agreement while using the vehicle. Responsible operation helps protect Epic’s vehicles, other trail users, and Moab’s public lands.</p>
   <h4>1. SAFETY &amp; EQUIPMENT USE</h4>
-  <p>Epic vehicles may be operated only on designated routes within Grand County and San Juan County, Utah. Vehicles may not be operated recklessly, carelessly, unlawfully, or beyond the Driver’s skill and experience.</p>
+  <p>Epic vehicles may be operated only on designated routes within Grand County and San Juan County, Utah. Vehicles may not be operated recklessly, carelessly, unlawfully, in a manner inconsistent with normal recreational operation, or beyond the Driver’s skill and experience.</p>
   <p>All Drivers must comply with posted trail regulations, speed limits, applicable laws, vehicle operating requirements, and Epic operating requirements provided for the rental.</p>
   <p>Utah law requires each Driver to complete the Utah OHV Education Course and carry a valid certificate while operating an off-highway vehicle. Proof of certification is required at check-out.</p>
   <p>Damage resulting from abuse, reckless or negligent operation, unauthorized use, or operation beyond the Driver’s skill or experience may result in loss of damage protection and full financial responsibility.</p>
@@ -26,7 +26,7 @@ export const RENTAL_V2_DRIVER_HTML = `
     <li>Highway 191 southbound beyond Red Desert RV Park</li>
     <li>Highway 128 beyond the Onion Creek Road intersection</li>
   </ul>
-  <p>Travel on Highway 191 southbound from trail access points north of the Highway 279 / Potash Road intersection is permitted when returning toward Moab.</p>
+  <p>If an authorized trail or riding area exits onto Highway 191 beyond one of these boundaries, Highway 191 may be used only as necessary to return toward Moab and the authorized rental area.</p>
   <p><strong>Prohibited Terrain</strong></p>
   <p>Epic vehicles may not be operated on or used to attempt the following trails and obstacles:</p>
   <p><strong>Trails</strong></p>
@@ -50,9 +50,10 @@ export const RENTAL_V2_DRIVER_HTML = `
   </ul>
   <p>Entering Prohibited Terrain or attempting a prohibited obstacle is a violation of this agreement and may void applicable damage protection. If you enter Prohibited Terrain or attempt a prohibited obstacle, you remain responsible for resulting vehicle damage, recovery, Loss of Use, and other related charges.</p>
   <p><strong>High-Consequence Terrain</strong></p>
-  <p>Epic identifies certain additional trails and obstacles as High-Consequence Terrain because errors, changing conditions, or loss of vehicle control may result in serious injury or death, significant vehicle damage, and difficult recovery. Epic recommends avoiding High-Consequence Terrain.</p>
-  <p>High-Consequence Terrain includes, but is not limited to:</p>
+  <p>Moab contains trails, obstacles, and terrain where errors, changing conditions, loss of vehicle control, or vehicle immobilization may result in serious injury or death, significant vehicle damage, or difficult and technical recovery. Epic recommends avoiding High-Consequence Terrain.</p>
+  <p>The following known Moab trails are examples of High-Consequence Terrain:</p>
   <ul>
+    <li>Poison Spider Mesa</li>
     <li>Golden Spike</li>
     <li>Gold Bar Rim</li>
     <li>Behind the Rocks</li>
@@ -62,7 +63,8 @@ export const RENTAL_V2_DRIVER_HTML = `
     <li>Kane Creek Canyon</li>
     <li>Top Of The World</li>
   </ul>
-  <p>High-Consequence designations are provided as additional information and are not an exhaustive list of hazardous terrain. The absence of a trail or obstacle from this designation does not mean Epic represents it as safe, easy, suitable, or appropriate for any Driver.</p>
+  <p>This list is not exhaustive and should not be considered a complete list of terrain with significant consequences. High-Consequence Terrain may include an entire trail, a specific obstacle or section of trail, or any terrain where location, exposure, grade, ledges, rocks, surface conditions, remoteness, vehicle position, or other circumstances make vehicle damage, rollover, immobilization, extraction, or recovery substantially more difficult or hazardous.</p>
+  <p>The absence of a trail, obstacle, or area from this designation does not mean Epic represents it as safe, easy, suitable, recommended, or outside the definition of High-Consequence Terrain.</p>
   <p>You are responsible for knowing your location, route, and direction of travel and for determining whether the terrain ahead is within your skill and experience.</p>
   <p>You are expected to operate only within your skill and experience. If you choose to include High-Consequence Terrain in your experience, you accept the increased risks and consequences associated with that choice.</p>
   <p>Damage occurring in High-Consequence Terrain may be evaluated in determining whether the vehicle was operated outside the Driver’s skill or experience, recklessly, or with intentional or willful disregard for the risk of damage, which may affect or void applicable damage protection.</p>
@@ -113,10 +115,13 @@ export const RENTAL_V2_DRIVER_HTML = `
   <p>The amount, existence, exhaustion, or absence of a security deposit or payment authorization does not limit amounts properly due under this agreement.</p>
   <h4>7. VEHICLE RECOVERY</h4>
   <p>If a vehicle becomes stuck, disabled, abandoned, inoperable, or otherwise cannot be returned under its own power, recovery may be required.</p>
-  <p>Recovery may include dispatch, labor, towing, extraction, winching, transport, specialized equipment, coordination, and third-party recovery services. Recovery charges are separate from vehicle damage charges and are not included in any damage-protection plan.</p>
+  <p><strong>If a vehicle becomes immobilized or requires assistance beyond normal operation, contact Epic 4X4 Adventures. Do not attempt towing, winching, extraction, or arrange third-party recovery.</strong></p>
+  <p>Recovery may include dispatch, labor, towing, extraction, winching, transport, specialized equipment, coordination, and third-party recovery services.</p>
+  <p><strong>Standard recovery charges start at $500.</strong> Final recovery charges are based on the circumstances of the recovery, including location and distance, travel and recovery time, terrain and technical difficulty, personnel and equipment required, operational disruption, risk to personnel or equipment, and third-party costs.</p>
+  <p><strong>Recovery from Prohibited Terrain, High-Consequence Terrain, or any location requiring a highly technical or unusually difficult recovery starts at $2,500 and may increase based on the circumstances of the recovery.</strong></p>
+  <p>Recovery charges are separate from vehicle damage charges and are not included in any damage-protection plan.</p>
   <p>If the vehicle you operate requires recovery because of your operation or use, applicable recovery charges are your responsibility, except when recovery is required solely because of a mechanical failure not caused or contributed to by you.</p>
-  <p>Recovery from Prohibited or High-Consequence Terrain starts at $2,500 and may increase based on location, terrain, technical difficulty, personnel and equipment required, time involved, operational disruption, risk, and third-party recovery costs. Recovery may be performed by Epic personnel, third-party recovery providers, or both.</p>
-  <p>Recovery timing depends on location, terrain, weather, safety conditions, and resource availability. Immediate recovery is not guaranteed.</p>
+  <p>Recovery may be performed by Epic personnel, third-party recovery providers, or both. Recovery timing depends on location, terrain, weather, safety conditions, and resource availability. Immediate recovery is not guaranteed.</p>
   <h4>8. DAMAGE PROTECTION REVIEW</h4>
   <p>Epic reviews and evaluates damage incidents and applies applicable damage-protection terms to vehicles rented through Epic.</p>
   <p>Following an incident, Epic may review vehicle condition, GPS and telemetry data, photographs, incident reports, Driver statements, trail location, operating behavior, and other available information to determine whether the vehicle was operated in compliance with these Terms &amp; Conditions and applicable damage-protection requirements.</p>
@@ -137,7 +142,22 @@ export const RENTAL_V2_PASSENGER_HTML = `
   <p>Riding in an off-highway vehicle in Moab is an inherently risky recreational activity. Terrain may include steep grades, ledges, rocks, technical obstacles, exposure, loose surfaces, changing trail conditions, limited visibility, other trail users, and other hazards capable of causing serious bodily injury or death.</p>
   <p>Epic provides safety information, trail information, and terrain warnings so participants can make informed decisions. Epic does not determine whether a particular road, trail, obstacle, or area is appropriate for an individual participant.</p>
   <p><strong>Prohibited Terrain and Use</strong> includes Pritchett Canyon, Cliffhanger Trail, Moab Rim Trail, Hell's Gate, Escalator, Staircase, Tip Over Challenge, Mickey's Hot Tub, Devil's Hot Tub, and Sand Dunes (Located at White Wash, Behind the Rocks, and Poison Spider).</p>
-  <p><strong>High-Consequence Terrain</strong> includes Golden Spike, Gold Bar Rim, Behind the Rocks, Steel Bender, Rusty Nail, Flat Iron Mesa, Kane Creek Canyon, and Top of the World. Epic recommends avoiding High-Consequence Terrain. This list is not exhaustive, and the absence of a road, trail, obstacle, or area from any warning or restricted-use list does not mean Epic represents that location as safe, easy, suitable, or appropriate.</p>
+  <p><strong>High-Consequence Terrain</strong></p>
+  <p>Moab contains trails, obstacles, and terrain where errors, changing conditions, loss of vehicle control, or vehicle immobilization may result in serious injury or death, significant vehicle damage, or difficult and technical recovery. Epic recommends avoiding High-Consequence Terrain.</p>
+  <p>The following known Moab trails are examples of High-Consequence Terrain:</p>
+  <ul>
+    <li>Poison Spider Mesa</li>
+    <li>Golden Spike</li>
+    <li>Gold Bar Rim</li>
+    <li>Behind the Rocks</li>
+    <li>Steel Bender</li>
+    <li>Rusty Nail</li>
+    <li>Flat Iron Mesa</li>
+    <li>Kane Creek Canyon</li>
+    <li>Top Of The World</li>
+  </ul>
+  <p>This list is not exhaustive and should not be considered a complete list of terrain with significant consequences. High-Consequence Terrain may include an entire trail, a specific obstacle or section of trail, or other terrain where location, exposure, grade, ledges, rocks, surface conditions, remoteness, vehicle position, or other circumstances make vehicle damage, rollover, immobilization, extraction, or recovery substantially more difficult or hazardous.</p>
+  <p>The absence of a trail, obstacle, or area from these examples does not mean Epic represents it as safe, easy, suitable, recommended, or outside the definition of High-Consequence Terrain.</p>
   <p>You understand that route selection, terrain decisions, and vehicle operation are the responsibility of the Driver. By signing as a Passenger, you are not accepting a Driver's vehicle-operation, damage, recovery, or other financial obligations solely because you are participating in the rental.</p>
   <p>This Passenger Agreement is separate from and supplemental to applicable Polaris Adventures participant or passenger agreements. Final release and waiver language will be reviewed by counsel before production launch.</p>
 `;
