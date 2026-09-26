@@ -34,6 +34,7 @@ export type ReadinessRow = {
     signatureId: string;
     signedAt: string | null;
   }> | null;
+  rental_v2_exceptions?: string[] | null;
   mpwr_document_received_count?: number | null;
   mpwr_document_expected_count?: number | null;
   mpwr_confirmation_number: string | null;
@@ -365,6 +366,7 @@ export async function getReadinessRows() {
         rental_v2_drivers_expected: rentalV2?.driversExpected ?? null,
         rental_v2_ready: rentalV2?.ready ?? null,
         rental_v2_signers: rentalV2?.signers ?? null,
+        rental_v2_exceptions: rentalV2?.exceptions ?? null,
         amount_due_cents: activityIsCovered ? 0 : row.amount_due_cents,
         is_paid: activityIsCovered ? true : row.is_paid,
         attention_flags: activityIsCovered
