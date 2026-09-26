@@ -70,6 +70,58 @@ const scenarios: Scenario[] = [
       { role: "driver" },
     ],
   },
+  {
+    title: "2 vehicles · 3 people · extra Driver",
+    note: "All three adults signed as Drivers. Extra Drivers are allowed and do not block readiness.",
+    people: 3,
+    vehicles: 2,
+    signers: [
+      { role: "driver" },
+      { role: "driver" },
+      { role: "driver" },
+    ],
+  },
+  {
+    title: "2 vehicles · people override from 4 to 3",
+    note: "Three people are accounted for and the effective guest count has been corrected to three.",
+    people: 3,
+    vehicles: 2,
+    signers: [
+      { role: "driver" },
+      { role: "driver" },
+      { role: "passenger" },
+    ],
+  },
+  {
+    title: "vehicle count increases from 2 to 3",
+    note: "All expected people are accounted for, but a third vehicle now requires a third signed Driver.",
+    people: 4,
+    vehicles: 3,
+    signers: [
+      { role: "driver" },
+      { role: "driver" },
+      { role: "passenger" },
+      { role: "passenger" },
+    ],
+  },
+  {
+    title: "Driver parent + 2 minors",
+    note: "The Driver counts once as an adult, two listed minors count as participants, and the Driver counts once toward vehicle coverage.",
+    people: 3,
+    vehicles: 1,
+    signers: [
+      { role: "driver", minorCount: 2 },
+    ],
+  },
+  {
+    title: "Passenger parent + 2 minors · missing Driver",
+    note: "All three people are accounted for, but a Passenger parent does not satisfy the Driver requirement.",
+    people: 3,
+    vehicles: 1,
+    signers: [
+      { role: "passenger", minorCount: 2 },
+    ],
+  },
 ];
 
 function badgeStyle(complete: boolean) {
