@@ -427,7 +427,7 @@ export async function getArrivalBoardRows() {
 
   const arrivalParams = new URLSearchParams({ select: "*", limit: "100" });
   const readinessParams = new URLSearchParams({
-    select: "readiness_id,confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count",
+    select: "readiness_id,confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count,expected_guest_count,amount_due_cents,mpwr_document_received_count,mpwr_document_expected_count,ohv_required,ohv_certificate_uploaded",
     limit: "100",
   });
   for (const [key, value] of dateFilters) {
@@ -446,7 +446,13 @@ export async function getArrivalBoardRows() {
       "handoff_status" |
       "product_display_name" |
       "rental_duration" |
-      "total_vehicle_count"
+      "total_vehicle_count" |
+      "expected_guest_count" |
+      "amount_due_cents" |
+      "mpwr_document_received_count" |
+      "mpwr_document_expected_count" |
+      "ohv_required" |
+      "ohv_certificate_uploaded"
     >>("guest_readiness_with_handoff_v", readinessParams),
   ]);
 
@@ -483,6 +489,16 @@ export async function getArrivalBoardRows() {
       row,
     ]),
   );
+  const rentalV2Readiness = await loadRentalV2Readiness(
+    readinessRows
+      .filter((row) => row.business_line === "rental" && row.readiness_id)
+      .map((row) => ({
+        readinessId: row.readiness_id!,
+        confirmationCode: row.confirmation_code,
+        expectedGuestCount: row.expected_guest_count,
+        vehicleCount: row.total_vehicle_count,
+      })),
+  );
   const terminalStatuses = new Set(["checked_in", "tour_returned", "rental_out", "rental_returned"]);
 
   return rows
@@ -500,6 +516,27 @@ export async function getArrivalBoardRows() {
           totalVehicleCount > 0 &&
           uploadedOhvCount >= totalVehicleCount);
 
+      const rentalV2 = readiness?.readiness_id
+        ? rentalV2Readiness.get(readiness.readiness_id)
+        : undefined;
+      const rentalOtherRequirementsComplete =
+        row.business_line !== "rental" ||
+        (
+          (readiness?.amount_due_cents ?? 0) <= 0 &&
+          (readiness?.mpwr_document_received_count ?? 0) >=
+            (readiness?.mpwr_document_expected_count ?? 0) &&
+          (
+            readiness?.ohv_required === false ||
+            (
+              readiness?.ohv_certificate_uploaded === true &&
+              hasRequiredOhvCertificates
+            )
+          )
+        );
+      const rentalReady =
+        row.business_line !== "rental" ||
+        (rentalV2?.ready === true && rentalOtherRequirementsComplete);
+
       return {
         ...row,
         customer_phone_last_four: readiness?.customer_phone_last_four ?? row.customer_phone_last_four ?? null,
@@ -507,12 +544,22 @@ export async function getArrivalBoardRows() {
         product_display_name: readiness?.product_display_name ?? row.product_display_name ?? row.board_activity_label,
         rental_duration: readiness?.rental_duration ?? row.rental_duration ?? null,
         total_vehicle_count: totalVehicleCount,
-        board_action_label: hasRequiredOhvCertificates
-          ? row.board_action_label
-          : "Proceed to Kiosk",
-        board_action_type: hasRequiredOhvCertificates
-          ? row.board_action_type
-          : "kiosk",
+        board_action_label:
+          row.business_line === "rental"
+            ? rentalReady
+              ? "See Agent"
+              : "Proceed to Kiosk"
+            : hasRequiredOhvCertificates
+              ? row.board_action_label
+              : "Proceed to Kiosk",
+        board_action_type:
+          row.business_line === "rental"
+            ? rentalReady
+              ? "agent"
+              : "kiosk"
+            : hasRequiredOhvCertificates
+              ? row.board_action_type
+              : "kiosk",
       };
     })
     .filter((row) => !row.handoff_status || !terminalStatuses.has(row.handoff_status))
