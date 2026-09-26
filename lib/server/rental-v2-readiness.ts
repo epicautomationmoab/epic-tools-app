@@ -146,6 +146,62 @@ export async function loadRentalV2Readiness(
 
   const sessionByReadinessId = new Map<string, SessionRow>();
   for (const source of rentalSources) {
+    const operational = operationalById.get(source.readinessId);
+    if (!operational) continue;
+    const candidates = sessions.filter(
+      (session) =>
+        session.confirmation_code === operational.confirmation_code &&
+        session.business_line === "rental" &&
+        session.session_status === "active",
+    );
+    const exact = operational.source_store_visit_id
+      ? candidates.find((session) => session.store_visit_id === operational.source_store_visit_id)
+      : null;
+    const selected = exact ?? (candidates.length === 1 ? candidates[0] : null);
+    if (selected) sessionByReadinessId.set(source.readinessId, selected);
+  }
+
+  const sessionIds = [...new Set([...sessionByReadinessId.values()].map((session) => session.id))];
+  if (!sessionIds.length) return result;
+
+  // select=* is intentional during staged rollout: production does not have
+  // rental_role until the V2 migration is applied. Old rows simply omit it.
+  const signatures = await supabaseSelect<SignatureRow>(
+    "epic_waiver_signatures",
+    new URLSearchParams({
+      select: "*",
+      waiver_session_id: `in.(${quoteList(sessionIds)})`,
+      archived_at: "is.null",
+      business_line: "eq.rental",
+      order: "signed_at.asc",
+      limit: "1000",
+    }),
+  );
+
+  const v2Signatures = signatures.filter(
+    (signature) => signature.rental_role === "driver" || signature.rental_role === "passenger",
+  );
+  const signatureIds = v2Signatures.map((signature) => signature.id);
+  const minors = signatureIds.length
+    ? await supabaseSelect<MinorRow>(
+        "epic_waiver_minors",
+        new URLSearchParams({
+          select: "adult_signature_id,minor_first_name,minor_last_name,minor_full_name,minor_dob",
+          adult_signature_id: `in.(${quoteList(signatureIds)})`,
+          limit: "2000",
+        }),
+      )
+    : [];
+
+  const minorsBySignature = new Map<string, MinorRow[]>();
+  for (const minor of minors) {
+    const current = minorsBySignature.get(minor.adult_signature_id) ?? [];
+    current.push(minor);
+    minorsBySignature.set(minor.adult_signature_id, current);
+  }
+
+  for (const source of rentalSources) {
+    const base = result.get(source.readinessId)!;
     const session = sessionByReadinessId.get(source.readinessId);
     if (!session) continue;
 
