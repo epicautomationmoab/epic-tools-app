@@ -1,3 +1,4 @@
+import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 export type VehicleBreakdownItem = {
   model: string;
   quantity: number;
@@ -22,6 +23,17 @@ export type ReadinessRow = {
   epic_document_count_color: "green" | "yellow" | "red" | "gray" | string;
   epic_document_received_count?: number | null;
   epic_document_expected_count?: number | null;
+  rental_v2_agreements_received?: number | null;
+  rental_v2_agreements_expected?: number | null;
+  rental_v2_drivers_received?: number | null;
+  rental_v2_drivers_expected?: number | null;
+  rental_v2_ready?: boolean | null;
+  rental_v2_signers?: Array<{
+    name: string;
+    role: "driver" | "passenger" | "minor";
+    signatureId: string;
+    signedAt: string | null;
+  }> | null;
   mpwr_document_received_count?: number | null;
   mpwr_document_expected_count?: number | null;
   mpwr_confirmation_number: string | null;
@@ -322,6 +334,17 @@ export async function getReadinessRows() {
     }
   }
 
+  const rentalV2Readiness = await loadRentalV2Readiness(
+    rows
+      .filter((row) => row.business_line === "rental" && row.readiness_id)
+      .map((row) => ({
+        readinessId: row.readiness_id!,
+        confirmationCode: row.confirmation_code,
+        expectedGuestCount: row.expected_guest_count,
+        vehicleCount: row.total_vehicle_count,
+      })),
+  );
+
   return rows
     .map((row) => {
       const activityIsCovered =
@@ -330,8 +353,18 @@ export async function getReadinessRows() {
           activityKey(row.confirmation_code, row.visit_start_time, row.product_display_name),
         );
 
+      const rentalV2 = row.readiness_id
+        ? rentalV2Readiness.get(row.readiness_id)
+        : undefined;
+
       return {
         ...row,
+        rental_v2_agreements_received: rentalV2?.agreementsReceived ?? null,
+        rental_v2_agreements_expected: rentalV2?.agreementsExpected ?? null,
+        rental_v2_drivers_received: rentalV2?.driversReceived ?? null,
+        rental_v2_drivers_expected: rentalV2?.driversExpected ?? null,
+        rental_v2_ready: rentalV2?.ready ?? null,
+        rental_v2_signers: rentalV2?.signers ?? null,
         amount_due_cents: activityIsCovered ? 0 : row.amount_due_cents,
         is_paid: activityIsCovered ? true : row.is_paid,
         attention_flags: activityIsCovered
