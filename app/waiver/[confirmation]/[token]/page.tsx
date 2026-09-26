@@ -209,13 +209,14 @@ export default function WaiverPage() {
         setError(json.error || "Unable to submit waiver.");
         return;
       }
-      if (session.guest_portal_token) {
+      const portalToken = session?.guest_portal_token;
+      if (portalToken) {
         setSuccess(
           "Waiver submitted successfully. A signed copy has been emailed to you. Returning you to your Guest Portal…",
         );
         window.setTimeout(() => {
           window.location.assign(
-            `/guest/${encodeURIComponent(session.guest_portal_token!)}`,
+            `/guest/${encodeURIComponent(portalToken)}`,
           );
         }, 1200);
         return;
