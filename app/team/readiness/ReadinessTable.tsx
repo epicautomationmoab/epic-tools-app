@@ -1870,6 +1870,24 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 </span>
               </h3>
 
+              {selected.business_line === "rental" &&
+              (selected.rental_v2_exceptions ?? []).length ? (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    background: "#fff7ed",
+                    color: "#9a3412",
+                    fontWeight: 700,
+                  }}
+                >
+                  {(selected.rental_v2_exceptions ?? []).map((exception, index) => (
+                    <div key={`${exception}-${index}`}>{exception}</div>
+                  ))}
+                </div>
+              ) : null}
+
               {selected.business_line === "rental" ? (
                 (selected.rental_v2_signers ?? []).length ? (
                   <div className={styles.signerList}>
