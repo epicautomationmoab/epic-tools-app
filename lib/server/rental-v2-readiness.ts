@@ -31,6 +31,8 @@ type OperationalReadinessRow = {
   readiness_id: string;
   source_store_visit_id: string | null;
   confirmation_code: string;
+  epic_document_received_count: number | null;
+  epic_document_expected_count: number | null;
 };
 
 type SessionRow = {
@@ -122,7 +124,7 @@ export async function loadRentalV2Readiness(
   const operationalRows = await supabaseSelect<OperationalReadinessRow>(
     "guest_readiness_operational",
     new URLSearchParams({
-      select: "readiness_id,source_store_visit_id,confirmation_code",
+      select: "readiness_id,source_store_visit_id,confirmation_code,epic_document_received_count,epic_document_expected_count",
       readiness_id: `in.(${quoteList(readinessIds)})`,
       limit: "1000",
     }),
@@ -200,8 +202,39 @@ export async function loadRentalV2Readiness(
 
   for (const source of rentalSources) {
     const base = result.get(source.readinessId)!;
+    const operational = operationalById.get(source.readinessId);
+    const legacyReceived = Math.max(0, Math.trunc(operational?.epic_document_received_count ?? 0));
+    const legacyExpected = Math.max(0, Math.trunc(operational?.epic_document_expected_count ?? 0));
+    const legacyComplete = legacyExpected > 0 && legacyReceived >= legacyExpected;
+
     const session = sessionByReadinessId.get(source.readinessId);
     if (!session) continue;
+
+    if (legacyComplete) {
+      const legacySignatures = signatures.filter(
+        (signature) =>
+          signature.waiver_session_id === session.id &&
+          signature.rental_role !== "driver" &&
+          signature.rental_role !== "passenger",
+      );
+
+      result.set(source.readinessId, {
+        ...base,
+        agreementsReceived: base.agreementsExpected,
+        driversReceived: Math.max(base.driversExpected, legacySignatures.length),
+        agreementsComplete: true,
+        driversComplete: true,
+        ready: true,
+        signers: legacySignatures.map((signature) => ({
+          name: signerName(signature),
+          role: "driver" as const,
+          signatureId: signature.id,
+          signedAt: signature.signed_at ?? null,
+        })),
+        exceptions: ["Completed under Epic's prior rental agreement; legacy signers are treated as Drivers for readiness."],
+      });
+      continue;
+    }
 
     const sessionSignatures = v2Signatures.filter((signature) => signature.waiver_session_id === session.id);
     const latestByIdentity = new Map<string, SignatureRow>();
