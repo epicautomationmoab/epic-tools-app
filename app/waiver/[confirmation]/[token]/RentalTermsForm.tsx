@@ -111,7 +111,12 @@ export default function RentalTermsForm({
 
   function clear() {
     const c = canvas.current;
-    if (c) c.getContext("2d")!.clearRect(0, 0, c.width, c.height);
+    setDrawing(false);
+    if (c) {
+      const context = c.getContext("2d");
+      context?.beginPath();
+      context?.clearRect(0, 0, c.width, c.height);
+    }
     setDrawn(false);
   }
 
