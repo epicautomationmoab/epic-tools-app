@@ -617,9 +617,11 @@ export default function GuestPortalPage() {
                             {epic.signers.map((signer, signerIndex) => {
                               const minor =
                                 signer.role === "minor" ||
-                                signer.isMinorOrChild ??
-                                signer.is_minor_or_child ??
-                                false;
+                                Boolean(
+                                  signer.isMinorOrChild ??
+                                    signer.is_minor_or_child ??
+                                    false,
+                                );
 
                               return (
                                 <div
