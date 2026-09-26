@@ -155,6 +155,9 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
         rental_terms_html: rentalTermsHtml,
         total_vehicle_count: totalVehicleCount,
         guest_portal_token: guestPortalToken,
+        rental_v2_enabled:
+          businessLine === "rental" &&
+          process.env.ENABLE_RENTAL_V2_LIVE === "true",
       },
     });
   } catch (error) {
