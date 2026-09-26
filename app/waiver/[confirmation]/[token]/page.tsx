@@ -210,9 +210,14 @@ export default function WaiverPage() {
         return;
       }
       if (session.guest_portal_token) {
-        window.location.assign(
-          `/guest/${encodeURIComponent(session.guest_portal_token)}`,
+        setSuccess(
+          "Waiver submitted successfully. A signed copy has been emailed to you. Returning you to your Guest Portal…",
         );
+        window.setTimeout(() => {
+          window.location.assign(
+            `/guest/${encodeURIComponent(session.guest_portal_token!)}`,
+          );
+        }, 1200);
         return;
       }
       setSuccess("Waiver submitted successfully. A copy has been emailed to you for your records. You may now close this browser window.");
