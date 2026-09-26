@@ -591,13 +591,32 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     readinessId: string,
     effectiveCount: number,
   ) {
-    const updateRow = (row: ReadinessRow): ReadinessRow => ({
-      ...row,
-      expected_guest_count: effectiveCount,
-      epic_document_expected_count: effectiveCount,
-      mpwr_document_expected_count:
-        row.requires_mpwr === false ? 0 : effectiveCount,
-    });
+    const updateRow = (row: ReadinessRow): ReadinessRow => {
+      const nextRentalAgreementExpected =
+        row.business_line === "rental"
+          ? effectiveCount
+          : row.rental_v2_agreements_expected;
+      const agreementsComplete =
+        row.business_line !== "rental" ||
+        (row.rental_v2_agreements_received ?? 0) >= effectiveCount;
+      const driversComplete =
+        row.business_line !== "rental" ||
+        (row.rental_v2_drivers_received ?? 0) >=
+          (row.rental_v2_drivers_expected ?? row.total_vehicle_count ?? 0);
+
+      return {
+        ...row,
+        expected_guest_count: effectiveCount,
+        epic_document_expected_count: effectiveCount,
+        rental_v2_agreements_expected: nextRentalAgreementExpected,
+        rental_v2_ready:
+          row.business_line === "rental"
+            ? agreementsComplete && driversComplete
+            : row.rental_v2_ready,
+        mpwr_document_expected_count:
+          row.requires_mpwr === false ? 0 : effectiveCount,
+      };
+    };
 
     setLocalRows((current) =>
       current.map((row) =>
