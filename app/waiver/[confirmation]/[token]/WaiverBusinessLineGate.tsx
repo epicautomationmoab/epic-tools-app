@@ -43,7 +43,14 @@ export default function WaiverBusinessLineGate({ children }: { children: ReactNo
 
   if (!failed && session?.business_line === "rental") {
     if (searchParams.get("v2") === "preview") {
-      return <RentalTermsFormV2Preview session={session} />;
+      return (
+        <RentalTermsFormV2Preview
+          session={session}
+          confirmation={confirmation}
+          token={token}
+          writeEnabled={searchParams.get("write") === "test"}
+        />
+      );
     }
     return <RentalTermsForm session={session} confirmation={confirmation} token={token} />;
   }
