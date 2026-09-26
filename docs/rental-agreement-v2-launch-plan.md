@@ -237,11 +237,11 @@ The preview branch contains staged work for:
 - signed PDF hashing / storage
 - signed-copy email delivery
 
-The staged database migration has NOT been applied to the production Supabase database.
+The additive V2 database migration has now been applied to the production Supabase database. It adds the V2 signer-role/content snapshot fields and the V2 submission RPC without changing the live V1 rental flow.
 
-The V2 PDF Edge Function has NOT been deployed to production.
+The V2 PDF Edge Function `generate-epic-rental-v2-pdf` has now been deployed and is active.
 
-V2 write activation remains intentionally disabled.
+General V2 writes remain disabled on production. The preview branch now has an explicit controlled test mode (`?v2=preview&write=test`) that permits V2 writes only on a Vercel preview deployment so the end-to-end path can be tested before cutover.
 
 ## Preview Build Issue Resolved
 
@@ -308,9 +308,9 @@ When Jennifer returns and is ready to proceed:
    - signer labels
    - Guest Portal
    - reminders / communications
-5. Apply the additive V2 database migration.
-6. Deploy the V2 PDF Edge Function.
-7. Enable V2 writes only in a controlled test environment / preview path.
+5. [DONE] Apply the additive V2 database migration.
+6. [DONE] Deploy the V2 PDF Edge Function.
+7. [DONE] Enable V2 writes only in a controlled preview test path.
 8. Run real end-to-end test signatures against a safe test reservation.
 9. Verify:
    - DB records
@@ -342,7 +342,9 @@ Do not launch until all are true:
 - [x] V2 readiness rules defined
 - [x] Rental expected agreement denominator concept set to guest count
 - [ ] V2 signed PDF verified end-to-end
-- [ ] V2 database writes verified end-to-end
+- [x] V2 production schema / submission RPC installed
+- [x] V2 PDF Edge Function deployed
+- [ ] V2 database writes verified end-to-end through controlled preview submission
 - [x] V2 readiness participant-count logic wired on preview branch
 - [x] V2 Driver-count logic wired on preview branch
 - [ ] Minor participant counting verified end-to-end with real V2 writes
