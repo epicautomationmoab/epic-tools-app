@@ -1088,24 +1088,27 @@ await callReadinessRpc("manual_override_mpwr_information", {
                   </td>
                   <td>
                     {row.business_line === "rental" ? (
-                      <>
-                        <div
-                          className={`${styles.statusLine} ${docs.expected > 0 && docs.received >= docs.expected ? styles.waiversComplete : ""}`}
-                        >
-                          <span
-                            className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`}
-                          />
-                          Epic Agreements {docs.received}/{docs.expected}
-                        </div>
-                        <div
-                          className={`${styles.statusLine} ${driverCounts(row).expected > 0 && driverCounts(row).received >= driverCounts(row).expected ? styles.waiversComplete : ""}`}
-                        >
-                          <span
-                            className={`${styles.dot} ${statusClass(driverCounts(row).received, driverCounts(row).expected)}`}
-                          />
-                          Drivers {driverCounts(row).received}/{driverCounts(row).expected}
-                        </div>
-                      </>
+                      <div
+                        className={`${styles.statusLine} ${
+                          docs.expected > 0 &&
+                          docs.received >= docs.expected &&
+                          driverCounts(row).expected > 0 &&
+                          driverCounts(row).received >= driverCounts(row).expected
+                            ? styles.waiversComplete
+                            : ""
+                        }`}
+                      >
+                        <span
+                          className={`${styles.dot} ${statusClass(
+                            docs.received >= docs.expected &&
+                              driverCounts(row).received >= driverCounts(row).expected
+                              ? 1
+                              : 0,
+                            1,
+                          )}`}
+                        />
+                        {docs.received}/{docs.expected} ({driverCounts(row).received}D)
+                      </div>
                     ) : (
                       <div
                         className={`${styles.statusLine} ${docs.expected > 0 && docs.received >= docs.expected ? styles.waiversComplete : ""}`}
@@ -1278,27 +1281,19 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 <strong
                   className={
                     docsCounts(selected).expected > 0 &&
-                    docsCounts(selected).received >=
-                      docsCounts(selected).expected
+                    docsCounts(selected).received >= docsCounts(selected).expected &&
+                    (selected.business_line !== "rental" ||
+                      (driverCounts(selected).expected > 0 &&
+                        driverCounts(selected).received >= driverCounts(selected).expected))
                       ? styles.drawerCompleteValue
                       : undefined
                   }
                 >
-                  {docsCounts(selected).received}/
-                  {docsCounts(selected).expected}
+                  {docsCounts(selected).received}/{docsCounts(selected).expected}
+                  {selected.business_line === "rental"
+                    ? ` (${driverCounts(selected).received}D)`
+                    : ""}
                 </strong>
-                {selected.business_line === "rental" ? (
-                  <small
-                    className={
-                      driverCounts(selected).expected > 0 &&
-                      driverCounts(selected).received >= driverCounts(selected).expected
-                        ? styles.drawerCompleteValue
-                        : undefined
-                    }
-                  >
-                    Drivers {driverCounts(selected).received}/{driverCounts(selected).expected}
-                  </small>
-                ) : null}
               </div>
 
               <div
