@@ -1,0 +1,126 @@
+{
+  "vehicle": {
+    "year": 2026,
+    "model": "RZR XP S 4 1000 Ultimate",
+    "supported_model_codes": ["Z26NMY99A4", "Z26NMY99B4"],
+    "finish": "STEALTH GRAY NON-METALLIC",
+    "finish_code": "804"
+  },
+  "assemblies": {
+    "body_center_console": {
+      "assembly_id": "255379",
+      "name": "BODY, CENTER CONSOLE",
+      "drive_file_id": "1U_fX4u6zyLWmM8iSx6Ch8EhL3yoHVO_v",
+      "parts": [
+        {"ref":"1","part_number":"5456552-070","description":"CONSOLE-CENTER,BLK","quantity":1},
+        {"ref":"2","part_number":"7661855","description":"RIVET-TUFLOK,.315-.325X.787","quantity":3},
+        {"ref":"3","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":"AR"},
+        {"ref":"4","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+        {"ref":"5","part_number":"5453402","description":"COVER-SWITCH,RZT","quantity":2},
+        {"ref":"6","part_number":"5457344-070","description":"COVER,TUNNEL CLOSEOUT,BLK","quantity":1}
+      ]
+    },
+    "body_dash": {
+      "assembly_id": "255380",
+      "name": "BODY, DASH",
+      "drive_file_id": "1EvOI7QHtShtbl58jkb6wltZKzDWfj17v",
+      "parts": [
+        {"ref":"1","part_number":"2638277-070","description":"ASM-UPPER,IP,BLK","quantity":1,"includes":"QTY 4 of ref 4"},
+        {"ref":"2","part_number":"5456561-070","description":"LOWER IP,BLK","quantity":1},
+        {"ref":"3","part_number":"7519806","description":"CLIP-DASH,TRIM,METAL","quantity":"AR"},
+        {"ref":"4","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+        {"ref":"5","part_number":"5465240-804","description":"CVR-BZL,CNTR,INNR,MIC,STLTH GR","quantity":1},
+        {"ref":"6","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":"AR"},
+        {"ref":"7","part_number":"2639860-070","description":"ASM-FRONT CLOSEOUT,MAIN,BLK","quantity":1,"includes":"QTY 20 of ref 4"},
+        {"ref":"8","part_number":"5419079","description":"BOOT,STEERING","quantity":1},
+        {"ref":"9","part_number":"5270800-329","description":"BRKT-DASH SUPPORT,LH,ECOAT","quantity":1,"side":"LH"},
+        {"ref":"10","part_number":"5270801-329","description":"BRKT-DASH SUPPORT,RH,ECOAT","quantity":1,"side":"RH"},
+        {"ref":"11","part_number":"5272311-329","description":"BRKT-DASH SUPPORT,CROSS,E-COAT","quantity":1},
+        {"ref":"12","part_number":"5459216-070","description":"CENTER IP,BLK","quantity":1},
+        {"ref":"13","part_number":"5270256","description":"BADGE-POLARIS STAR LG","quantity":1},
+        {"ref":"14","part_number":"7548088","description":"NUT-PUSH,BADGE","quantity":4},
+        {"ref":"15","part_number":"5453402","description":"COVER-SWITCH,RZT","quantity":5},
+        {"ref":"16","part_number":"7670088","description":"CLIP-PLASTIC DART, NYLON","quantity":1},
+        {"ref":"17","part_number":"7518936","description":"SCR-M6X1X16 TR/TX-M","quantity":8}
+      ]
+    },
+    "body_dash_storage": {
+      "assembly_id": "255381",
+      "name": "BODY, DASH STORAGE",
+      "drive_file_id": "1upusCJDxdLEnw3do4EaWLvFqFfd28PTF",
+      "parts": [
+        {"ref":"1","part_number":"2638278-070","description":"ASM-GLOVE BOX,BLK","quantity":1,"includes_refs":["2","10","12"]},
+        {"ref":"1","part_number":"5458988-070","description":"GLOVE BOX,OUTER,BLK","quantity":1},
+        {"ref":"2","part_number":"2638374","description":"ASM-LATCH,MAG,STORAGE","quantity":2},
+        {"ref":"3","part_number":"2638375","description":"ASM-LATCH,MAG,STRIKER","quantity":2},
+        {"ref":"4","part_number":"5456562-070","description":"LID-GLOVEBOX,BLK","quantity":1},
+        {"ref":"5","part_number":"5456564-070","description":"STORAGE BIN,IP,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"6","part_number":"5457678-070","description":"LID-STORAGE,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"7","part_number":"5457679-070","description":"LID-STORAGE,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"8","part_number":"5458239-070","description":"BIN-STORAGE,IP,LH,ROUTER,BLK","quantity":1,"side":"LH"},
+        {"ref":"9","part_number":"7547306","description":"NUT, U TYPE, M4","quantity":12},
+        {"ref":"10","part_number":"5457333-070","description":"GLOVE BOX,INNER,BLK","quantity":1},
+        {"ref":"11","part_number":"7081425","description":"LATCH-1/4 TURN,CAM","quantity":1},
+        {"ref":"12","part_number":"7519091","description":"SCR-#10X1/2-HI/LO-PN-T25, TRX-M","quantity":11},
+        {"ref":"13","part_number":"7527913","description":"SCR-FLHD-M3X1.27X10 STL ZTB","quantity":2},
+        {"ref":"14","part_number":"7518603","description":"SCR-FLHD-M4X0.7X20 10.9 ZPC","quantity":12}
+      ]
+    },
+    "body_floor": {
+      "assembly_id": "255385",
+      "name": "BODY, FLOOR",
+      "drive_file_id": "1QiVmPVVA4L7bQiAf8zQTgzC-7IwBaNxb",
+      "parts": [
+        {"ref":"1","part_number":"2638280-070","description":"ASM-FRONT FLOOR,BLK","quantity":1,"includes":"QTY 15 of ref 2"},
+        {"ref":"2","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+        {"ref":"3","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":"AR"},
+        {"ref":"4","part_number":"5456575-070","description":"FLOOR-MAIN,REAR,BLK","quantity":1}
+      ]
+    },
+    "body_seat_front": {
+      "assembly_id": "255395",
+      "name": "BODY, SEAT ASM. AND SLIDER, FRONT",
+      "drive_file_id": "1pQiAvK4vhAppY2a-JlGOKknKhVCIqkDn",
+      "parts": [
+        {"ref":"1","part_number":"5459426","description":"SEAT-SHELL","quantity":2},
+        {"ref":"2","part_number":"2637765","description":"ASM-SEAT BASE-SLIDER","quantity":2,"includes_refs":["5","6","7","8","9"]},
+        {"ref":"3","part_number":"2639145","description":"ASM-SEAT BASE-STATIC","quantity":2,"includes_refs":["17","19","20"]},
+        {"ref":"4","part_number":"7518591","description":"SCREW-HXFL-M6X1.0X16 8.8 ZPB","quantity":8},
+        {"ref":"5","part_number":"5457972","description":"CAP-LEVER","quantity":2},
+        {"ref":"6","part_number":"1028112-329","description":"WELD-SEAT BASE,ECOAT","quantity":2},
+        {"ref":"7","part_number":"5268611-329","description":"BRKT-P-CLIP,SEAT SLIDER,ECOAT","quantity":2},
+        {"ref":"8","part_number":"7521354","description":"SCR-M6X1X16 TR/TX,TRI-LOB","quantity":2},
+        {"ref":"9","part_number":"7045595","description":"SPRING-SEAT ADJUSTER","quantity":2},
+        {"ref":"10","part_number":"7548043","description":"NUT-HXFL-M6X1.0 8 ZB3 NYL","quantity":16},
+        {"ref":"11","part_number":"5456629","description":"ROLLER-SEAT SLIDER","quantity":16},
+        {"ref":"12","part_number":"7521353","description":"SCR-SHS-M6X1.0-M8X30","quantity":16},
+        {"ref":"13","part_number":"7518555","description":"SCR-TFHFL-M8X1.25X20 CHS ZOD","quantity":8},
+        {"ref":"14","part_number":"1027797-329","description":"WELD-FRONT MOUNT,SLIDER,ECOAT","quantity":2},
+        {"ref":"15","part_number":"1026909-329","description":"WELD-HOOK,REAR,ECOAT","quantity":2},
+        {"ref":"16","part_number":"1025336-329","description":"WELD-SEAT BASE,SLIDER,ECOAT","quantity":2},
+        {"ref":"17","part_number":"5417657","description":"BUMPER-RUBBER","quantity":4},
+        {"ref":"18","part_number":"1027799-329","description":"WELD-REAR LATCH,ECOAT","quantity":2},
+        {"ref":"19","part_number":"2691935","description":"STRAP-SEAT","quantity":2},
+        {"ref":"20","part_number":"7621472","description":"RIVET 3/16(.063-.250)ST-ST-LF-B","quantity":2},
+        {"ref":"21","part_number":"1027788","description":"ASM-SEAT SUPPORT","quantity":4},
+        {"ref":"22","part_number":"2639660","description":"ASM-SEAT,BUN,BACK","quantity":2,"includes":"bun"},
+        {"ref":"22","part_number":"5814977","description":"BUN-SEAT,BACK","quantity":2},
+        {"ref":"22","part_number":"2693355","description":"ASM-CVR-SEATBACK,BLK/TTM,BK ST","quantity":2,"selection":"Epic A4/B4 only"},
+        {"ref":"23","part_number":"2639641","description":"ASM-SEAT,BUN,BOTTOM","quantity":2,"includes":"bun"},
+        {"ref":"23","part_number":"5814978","description":"BUN-SEAT,BOTTOM","quantity":2},
+        {"ref":"23","part_number":"2693356","description":"ASM-CVR-SEAT BTM,BLK/TTM,BK ST","quantity":2,"selection":"Epic A4/B4 only"},
+        {"ref":"24","part_number":"1028112-329","description":"WELD-SEAT BASE,ECOAT","quantity":1},
+        {"ref":"25","part_number":"5457971","description":"PLUG-PLASTIC","quantity":8},
+        {"ref":"26","part_number":"2639142","description":"ASM-SEAT MOUNT,STATIC","quantity":1,"includes_refs":["15","17","19","20","24","27"]},
+        {"ref":"27","part_number":"1028113-329","description":"WELD-SEAT MNT,STATIC,ECOAT","quantity":1},
+        {"ref":"28","part_number":"1027798-329","description":"WELD-FRONT MOUNT,STATIC,ECOAT","quantity":1}
+      ]
+    }
+  },
+  "catalog_policy": {
+    "exclude_unsupported_color_variants": true,
+    "side_mapping": "Driver=LH; Passenger=RH",
+    "notes": "Seat cover alternates for A6/B6 are intentionally omitted from the active Epic selector."
+  },
+  "status": "ready_for_ui_binding"
+}

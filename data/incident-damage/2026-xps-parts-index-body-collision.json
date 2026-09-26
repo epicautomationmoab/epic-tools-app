@@ -1,0 +1,142 @@
+{
+  "vehicle": {
+    "year": 2026,
+    "model": "RZR XP S 4 1000 Ultimate",
+    "supported_model_codes": ["Z26NMY99A4", "Z26NMY99B4"],
+    "finish": "STEALTH GRAY NON-METALLIC",
+    "finish_code": "804"
+  },
+  "assemblies": {
+    "body_hood": {
+      "assembly_id": "255388",
+      "name": "BODY, HOOD",
+      "drive_file_id": "1JSV-FjgXZWtAlPr4n--lJc_QAlmJtGFE",
+      "parts": [
+        {"ref":"1","part_number":"5466951-804","description":"PANEL-HOOD,FRT,MIC,STEALTH GR","quantity":1},
+        {"ref":"2","part_number":"5456528-070","description":"HOOD CENTER,BLK","quantity":1},
+        {"ref":"3","part_number":"5456313","description":"CLIP-TRIM, PLASTIC, WHITE","quantity":4},
+        {"ref":"4","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":"AR"},
+        {"ref":"5","part_number":"2638610","description":"ASM-BADGE-POLARIS STAR LG,NFC","quantity":1,"valid_to":"2025-12-02"},
+        {"ref":"5","part_number":"5270256","description":"BADGE-POLARIS STAR LG","quantity":1,"valid_from":"2025-12-02"},
+        {"ref":"6","part_number":"7081305","description":"CLIP-U SPEED NUT","quantity":2}
+      ]
+    },
+    "body_front_fascia_grille_flares": {
+      "assembly_id": "255386",
+      "name": "BODY, FRONT FACIA, GRILLE, AND FLARES",
+      "drive_file_id": "1Ts1QWRj6Djhkmj6MNT_rZcU8SpjDyHNK",
+      "parts": [
+        {"ref":"1","part_number":"5457340-070","description":"COVER-WINCH,BLK","quantity":1},
+        {"ref":"2","part_number":"7521333-20","description":"SCR-HXFL-M10X1.5X20 10.9 ZFB","quantity":2},
+        {"ref":"3","part_number":"5466006-070","description":"FRONT FASCIA,MID,BLK","quantity":1},
+        {"ref":"4","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":"AR"},
+        {"ref":"5","part_number":"5466003-070","description":"FRONT GRILL,BLK","quantity":1},
+        {"ref":"6","part_number":"7661855","description":"RIVET-TUFLOK,.315-.325X.787","quantity":"AR"},
+        {"ref":"7","part_number":"5467135-070","description":"FRONT FASCIA,UPPER,BLK","quantity":1},
+        {"ref":"8","part_number":"5459060-070","description":"FENDER,FRONT FLAIR,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"9","part_number":"5459061-070","description":"FENDER,FRONT FLAIR,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"10","part_number":"5459073-804","description":"POCKET,FNDR-FR,LH,MIC,STLTH GR","quantity":1,"side":"LH"},
+        {"ref":"11","part_number":"5459074-804","description":"POCKET,FNDR-FR,RH,MIC,STLTH GR","quantity":1,"side":"RH"},
+        {"ref":"12","part_number":"5459416-804","description":"POCKET,FNDR-RR,LH,MIC,STLTH GR","quantity":1,"side":"LH"},
+        {"ref":"13","part_number":"5459417-804","description":"POCKET,FNDR-RR,RH,MIC,STLTH GR","quantity":1,"side":"RH"},
+        {"ref":"14","part_number":"7519806","description":"CLIP-DASH,TRIM,METAL","quantity":"AR"},
+        {"ref":"15","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+        {"ref":"16","part_number":"5465955-070","description":"PANEL,CLOSEOFF EN,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"17","part_number":"5465956-070","description":"PANEL,CLOSEOFF EN,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"18","part_number":"7081305","description":"CLIP-U SPEED NUT","quantity":6},
+        {"ref":"19","part_number":"7519001","description":"SCR-TXTH-M6X1.0X50, 8.8, ZPB","quantity":14},
+        {"ref":"20","part_number":"2417713","description":"ASM-ACCENT LIGHT,FRT,LH","quantity":1,"side":"LH"},
+        {"ref":"21","part_number":"2417714","description":"ASM-ACCENT LIGHT,FRT,RH","quantity":1,"side":"RH"},
+        {"ref":"22","part_number":"7662384","description":"STUD-1/4 TURN,NYLON","quantity":1},
+        {"ref":"23","part_number":"7518529","description":"SCR-M6X1.0X20,HXHD,FLG,TDFM,BK","quantity":"AR"}
+      ]
+    },
+    "body_rocker_panels": {
+      "assembly_id": "255393",
+      "name": "BODY, ROCKER PANELS",
+      "drive_file_id": "1R1qM7uy9kH3pLZiTcZ7JXg121ITDH2El",
+      "parts": [
+        {"ref":"1","part_number":"5456572-070","description":"PANEL,ROCKER,LH,MP,BLK","quantity":1,"side":"LH"},
+        {"ref":"2","part_number":"5456573-070","description":"PANEL,ROCKER,RH,MP,BLK","quantity":1,"side":"RH"},
+        {"ref":"3","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":14},
+        {"ref":"4","part_number":"7661855","description":"RIVET-TUFLOK,.315-.325X.787","quantity":3},
+        {"ref":"5","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":7}
+      ]
+    },
+    "body_roof": {
+      "assembly_id": "255394",
+      "name": "BODY, ROOF",
+      "drive_file_id": "17kaebKpkdXYgW91EGPhB5V8rrg-eI1GU",
+      "parts": [
+        {"ref":"1","part_number":"2884554","description":"K-ROOF,POLY,MP,RZR","quantity":1},
+        {"ref":"1","part_number":"2208302","description":"HDWR-ROOF,POLY,MP,RZR","quantity":1,"includes_refs":["2","3","4","5","6","7","8","9","10"]},
+        {"ref":"2","part_number":"5272325-329","description":"BRKT-CORNER,ROOF,BLK","quantity":2},
+        {"ref":"3","part_number":"5455622","description":"CLAMP-BASE,ROOF,RZV","quantity":2},
+        {"ref":"4","part_number":"5455623","description":"CLAMP-HOOP,ROOF,RZV","quantity":2},
+        {"ref":"5","part_number":"5455624","description":"CLAMP-LATCH,ROOF,RZV","quantity":2},
+        {"ref":"6","part_number":"7527972","description":"SCR-TXPH-#14 X 1/2 HI/LO ZTB","quantity":2},
+        {"ref":"7","part_number":"7081305","description":"CLIP-U SPEED NUT","quantity":2},
+        {"ref":"8","part_number":"7519045","description":"SCR-TX TRUSS-#14X3/4, HI/LO ZBK","quantity":16},
+        {"ref":"9","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":4},
+        {"ref":"10","part_number":"7518936","description":"SCR-M6X1X16 TR/TX-M","quantity":2}
+      ]
+    },
+    "chassis_cab_frame": {
+      "assembly_id": "255402",
+      "name": "CHASSIS, CAB FRAME",
+      "drive_file_id": "1MGttSqZtvShTS2_-7ag2R7e65K9715pJ",
+      "parts": [
+        {"ref":"1","part_number":"1029293-458","description":"WELD-ROPS,FRONT,BLK","quantity":1},
+        {"ref":"2","part_number":"7520478","description":"SCR-HXFL-M12X1.5X80 10.9 ZOD","quantity":4},
+        {"ref":"3","part_number":"7547334","description":"NUT-M12X1.5, FLG, NYLOC-OLIVE D","quantity":4},
+        {"ref":"4","part_number":"1025364-458","description":"WELD-ROPS,REAR,C,BLK","quantity":2},
+        {"ref":"5","part_number":"1029007-458","description":"WELD-ROPS B-PILLAR,MP,BLK","quantity":1},
+        {"ref":"6","part_number":"5418002","description":"BUMPER-SEAT","quantity":4},
+        {"ref":"7","part_number":"7519903","description":"SCR-HXFL-M10X1.5X65 10.9 RIE","quantity":4},
+        {"ref":"8","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":4},
+        {"ref":"9","part_number":"1029008-458","description":"WELD-ROPS C-PILLAR,MP,BLK","quantity":1},
+        {"ref":"10","part_number":"7519906","description":"SCR-HXFL-M10X1.5X45 10.9 RIE","quantity":20},
+        {"ref":"11","part_number":"7547746","description":"NUT-HEX-M10X1.5 10 ZB3 NYL","quantity":24},
+        {"ref":"12","part_number":"7661637","description":"RIVET-3/16-.090-.290","quantity":16},
+        {"ref":"13","part_number":"5417993","description":"PAD-TUBE,ROPS,6PT","quantity":4}
+      ]
+    },
+    "body_rear_fenders_bezels": {
+      "assembly_id": "255391",
+      "name": "BODY, REAR FENDERS AND BEZELS",
+      "drive_file_id": "1fnPrRuk43LotT5gBOobaubDuoVSXkkji",
+      "parts": [
+        {"ref":"1","part_number":"2638294-804","description":"ASM-REAR FENDER,MIC,LH,STTH GR","quantity":1,"side":"LH"},
+        {"ref":"1","part_number":"5456537-070","description":"FENDER FLAIR,RL OUTER,BLK","quantity":1,"side":"LH"},
+        {"ref":"2","part_number":"2638295-804","description":"ASM-REAR FENDER,MIC,RH,STTH GR","quantity":1,"side":"RH"},
+        {"ref":"2","part_number":"5456538-070","description":"FENDER FLAIR,RR,OUTER,BLK","quantity":1,"side":"RH"},
+        {"ref":"3","part_number":"7512026","description":"SCREW-#10X3/4-HI/LO-PN-T25,TRX-M","quantity":"AR"},
+        {"ref":"4","part_number":"5456533-804","description":"FENDER-REAR,LH,MIC,STLTH GR","quantity":1,"side":"LH"},
+        {"ref":"5","part_number":"5456534-804","description":"FENDER-REAR,RH,MIC,STLTH GR","quantity":1,"side":"RH"},
+        {"ref":"6","part_number":"5458010-070","description":"BEZEL-INTAKE,BOTTOM,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"7","part_number":"5458012-070","description":"BEZEL-INTAKE,BOTTOM,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"8","part_number":"5458011-070","description":"BEZEL-INTAKE,TOP,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"9","part_number":"5458013-070","description":"BEZEL-INTAKE,TOP,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"10","part_number":"7519650","description":"SCR-TXTH-M6X1.0X25 ZFB","quantity":"AR"},
+        {"ref":"11","part_number":"5526342","description":"SEAL INTAKE BEZEL","quantity":2},
+        {"ref":"12","part_number":"5417149","description":"BOOT-PURGE VALVE,AIR BOX","quantity":2},
+        {"ref":"13","part_number":"7547674","description":"NUT-M6-1.0, U-TYPE (2.5-3.8)","quantity":"AR"},
+        {"ref":"14","part_number":"5456521-070","description":"FENDER,INNER REAR,LH,BLK","quantity":1,"side":"LH"},
+        {"ref":"15","part_number":"5456522-070","description":"FENDER,INNER REAR,RH,BLK","quantity":1,"side":"RH"},
+        {"ref":"16","part_number":"5458014","description":"SCREEN-INTAKE,OUTER,LH","quantity":1,"side":"LH"},
+        {"ref":"17","part_number":"5458016","description":"SCREEN-INTAKE,OUTER,RH","quantity":1,"side":"RH"},
+        {"ref":"18","part_number":"5458015","description":"SCREEN-INTAKE,INNER,LH","quantity":1,"side":"LH"},
+        {"ref":"19","part_number":"5458017","description":"SCREEN-INTAKE,INNER,RH","quantity":1,"side":"RH"},
+        {"ref":"20","part_number":"7661855","description":"RIVET-TUFLOK,.315-.325X.787","quantity":1},
+        {"ref":"21","part_number":"5456538-070","description":"FENDER FLAIR,RR,OUTER,BLK","quantity":1,"side":"RH"},
+        {"ref":"22","part_number":"5456537-070","description":"FENDER FLAIR,RL OUTER,BLK","quantity":1,"side":"LH"}
+      ]
+    }
+  },
+  "catalog_policy": {
+    "exclude_unsupported_color_variants": true,
+    "side_mapping": "Driver=LH; Passenger=RH",
+    "build_date_resolution": "When Polaris provides a date split, resolve by vehicle build date; do not guess."
+  },
+  "status": "ready_for_ui_binding"
+}

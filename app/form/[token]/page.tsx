@@ -113,6 +113,8 @@ export default function GuestFormPage() {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftNotice, setDraftNotice] = useState("");
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [photoUploadProgress, setPhotoUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [photoNotice, setPhotoNotice] = useState("");
@@ -135,6 +137,19 @@ export default function GuestFormPage() {
   }, [token]);
 
   useEffect(() => {
+    if (!token || payload?.template.template_key !== "damage_acknowledgment" || complete) return;
+    fetch(`/api/guest-forms/${encodeURIComponent(token)}/draft`, { cache: "no-store" })
+      .then(async response => {
+        const data = await readJsonResponse<{ draft?: Record<string, string> | null; savedAt?: string | null; error?: string }>(response, "Unable to load saved draft.");
+        if (data.draft) {
+          setValues(data.draft);
+          setDraftNotice(data.savedAt ? `Draft restored from ${new Date(data.savedAt).toLocaleString()}.` : "Saved draft restored.");
+        }
+      })
+      .catch(() => undefined);
+  }, [token, payload?.template.template_key, complete]);
+
+  useEffect(() => {
     if (!token || payload?.template.template_key !== "damage_acknowledgment") return;
     fetch(`/api/guest-forms/${encodeURIComponent(token)}/attachments`, { cache: "no-store" })
       .then(async response => {
@@ -150,6 +165,26 @@ export default function GuestFormPage() {
       if (checked) selected.add(option); else selected.delete(option);
       return { ...current, [fieldKey]: Array.from(selected).join(" | ") };
     });
+  }
+
+  async function saveDraft() {
+    if (!token || !payload || payload.template.template_key !== "damage_acknowledgment") return;
+    setSavingDraft(true);
+    setError("");
+    setDraftNotice("");
+    try {
+      const response = await fetch(`/api/guest-forms/${encodeURIComponent(token)}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formData: values }),
+      });
+      const data = await readJsonResponse<{ error?: string; savedAt?: string }>(response, "Unable to save draft.");
+      setDraftNotice(data.savedAt ? `Draft saved ${new Date(data.savedAt).toLocaleString()}. You can resume this form from your Guest Portal on any device.` : "Draft saved. You can resume this form from your Guest Portal on any device.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to save draft.");
+    } finally {
+      setSavingDraft(false);
+    }
   }
 
   async function uploadOnePhoto(file: File) {
@@ -263,6 +298,19 @@ export default function GuestFormPage() {
         </div>
       </section> : null}
 
+      {isDamageAcknowledgment ? <section style={{ margin: "0 0 20px", padding: 14, border: "1px solid #d9dee4", borderRadius: 12, background: "#fff" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <strong>Need to finish on another device?</strong>
+            <div style={{ marginTop: 3, color: "#5d6670", fontSize: 14 }}>Save your progress, then reopen this form from your Guest Portal.</div>
+          </div>
+          <button type="button" onClick={() => void saveDraft()} disabled={savingDraft || uploadingPhotos || submitting} style={{ minHeight: 42, padding: "0 16px", borderRadius: 9, border: "1px solid #c8d0d7", background: "#fff", fontWeight: 800, cursor: savingDraft ? "wait" : "pointer" }}>
+            {savingDraft ? "Saving…" : "Save Draft"}
+          </button>
+        </div>
+        {draftNotice ? <p style={{ margin: "10px 0 0", color: "#18713b", fontSize: 13, fontWeight: 700 }}>{draftNotice}</p> : null}
+      </section> : null}
+
       <div className={styles.fields}>{payload.template.fields_schema.map(field => {
         const value = values[field.key] || "";
         if (field.type === "textarea") return <label key={field.key}>
@@ -317,7 +365,7 @@ export default function GuestFormPage() {
       <label className={styles.agree}><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>{isDamageAcknowledgment ? "I have read and understand this acknowledgment and the next steps described above." : "I have read and understand this agreement and voluntarily accept its terms."}</span></label>
       {payload.template.requires_signature ? <SignaturePad onChange={setSignature} /> : null}
       {error ? <p className={styles.formError}>{error}</p> : null}
-      <button className={styles.submit} type="submit" disabled={submitting || uploadingPhotos}>{submitting ? "Submitting…" : uploadingPhotos ? "Uploading Photo…" : "Sign & Submit"}</button>
+      <button className={styles.submit} type="submit" disabled={submitting || uploadingPhotos || savingDraft}>{submitting ? "Submitting…" : uploadingPhotos ? "Uploading Photo…" : savingDraft ? "Saving Draft…" : "Sign & Submit"}</button>
       <p className={styles.privacy}>Your signature, submission time, IP address, and device information are recorded with your reservation.</p>
     </form> : null}
   </section></main>;
