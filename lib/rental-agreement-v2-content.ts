@@ -114,7 +114,7 @@ export const RENTAL_V2_DRIVER_HTML = `
   <h4>7. VEHICLE RECOVERY</h4>
   <p>If a vehicle becomes stuck, disabled, abandoned, inoperable, or otherwise cannot be returned under its own power, recovery may be required.</p>
   <p>Recovery may include dispatch, labor, towing, extraction, winching, transport, specialized equipment, coordination, and third-party recovery services. Recovery charges are separate from vehicle damage charges and are not included in any damage-protection plan.</p>
-  <p>If the vehicle you operate requires recovery because of your operation or use, applicable recovery charges are your responsibility, except when recovery is required solely because of a mechanical failure not caused or contributed to by the renter or Driver.</p>
+  <p>If the vehicle you operate requires recovery because of your operation or use, applicable recovery charges are your responsibility, except when recovery is required solely because of a mechanical failure not caused or contributed to by you.</p>
   <p>Recovery from Prohibited or High-Consequence Terrain starts at $2,500 and may increase based on location, terrain, technical difficulty, personnel and equipment required, time involved, operational disruption, risk, and third-party recovery costs. Recovery may be performed by Epic personnel, third-party recovery providers, or both.</p>
   <p>Recovery timing depends on location, terrain, weather, safety conditions, and resource availability. Immediate recovery is not guaranteed.</p>
   <h4>8. DAMAGE PROTECTION REVIEW</h4>
