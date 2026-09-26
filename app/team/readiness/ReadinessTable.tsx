@@ -437,7 +437,13 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     completedAt: Date;
   } | null>(null);
 
-  useEffect(() => setLocalRows(rows), [rows]);
+  useEffect(() => {
+    setLocalRows(rows);
+    setSelected((current) => {
+      if (!current?.readiness_id) return current;
+      return rows.find((row) => row.readiness_id === current.readiness_id) ?? current;
+    });
+  }, [rows]);
 
   useEffect(() => {
     if (!selected) return;
