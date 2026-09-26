@@ -526,7 +526,7 @@ export async function getArrivalBoardRows() {
           (readiness?.mpwr_document_received_count ?? 0) >=
             (readiness?.mpwr_document_expected_count ?? 0) &&
           (
-            readiness?.ohv_required === false ||
+            readiness?.ohv_required !== true ||
             (
               readiness?.ohv_certificate_uploaded === true &&
               hasRequiredOhvCertificates
