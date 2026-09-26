@@ -274,6 +274,34 @@ Rollback verification now passes for:
 
 All rollback-test rows and counts were confirmed removed afterward.
 
+## Current Implementation Verification
+
+Verified through controlled real submissions and database inspection:
+
+- 1 vehicle / 1 Driver / no minors
+- 1 Passenger + 1 minor
+- 2 vehicles / 1 Driver remains incomplete
+- 2 vehicles / 2 Drivers reaches Epic agreement readiness
+- signed PDF generation, storage path, and SHA-256 hash
+- signed-copy email delivery
+- Driver / Passenger role persistence
+- minor persistence and participant counting
+- Polaris readiness remains separate from Epic agreement readiness
+- Arrival Board remains at Proceed to Kiosk when Polaris remains incomplete
+- drawn-signature clear behavior reset has been corrected
+- successful submission now shows a brief confirmation and returns the guest to Guest Portal
+- production cutover is disabled by default behind ENABLE_RENTAL_V2_LIVE
+- turning the live flag off restores the V1 rental form path
+- exact duplicate V2 submissions are now treated idempotently instead of creating another signature/count
+
+The readiness preview matrix now also covers:
+
+- extra Drivers above vehicle count
+- people-count override
+- vehicle-count increase after signing
+- Driver parent with minors
+- Passenger parent with minors and missing Driver coverage
+
 ## Production Safety Rules
 
 - Do not modify the current live rental agreement behavior until launch approval.
@@ -360,16 +388,16 @@ Do not launch until all are true:
 - [x] Typed and drawn signature preview validation built
 - [x] V2 readiness rules defined
 - [x] Rental expected agreement denominator concept set to guest count
-- [ ] V2 signed PDF verified end-to-end
+- [x] V2 signed PDF verified end-to-end
 - [x] V2 production schema / submission RPC installed
 - [x] V2 PDF Edge Function deployed
-- [ ] V2 database writes verified end-to-end through controlled preview submission
+- [x] V2 database writes verified end-to-end through controlled preview submission
 - [x] V2 readiness participant-count logic wired on preview branch
 - [x] V2 Driver-count logic wired on preview branch
-- [ ] Minor participant counting verified end-to-end with real V2 writes
+- [x] Minor participant counting verified end-to-end with real V2 writes
 - [x] Guest Portal V2 language updated on preview branch
 - [x] Automated reminder logic updated on preview branch
-- [ ] Polaris waiver flow verified unchanged
+- [x] Polaris waiver readiness verified separate / unaffected by Epic V2 counts
 - [ ] Remaining current-system training complete
 - [ ] V2 staff training complete
 - [ ] Customer-facing education copy finalized
