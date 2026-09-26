@@ -146,97 +146,12 @@ export async function loadRentalV2Readiness(
 
   const sessionByReadinessId = new Map<string, SessionRow>();
   for (const source of rentalSources) {
-    const operational = operationalById.get(source.readinessId);
-    if (!operational) continue;
-    const candidates = sessions.filter(
-      (session) =>
-        session.confirmation_code === operational.confirmation_code &&
-        session.business_line === "rental" &&
-        session.session_status === "active",
-    );
-    const exact = operational.source_store_visit_id
-      ? candidates.find((session) => session.store_visit_id === operational.source_store_visit_id)
-      : null;
-    const selected = exact ?? (candidates.length === 1 ? candidates[0] : null);
-    if (selected) sessionByReadinessId.set(source.readinessId, selected);
-  }
-
-  const sessionIds = [...new Set([...sessionByReadinessId.values()].map((session) => session.id))];
-  if (!sessionIds.length) return result;
-
-  // select=* is intentional during staged rollout: production does not have
-  // rental_role until the V2 migration is applied. Old rows simply omit it.
-  const signatures = await supabaseSelect<SignatureRow>(
-    "epic_waiver_signatures",
-    new URLSearchParams({
-      select: "*",
-      waiver_session_id: `in.(${quoteList(sessionIds)})`,
-      archived_at: "is.null",
-      business_line: "eq.rental",
-      order: "signed_at.asc",
-      limit: "1000",
-    }),
-  );
-
-  const v2Signatures = signatures.filter(
-    (signature) => signature.rental_role === "driver" || signature.rental_role === "passenger",
-  );
-  const signatureIds = v2Signatures.map((signature) => signature.id);
-  const minors = signatureIds.length
-    ? await supabaseSelect<MinorRow>(
-        "epic_waiver_minors",
-        new URLSearchParams({
-          select: "adult_signature_id,minor_first_name,minor_last_name,minor_full_name,minor_dob",
-          adult_signature_id: `in.(${quoteList(signatureIds)})`,
-          limit: "2000",
-        }),
-      )
-    : [];
-
-  const minorsBySignature = new Map<string, MinorRow[]>();
-  for (const minor of minors) {
-    const current = minorsBySignature.get(minor.adult_signature_id) ?? [];
-    current.push(minor);
-    minorsBySignature.set(minor.adult_signature_id, current);
-  }
-
-  for (const source of rentalSources) {
-    const base = result.get(source.readinessId)!;
-    const operational = operationalById.get(source.readinessId);
-    const legacyReceived = Math.max(0, Math.trunc(operational?.epic_document_received_count ?? 0));
-    const legacyExpected = Math.max(0, Math.trunc(operational?.epic_document_expected_count ?? 0));
-    const legacyComplete = legacyExpected > 0 && legacyReceived >= legacyExpected;
-
     const session = sessionByReadinessId.get(source.readinessId);
     if (!session) continue;
 
-    if (legacyComplete) {
-      const legacySignatures = signatures.filter(
-        (signature) =>
-          signature.waiver_session_id === session.id &&
-          signature.rental_role !== "driver" &&
-          signature.rental_role !== "passenger",
-      );
-
-      result.set(source.readinessId, {
-        ...base,
-        agreementsReceived: base.agreementsExpected,
-        driversReceived: Math.max(base.driversExpected, legacySignatures.length),
-        agreementsComplete: true,
-        driversComplete: true,
-        ready: true,
-        signers: legacySignatures.map((signature) => ({
-          name: signerName(signature),
-          role: "driver" as const,
-          signatureId: signature.id,
-          signedAt: signature.signed_at ?? null,
-        })),
-        exceptions: ["Completed under Epic's prior rental agreement; legacy signers are treated as Drivers for readiness."],
-      });
-      continue;
-    }
-
-    const sessionSignatures = v2Signatures.filter((signature) => signature.waiver_session_id === session.id);
+    const sessionSignatures = signatures.filter(
+      (signature) => signature.waiver_session_id === session.id,
+    );
     const latestByIdentity = new Map<string, SignatureRow>();
     const duplicateKeys = new Set<string>();
 
@@ -259,11 +174,23 @@ export async function loadRentalV2Readiness(
     const exceptions = duplicateKeys.size
       ? [`${duplicateKeys.size} duplicate adult signer submission${duplicateKeys.size === 1 ? "" : "s"} collapsed for readiness.`]
       : [];
+    const legacySignerCount = adultSignatures.filter(
+      (signature) =>
+        signature.rental_role !== "driver" &&
+        signature.rental_role !== "passenger",
+    ).length;
+    if (legacySignerCount > 0) {
+      exceptions.push(
+        `${legacySignerCount} legacy Epic agreement signer${legacySignerCount === 1 ? "" : "s"} treated as Driver${legacySignerCount === 1 ? "" : "s"} for readiness.`,
+      );
+    }
 
     for (const signature of adultSignatures) {
+      const normalizedRole =
+        signature.rental_role === "passenger" ? "passenger" : "driver";
       signers.push({
         name: signerName(signature),
-        role: signature.rental_role as "driver" | "passenger",
+        role: normalizedRole,
         signatureId: signature.id,
         signedAt: signature.signed_at ?? null,
       });
@@ -285,7 +212,9 @@ export async function loadRentalV2Readiness(
     }
 
     const agreementsReceived = signers.length;
-    const driversReceived = adultSignatures.filter((signature) => signature.rental_role === "driver").length;
+    const driversReceived = adultSignatures.filter(
+      (signature) => signature.rental_role !== "passenger",
+    ).length;
     const agreementsComplete = agreementsReceived >= base.agreementsExpected;
     const driversComplete = driversReceived >= base.driversExpected;
 
