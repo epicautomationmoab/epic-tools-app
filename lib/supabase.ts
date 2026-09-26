@@ -1,3 +1,4 @@
+import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 export type VehicleBreakdownItem = {
   model: string;
   quantity: number;
@@ -22,6 +23,18 @@ export type ReadinessRow = {
   epic_document_count_color: "green" | "yellow" | "red" | "gray" | string;
   epic_document_received_count?: number | null;
   epic_document_expected_count?: number | null;
+  rental_v2_agreements_received?: number | null;
+  rental_v2_agreements_expected?: number | null;
+  rental_v2_drivers_received?: number | null;
+  rental_v2_drivers_expected?: number | null;
+  rental_v2_ready?: boolean | null;
+  rental_v2_signers?: Array<{
+    name: string;
+    role: "driver" | "passenger" | "minor";
+    signatureId: string;
+    signedAt: string | null;
+  }> | null;
+  rental_v2_exceptions?: string[] | null;
   mpwr_document_received_count?: number | null;
   mpwr_document_expected_count?: number | null;
   mpwr_confirmation_number: string | null;
@@ -322,6 +335,17 @@ export async function getReadinessRows() {
     }
   }
 
+  const rentalV2Readiness = await loadRentalV2Readiness(
+    rows
+      .filter((row) => row.business_line === "rental" && row.readiness_id)
+      .map((row) => ({
+        readinessId: row.readiness_id!,
+        confirmationCode: row.confirmation_code,
+        expectedGuestCount: row.expected_guest_count,
+        vehicleCount: row.total_vehicle_count,
+      })),
+  );
+
   return rows
     .map((row) => {
       const activityIsCovered =
@@ -330,8 +354,19 @@ export async function getReadinessRows() {
           activityKey(row.confirmation_code, row.visit_start_time, row.product_display_name),
         );
 
+      const rentalV2 = row.readiness_id
+        ? rentalV2Readiness.get(row.readiness_id)
+        : undefined;
+
       return {
         ...row,
+        rental_v2_agreements_received: rentalV2?.agreementsReceived ?? null,
+        rental_v2_agreements_expected: rentalV2?.agreementsExpected ?? null,
+        rental_v2_drivers_received: rentalV2?.driversReceived ?? null,
+        rental_v2_drivers_expected: rentalV2?.driversExpected ?? null,
+        rental_v2_ready: rentalV2?.ready ?? null,
+        rental_v2_signers: rentalV2?.signers ?? null,
+        rental_v2_exceptions: rentalV2?.exceptions ?? null,
         amount_due_cents: activityIsCovered ? 0 : row.amount_due_cents,
         is_paid: activityIsCovered ? true : row.is_paid,
         attention_flags: activityIsCovered
@@ -392,7 +427,7 @@ export async function getArrivalBoardRows() {
 
   const arrivalParams = new URLSearchParams({ select: "*", limit: "100" });
   const readinessParams = new URLSearchParams({
-    select: "readiness_id,confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count",
+    select: "readiness_id,confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count,expected_guest_count,amount_due_cents,mpwr_document_received_count,mpwr_document_expected_count,ohv_required,ohv_certificate_uploaded",
     limit: "100",
   });
   for (const [key, value] of dateFilters) {
@@ -411,7 +446,13 @@ export async function getArrivalBoardRows() {
       "handoff_status" |
       "product_display_name" |
       "rental_duration" |
-      "total_vehicle_count"
+      "total_vehicle_count" |
+      "expected_guest_count" |
+      "amount_due_cents" |
+      "mpwr_document_received_count" |
+      "mpwr_document_expected_count" |
+      "ohv_required" |
+      "ohv_certificate_uploaded"
     >>("guest_readiness_with_handoff_v", readinessParams),
   ]);
 
@@ -448,6 +489,16 @@ export async function getArrivalBoardRows() {
       row,
     ]),
   );
+  const rentalV2Readiness = await loadRentalV2Readiness(
+    readinessRows
+      .filter((row) => row.business_line === "rental" && row.readiness_id)
+      .map((row) => ({
+        readinessId: row.readiness_id!,
+        confirmationCode: row.confirmation_code,
+        expectedGuestCount: row.expected_guest_count,
+        vehicleCount: row.total_vehicle_count,
+      })),
+  );
   const terminalStatuses = new Set(["checked_in", "tour_returned", "rental_out", "rental_returned"]);
 
   return rows
@@ -465,6 +516,27 @@ export async function getArrivalBoardRows() {
           totalVehicleCount > 0 &&
           uploadedOhvCount >= totalVehicleCount);
 
+      const rentalV2 = readiness?.readiness_id
+        ? rentalV2Readiness.get(readiness.readiness_id)
+        : undefined;
+      const rentalOtherRequirementsComplete =
+        row.business_line !== "rental" ||
+        (
+          (readiness?.amount_due_cents ?? 0) <= 0 &&
+          (readiness?.mpwr_document_received_count ?? 0) >=
+            (readiness?.mpwr_document_expected_count ?? 0) &&
+          (
+            readiness?.ohv_required !== true ||
+            (
+              readiness?.ohv_certificate_uploaded === true &&
+              hasRequiredOhvCertificates
+            )
+          )
+        );
+      const rentalReady =
+        row.business_line !== "rental" ||
+        (rentalV2?.ready === true && rentalOtherRequirementsComplete);
+
       return {
         ...row,
         customer_phone_last_four: readiness?.customer_phone_last_four ?? row.customer_phone_last_four ?? null,
@@ -472,12 +544,22 @@ export async function getArrivalBoardRows() {
         product_display_name: readiness?.product_display_name ?? row.product_display_name ?? row.board_activity_label,
         rental_duration: readiness?.rental_duration ?? row.rental_duration ?? null,
         total_vehicle_count: totalVehicleCount,
-        board_action_label: hasRequiredOhvCertificates
-          ? row.board_action_label
-          : "Proceed to Kiosk",
-        board_action_type: hasRequiredOhvCertificates
-          ? row.board_action_type
-          : "kiosk",
+        board_action_label:
+          row.business_line === "rental"
+            ? rentalReady
+              ? "See Agent"
+              : "Proceed to Kiosk"
+            : hasRequiredOhvCertificates
+              ? row.board_action_label
+              : "Proceed to Kiosk",
+        board_action_type:
+          row.business_line === "rental"
+            ? rentalReady
+              ? "agent"
+              : "kiosk"
+            : hasRequiredOhvCertificates
+              ? row.board_action_type
+              : "kiosk",
       };
     })
     .filter((row) => !row.handoff_status || !terminalStatuses.has(row.handoff_status))

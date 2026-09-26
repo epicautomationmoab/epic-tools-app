@@ -34,8 +34,12 @@ type EpicDocumentStatus = {
   readinessId: string;
   received: number;
   expected: number;
+  driversReceived?: number | null;
+  driversExpected?: number | null;
+  ready?: boolean | null;
   signers: Array<{
     name: string;
+    role?: "driver" | "passenger" | "minor";
     isMinorOrChild?: boolean | null;
     isWaiverAdult?: boolean | null;
     is_minor_or_child?: boolean | null;
@@ -228,7 +232,14 @@ export default function GuestPortalPage() {
       );
 
       if (epic) {
-        steps.push(requirementComplete(epic.received, epic.expected));
+        if (activity.businessLine.toLowerCase() === "rental") {
+          steps.push(
+            requirementComplete(epic.received, epic.expected) &&
+              requirementComplete(epic.driversReceived ?? 0, epic.driversExpected ?? 0),
+          );
+        } else {
+          steps.push(requirementComplete(epic.received, epic.expected));
+        }
       }
 
       if (mpwr && mpwr.expected > 0) {
@@ -534,27 +545,28 @@ export default function GuestPortalPage() {
                 (item) => item.readinessId === activity.readinessId,
               );
 
+              const isRental =
+                activity.businessLine.toLowerCase() === "rental";
+
               const epicComplete = epic
-                ? requirementComplete(epic.received, epic.expected)
+                ? isRental
+                  ? requirementComplete(epic.received, epic.expected) &&
+                    requirementComplete(epic.driversReceived ?? 0, epic.driversExpected ?? 0)
+                  : requirementComplete(epic.received, epic.expected)
                 : true;
               const mpwrComplete = mpwr
                 ? requirementComplete(mpwr.received, mpwr.expected)
                 : true;
 
-              const isRental =
-                activity.businessLine.toLowerCase() === "rental";
-
               const epicTitle = isRental
-                ? "Epic Rental Terms & Conditions"
+                ? "Epic Rental Agreement"
                 : "Guide Services Agreement & Waiver";
 
               const epicInstructions = isRental
-                ? "The responsible party for each vehicle must complete the Epic Rental Terms & Conditions."
+                ? "Every participant must be accounted for. Adults sign as a Driver or Passenger, and minors are added by a parent or legal guardian. We also need at least one signed Driver for each rental vehicle."
                 : "Every participant must complete our guided services agreement. Adults complete for themselves, and a parent or legal guardian must complete the waiver for each minor.";
 
-              const epicCountLabel = isRental
-                ? "responsible parties"
-                : "participants";
+              const epicCountLabel = "participants";
 
               return (
                 <div
@@ -576,7 +588,7 @@ export default function GuestPortalPage() {
                         <div className={styles.requirementHeading}>
                           <div>
                             <span className={styles.requirementKicker}>
-                              Epic Documents
+                              {isRental ? "Epic Agreement" : "Epic Documents"}
                             </span>
                             <h3>{epicTitle}</h3>
                           </div>
@@ -588,17 +600,28 @@ export default function GuestPortalPage() {
                         </p>
 
                         <p className={styles.requirementCount}>
-                          {epic.received} of {epic.expected}{" "}
-                          {epicCountLabel} complete
+                          {isRental ? (
+                            <>
+                              Agreements {epic.received}/{epic.expected} · Drivers{" "}
+                              {epic.driversReceived ?? 0}/{epic.driversExpected ?? activity.totalVehicleCount ?? 0}
+                            </>
+                          ) : (
+                            <>
+                              {epic.received} of {epic.expected} {epicCountLabel} complete
+                            </>
+                          )}
                         </p>
 
                         {epic.signers.length ? (
                           <div className={styles.signerList}>
                             {epic.signers.map((signer, signerIndex) => {
                               const minor =
-                                signer.isMinorOrChild ??
-                                signer.is_minor_or_child ??
-                                false;
+                                signer.role === "minor" ||
+                                Boolean(
+                                  signer.isMinorOrChild ??
+                                    signer.is_minor_or_child ??
+                                    false,
+                                );
 
                               return (
                                 <div
@@ -609,7 +632,16 @@ export default function GuestPortalPage() {
                                   <div>
                                     <strong>{signer.name}</strong>
                                     <span>
-                                      {minor ? "Minor" : "Adult"} · Signed
+                                      {isRental
+                                        ? signer.role === "driver"
+                                          ? "Driver"
+                                          : signer.role === "passenger"
+                                            ? "Passenger"
+                                            : "Minor"
+                                        : minor
+                                          ? "Minor"
+                                          : "Adult"}{" "}
+                                      · Signed
                                     </span>
                                   </div>
                                 </div>
@@ -627,7 +659,7 @@ export default function GuestPortalPage() {
                           rel="noreferrer"
                         >
                           {isRental
-                            ? "Complete Terms & Conditions"
+                            ? "Complete Rental Agreement"
                             : "Complete Tour Waivers"}
                         </a>
                       ) : null}

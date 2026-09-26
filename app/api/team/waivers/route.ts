@@ -42,6 +42,7 @@ type SignatureRow = {
   copy_email_status: string | null;
   copy_email_sent_at: string | null;
   business_line: string | null;
+  rental_role?: "driver" | "passenger" | null;
   rental_responsibility_scope: string | null;
   rental_vehicle_coverage_count: number | null;
   rental_vehicle_count_at_signing: number | null;
@@ -134,8 +135,7 @@ export async function GET(request: NextRequest) {
     }
 
     const params = new URLSearchParams({
-      select:
-        "id,signer_first_name,signer_middle_initial,signer_last_name,signer_full_name,signer_email,signed_at,signed_pdf_storage_path,copy_email_status,copy_email_sent_at,business_line,rental_responsibility_scope,rental_vehicle_coverage_count,rental_vehicle_count_at_signing",
+      select: "*",
       signed_pdf_storage_path: "not.is.null",
       archived_at: "is.null",
       order: "signed_at.desc",
@@ -177,6 +177,7 @@ export async function GET(request: NextRequest) {
       copyEmailSentAt: signature.copy_email_sent_at,
       isMinor: false,
       businessLine: signature.business_line,
+      role: signature.rental_role ?? null,
       responsibilityScope: signature.rental_responsibility_scope,
       vehicleCoverageCount: signature.rental_vehicle_coverage_count,
       vehicleCountAtSigning: signature.rental_vehicle_count_at_signing,
@@ -195,6 +196,7 @@ export async function GET(request: NextRequest) {
           copyEmailSentAt: parentSignature.copy_email_sent_at,
           isMinor: true,
           businessLine: parentSignature.business_line,
+          role: "minor",
           responsibilityScope: null,
           vehicleCoverageCount: null,
           vehicleCountAtSigning: null,

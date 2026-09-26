@@ -80,6 +80,7 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     let businessLine: string | null = null;
     let rentalTermsHtml: string | null = null;
     let totalVehicleCount = 1;
+    let guestPortalToken: string | null = null;
     let tourActivityLabel: string | null = null;
 
     const reservationParams = new URLSearchParams({
@@ -89,6 +90,18 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     });
     const reservations = await getJson(`${c.url}/rest/v1/operational_reservations?${reservationParams.toString()}`, c.key);
     customerPhone = reservations?.[0]?.customer_phone ?? null;
+
+    const portalParams = new URLSearchParams({
+      select: "guest_portal_token",
+      confirmation_code: `eq.${confirmation}`,
+      order: "visit_start_time.asc",
+      limit: "1",
+    });
+    const portalRows = await getJson(
+      `${c.url}/rest/v1/guest_portal_v?${portalParams.toString()}`,
+      c.key,
+    );
+    guestPortalToken = portalRows?.[0]?.guest_portal_token ?? null;
 
     if (session.waiver_template_id) {
       const templateParams = new URLSearchParams({
@@ -141,6 +154,10 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
         business_line: businessLine || "tour",
         rental_terms_html: rentalTermsHtml,
         total_vehicle_count: totalVehicleCount,
+        guest_portal_token: guestPortalToken,
+        rental_v2_enabled:
+          businessLine === "rental" &&
+          process.env.ENABLE_RENTAL_V2_LIVE === "true",
       },
     });
   } catch (error) {

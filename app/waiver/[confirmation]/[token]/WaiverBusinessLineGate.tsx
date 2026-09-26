@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import RentalTermsForm from "./RentalTermsForm";
+import RentalTermsFormV2Preview from "./RentalTermsFormV2Preview";
 
 type Session = {
   confirmation_code: string;
@@ -14,10 +15,12 @@ type Session = {
   business_line: string | null;
   rental_terms_html: string | null;
   total_vehicle_count: number;
+  rental_v2_enabled?: boolean;
 };
 
 export default function WaiverBusinessLineGate({ children }: { children: ReactNode }) {
   const params = useParams<{ confirmation: string; token: string }>();
+  const searchParams = useSearchParams();
   const confirmation = decodeURIComponent(params.confirmation);
   const token = decodeURIComponent(params.token);
   const [session, setSession] = useState<Session | null>(null);
@@ -40,6 +43,27 @@ export default function WaiverBusinessLineGate({ children }: { children: ReactNo
   }
 
   if (!failed && session?.business_line === "rental") {
+    if (session.rental_v2_enabled) {
+      return (
+        <RentalTermsFormV2Preview
+          session={session}
+          confirmation={confirmation}
+          token={token}
+          writeEnabled
+          productionMode
+        />
+      );
+    }
+    if (searchParams.get("v2") === "preview") {
+      return (
+        <RentalTermsFormV2Preview
+          session={session}
+          confirmation={confirmation}
+          token={token}
+          writeEnabled={searchParams.get("write") === "test"}
+        />
+      );
+    }
     return <RentalTermsForm session={session} confirmation={confirmation} token={token} />;
   }
 

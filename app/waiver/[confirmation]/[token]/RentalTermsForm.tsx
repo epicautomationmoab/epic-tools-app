@@ -11,6 +11,7 @@ type RentalSession = {
   experience_internal_name: string | null;
   rental_terms_html: string | null;
   total_vehicle_count: number;
+  guest_portal_token?: string | null;
 };
 
 type ResponsibilityScope = "all_reservation_vehicles" | "assigned_vehicle_only";
@@ -111,7 +112,12 @@ export default function RentalTermsForm({
 
   function clear() {
     const c = canvas.current;
-    if (c) c.getContext("2d")!.clearRect(0, 0, c.width, c.height);
+    setDrawing(false);
+    if (c) {
+      const context = c.getContext("2d");
+      context?.beginPath();
+      context?.clearRect(0, 0, c.width, c.height);
+    }
     setDrawn(false);
   }
 
@@ -166,6 +172,18 @@ export default function RentalTermsForm({
       const json = await response.json();
       if (!response.ok) {
         setError(json.error || "Unable to submit rental agreement.");
+        return;
+      }
+      const portalToken = session?.guest_portal_token;
+      if (portalToken) {
+        setSuccess(
+          "Agreement submitted successfully. A signed copy has been emailed to you. Returning you to your Guest Portal…",
+        );
+        window.setTimeout(() => {
+          window.location.assign(
+            `/guest/${encodeURIComponent(portalToken)}`,
+          );
+        }, 1200);
         return;
       }
       setSuccess("Rental Terms & Conditions submitted successfully. A copy has been emailed to you for your records. You may now close this browser window.");

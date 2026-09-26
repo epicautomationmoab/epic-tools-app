@@ -1,3 +1,4 @@
+import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getPattiPolicyDecision } from "@/lib/server/patti-policy-source";
@@ -25,15 +26,22 @@ type CommunicationRow = {
 type ReadinessContactRow = { effective_email: string | null };
 
 type GuestPortalRow = {
+  readiness_id: string;
+  confirmation_code: string;
   product_display_name: string;
   visit_start_time: string;
   business_line: string | null;
+  expected_guest_count: number | null;
   total_vehicle_count: number | null;
   epic_document_received_count: number | null;
   epic_document_expected_count: number | null;
   mpwr_document_received_count: number | null;
   mpwr_document_expected_count: number | null;
   ohv_certificate_uploaded: boolean | null;
+  rental_v2_agreements_received?: number | null;
+  rental_v2_agreements_expected?: number | null;
+  rental_v2_drivers_received?: number | null;
+  rental_v2_drivers_expected?: number | null;
 };
 
 const TOUR_ADDRESS = "1041 S. Main Street, Moab, UT 84532";
@@ -91,9 +99,13 @@ function buildReservationSummary(rows: GuestPortalRow[]) {
 
 function hasOutstandingRequirements(rows: GuestPortalRow[]) {
   return rows.some((row) => {
-    const epicOutstanding = (row.epic_document_received_count ?? 0) < (row.epic_document_expected_count ?? 0);
+    const isRental = row.business_line?.trim().toLowerCase() === "rental";
+    const epicOutstanding = isRental
+      ? (row.rental_v2_agreements_received ?? 0) < (row.rental_v2_agreements_expected ?? row.expected_guest_count ?? 0) ||
+        (row.rental_v2_drivers_received ?? 0) < (row.rental_v2_drivers_expected ?? row.total_vehicle_count ?? 0)
+      : (row.epic_document_received_count ?? 0) < (row.epic_document_expected_count ?? 0);
     const mpwrOutstanding = (row.mpwr_document_received_count ?? 0) < (row.mpwr_document_expected_count ?? 0);
-    const ohvOutstanding = row.business_line?.trim().toLowerCase() === "rental" && row.ohv_certificate_uploaded !== true;
+    const ohvOutstanding = isRental && row.ohv_certificate_uploaded !== true;
     return epicOutstanding || mpwrOutstanding || ohvOutstanding;
   });
 }
@@ -142,7 +154,28 @@ async function loadGuestPortalRows(token: string) {
   const params = new URLSearchParams({ select: "*", guest_portal_token: `eq.${token}`, order: "visit_start_time.asc" });
   const response = await fetch(`${config.url}/rest/v1/guest_portal_v?${params}`, { headers: supabaseHeaders(config.key), cache: "no-store" });
   if (!response.ok) throw new Error(`Unable to load portal data: ${await response.text()}`);
-  return (await response.json()) as GuestPortalRow[];
+  const rows = (await response.json()) as GuestPortalRow[];
+  const rentalV2 = await loadRentalV2Readiness(
+    rows
+      .filter((row) => row.business_line?.trim().toLowerCase() === "rental")
+      .map((row) => ({
+        readinessId: row.readiness_id,
+        confirmationCode: row.confirmation_code,
+        expectedGuestCount: row.expected_guest_count,
+        vehicleCount: row.total_vehicle_count,
+      })),
+  );
+  return rows.map((row) => {
+    const summary = rentalV2.get(row.readiness_id);
+    if (!summary) return row;
+    return {
+      ...row,
+      rental_v2_agreements_received: summary.agreementsReceived,
+      rental_v2_agreements_expected: summary.agreementsExpected,
+      rental_v2_drivers_received: summary.driversReceived,
+      rental_v2_drivers_expected: summary.driversExpected,
+    };
+  });
 }
 
 async function loadFinancialRow(confirmationCode: string) {
