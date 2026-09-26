@@ -158,7 +158,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
           adventureAssureLevel: row.adventure_assure_level,
           beltTireProtection: row.belt_tire_protection,
           epicDocumentUrl: row.epic_document_url
-            ? `/api/guest/${encodeURIComponent(token)}/epic-document?readinessId=${encodeURIComponent(row.readiness_id)}`
+            ? `/api/guest/${encodeURIComponent(token)}/epic-document?readinessId=${encodeURIComponent(row.readiness_id)}${row.business_line.toLowerCase() === "rental" ? "&v2=preview" : ""}`
             : null,
           ohvRequired: row.ohv_required,
           ohvCertificateUploaded: row.ohv_certificate_uploaded,
