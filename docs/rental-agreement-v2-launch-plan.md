@@ -255,6 +255,25 @@ from the Next TypeScript build.
 
 This restored successful Vercel preview builds while keeping the Edge Function source in the repository.
 
+## Backend Verification Notes
+
+Controlled rollback tests were run against the installed V2 submission RPC before any persistent test submission was allowed.
+
+Those tests exposed and resolved three backend issues:
+
+- PL/pgSQL ambiguity in the manual session-count update.
+- An attempted insert into the generated `minor_full_name` column.
+- Double-counted session totals because existing database triggers already recalculate signature/minor coverage.
+
+The final V2 RPC now relies on the existing waiver-count triggers for session totals and does not manually increment them.
+
+Rollback verification now passes for:
+
+- one Driver / no minors -> `1 adult · 0 minors · 1 covered`
+- one Passenger + one minor -> `1 adult · 1 minor · 2 covered`
+
+All rollback-test rows and counts were confirmed removed afterward.
+
 ## Production Safety Rules
 
 - Do not modify the current live rental agreement behavior until launch approval.
