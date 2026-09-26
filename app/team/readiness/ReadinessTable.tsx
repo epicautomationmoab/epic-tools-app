@@ -1095,7 +1095,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                           <span
                             className={`${styles.dot} ${statusClass(docs.received, docs.expected)}`}
                           />
-                          Agreements {docs.received}/{docs.expected}
+                          Epic Agreements {docs.received}/{docs.expected}
                         </div>
                         <div
                           className={`${styles.statusLine} ${driverCounts(row).expected > 0 && driverCounts(row).received >= driverCounts(row).expected ? styles.waiversComplete : ""}`}
@@ -1274,7 +1274,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                   docsCounts(selected).expected,
                 )}
               >
-                <span>{selected.business_line === "rental" ? "Agreements" : "Epic Docs"}</span>
+                <span>{selected.business_line === "rental" ? "Epic Agreements" : "Epic Docs"}</span>
                 <strong
                   className={
                     docsCounts(selected).expected > 0 &&
@@ -1287,17 +1287,8 @@ await callReadinessRpc("manual_override_mpwr_information", {
                   {docsCounts(selected).received}/
                   {docsCounts(selected).expected}
                 </strong>
-              </div>
-
-              {selected.business_line === "rental" ? (
-                <div
-                  className={drawerStatusCardClass(
-                    driverCounts(selected).received,
-                    driverCounts(selected).expected,
-                  )}
-                >
-                  <span>Drivers</span>
-                  <strong
+                {selected.business_line === "rental" ? (
+                  <small
                     className={
                       driverCounts(selected).expected > 0 &&
                       driverCounts(selected).received >= driverCounts(selected).expected
@@ -1305,10 +1296,10 @@ await callReadinessRpc("manual_override_mpwr_information", {
                         : undefined
                     }
                   >
-                    {driverCounts(selected).received}/{driverCounts(selected).expected}
-                  </strong>
-                </div>
-              ) : null}
+                    Drivers {driverCounts(selected).received}/{driverCounts(selected).expected}
+                  </small>
+                ) : null}
+              </div>
 
               <div
                 className={drawerStatusCardClass(
