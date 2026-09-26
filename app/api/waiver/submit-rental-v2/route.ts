@@ -128,6 +128,50 @@ export async function POST(request: Request) {
 
     const session = await resolveSession(c.url, c.key, payload.p_confirmation_code, payload.p_public_token);
 
+    const duplicateParams = new URLSearchParams({
+      select: "id,copy_email_status,signed_pdf_storage_path,signed_pdf_sha256",
+      waiver_session_id: `eq.${session.waiver_session_id}`,
+      rental_role: `eq.${payload.p_rental_role}`,
+      signer_first_name: `ilike.${String(payload.p_signer_first_name ?? "").trim()}`,
+      signer_last_name: `ilike.${String(payload.p_signer_last_name ?? "").trim()}`,
+      signer_dob: `eq.${payload.p_signer_dob}`,
+      archived_at: "is.null",
+      limit: "1",
+    });
+    const duplicateResponse = await fetch(
+      `${c.url}/rest/v1/epic_waiver_signatures?${duplicateParams.toString()}`,
+      {
+        headers: { apikey: c.key, Authorization: `Bearer ${c.key}` },
+        cache: "no-store",
+      },
+    );
+    if (!duplicateResponse.ok) {
+      return NextResponse.json(
+        { error: `Unable to check for an existing agreement: ${(await duplicateResponse.text()).slice(0, 300)}` },
+        { status: duplicateResponse.status },
+      );
+    }
+    const duplicateRows = await duplicateResponse.json();
+    const duplicate = duplicateRows?.[0];
+    if (duplicate?.id) {
+      return NextResponse.json({
+        duplicate: true,
+        result: [{ signature_id: duplicate.id, rental_role: payload.p_rental_role }],
+        drawnSignatureStored: false,
+        agreementContentVersion: RENTAL_V2_AGREEMENT_VERSION,
+        pdfGenerated: Boolean(duplicate.signed_pdf_storage_path),
+        pdfResult: duplicate.signed_pdf_storage_path
+          ? {
+              storage_path: duplicate.signed_pdf_storage_path,
+              sha256: duplicate.signed_pdf_sha256 ?? null,
+            }
+          : null,
+        pdfError: null,
+        copyEmailStatus: duplicate.copy_email_status ?? null,
+        copyEmailError: null,
+      });
+    }
+
     if (payload.p_signature_method === "drawn") {
       const png = decodePngDataUrl(payload.drawn_signature_png);
       storedPath = `${session.waiver_session_id}/${Date.now()}-${crypto.randomUUID()}.png`;
