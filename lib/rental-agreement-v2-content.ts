@@ -2,7 +2,7 @@ export const RENTAL_V2_AGREEMENT_VERSION = "rental-v2-final-2026-09-25";
 
 export const RENTAL_V2_MINOR_ACK_HTML = `
   <p>As the parent or legal guardian of the minor participant(s) identified below, I acknowledge that I have reviewed Epic's information regarding the inherent risks of UTV riding in Moab, including the possibility of serious injury or death, Prohibited Terrain, and High-Consequence Terrain.</p>
-  <p>I understand that the named High-Consequence Terrain examples are not an exhaustive list of hazardous terrain and that High-Consequence Terrain may include an entire trail, a specific obstacle or section of trail, or other terrain based on its actual characteristics and consequences. Epic recommends avoiding High-Consequence Terrain. I authorize the minor participant(s) identified below to participate as passengers subject to applicable safety requirements.</p>
+  <p>I understand that High-Consequence designations are not an exhaustive list of hazardous terrain and that Epic recommends avoiding High-Consequence Terrain. I authorize the minor participant(s) identified below to participate as passengers subject to applicable safety requirements.</p>
 `;
 
 export const RENTAL_V2_DRIVER_HTML = `
