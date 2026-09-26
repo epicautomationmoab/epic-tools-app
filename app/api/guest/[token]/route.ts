@@ -1,3 +1,4 @@
+import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
 
 type GuestPortalRow = {
@@ -117,6 +118,16 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     if (!rows.length) return NextResponse.json({ error: "Guest portal not found." }, { status: 404 });
 
     const hasMpwrWaiver = rows.some((row) => Boolean(row.mpwr_waiver_url));
+    const rentalV2Readiness = await loadRentalV2Readiness(
+      rows
+        .filter((row) => row.business_line.toLowerCase() === "rental")
+        .map((row) => ({
+          readinessId: row.readiness_id,
+          confirmationCode: row.confirmation_code,
+          expectedGuestCount: row.expected_guest_count,
+          vehicleCount: row.total_vehicle_count,
+        })),
+    );
     const confirmationCode = rows[0].confirmation_code;
     const paymentState = await loadPaymentState(config, confirmationCode);
     const paymentVisible = paymentState.balanceDueCents > 0 && !paymentState.hidden;
@@ -154,12 +165,34 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
           ohvCertificateFilename: row.ohv_certificate_filename,
           ohvCertificateUploadedAt: row.ohv_certificate_uploaded_at,
         })),
-        epicDocuments: rows.map((row) => ({
-          readinessId: row.readiness_id,
-          received: row.epic_document_received_count ?? 0,
-          expected: row.epic_document_expected_count ?? 0,
-          signers: row.epic_document_signers ?? [],
-        })),
+        epicDocuments: rows.map((row) => {
+          const rentalV2 = rentalV2Readiness.get(row.readiness_id);
+          if (row.business_line.toLowerCase() === "rental" && rentalV2) {
+            return {
+              readinessId: row.readiness_id,
+              received: rentalV2.agreementsReceived,
+              expected: rentalV2.agreementsExpected,
+              driversReceived: rentalV2.driversReceived,
+              driversExpected: rentalV2.driversExpected,
+              ready: rentalV2.ready,
+              signers: rentalV2.signers.map((signer) => ({
+                name: signer.name,
+                role: signer.role,
+                is_minor_or_child: signer.role === "minor",
+                is_waiver_adult: signer.role !== "minor",
+              })),
+            };
+          }
+          return {
+            readinessId: row.readiness_id,
+            received: row.epic_document_received_count ?? 0,
+            expected: row.epic_document_expected_count ?? 0,
+            driversReceived: null,
+            driversExpected: null,
+            ready: (row.epic_document_received_count ?? 0) >= (row.epic_document_expected_count ?? 0),
+            signers: row.epic_document_signers ?? [],
+          };
+        }),
         mpwrWaivers: rows.map((row) => ({
           readinessId: row.readiness_id,
           received: row.mpwr_document_received_count ?? 0,
