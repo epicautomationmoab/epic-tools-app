@@ -256,9 +256,14 @@ export default function RentalTermsFormV2Preview({
       setSignatureSuccess(successMessage);
 
       if (session.guest_portal_token) {
-        window.location.assign(
-          `/guest/${encodeURIComponent(session.guest_portal_token)}`,
+        setSignatureSuccess(
+          "Agreement submitted successfully. A signed copy has been emailed to you. Returning you to your Guest Portal…",
         );
+        window.setTimeout(() => {
+          window.location.assign(
+            `/guest/${encodeURIComponent(session.guest_portal_token!)}`,
+          );
+        }, 1200);
         return;
       }
 
