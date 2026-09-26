@@ -24,6 +24,7 @@ export type RentalV2ReadinessSummary = {
   driversComplete: boolean;
   ready: boolean;
   signers: RentalV2SignerSummary[];
+  exceptions: string[];
 };
 
 type OperationalReadinessRow = {
@@ -48,6 +49,8 @@ type SignatureRow = {
   signer_last_name?: string | null;
   signer_full_name?: string | null;
   signed_at?: string | null;
+  signer_dob?: string | null;
+  signer_email?: string | null;
   archived_at?: string | null;
   business_line?: string | null;
   rental_role?: string | null;
@@ -58,6 +61,7 @@ type MinorRow = {
   minor_first_name: string | null;
   minor_last_name: string | null;
   minor_full_name: string | null;
+  minor_dob?: string | null;
 };
 
 function quoteList(values: string[]) {
@@ -108,6 +112,7 @@ export async function loadRentalV2Readiness(
       driversComplete: driversExpected === 0,
       ready: agreementsExpected === 0 && driversExpected === 0,
       signers: [],
+      exceptions: [],
     });
   }
 
@@ -179,7 +184,7 @@ export async function loadRentalV2Readiness(
     ? await supabaseSelect<MinorRow>(
         "epic_waiver_minors",
         new URLSearchParams({
-          select: "adult_signature_id,minor_first_name,minor_last_name,minor_full_name",
+          select: "adult_signature_id,minor_first_name,minor_last_name,minor_full_name,minor_dob",
           adult_signature_id: `in.(${quoteList(signatureIds)})`,
           limit: "2000",
         }),
@@ -198,8 +203,29 @@ export async function loadRentalV2Readiness(
     const session = sessionByReadinessId.get(source.readinessId);
     if (!session) continue;
 
-    const adultSignatures = v2Signatures.filter((signature) => signature.waiver_session_id === session.id);
+    const sessionSignatures = v2Signatures.filter((signature) => signature.waiver_session_id === session.id);
+    const latestByIdentity = new Map<string, SignatureRow>();
+    const duplicateKeys = new Set<string>();
+
+    for (const signature of sessionSignatures) {
+      const nameKey = signerName(signature).trim().toLowerCase().replace(/\s+/g, " ");
+      const dobKey = signature.signer_dob?.trim() || "";
+      const emailKey = signature.signer_email?.trim().toLowerCase() || "";
+      const identityKey = dobKey
+        ? `${nameKey}|${dobKey}`
+        : emailKey
+          ? `${nameKey}|${emailKey}`
+          : signature.id;
+      if (latestByIdentity.has(identityKey)) duplicateKeys.add(identityKey);
+      latestByIdentity.set(identityKey, signature);
+    }
+
+    const adultSignatures = [...latestByIdentity.values()];
     const signers: RentalV2SignerSummary[] = [];
+    const seenMinorKeys = new Set<string>();
+    const exceptions = duplicateKeys.size
+      ? [`${duplicateKeys.size} duplicate adult signer submission${duplicateKeys.size === 1 ? "" : "s"} collapsed for readiness.`]
+      : [];
 
     for (const signature of adultSignatures) {
       signers.push({
@@ -209,8 +235,15 @@ export async function loadRentalV2Readiness(
         signedAt: signature.signed_at ?? null,
       });
       for (const minor of minorsBySignature.get(signature.id) ?? []) {
+        const name = minorName(minor);
+        const minorKey = `${name.trim().toLowerCase().replace(/\s+/g, " ")}|${minor.minor_dob ?? ""}`;
+        if (seenMinorKeys.has(minorKey)) {
+          exceptions.push(`Duplicate minor participant collapsed: ${name}.`);
+          continue;
+        }
+        seenMinorKeys.add(minorKey);
         signers.push({
-          name: minorName(minor),
+          name,
           role: "minor",
           signatureId: signature.id,
           signedAt: signature.signed_at ?? null,
@@ -231,6 +264,7 @@ export async function loadRentalV2Readiness(
       driversComplete,
       ready: agreementsComplete && driversComplete,
       signers,
+      exceptions,
     });
   }
 
