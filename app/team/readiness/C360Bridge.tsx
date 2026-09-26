@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import ReadinessTable from "./ReadinessTable";
 import PortalEmailEnhancer from "./PortalEmailEnhancer";
@@ -33,10 +33,41 @@ export default function C360Bridge({ row, onClose }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const openedRef = useRef(false);
   const onCloseRef = useRef(onClose);
+  const [hydratedRow, setHydratedRow] = useState<ReadinessRow | null>(null);
+  const effectiveRow = hydratedRow ?? row;
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setHydratedRow(null);
+
+    fetch(`/api/team/readiness-history?q=${encodeURIComponent(effectiveRow.confirmation_code)}`, {
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await response.text());
+        return response.json() as Promise<{ rows?: ReadinessRow[] }>;
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        const exact = (payload.rows ?? []).find(
+          (candidate) =>
+            candidate.readiness_id === row.readiness_id ||
+            candidate.confirmation_code === effectiveRow.confirmation_code,
+        );
+        if (exact) setHydratedRow(exact);
+      })
+      .catch(() => {
+        // Fall back to the supplied row if historical hydration is unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveRow.readiness_id, effectiveRow.confirmation_code]);
 
   useEffect(() => {
     const root: HTMLDivElement = hostRef.current!;
@@ -71,7 +102,7 @@ export default function C360Bridge({ row, onClose }: Props) {
       window.requestAnimationFrame(() => {
         if (stopped) return;
         const target = Array.from(root.querySelectorAll<HTMLTableRowElement>("tbody tr"))
-          .find((tr) => tr.textContent?.includes(row.confirmation_code));
+          .find((tr) => tr.textContent?.includes(effectiveRow.confirmation_code));
         if (target) {
           target.click();
           hideReadinessChrome();
@@ -91,7 +122,7 @@ export default function C360Bridge({ row, onClose }: Props) {
       stopped = true;
       observer.disconnect();
     };
-  }, [row.readiness_id, row.confirmation_code]);
+  }, [effectiveRow.readiness_id, effectiveRow.confirmation_code]);
 
   return (
     <>
@@ -104,15 +135,15 @@ export default function C360Bridge({ row, onClose }: Props) {
       <ReservationActionRailEnhancer />
       <EmailDeliveryDrawerEnhancer />
       <OhvDrawerEnhancer />
-      <SignedWaiverDrawerEnhancer rows={[row]} />
+      <SignedWaiverDrawerEnhancer rows={[effectiveRow]} />
       <SharedActionPinEnhancer />
-      <AdventureAssureEnhancer rows={[row]} />
-      <RentalVehicleIssueEnhancer rows={[row]} />
+      <AdventureAssureEnhancer rows={[effectiveRow]} />
+      <RentalVehicleIssueEnhancer rows={[effectiveRow]} />
       <ContactSaveEnhancer />
       <StaffNotesDrawerEnhancer />
-      <JourneyPreviewOverlay rows={[row]} />
+      <JourneyPreviewOverlay rows={[effectiveRow]} />
       <div ref={hostRef} data-c360-bridge-host>
-        <ReadinessTable rows={[row]} />
+        <ReadinessTable rows={[effectiveRow]} />
       </div>
     </>
   );
