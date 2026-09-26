@@ -215,7 +215,6 @@ begin
         confirmation_code,
         minor_first_name,
         minor_last_name,
-        minor_full_name,
         minor_dob,
         relationship_to_signer
       ) values (
@@ -225,7 +224,6 @@ begin
         p_confirmation_code,
         trim(v_minor->>'firstName'),
         trim(v_minor->>'lastName'),
-        trim(concat_ws(' ', v_minor->>'firstName', v_minor->>'lastName')),
         (v_minor->>'dob')::date,
         trim(v_minor->>'relationship')
       );
