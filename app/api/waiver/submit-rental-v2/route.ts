@@ -98,14 +98,20 @@ export async function POST(request: Request) {
   let storedPath: string | null = null;
 
   try {
-    if (process.env.ENABLE_RENTAL_V2_PREVIEW_WRITES !== "true") {
+    const payload = await request.json();
+    const controlledPreviewWrite =
+      process.env.VERCEL_ENV === "preview" &&
+      payload.p_preview_write === true;
+    if (
+      process.env.ENABLE_RENTAL_V2_PREVIEW_WRITES !== "true" &&
+      !controlledPreviewWrite
+    ) {
       return NextResponse.json(
-        { error: "Rental V2 database writes are disabled for this preview deployment." },
+        { error: "Rental V2 database writes are disabled outside the controlled preview test path." },
         { status: 409 },
       );
     }
 
-    const payload = await request.json();
     const c = config();
 
     if (!payload.p_confirmation_code || !payload.p_public_token) {
