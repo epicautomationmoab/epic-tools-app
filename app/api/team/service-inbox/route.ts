@@ -31,7 +31,7 @@ export async function GET(request:NextRequest){
     }
     const queue=request.nextUrl.searchParams.get("queue");
     if(queue!=="rental_service"&&queue!=="tour_service")return NextResponse.json({error:"Valid service queue required."},{status:400});
-    const rows=await rpc(s.accessToken,"get_epic_routed_inbox",{p_include_cleaned:false});
+    const rows=await rpc(s.accessToken,"get_epic_routed_inbox_v2",{p_include_cleaned:false});
     const threads=(Array.isArray(rows)?rows:[]).filter((row:{queue?:string;is_open?:boolean})=>row.queue===queue&&row.is_open!==false);
     return NextResponse.json({ok:true,threads});
   }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Unable to load service inbox."},{status:500});}
