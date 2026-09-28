@@ -5,7 +5,7 @@ import CallTranscript from "./CallTranscript";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./CustomerJourneyModal.module.css";
 
-type CommunicationKind = "call" | "text" | "email";
+type CommunicationKind = "call" | "text" | "email" | "agreement";
 type CommunicationFilter = "outbound" | "all" | CommunicationKind;
 type CommunicationEvent = {
   id: string;
@@ -28,6 +28,7 @@ type CommunicationEvent = {
 type CallRailCall = { id: string; at: string; direction: string; answered: boolean | null; voicemail: boolean | null; duration_seconds: number | null; recording_url: string | null; summary: string | null; transcription: string | null; lead_explanation: string | null };
 type CallRailMessage = { message_id: string; direction: string; message_body: string | null; status: string | null; sent_at: string | null; first_received_at: string; agent_name: string | null };
 type EmailHistoryItem = { id: string; direction: "outbound" | "inbound"; at: string; label: string; subject: string; communication_type: string; recipient: string | null; sender?: string | null; body?: string | null; provider_message_id: string | null; status: string; error: string | null; open_count?: number; first_opened_at?: string | null; last_opened_at?: string | null };
+type CancellationAgreement = { id:string; confirmation_code?:string|null; status?:string|null; sent_at?:string|null; opened_at?:string|null; accepted_at?:string|null; created_at?:string|null; policy_title?:string|null; customer_name?:string|null };
 type MessageTemplate = { template_id: string; name: string; message_body: string; sort_order: number; active: boolean; updated_at: string; updated_by: string | null };
 
 const GUEST_PORTAL_BASE_URL = "https://team.myepicreservation.com";
@@ -53,6 +54,7 @@ function portalUrl(row: ReadinessRow) { return row.guest_portal_token ? `${GUEST
 function timelineLabel(event: CommunicationEvent) {
   if (event.kind === "text") return "T";
   if (event.kind === "email") return "E";
+  if (event.kind === "agreement") return "A";
   return event.direction === "outbound" ? "OC" : "IC";
 }
 function statusTone(status: string | null | undefined) {
@@ -78,6 +80,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
   const [calls, setCalls] = useState<CallRailCall[]>([]);
   const [messages, setMessages] = useState<CallRailMessage[]>([]);
   const [emails, setEmails] = useState<EmailHistoryItem[]>([]);
+  const [cancellationAgreements, setCancellationAgreements] = useState<CancellationAgreement[]>([]);
   const [effectivePhone, setEffectivePhone] = useState(row.customer_phone || "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -99,24 +102,30 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
     if (!silent) setLoading(true);
     setError("");
     try {
-      const [callrailResponse, emailResponse] = await Promise.all([
+      const historyPromise = row.readiness_id
+        ? fetch(`/api/team/readiness-history/${encodeURIComponent(row.readiness_id)}`, { cache: "no-store" })
+        : Promise.resolve(null);
+      const [callrailResponse, emailResponse, historyResponse] = await Promise.all([
         fetch(`/api/team/readiness/callrail?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" }),
         fetch(`/api/team/readiness/email-history?confirmation=${encodeURIComponent(row.confirmation_code)}`, { cache: "no-store" }),
+        historyPromise,
       ]);
       const callrailPayload = await callrailResponse.json();
       const emailPayload = await emailResponse.json();
+      const historyPayload = historyResponse ? await historyResponse.json().catch(() => ({})) : {};
       if (!callrailResponse.ok) throw new Error(callrailPayload.error || "Unable to load communication activity.");
       if (!emailResponse.ok) throw new Error(emailPayload.error || "Unable to load email history.");
       setCalls(callrailPayload.calls || []);
       setMessages(callrailPayload.messages || []);
       setEmails(emailPayload.emails || []);
+      setCancellationAgreements(historyResponse?.ok ? (historyPayload.cancellation_requests || []) : []);
       if (typeof callrailPayload.customer_phone === "string") setEffectivePhone(callrailPayload.customer_phone);
     } catch (err) {
       if (!silent) setError(err instanceof Error ? err.message : "Unable to load communication activity.");
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [row.confirmation_code]);
+  }, [row.confirmation_code, row.readiness_id]);
 
   const loadTemplates = useCallback(async () => {
     setTemplateLoadState("loading");
@@ -234,13 +243,26 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
       firstOpenedAt: email.first_opened_at || null,
       lastOpenedAt: email.last_opened_at || null,
     }));
-    return [...callEvents, ...textEvents, ...emailEvents].sort((a, b) => {
+    const agreementEvents: CommunicationEvent[] = cancellationAgreements.map((agreement) => {
+      const status = (agreement.status || "created").toLowerCase();
+      const at = agreement.accepted_at || agreement.opened_at || agreement.sent_at || agreement.created_at || null;
+      return {
+        id: `agreement-${agreement.id}`,
+        kind: "agreement",
+        at,
+        title: `Cancellation Policy Acknowledgement — ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+        meta: agreement.confirmation_code || row.confirmation_code,
+        body: agreement.policy_title || null,
+        status,
+      };
+    });
+    return [...callEvents, ...textEvents, ...emailEvents, ...agreementEvents].sort((a, b) => {
       if (!a.at && !b.at) return 0;
       if (!a.at) return 1;
       if (!b.at) return -1;
       return new Date(b.at).getTime() - new Date(a.at).getTime();
     });
-  }, [calls, messages, emails]);
+  }, [calls, messages, emails, cancellationAgreements, row.confirmation_code]);
 
   const visible = useMemo(() => {
     if (filter === "outbound") return [];
@@ -326,7 +348,7 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
           {timelineEvents.map((event) => {
             const timestamp = new Date(event.at as string).getTime();
             const left = timelineEvents.length === 1 ? 50 : ((timestamp - timelineRange.first) / timelineRange.span) * 100;
-            return <a key={event.id} href={`#comm-${event.id}`} title={`${timelineLabel(event)} · ${event.title} · ${formatDateTime(event.at as string)}`} className={`${styles.communicationMark} ${event.kind === "call" ? styles.communicationMarkCall : event.kind === "text" ? styles.communicationMarkText : styles.communicationMarkEmail}`} style={{ left: `${left}%` }}>{timelineLabel(event)}</a>;
+            return <a key={event.id} href={`#comm-${event.id}`} title={`${timelineLabel(event)} · ${event.title} · ${formatDateTime(event.at as string)}`} className={`${styles.communicationMark} ${event.kind === "call" ? styles.communicationMarkCall : event.kind === "text" ? styles.communicationMarkText : event.kind === "email" ? styles.communicationMarkEmail : ""}`} style={{ left: `${left}%` }}>{timelineLabel(event)}</a>;
           })}
         </div>
         <div className={styles.communicationDates}>{timelineDays.map((day) => <span key={`${day.label}-${day.left}`} style={{ left: `${day.left}%` }}>{day.label}</span>)}</div>
