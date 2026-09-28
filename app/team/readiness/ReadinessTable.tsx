@@ -1890,7 +1890,13 @@ await callReadinessRpc("manual_override_mpwr_information", {
                               ? "Driver"
                               : "Passenger"}
                         </small>
-                        <span className={styles.signerNoLink}>Signed</span>
+                        <a
+                          href={`/api/team/waivers/${encodeURIComponent(signer.signatureId)}/pdf`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open Agreement
+                        </a>
                       </div>
                     ))}
                   </div>
