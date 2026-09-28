@@ -37,6 +37,10 @@ function readinessEvents(row: ReadinessRow, bookingMethod: string | null, booked
   return events;
 }
 
+function linkedPlatformValue(value:string|null|undefined,url:string|null|undefined){
+  if(!value)return "N/A";
+  return url?<a href={url} target="_blank" rel="noreferrer" style={{color:"#175cd3",textDecoration:"underline",textUnderlineOffset:2}}>{value}</a>:value;
+}
 function DetailCard({ label, value, tone }: { label: string; value: ReactNode; tone?: "good" | "warn" | "bad" }) {
   return <div className={`${styles.card} ${tone ? styles[`tone_${tone}`] : ""}`}><span className={styles.label}>{label}</span><strong className={styles.value}>{value}</strong></div>;
 }
@@ -123,7 +127,7 @@ export default function CustomerJourneyModal({ row, onClose }: { row: ReadinessR
           {row.attention_flags?.length ? <div className={styles.alertBox}><strong>Needs attention</strong><div>{row.attention_flags.join(" · ")}</div></div> : null}
 
           <Section title="Guest & Reservation"><div className={styles.cardGrid}>
-            <DetailCard label="Phone" value={row.customer_phone || "Not available"}/><DetailCard label="Email" value={row.customer_email || "Not available"}/><DetailCard label="TripWorks" value={row.confirmation_code}/><DetailCard label="MPWR" value={row.mpwr_confirmation_number || "N/A"}/><DetailCard label="Booking Method" value={bookingMethod || (activityLoading ? "Loading…" : "Not available")}/><DetailCard label="Booked At" value={bookedAt ? formatDateTime(bookedAt) : (activityLoading ? "Loading…" : "Not available")}/><DetailCard label="Sold By" value={bookingSoldBy || (activityLoading ? "Loading…" : "Not available")}/><DetailCard label="People" value={row.expected_guest_count ?? "Unknown"}/><DetailCard label="Vehicles" value={row.total_vehicle_count ?? 0}/><DetailCard label="Duration" value={row.rental_duration || "N/A"}/><DetailCard label="Status" value={handoffLabel(row.handoff_status)}/>
+            <DetailCard label="Phone" value={row.customer_phone || "Not available"}/><DetailCard label="Email" value={row.customer_email || "Not available"}/><DetailCard label="TripWorks" value={linkedPlatformValue(row.confirmation_code,row.tripworks_booking_url)}/><DetailCard label="MPWR" value={linkedPlatformValue(row.mpwr_confirmation_number,row.mpwr_reservation_url)}/><DetailCard label="Booking Method" value={bookingMethod || (activityLoading ? "Loading…" : "Not available")}/><DetailCard label="Booked At" value={bookedAt ? formatDateTime(bookedAt) : (activityLoading ? "Loading…" : "Not available")}/><DetailCard label="Sold By" value={bookingSoldBy || (activityLoading ? "Loading…" : "Not available")}/><DetailCard label="People" value={row.expected_guest_count ?? "Unknown"}/><DetailCard label="Vehicles" value={row.total_vehicle_count ?? 0}/><DetailCard label="Duration" value={row.rental_duration || "N/A"}/><DetailCard label="Status" value={handoffLabel(row.handoff_status)}/>
           </div>{row.vehicle_breakdown?.length ? <div className={styles.inlineList}>{row.vehicle_breakdown.map((vehicle) => <span key={`${vehicle.model}-${vehicle.quantity}`}>{vehicle.quantity} × {vehicle.model}</span>)}</div> : null}</Section>
 
           <Section title="Money & Protection"><div className={styles.cardGrid}><DetailCard label="Balance" value={balanceSummary(row)} tone={balanceDue ? "bad" : "good"}/><DetailCard label="Adventure Assure" value={assureSummary(row)}/><DetailCard label="OHV" value={ohvSummary(row)} tone={ohvSummary(row) === "Missing" ? "warn" : undefined}/><DetailCard label="Operational Status" value={handoffLabel(row.handoff_status)}/></div></Section>
