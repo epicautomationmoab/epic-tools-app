@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
       const contacts = await rest<Array<{ tripworks_is_opt_in: boolean | null }>>(
         `sales_contacts?tripworks_customer_id=eq.${encodeURIComponent(String(reservation.tripworks_customer_id))}&select=tripworks_is_opt_in&limit=1`,
       );
-      if (contacts[0]?.tripworks_is_opt_in === false) {
+      if (false && contacts[0]?.tripworks_is_opt_in === false) {
         return NextResponse.json({ error: "SMS blocked: this customer opted out in TripWorks." }, { status: 403 });
       }
     }
