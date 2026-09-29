@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
-import { firstNameFromDisplayName, renderEpicEmailHtml, renderEpicPlainTextSignature } from "@/lib/server/epic-email-signature";
+import { firstNameFromDisplayName, renderEpicEmailHtml, renderEpicPlainTextSignature, renderEpicSignatureHtml } from "@/lib/server/epic-email-signature";
 import { sendCallRailSms } from "@/lib/server/callrail";
 
 const EXPECTED_MAILBOX = "hello@epic4x4adventures.com";
@@ -40,10 +40,10 @@ function base64Url(value: string) {
   return Buffer.from(value, "utf8").toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
 }
 
-function buildRawMessage(to: string, subject: string, body: string, senderFirstName: string, trackingUrl: string) {
+function buildRawMessage(to: string, subject: string, body: string, senderFirstName: string, trackingUrl: string, htmlBody?: string | null) {
   const altBoundary = `epic_alt_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const plainText = `${body}\n\n${renderEpicPlainTextSignature(senderFirstName)}`;
-  const html = `${renderEpicEmailHtml(body, senderFirstName)}<img src="${trackingUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;opacity:0" />`;
+  const html = `${htmlBody || renderEpicEmailHtml(body, senderFirstName)}${renderEpicSignatureHtml(senderFirstName)}<img src="${trackingUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;opacity:0" />`;
   const lines = [
     `From: ${senderFirstName} at Epic 4X4 Adventures <${EXPECTED_MAILBOX}>`,
     `To: ${to}`,
@@ -147,6 +147,7 @@ export async function POST(request: NextRequest) {
     customer_name?: string | null;
     subject?: string | null;
     message_text?: string | null;
+    message_html?: string | null;
   } | null;
 
   const channel = payload?.channel;
@@ -156,6 +157,7 @@ export async function POST(request: NextRequest) {
   const requestedEmail = payload?.email?.trim().toLowerCase() || null;
   const requestedPhone = normalizePhone(payload?.phone || null);
   const messageText = payload?.message_text?.trim() || "";
+  const messageHtml = payload?.message_html?.trim() || null;
 
   if (channel !== "email" && channel !== "text") {
     return NextResponse.json({ error: "Choose Email or Text." }, { status: 400 });
@@ -278,7 +280,7 @@ export async function POST(request: NextRequest) {
         Authorization: `Bearer ${tokenPayload.access_token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ raw: buildRawMessage(recipientEmail, subject, messageText, senderFirstName, trackingUrl) }),
+      body: JSON.stringify({ raw: buildRawMessage(recipientEmail, subject, messageText, senderFirstName, trackingUrl, messageHtml) }),
       cache: "no-store",
     });
     const gmailPayload = await gmailResponse.json();
