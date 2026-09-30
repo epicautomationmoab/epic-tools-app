@@ -216,6 +216,58 @@ export async function GET(request: NextRequest) {
       received_at: call.last_received_at,
     }));
 
+    const readinessRows = await rest<Array<{ readiness_id: string }>>(
+      `guest_readiness_with_handoff_v?confirmation_code=eq.${encodeURIComponent(confirmation)}&select=readiness_id&limit=1`,
+    );
+    const readinessId = readinessRows[0]?.readiness_id || null;
+    if (readinessId) {
+      const pbxRows = await rest<Array<{id:string;start_time:string|null;disposition:string|null;billsec:number|null;duration_seconds:number|null;caller_name:string|null;src:string|null}>>(
+        `grandstream_cdr_events?matched_readiness_id=eq.${encodeURIComponent(readinessId)}&direction=eq.Outbound&select=${encodeURIComponent("id,start_time,disposition,billsec,duration_seconds,caller_name,src")}&order=start_time.asc&limit=500`,
+      );
+      const ids = pbxRows.map((row) => row.id);
+      const recRows = ids.length ? await rest<Array<{grandstream_cdr_id:string;storage_path:string|null;transcription_text:string|null;ai_summary:string|null}>>(
+        `telnyx_call_recordings?grandstream_cdr_id=in.(${ids.join(",")})&select=${encodeURIComponent("grandstream_cdr_id,storage_path,transcription_text,ai_summary")}`,
+      ) : [];
+      const recByCall = new Map(recRows.map((row) => [row.grandstream_cdr_id, row]));
+      for (const row of pbxRows) {
+        const rec = recByCall.get(row.id);
+        calls.push({
+          id: `pbx-${row.id}`,
+          at: row.start_time,
+          direction: "outbound",
+          answered: row.disposition === "ANSWERED",
+          voicemail: false,
+          duration_seconds: row.billsec ?? row.duration_seconds,
+          caller_name: null,
+          caller_phone: normalizedPhone,
+          recording_url: rec?.storage_path ? `/api/team/readiness/pbx-recording?call=${encodeURIComponent(row.id)}` : null,
+          summary: rec?.ai_summary || null,
+          transcription: rec?.transcription_text || null,
+          lead_score: null,
+          lead_explanation: null,
+          sentiment: null,
+          call_highlights: [],
+          speaker_percent: {},
+          keywords: null,
+          source_name: row.caller_name || `Ext. ${row.src || ""}`,
+          campaign: "Grandstream PBX",
+          medium: "phone",
+          device_type: null,
+          customer_city: null,
+          customer_state: null,
+          landing_page_url: null,
+          referring_url: null,
+          timeline_url: null,
+          person_resource_id: null,
+          lead_status: null,
+          first_touch: null,
+          last_touch: null,
+          received_at: row.start_time,
+        });
+      }
+      calls.sort((a, b) => new Date(a.at || a.received_at || 0).getTime() - new Date(b.at || b.received_at || 0).getTime());
+    }
+
     return NextResponse.json({
       ok: true,
       reservation_id: reservationId,
