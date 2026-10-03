@@ -568,6 +568,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
         row.mpwr_confirmation_number,
         row.adventure_assure_level,
         row.notes,
+        ...(row.tripworks_notes ?? []).map((note) => note.text),
         ...(row.vehicle_breakdown ?? []).map((item) => item.model),
       ]
         .filter(Boolean)
@@ -1167,7 +1168,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     <KioskSelect row={row} />
                   </td>
                   <td className={styles.center}>
-                    {row.notes ? (
+                    {row.notes?.trim() || (row.tripworks_notes?.length ?? 0) > 0 ? (
                       <button
                         className={styles.noteButton}
                         type="button"
@@ -1733,6 +1734,39 @@ await callReadinessRpc("manual_override_mpwr_information", {
               className={`${styles.drawerSection} ${styles.notesSection}`}
             >
               <h3>Important Notes</h3>
+
+              {(selected.tripworks_notes?.length ?? 0) > 0 ? (
+                <div
+                  style={{
+                    marginBottom: 14,
+                    border: "1px solid #dfe4e9",
+                    borderRadius: 10,
+                    background: "#f8fafc",
+                    padding: 12,
+                  }}
+                >
+                  <div style={{ fontWeight: 800, marginBottom: 8 }}>TripWorks Notes</div>
+                  {selected.tripworks_notes!.map((note, index) => (
+                    <div
+                      key={`${note.created_at ?? "tripworks"}-${index}`}
+                      style={{
+                        paddingTop: index === 0 ? 0 : 10,
+                        marginTop: index === 0 ? 0 : 10,
+                        borderTop: index === 0 ? undefined : "1px solid #e5e7eb",
+                      }}
+                    >
+                      <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{note.text}</div>
+                      {note.author || note.created_at ? (
+                        <div style={{ marginTop: 5, fontSize: 12, color: "#667085" }}>
+                          {[note.author, note.created_at ? new Date(note.created_at).toLocaleString() : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               <textarea
                 value={noteDraft}
