@@ -4,6 +4,12 @@ export type VehicleBreakdownItem = {
   quantity: number;
 };
 
+export type TripWorksReadinessNote = {
+  text: string;
+  author?: string | null;
+  created_at?: string | null;
+};
+
 export type ReadinessRow = {
   readiness_id?: string;
   visit_start_time: string;
@@ -56,6 +62,7 @@ export type ReadinessRow = {
   courtesy_call_outcome?: string | null;
   courtesy_call_completed_at?: string | null;
   notes?: string | null;
+  tripworks_notes?: TripWorksReadinessNote[] | null;
   epic_document_signers: Array<{
     name: string;
     document_url?: string | null;
@@ -191,6 +198,41 @@ function activityKey(confirmationCode: string, startTime: string | null | undefi
   return `${confirmationCode}|${wallTimestampKey(startTime)}|${experienceName?.trim().toLowerCase() ?? ""}`;
 }
 
+function extractTripWorksReadinessNotes(payload: unknown): TripWorksReadinessNote[] {
+  if (!payload || typeof payload !== "object") return [];
+  const root = payload as Record<string, unknown>;
+  const trip = root.trip && typeof root.trip === "object" ? root.trip as Record<string, unknown> : null;
+  const rawNotes = Array.isArray(root.notes) ? root.notes : Array.isArray(trip?.notes) ? trip?.notes : [];
+
+  return rawNotes
+    .map((item): TripWorksReadinessNote | null => {
+      if (typeof item === "string") {
+        const text = item.trim();
+        return text ? { text } : null;
+      }
+      if (!item || typeof item !== "object") return null;
+
+      const note = item as Record<string, any>;
+      const text = [note.text, note.note, note.body, note.content, note.message, note.description]
+        .find((value) => typeof value === "string" && value.trim())?.trim();
+      if (!text) return null;
+
+      const authorCandidate =
+        note.created_by?.full_name ?? note.created_by?.name ?? note.user?.full_name ??
+        note.user?.name ?? note.author?.full_name ?? note.author?.name ??
+        (typeof note.created_by === "string" ? note.created_by : null) ??
+        (typeof note.author === "string" ? note.author : null);
+      const createdAtCandidate = note.created_at ?? note.createdAt ?? note.updated_at ?? null;
+
+      return {
+        text,
+        author: typeof authorCandidate === "string" ? authorCandidate : null,
+        created_at: typeof createdAtCandidate === "string" ? createdAtCandidate : null,
+      };
+    })
+    .filter((note): note is TripWorksReadinessNote => Boolean(note));
+}
+
 function rentalActivityCustomerTotalCents(order: OperationalTripOrderAccountingRow) {
   const totalSales = Math.max(order.total_sales_cents ?? 0, 0);
   const rentalExperience = Math.max(order.experience_total_cents ?? 0, 0);
@@ -206,6 +248,7 @@ export async function getReadinessRows() {
   const readinessIds = [...new Set(rows.map((row) => row.readiness_id).filter((id): id is string => Boolean(id)))];
   const portalTokenByConfirmationCode = new Map<string, string>();
   const overnightByReadinessId = new Map<string, boolean | null>();
+  const tripWorksNotesByConfirmationCode = new Map<string, TripWorksReadinessNote[]>();
   const fullyCoveredRentalActivities = new Set<string>();
   const epicDocumentDeliveryFailuresByConfirmationCode = new Map<
     string,
@@ -267,6 +310,16 @@ export async function getReadinessRows() {
         true,
       ),
     ]);
+
+    for (const reservation of accountingReservations) {
+      if (!reservation.confirmation_code) continue;
+      const latestTripWorksNotes = extractTripWorksReadinessNotes(reservation.latest_payload);
+      const reservedTripWorksNotes = extractTripWorksReadinessNotes(reservation.trip_payload);
+      const tripWorksNotes = latestTripWorksNotes.length > 0 ? latestTripWorksNotes : reservedTripWorksNotes;
+      if (tripWorksNotes.length > 0) {
+        tripWorksNotesByConfirmationCode.set(reservation.confirmation_code, tripWorksNotes);
+      }
+    }
 
     const tripIds = [...new Set(accountingReservations.map((row) => row.tripworks_trip_id).filter(Boolean))];
     if (tripIds.length > 0) {
@@ -374,6 +427,7 @@ export async function getReadinessRows() {
           : row.attention_flags,
         handoff_status: row.handoff_status === "tour_returned" ? "checked_in" : row.handoff_status,
         guest_portal_token: portalTokenByConfirmationCode.get(row.confirmation_code) ?? null,
+        tripworks_notes: tripWorksNotesByConfirmationCode.get(row.confirmation_code) ?? [],
         overnight_addon: row.readiness_id ? (overnightByReadinessId.get(row.readiness_id) ?? null) : null,
         epic_document_delivery_failures:
           epicDocumentDeliveryFailuresByConfirmationCode.get(row.confirmation_code) ?? [],
