@@ -132,6 +132,16 @@ async function fetchOneCommunication(params: URLSearchParams) {
   return rows[0] ?? null;
 }
 
+async function loadCommunicationById(id: string) {
+  return fetchOneCommunication(new URLSearchParams({
+    select: "*",
+    id: `eq.${id}`,
+    status: "eq.ready",
+    communication_type: "eq.initial_guest_portal",
+    limit: "1",
+  }));
+}
+
 async function loadNextCommunication() {
   const dueTwoHourReminder = await fetchOneCommunication(new URLSearchParams({ select: "*", communication_type: "eq.arrival_readiness_two_hour", status: "eq.scheduled", scheduled_for: `lte.${new Date().toISOString()}`, customer_email: "not.is.null", order: "scheduled_for.asc", limit: "1" }));
   if (dueTwoHourReminder) return dueTwoHourReminder;
@@ -206,13 +216,18 @@ function templateIdFor(communicationType: string) {
 
 export async function POST(request: Request) {
   let senderSecret: string | null = null;
+  let communicationId: string | null = null;
   try {
-    const body = await request.json() as { senderSecret?: unknown };
+    const body = await request.json() as { senderSecret?: unknown; communicationId?: unknown };
     senderSecret = typeof body.senderSecret === "string" ? body.senderSecret : null;
-  } catch { senderSecret = null; }
+    communicationId = typeof body.communicationId === "string" ? body.communicationId : null;
+  } catch {
+    senderSecret = null;
+    communicationId = null;
+  }
 
   if (senderSecret !== requiredEnv("GUEST_EMAIL_SENDER_SECRET")) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-  const communication = await loadNextCommunication();
+  const communication = communicationId ? await loadCommunicationById(communicationId) : await loadNextCommunication();
   if (!communication) return NextResponse.json({ ok: true, sent: false, message: "No communications are ready." });
 
   if (communication.communication_type === "arrival_reminder_day_before" && communication.visit_date && communication.visit_date <= mountainDate()) {
