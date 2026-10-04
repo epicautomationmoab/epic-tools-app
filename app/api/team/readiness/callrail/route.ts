@@ -262,7 +262,7 @@ export async function GET(request: NextRequest) {
           lead_status: null,
           first_touch: null,
           last_touch: null,
-          received_at: row.start_time,
+          received_at: row.start_time ?? new Date(0).toISOString(),
         });
       }
       calls.sort((a, b) => new Date(a.at || a.received_at || 0).getTime() - new Date(b.at || b.received_at || 0).getTime());
