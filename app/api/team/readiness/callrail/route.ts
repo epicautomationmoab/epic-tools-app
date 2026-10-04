@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
         const rec = recByCall.get(row.id);
         calls.push({
           id: `pbx-${row.id}`,
-          at: row.start_time,
+          at: row.start_time ?? new Date(0).toISOString(),
           direction: "outbound",
           answered: row.disposition === "ANSWERED",
           voicemail: false,
