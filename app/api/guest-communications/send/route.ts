@@ -165,27 +165,33 @@ async function loadGuestPortalRows(token: string) {
   const response = await fetch(`${config.url}/rest/v1/guest_portal_v?${params}`, { headers: supabaseHeaders(config.key), cache: "no-store" });
   if (!response.ok) throw new Error(`Unable to load portal data: ${await response.text()}`);
   const rows = (await response.json()) as GuestPortalRow[];
-  const rentalV2 = await loadRentalV2Readiness(
-    rows
-      .filter((row) => row.business_line?.trim().toLowerCase() === "rental")
-      .map((row) => ({
-        readinessId: row.readiness_id,
-        confirmationCode: row.confirmation_code,
-        expectedGuestCount: row.expected_guest_count,
-        vehicleCount: row.total_vehicle_count,
-      })),
-  );
-  return rows.map((row) => {
-    const summary = rentalV2.get(row.readiness_id);
-    if (!summary) return row;
-    return {
-      ...row,
-      rental_v2_agreements_received: summary.agreementsReceived,
-      rental_v2_agreements_expected: summary.agreementsExpected,
-      rental_v2_drivers_received: summary.driversReceived,
-      rental_v2_drivers_expected: summary.driversExpected,
-    };
-  });
+  try {
+    const rentalV2 = await loadRentalV2Readiness(
+      rows
+        .filter((row) => row.business_line?.trim().toLowerCase() === "rental")
+        .map((row) => ({
+          readinessId: row.readiness_id,
+          confirmationCode: row.confirmation_code,
+          expectedGuestCount: row.expected_guest_count,
+          vehicleCount: row.total_vehicle_count,
+        })),
+    );
+    return rows.map((row) => {
+      const summary = rentalV2.get(row.readiness_id);
+      if (!summary) return row;
+      return {
+        ...row,
+        rental_v2_agreements_received: summary.agreementsReceived,
+        rental_v2_agreements_expected: summary.agreementsExpected,
+        rental_v2_drivers_received: summary.driversReceived,
+        rental_v2_drivers_expected: summary.driversExpected,
+      };
+    });
+  } catch {
+    // Readiness enrichment is informative only. It must never block the
+    // initial confirmation email or strand the sender queue.
+    return rows;
+  }
 }
 
 async function loadFinancialRow(confirmationCode: string) {
