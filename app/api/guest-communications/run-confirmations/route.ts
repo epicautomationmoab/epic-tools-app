@@ -37,7 +37,7 @@ async function callQueueFunction(functionName: string) {
 async function drainCommunicationQueue() {
   const results: unknown[] = [];
 
-  for (let index = 0; index < 50; index += 1) {
+  for (let index = 0; index < 100; index += 1) {
     const response = await sendCommunication(new Request("http://internal/guest-communications/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -63,16 +63,26 @@ async function run(request: Request) {
       return NextResponse.json({ ok: false, error: "Unauthorized cron request." }, { status: 401 });
     }
 
+    // Confirmation delivery is the critical path. Refresh and drain it before
+    // reminder work so a reminder-queue problem can never strand confirmations.
     const confirmationsRefreshed = await callQueueFunction("refresh_guest_portal_email_queue");
-    const twoHourRemindersQueued = await callQueueFunction("queue_two_hour_portal_reminders");
     const sends = await drainCommunicationQueue();
+
+    let twoHourRemindersQueued: unknown = null;
+    let reminderQueueError: string | null = null;
+    try {
+      twoHourRemindersQueued = await callQueueFunction("queue_two_hour_portal_reminders");
+    } catch (error) {
+      reminderQueueError = error instanceof Error ? error.message : "Unknown reminder queue error.";
+    }
 
     return NextResponse.json({
       ok: true,
       mode: process.env.GUEST_EMAIL_MODE?.trim().toLowerCase() ?? "test",
       confirmationsRefreshed,
-      twoHourRemindersQueued,
       sends,
+      twoHourRemindersQueued,
+      reminderQueueError,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown communication runner error.";
