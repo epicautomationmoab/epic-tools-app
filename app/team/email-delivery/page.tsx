@@ -2,6 +2,7 @@ import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
+import ExceptionAction from "./ExceptionAction";
 import styles from "../readiness/ReadinessShell.module.css";
 
 function requiredEnv(name: string) {
@@ -48,6 +49,7 @@ type EmailIncident = {
 };
 
 type JobRow = {
+  id: string;
   confirmation_code: string;
   status: string;
   result_message: string | null;
@@ -67,7 +69,7 @@ async function getEmailIncidents() {
 
 async function getLatestJobs(table: "cassie_mpwr_jobs" | "victor_deposit_jobs") {
   const rows = await rest<JobRow>(table, new URLSearchParams({
-    select: "confirmation_code,status,result_message,last_error,attempts,updated_at",
+    select: "id,confirmation_code,status,result_message,last_error,attempts,updated_at",
     order: "updated_at.desc",
     limit: "1000",
   }));
@@ -81,6 +83,16 @@ async function getLatestJobs(table: "cassie_mpwr_jobs" | "victor_deposit_jobs") 
   return [...latestByConfirmation.values()].filter((row) =>
     row.status === "failed" || row.status === "needs_review"
   );
+}
+
+type ResolutionRow = { source_type: "payment" | "deposit_release" | "email_delivery"; source_id: string; confirmation_code: string | null; original_status: string | null; original_message: string | null; resolved_by_name: string | null; resolved_at: string; };
+
+async function getResolutions() {
+  return rest<ResolutionRow>("operational_exception_resolutions", new URLSearchParams({
+    select: "source_type,source_id,confirmation_code,original_status,original_message,resolved_by_name,resolved_at",
+    order: "resolved_at.desc",
+    limit: "200",
+  }));
 }
 
 async function getGuestNames(confirmationCodes: string[]) {
@@ -156,7 +168,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p style={{ padding: 20, margin: 0, color: "#6f7885" }}>{children}</p>;
 }
 
-function JobExceptionRow({ row, guestName, label }: { row: JobRow; guestName?: string; label: string }) {
+function JobExceptionRow({ row, guestName, label, sourceType }: { row: JobRow; guestName?: string; label: string; sourceType: "payment" | "deposit_release" }) {
   const detail = row.last_error?.trim() || row.result_message?.trim() || "The automation did not complete normally.";
   return (
     <article style={rowStyle}>
@@ -172,12 +184,15 @@ function JobExceptionRow({ row, guestName, label }: { row: JobRow; guestName?: s
           Status: {row.status === "needs_review" ? "Needs review" : "Failed"}{row.attempts ? ` · ${row.attempts} attempt${row.attempts === 1 ? "" : "s"}` : ""}
         </div>
       </div>
-      <Link
-        href={`/team/previous-guests?q=${encodeURIComponent(row.confirmation_code)}`}
-        style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none" }}
-      >
-        Open Reservation
-      </Link>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <Link
+          href={`/team/previous-guests?q=${encodeURIComponent(row.confirmation_code)}`}
+          style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none", textAlign: "center" }}
+        >
+          Previous Guest
+        </Link>
+        <ExceptionAction sourceType={sourceType} sourceId={row.id} />
+      </div>
     </article>
   );
 }
@@ -187,13 +202,15 @@ export default async function ExceptionsPage() {
   let paymentExceptions: JobRow[] = [];
   let depositExceptions: JobRow[] = [];
   let guestNames = new Map<string, string>();
+  let resolutions: ResolutionRow[] = [];
   let error = "";
 
   try {
-    [emailIncidents, paymentExceptions, depositExceptions] = await Promise.all([
+    [emailIncidents, paymentExceptions, depositExceptions, resolutions] = await Promise.all([
       getEmailIncidents(),
       getLatestJobs("cassie_mpwr_jobs"),
       getLatestJobs("victor_deposit_jobs"),
+      getResolutions(),
     ]);
 
     const confirmationCodes = [...new Set([
@@ -202,6 +219,23 @@ export default async function ExceptionsPage() {
       ...depositExceptions.map((row) => row.confirmation_code),
     ].filter(Boolean))];
     guestNames = await getGuestNames(confirmationCodes);
+    const resolvedKeys = new Set(resolutions.map((row) => `${row.source_type}:${row.source_id}`));
+    paymentExceptions = paymentExceptions.filter((row) => !resolvedKeys.has(`payment:${row.id}`));
+    depositExceptions = depositExceptions.filter((row) => !resolvedKeys.has(`deposit_release:${row.id}`));
+    emailIncidents = emailIncidents.filter((row) => !resolvedKeys.has(`email_delivery:${row.id}`));
+
+    if (process.env.VERCEL_ENV === "preview" && !resolvedKeys.has("payment:preview-test-exception")) {
+      paymentExceptions.unshift({
+        id: "preview-test-exception",
+        confirmation_code: "PREVIEW-TEST",
+        status: "failed",
+        result_message: "Preview-only test exception for validating the Mark Fixed workflow.",
+        last_error: null,
+        attempts: 1,
+        updated_at: new Date().toISOString(),
+      });
+      guestNames.set("PREVIEW-TEST", "Preview Test Guest");
+    }
   } catch (err) {
     error = err instanceof Error ? err.message : "Unable to load exceptions.";
   }
@@ -249,7 +283,7 @@ export default async function ExceptionsPage() {
               count={paymentExceptions.length}
             />
             {paymentExceptions.length === 0 ? <Empty>No active payment exceptions.</Empty> : paymentExceptions.map((row) => (
-              <JobExceptionRow key={`payment-${row.confirmation_code}`} row={row} guestName={guestNames.get(row.confirmation_code)} label="Payment settlement did not complete" />
+              <JobExceptionRow key={`payment-${row.id}`} row={row} guestName={guestNames.get(row.confirmation_code)} label="Payment settlement did not complete" sourceType="payment" />
             ))}
           </section>
 
@@ -260,7 +294,7 @@ export default async function ExceptionsPage() {
               count={depositExceptions.length}
             />
             {depositExceptions.length === 0 ? <Empty>No active security deposit release exceptions.</Empty> : depositExceptions.map((row) => (
-              <JobExceptionRow key={`deposit-${row.confirmation_code}`} row={row} guestName={guestNames.get(row.confirmation_code)} label="Security deposit release did not complete" />
+              <JobExceptionRow key={`deposit-${row.id}`} row={row} guestName={guestNames.get(row.confirmation_code)} label="Security deposit release did not complete" sourceType="deposit_release" />
             ))}
           </section>
 
@@ -284,15 +318,37 @@ export default async function ExceptionsPage() {
                   <div style={{ marginTop: 4, color: "#394452" }}>Confirmation email could not be delivered to <strong>{incident.recipient_email || "the guest"}</strong>.</div>
                   <div style={{ marginTop: 6, color: "#315f8a", fontSize: 13, fontWeight: 700 }}>Check the guest&apos;s email address and resend the confirmation.</div>
                 </div>
-                <Link
-                  href={`/team/readiness?confirmation=${encodeURIComponent(incident.confirmation_code)}`}
-                  style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none" }}
-                >
-                  Open Reservation
-                </Link>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <Link
+                    href={`/team/readiness?confirmation=${encodeURIComponent(incident.confirmation_code)}`}
+                    style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none", textAlign: "center" }}
+                  >
+                    Open Reservation
+                  </Link>
+                  <ExceptionAction sourceType="email_delivery" sourceId={incident.id} />
+                </div>
               </article>
             ))}
           </section>
+
+          <details style={{ ...sectionStyle, padding: 0 }}>
+            <summary style={{ cursor: "pointer", padding: "17px 20px", fontWeight: 900, color: "#202733" }}>
+              Resolved History ({resolutions.length})
+            </summary>
+            {resolutions.length === 0 ? <Empty>No manually resolved exceptions yet.</Empty> : resolutions.map((row) => (
+              <article key={`${row.source_type}-${row.source_id}`} style={{ ...rowStyle, gridTemplateColumns: "190px minmax(300px, 1fr)" }}>
+                <div>
+                  <strong>{row.confirmation_code || "No confirmation"}</strong>
+                  <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatMoabTime(row.resolved_at)}</div>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 850 }}>{row.source_type === "payment" ? "Payment" : row.source_type === "deposit_release" ? "Security Deposit Release" : "Email Delivery"} · Manually Fixed</div>
+                  <div style={{ marginTop: 4, color: "#394452" }}>{row.original_message || "No failure detail recorded."}</div>
+                  <div style={{ marginTop: 6, color: "#187a45", fontSize: 13, fontWeight: 700 }}>Resolved by {row.resolved_by_name || "EpicTools staff"}</div>
+                </div>
+              </article>
+            ))}
+          </details>
         </section>
       </main>
     </div>
