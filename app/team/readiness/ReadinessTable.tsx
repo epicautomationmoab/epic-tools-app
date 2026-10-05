@@ -53,34 +53,13 @@ function visitDateKey(value: string) {
 }
 
 function courtesyAuditPresentation(row: ReadinessRow) {
-  switch (row.courtesy_call_audit_status) {
-    case "phone_match":
-      return {
-        label: "✓ Phone Match",
-        color: "#166534",
-        background: "#dcfce7",
-      };
-    case "valid_no_separate_call_live_booking":
-      return {
-        label: "✓ Live at Booking",
-        color: "#166534",
-        background: "#dcfce7",
-      };
-    case "valid_no_call_international":
-      return {
-        label: "✓ International",
-        color: "#475569",
-        background: "#f1f5f9",
-      };
-    case "pending_verification":
-      return {
-        label: "⚠ No PBX Match Yet",
-        color: "#9a3412",
-        background: "#ffedd5",
-      };
-    default:
-      return null;
-  }
+  if (row.courtesy_call_audit_status !== "phone_match") return null;
+
+  return {
+    label: "✅",
+    color: "#166534",
+    background: "transparent",
+  };
 }
 
 function formatPhone(value: string | null | undefined) {
