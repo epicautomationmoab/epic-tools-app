@@ -47,7 +47,11 @@ async function drainCommunicationQueue() {
     const result = await response.json();
     results.push(result);
 
-    if (!response.ok) throw new Error(`Communication sender failed: ${JSON.stringify(result)}`);
+    if (!response.ok) {
+      // The send route marks the individual communication failed. Keep draining
+      // so one bad record can never strand every ready confirmation behind it.
+      continue;
+    }
     if (result.sent !== true && !result.skippedStale && !result.skippedComplete) break;
   }
 
