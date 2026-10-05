@@ -241,10 +241,17 @@ function rentalActivityCustomerTotalCents(order: OperationalTripOrderAccountingR
   return totalSales + countySalesTax + rentalVehicleTax;
 }
 
-export async function getReadinessRows(options: { fast?: boolean } = {}) {
+export async function getReadinessRows(options: { fast?: boolean; enrich?: boolean } = {}) {
   const params = new URLSearchParams({ select: "*", limit: "500" });
   const readinessView = options.fast ? "guest_readiness_fast_v" : "guest_readiness_with_handoff_v";
   const rows = await fetchView<ReadinessRow>(readinessView, params);
+  if (options.enrich === false) {
+    return rows.sort(
+      (a, b) =>
+        a.visit_start_time.localeCompare(b.visit_start_time) ||
+        a.customer_name.localeCompare(b.customer_name),
+    );
+  }
   const confirmationCodes = [...new Set(rows.map((row) => row.confirmation_code).filter((code): code is string => Boolean(code)))];
   const readinessIds = [...new Set(rows.map((row) => row.readiness_id).filter((id): id is string => Boolean(id)))];
   const portalTokenByConfirmationCode = new Map<string, string>();
