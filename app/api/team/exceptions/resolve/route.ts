@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         original_message: originalMessage || null,
         resolution_method: "manual_fixed",
         resolved_by_profile_id: profile.id || null,
-        resolved_by_name: profile.name || profile.email || "EpicTools staff",
+        resolved_by_name: profile.display_name || profile.email || "EpicTools staff",
       }),
     });
 
