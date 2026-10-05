@@ -212,10 +212,30 @@ export default function PortalEmailEnhancer() {
 
     async function enhance() {
       const portalLink = document.querySelector<HTMLAnchorElement>('a[href^="/guest/"]');
-      if (!portalLink || portalLink.dataset.emailEnhanced === "true") return;
+      if (!portalLink) return;
 
       const drawer = portalLink.closest('[role="dialog"]');
       if (!drawer) return;
+
+      const resendCandidates = Array.from(drawer.querySelectorAll<HTMLButtonElement>("button"))
+        .filter((button) => {
+          const text = button.textContent?.trim();
+          return button.id === "resend-confirmation-email"
+            || text === "Resend Confirmation Email"
+            || text === "Confirmation Sent"
+            || text === "Sending...";
+        });
+
+      let existingResend = resendCandidates.find((button) => button.id === "resend-confirmation-email") ?? resendCandidates[0] ?? null;
+      for (const duplicate of resendCandidates) {
+        if (duplicate !== existingResend) duplicate.remove();
+      }
+
+      const formButtons = Array.from(drawer.querySelectorAll<HTMLButtonElement>("#guest-form-quick-add"));
+      const existingFormButton = formButtons[0] ?? null;
+      for (const duplicate of formButtons.slice(1)) duplicate.remove();
+
+      if (portalLink.dataset.emailEnhanced === "true" && existingResend) return;
 
       const guestName = drawer.querySelector("h2")?.textContent?.trim() ?? "Guest";
       const confirmationCode = findBookingConfirmation(drawer);
@@ -223,9 +243,10 @@ export default function PortalEmailEnhancer() {
       const portalToken = portalTokenFromLink(portalLink);
       if (!confirmationCode) return;
 
-      const resendButton = document.createElement("button");
+      const resendButton = existingResend ?? document.createElement("button");
+      resendButton.id = "resend-confirmation-email";
       resendButton.type = "button";
-      resendButton.textContent = "Resend Confirmation Email";
+      resendButton.textContent = resendButton.textContent?.trim() || "Resend Confirmation Email";
       resendButton.setAttribute("aria-label", `Resend confirmation email to ${guestName}`);
       styleSecondaryButton(resendButton);
 
@@ -259,7 +280,9 @@ export default function PortalEmailEnhancer() {
       });
 
       portalLink.dataset.emailEnhanced = "true";
-      portalLink.insertAdjacentElement("afterend", resendButton);
+      if (resendButton.parentElement !== portalLink.parentElement || resendButton.previousElementSibling !== portalLink) {
+        portalLink.insertAdjacentElement("afterend", resendButton);
+      }
 
       if (!businessLine || !portalToken) return;
 
@@ -274,7 +297,7 @@ export default function PortalEmailEnhancer() {
         const icon = businessLine === "rental" ? "🦮" : "🧍";
         const actionName = businessLine === "rental" ? "Pet Acknowledgment" : "Teen Driver Authorization";
 
-        const formButton = document.createElement("button");
+        const formButton = existingFormButton ?? document.createElement("button");
         formButton.type = "button";
         formButton.id = "guest-form-quick-add";
         styleIconButton(formButton);
