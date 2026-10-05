@@ -49,7 +49,7 @@ export default async function TeamReadinessPage() {
   let loadOutcome: "success" | "error" = "success";
 
   try {
-    const sourceRows = await getReadinessRows();
+    const sourceRows = await getReadinessRows({ fast: true });
     const priorEveningIds = await getPriorEveningReadinessIds(
       sourceRows
         .map((row) => row.readiness_id)
