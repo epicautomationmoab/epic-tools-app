@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import type { ReadinessRow } from "@/lib/supabase";
 import C360Bridge from "./C360Bridge";
 import styles from "./ReadinessShell.module.css";
@@ -32,8 +31,12 @@ function formatPhone(value?: string | null) {
 }
 
 export default function HistoricalReadinessSearch() {
-  const searchParams = useSearchParams();
-  const [query, setQuery] = useState(() => searchParams.get("q")?.trim() || "");
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const initial = new URLSearchParams(window.location.search).get("q")?.trim() || "";
+    if (initial) setQuery(initial);
+  }, []);
   const [rows, setRows] = useState<HistoricalRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
