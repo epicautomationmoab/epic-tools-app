@@ -173,7 +173,7 @@ function JobExceptionRow({ row, guestName, label }: { row: JobRow; guestName?: s
         </div>
       </div>
       <Link
-        href={`/team/readiness?confirmation=${encodeURIComponent(row.confirmation_code)}`}
+        href={`/team/previous-guests?q=${encodeURIComponent(row.confirmation_code)}`}
         style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none" }}
       >
         Open Reservation
