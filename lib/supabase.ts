@@ -241,9 +241,10 @@ function rentalActivityCustomerTotalCents(order: OperationalTripOrderAccountingR
   return totalSales + countySalesTax + rentalVehicleTax;
 }
 
-export async function getReadinessRows() {
+export async function getReadinessRows(options: { fast?: boolean } = {}) {
   const params = new URLSearchParams({ select: "*", limit: "500" });
-  const rows = await fetchView<ReadinessRow>("guest_readiness_with_handoff_v", params);
+  const readinessView = options.fast ? "guest_readiness_fast_v" : "guest_readiness_with_handoff_v";
+  const rows = await fetchView<ReadinessRow>(readinessView, params);
   const confirmationCodes = [...new Set(rows.map((row) => row.confirmation_code).filter((code): code is string => Boolean(code)))];
   const readinessIds = [...new Set(rows.map((row) => row.readiness_id).filter((id): id is string => Boolean(id)))];
   const portalTokenByConfirmationCode = new Map<string, string>();
