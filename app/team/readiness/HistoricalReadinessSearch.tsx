@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { ReadinessRow } from "@/lib/supabase";
 import C360Bridge from "./C360Bridge";
 import styles from "./ReadinessShell.module.css";
