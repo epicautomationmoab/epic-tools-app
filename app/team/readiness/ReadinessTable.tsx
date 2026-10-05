@@ -52,6 +52,37 @@ function visitDateKey(value: string) {
   return value.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? "";
 }
 
+function courtesyAuditPresentation(row: ReadinessRow) {
+  switch (row.courtesy_call_audit_status) {
+    case "phone_match":
+      return {
+        label: "✓ Phone Match",
+        color: "#166534",
+        background: "#dcfce7",
+      };
+    case "valid_no_separate_call_live_booking":
+      return {
+        label: "✓ Live at Booking",
+        color: "#166534",
+        background: "#dcfce7",
+      };
+    case "valid_no_call_international":
+      return {
+        label: "✓ International",
+        color: "#475569",
+        background: "#f1f5f9",
+      };
+    case "pending_verification":
+      return {
+        label: "⚠ No PBX Match Yet",
+        color: "#9a3412",
+        background: "#ffedd5",
+      };
+    default:
+      return null;
+  }
+}
+
 function formatPhone(value: string | null | undefined) {
   if (!value) return null;
   const digits = value.replace(/\D/g, "");
@@ -955,6 +986,12 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 courtesy_call_completed_by: courtesyStaff,
                 courtesy_call_outcome: callOutcome,
                 courtesy_call_completed_at: completedAtIso,
+                courtesy_call_audit_status:
+                  callOutcome === "handled_live_at_booking"
+                    ? "valid_no_separate_call_live_booking"
+                    : callOutcome === "international_no_call"
+                      ? "valid_no_call_international"
+                      : "pending_verification",
               }
             : row,
         ),
@@ -968,6 +1005,12 @@ await callReadinessRpc("manual_override_mpwr_information", {
               courtesy_call_completed_by: courtesyStaff,
               courtesy_call_outcome: callOutcome,
               courtesy_call_completed_at: completedAtIso,
+              courtesy_call_audit_status:
+                callOutcome === "handled_live_at_booking"
+                  ? "valid_no_separate_call_live_booking"
+                  : callOutcome === "international_no_call"
+                    ? "valid_no_call_international"
+                    : "pending_verification",
             }
           : current,
       );
@@ -1023,6 +1066,8 @@ await callReadinessRpc("manual_override_mpwr_information", {
       throw new Error(await response.text());
     }
   }
+
+  const courtesyAudit = selected ? courtesyAuditPresentation(selected) : null;
 
   const selectedIsToday = selected
     ? visitDateKey(selected.visit_start_time) === localDateKey(new Date())
@@ -1617,6 +1662,24 @@ await callReadinessRpc("manual_override_mpwr_information", {
                       ? `Completed · ${courtesyCompletion.completedBy}`
                       : "Not completed"}
                   </span>
+                  {courtesyCompletion && courtesyAudit ? (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        borderRadius: 999,
+                        padding: "2px 7px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        lineHeight: 1.4,
+                        color: courtesyAudit.color,
+                        background: courtesyAudit.background,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {courtesyAudit.label}
+                    </span>
+                  ) : null}
                 </span>
                 <span
                   aria-hidden="true"
@@ -1718,7 +1781,8 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     </label>
 
                     {callOutcome === "live_call" ||
-                    callOutcome === "voicemail_left" ? (
+                    callOutcome === "voicemail_left" ||
+                    callOutcome === "handled_live_at_booking" ? (
                       <>
                         <label className={styles.courtesyCheck}>
                           <input
