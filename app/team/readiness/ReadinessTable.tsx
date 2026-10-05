@@ -1324,18 +1324,16 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 <p className={styles.drawerEyebrow}>Reservation Details</p>
                 <h2>{selected.customer_name}</h2>
                 <p>
-                  <p>
-                    {formatDate(selected.visit_start_time)} ·{" "}
-                    {formatWallTime(selected.visit_start_time)} ·{" "}
-                    {selected.product_display_name}
-                    {selected.business_line === "rental" &&
-                      selected.rental_duration && (
-                        <>
-                          {" · "}
-                          <strong>{selected.rental_duration}</strong>
-                        </>
-                      )}
-                  </p>
+                  {formatDate(selected.visit_start_time)} ·{" "}
+                  {formatWallTime(selected.visit_start_time)} ·{" "}
+                  {selected.product_display_name}
+                  {selected.business_line === "rental" &&
+                    selected.rental_duration && (
+                      <>
+                        {" · "}
+                        <strong>{selected.rental_duration}</strong>
+                      </>
+                    )}
                 </p>
 
                 {selected.guest_portal_token ? (
