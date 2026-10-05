@@ -56,7 +56,12 @@ export async function POST(request: NextRequest) {
     let originalStatus = "";
     let originalMessage = "";
 
-    if (sourceType === "payment") {
+    const isPreviewTest = process.env.VERCEL_ENV === "preview" && sourceType === "payment" && sourceId === "preview-test-exception";
+    if (isPreviewTest) {
+      confirmationCode = "PREVIEW-TEST";
+      originalStatus = "failed";
+      originalMessage = "Preview-only test exception for validating the Mark Fixed workflow.";
+    } else if (sourceType === "payment") {
       const rows = await rest<Array<{ confirmation_code: string; status: string; result_message: string | null; last_error: string | null }>>(
         `cassie_mpwr_jobs?id=eq.${encodeURIComponent(sourceId)}&select=confirmation_code,status,result_message,last_error&limit=1`,
       );
