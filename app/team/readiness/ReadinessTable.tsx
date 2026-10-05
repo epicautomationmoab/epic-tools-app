@@ -458,6 +458,53 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   }, [rows]);
 
   useEffect(() => {
+    if (!selected?.readiness_id) return;
+    if ((selected.epic_document_signers?.length ?? 0) > 0 || (selected.mpwr_waivers?.length ?? 0) > 0) return;
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) return;
+
+    let cancelled = false;
+    const params = new URLSearchParams({
+      select: "readiness_id,epic_document_signers,mpwr_waivers",
+      readiness_id: `eq.${selected.readiness_id}`,
+      limit: "1",
+    });
+
+    fetch(`${url}/rest/v1/guest_readiness_with_handoff_v?${params.toString()}`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await response.text());
+        return response.json() as Promise<Array<Pick<ReadinessRow, "readiness_id" | "epic_document_signers" | "mpwr_waivers">>>;
+      })
+      .then((detailRows) => {
+        if (cancelled || !detailRows[0]) return;
+        const detail = detailRows[0];
+        const mergeDetail = (row: ReadinessRow): ReadinessRow => ({
+          ...row,
+          epic_document_signers: detail.epic_document_signers ?? [],
+          mpwr_waivers: detail.mpwr_waivers ?? [],
+        });
+        setLocalRows((current) =>
+          current.map((row) => row.readiness_id === selected.readiness_id ? mergeDetail(row) : row),
+        );
+        setSelected((current) =>
+          current?.readiness_id === selected.readiness_id ? mergeDetail(current) : current,
+        );
+      })
+      .catch((error) => {
+        console.error("Unable to lazy-load Readiness document detail.", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.readiness_id]);
+
+  useEffect(() => {
     if (!selected) return;
 
     setNoteDraft(selected.notes ?? "");
