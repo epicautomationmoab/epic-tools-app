@@ -492,7 +492,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
           current.map((row) => row.readiness_id === selected.readiness_id ? mergeDetail(row) : row),
         );
         setSelected((current) =>
-          current?.readiness_id === selected.readiness_id ? mergeDetail(current) : current,
+          current && current.readiness_id === selected.readiness_id ? mergeDetail(current) : current,
         );
       })
       .catch((error) => {
