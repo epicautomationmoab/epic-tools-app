@@ -223,6 +223,19 @@ export default async function ExceptionsPage() {
     paymentExceptions = paymentExceptions.filter((row) => !resolvedKeys.has(`payment:${row.id}`));
     depositExceptions = depositExceptions.filter((row) => !resolvedKeys.has(`deposit_release:${row.id}`));
     emailIncidents = emailIncidents.filter((row) => !resolvedKeys.has(`email_delivery:${row.id}`));
+
+    if (process.env.VERCEL_ENV === "preview" && !resolvedKeys.has("payment:preview-test-exception")) {
+      paymentExceptions.unshift({
+        id: "preview-test-exception",
+        confirmation_code: "PREVIEW-TEST",
+        status: "failed",
+        result_message: "Preview-only test exception for validating the Mark Fixed workflow.",
+        last_error: null,
+        attempts: 1,
+        updated_at: new Date().toISOString(),
+      });
+      guestNames.set("PREVIEW-TEST", "Preview Test Guest");
+    }
   } catch (err) {
     error = err instanceof Error ? err.message : "Unable to load exceptions.";
   }
