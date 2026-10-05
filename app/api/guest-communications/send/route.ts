@@ -117,11 +117,30 @@ function buildReadinessMessage(rows: GuestPortalRow[]) {
   return { headline: "A Few Items Still Need Attention", message: "Please open your guest portal to review and complete any remaining documents before arriving for your adventure." };
 }
 
-function getLocation(rows: GuestPortalRow[]) {
+function getLocation(rows: GuestPortalRow[], portalUrl: string) {
   const businessLines = new Set(rows.map((row) => row.business_line?.trim().toLowerCase()).filter(Boolean));
-  if (businessLines.size !== 1) throw new Error("The reservation needs manual business-line location review.");
-  const address = businessLines.has("rental") ? RENTAL_ADDRESS : TOUR_ADDRESS;
-  return { address, directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}` };
+  const hasRental = businessLines.has("rental");
+  const hasTour = businessLines.has("tour");
+
+  if (hasRental && hasTour) {
+    return {
+      address: "Your reservation includes activities at more than one Epic location. Open your Guest Portal for the correct meeting or pickup location and directions for each activity.",
+      directionsUrl: portalUrl,
+    };
+  }
+
+  if (hasRental || hasTour) {
+    const address = hasRental ? RENTAL_ADDRESS : TOUR_ADDRESS;
+    return {
+      address,
+      directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`,
+    };
+  }
+
+  return {
+    address: "Open your Guest Portal for your activity location and directions.",
+    directionsUrl: portalUrl,
+  };
 }
 
 async function fetchOneCommunication(params: URLSearchParams) {
@@ -263,8 +282,8 @@ export async function POST(request: Request) {
     if (!recipient) throw new Error("No recipient email address is available.");
 
     const readiness = buildReadinessMessage(portalRows);
-    const location = getLocation(portalRows);
     const portalUrl = `${requiredEnv("GUEST_PORTAL_BASE_URL").replace(/\/+$/, "")}/guest/${communication.guest_portal_token}`;
+    const location = getLocation(portalRows, portalUrl);
     const variables: Record<string, string> = {
       ARRIVAL_INSTRUCTIONS: "Please arrive 15 minutes before your scheduled departure time.", CONFIRMATION_CODE: communication.confirmation_code,
       DIRECTIONS_URL: location.directionsUrl, GUEST_NAME: firstName(communication.customer_name), INTENDED_RECIPIENT: effectiveEmail ?? "",

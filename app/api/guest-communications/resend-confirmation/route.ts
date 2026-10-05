@@ -103,11 +103,30 @@ function buildReadinessMessage(rows: GuestPortalRow[]) {
   return { headline: "A Few Items Still Need Attention", message: "Please open your guest portal to review and complete any remaining documents before arriving for your adventure." };
 }
 
-function getLocation(rows: GuestPortalRow[]) {
+function getLocation(rows: GuestPortalRow[], portalUrl: string) {
   const businessLines = new Set(rows.map((row) => row.business_line?.trim().toLowerCase()).filter(Boolean));
-  if (businessLines.size !== 1) throw new Error("The reservation needs manual business-line location review.");
-  const address = businessLines.has("rental") ? RENTAL_ADDRESS : TOUR_ADDRESS;
-  return { address, directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}` };
+  const hasRental = businessLines.has("rental");
+  const hasTour = businessLines.has("tour");
+
+  if (hasRental && hasTour) {
+    return {
+      address: "Your reservation includes activities at more than one Epic location. Open your Guest Portal for the correct meeting or pickup location and directions for each activity.",
+      directionsUrl: portalUrl,
+    };
+  }
+
+  if (hasRental || hasTour) {
+    const address = hasRental ? RENTAL_ADDRESS : TOUR_ADDRESS;
+    return {
+      address,
+      directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`,
+    };
+  }
+
+  return {
+    address: "Open your Guest Portal for your activity location and directions.",
+    directionsUrl: portalUrl,
+  };
 }
 
 async function loadCommunication(confirmationCode: string) {
@@ -174,10 +193,10 @@ export async function POST(request: NextRequest) {
 
     const payment = buildConfirmationPaymentSummary(financial);
     const readiness = buildReadinessMessage(portalRows);
-    const location = getLocation(portalRows);
     const policyDecision = await getPattiPolicyDecision(communication.confirmation_code, portalRows[0].visit_start_time, portalRows[0].business_line);
     const portalBaseUrl = (process.env.GUEST_PORTAL_BASE_URL?.trim() || DEFAULT_GUEST_PORTAL_BASE_URL).replace(/\/+$/, "");
     const portalUrl = `${portalBaseUrl}/guest/${communication.guest_portal_token}`;
+    const location = getLocation(portalRows, portalUrl);
 
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
