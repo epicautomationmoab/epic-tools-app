@@ -61,6 +61,7 @@ export type ReadinessRow = {
   courtesy_call_completed_by?: string | null;
   courtesy_call_outcome?: string | null;
   courtesy_call_completed_at?: string | null;
+  courtesy_call_audit_status?: string | null;
   notes?: string | null;
   tripworks_notes?: TripWorksReadinessNote[] | null;
   epic_document_signers: Array<{
