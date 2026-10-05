@@ -458,6 +458,47 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   }, [rows]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/team/readiness/enriched", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await response.text());
+        return response.json() as Promise<{ rows?: ReadinessRow[] }>;
+      })
+      .then((payload) => {
+        if (cancelled || !payload.rows?.length) return;
+
+        const enrichedById = new Map(
+          payload.rows
+            .filter((row) => row.readiness_id)
+            .map((row) => [row.readiness_id!, row]),
+        );
+
+        const mergeEnrichment = (row: ReadinessRow): ReadinessRow => {
+          if (!row.readiness_id) return row;
+          const enriched = enrichedById.get(row.readiness_id);
+          if (!enriched) return row;
+
+          return {
+            ...row,
+            ...enriched,
+            visit_start_time: row.visit_start_time,
+          };
+        };
+
+        setLocalRows((current) => current.map(mergeEnrichment));
+        setSelected((current) => (current ? mergeEnrichment(current) : current));
+      })
+      .catch((error) => {
+        console.error("Unable to background-load Readiness enrichment.", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rows]);
+
+  useEffect(() => {
     if (!selected?.readiness_id) return;
     if ((selected.epic_document_signers?.length ?? 0) > 0 || (selected.mpwr_waivers?.length ?? 0) > 0) return;
 
