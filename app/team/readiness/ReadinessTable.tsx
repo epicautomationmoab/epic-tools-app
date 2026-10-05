@@ -1645,7 +1645,10 @@ await callReadinessRpc("manual_override_mpwr_information", {
                           : courtesyCompletion.outcome ===
                               "international_no_call"
                             ? "International Number - No Call"
-                            : courtesyCompletion.outcome}
+                            : courtesyCompletion.outcome ===
+                                "handled_live_at_booking"
+                              ? "Handled Live at Booking"
+                              : courtesyCompletion.outcome}
                   </div>
 
                   <div className={styles.courtesyCompleteDetail}>
@@ -1707,6 +1710,9 @@ await callReadinessRpc("manual_override_mpwr_information", {
                         </option>
                         <option value="international_no_call">
                           International number - no call
+                        </option>
+                        <option value="handled_live_at_booking">
+                          Handled live at booking
                         </option>
                       </select>
                     </label>
