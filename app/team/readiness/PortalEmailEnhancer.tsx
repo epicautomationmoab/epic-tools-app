@@ -19,6 +19,32 @@ type GuestFormTask = {
   documentUrl: string | null;
 };
 
+const confirmationResendsInFlight = new Set<string>();
+const confirmationRecentlySent = new Map<string, number>();
+const RECENT_RESEND_MS = 60_000;
+
+function applyResendButtonState(button: HTMLButtonElement, confirmationCode: string) {
+  const recentlySentAt = confirmationRecentlySent.get(confirmationCode) ?? 0;
+  const recentlySent = Date.now() - recentlySentAt < RECENT_RESEND_MS;
+  if (confirmationResendsInFlight.has(confirmationCode)) {
+    button.disabled = true;
+    button.textContent = "Sending...";
+    button.style.opacity = "0.65";
+    button.setAttribute("aria-busy", "true");
+    return;
+  }
+  button.removeAttribute("aria-busy");
+  if (recentlySent) {
+    button.disabled = true;
+    button.textContent = "Confirmation Sent ✓";
+    button.style.opacity = "1";
+    return;
+  }
+  button.disabled = false;
+  button.textContent = "Resend Confirmation Email";
+  button.style.opacity = "1";
+}
+
 function findBookingConfirmation(drawer: Element) {
   const cards = Array.from(drawer.querySelectorAll("div"));
   for (const card of cards) {
@@ -246,17 +272,20 @@ export default function PortalEmailEnhancer() {
       const resendButton = existingResend ?? document.createElement("button");
       resendButton.id = "resend-confirmation-email";
       resendButton.type = "button";
-      resendButton.textContent = resendButton.textContent?.trim() || "Resend Confirmation Email";
       resendButton.setAttribute("aria-label", `Resend confirmation email to ${guestName}`);
       styleSecondaryButton(resendButton);
+      applyResendButtonState(resendButton, confirmationCode);
 
       resendButton.addEventListener("click", async () => {
+        if (confirmationResendsInFlight.has(confirmationCode)) return;
+        const recentlySentAt = confirmationRecentlySent.get(confirmationCode) ?? 0;
+        if (Date.now() - recentlySentAt < RECENT_RESEND_MS) return;
+
         const confirmed = await confirmResendEmail(guestName);
         if (!confirmed) return;
-        const originalText = resendButton.textContent;
-        resendButton.disabled = true;
-        resendButton.textContent = "Sending...";
-        resendButton.style.opacity = "0.65";
+
+        confirmationResendsInFlight.add(confirmationCode);
+        applyResendButtonState(resendButton, confirmationCode);
         try {
           const response = await fetch("/api/guest-communications/resend-confirmation", {
             method: "POST",
@@ -265,17 +294,17 @@ export default function PortalEmailEnhancer() {
           });
           const result = (await response.json()) as { ok?: boolean; error?: string };
           if (!response.ok || result.ok !== true) throw new Error(result.error || "Unable to resend confirmation email.");
-          resendButton.textContent = "Confirmation Sent";
-          resendButton.style.opacity = "1";
+
+          confirmationRecentlySent.set(confirmationCode, Date.now());
+          applyResendButtonState(resendButton, confirmationCode);
           window.setTimeout(() => {
-            resendButton.textContent = originalText;
-            resendButton.disabled = false;
-          }, 2500);
+            if (document.body.contains(resendButton)) applyResendButtonState(resendButton, confirmationCode);
+          }, RECENT_RESEND_MS + 250);
         } catch (error) {
           window.alert(error instanceof Error ? error.message : "Unable to resend confirmation email.");
-          resendButton.textContent = originalText;
-          resendButton.disabled = false;
-          resendButton.style.opacity = "1";
+        } finally {
+          confirmationResendsInFlight.delete(confirmationCode);
+          applyResendButtonState(resendButton, confirmationCode);
         }
       });
 
