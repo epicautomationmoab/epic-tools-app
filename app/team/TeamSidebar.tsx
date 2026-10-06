@@ -10,7 +10,7 @@ type Props = {
     | "Held-Over Rentals"
     | "Deposits On-Hold"
     | "Tour Dispatch"
-    | "Previous Guest Lookup"
+    | "Guest Lookup"
     | "Rental Inbox"
     | "Tour Inbox"
     | "Exceptions"
@@ -23,7 +23,7 @@ const baseNavItems = [
   { label: "Held-Over Rentals", href: "/team/active-rentals", external: false },
   { label: "Deposits On-Hold", href: "/team/deposits-on-hold", external: false },
   { label: "Tour Dispatch", href: "/team/tour-dispatch", external: false },
-  { label: "Previous Guest Lookup", href: "/team/previous-guests", external: false },
+  { label: "Guest Lookup", href: "/team/previous-guests", external: false },
   { label: "Rental Inbox", href: "/team/service-inbox/rentals", external: false },
   { label: "Tour Inbox", href: "/team/service-inbox/tours", external: false },
   { label: "Exceptions", href: "/team/email-delivery", external: false },
