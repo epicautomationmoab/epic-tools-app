@@ -127,6 +127,30 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
     }
   }, [row.confirmation_code, row.readiness_id]);
 
+  const loadCallsQuietly = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `/api/team/readiness/callrail?confirmation=${encodeURIComponent(row.confirmation_code)}`,
+        { cache: "no-store" },
+      );
+      const payload = await response.json();
+      if (!response.ok) return;
+
+      const nextCalls = payload.calls || [];
+      setCalls((current) =>
+        JSON.stringify(current) === JSON.stringify(nextCalls) ? current : nextCalls,
+      );
+
+      if (typeof payload.customer_phone === "string") {
+        setEffectivePhone((current) =>
+          current === payload.customer_phone ? current : payload.customer_phone,
+        );
+      }
+    } catch {
+      // Background refresh is intentionally silent. The current drawer stays usable.
+    }
+  }, [row.confirmation_code]);
+
   const loadTemplates = useCallback(async () => {
     setTemplateLoadState("loading");
     setTemplateLoadMessage("");
@@ -154,20 +178,30 @@ export default function CustomerJourneyPane({ row }: { row: ReadinessRow }) {
     setEffectivePhone(row.customer_phone || "");
     void loadActivity();
     void loadTemplates();
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void loadActivity(true); }, 3000);
+
     const handleContactSaved = (event: Event) => {
       const detail = (event as CustomEvent<{ confirmationCode?: string; field?: string; value?: string }>).detail;
       if (detail?.confirmationCode === row.confirmation_code && detail.field === "phone" && detail.value) {
         setEffectivePhone(detail.value);
-        void loadActivity(true);
       }
     };
+
     window.addEventListener("readiness-contact-saved", handleContactSaved as EventListener);
     return () => {
-      window.clearInterval(timer);
       window.removeEventListener("readiness-contact-saved", handleContactSaved as EventListener);
     };
   }, [loadActivity, loadTemplates, row.confirmation_code, row.customer_phone]);
+
+  useEffect(() => {
+    if (filter !== "call") return;
+
+    void loadCallsQuietly();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadCallsQuietly();
+    }, 2000);
+
+    return () => window.clearInterval(timer);
+  }, [filter, loadCallsQuietly]);
 
   async function sendSms() {
     const text = smsText.trim();
