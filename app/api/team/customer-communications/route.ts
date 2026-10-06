@@ -32,6 +32,22 @@ function normalizePhone(input: string | null | undefined) {
   return `+${digits}`;
 }
 
+async function latestCallRailTrackingNumber(phone: string | null, opportunityId: string | null, reservationId: string | null) {
+  const filters: string[] = [];
+  if (opportunityId) filters.push(`matched_opportunity_id.eq.${encodeURIComponent(opportunityId)}`);
+  if (reservationId) filters.push(`matched_reservation_id.eq.${encodeURIComponent(reservationId)}`);
+  if (phone) filters.push(`normalized_customer_phone.eq.${encodeURIComponent(phone)}`);
+  if (!filters.length) return null;
+  const rows = await rest<Array<{direction:string|null;source_number:string|null;destination_number:string|null;sent_at:string|null;first_received_at:string|null}>>(
+    `callrail_text_messages?or=(${filters.join(",")})&select=${encodeURIComponent("direction,source_number,destination_number,sent_at,first_received_at")}&order=sent_at.desc.nullslast,first_received_at.desc&limit=25`,
+  );
+  for (const row of rows) {
+    const tracking = (row.direction || "").toLowerCase() === "inbound" ? row.destination_number : row.source_number;
+    if (tracking?.trim()) return tracking.trim();
+  }
+  return null;
+}
+
 function encodeSubject(subject: string) {
   return `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`;
 }
@@ -229,7 +245,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "SMS blocked: this prospect opted out in TripWorks." }, { status: 403 });
       }
 
-      const result = await sendCallRailSms({ phone: recipientPhone, body: messageText });
+      const trackingNumber = await latestCallRailTrackingNumber(recipientPhone, opportunityId, reservation?.id || customerReservation?.id || null);
+      const result = await sendCallRailSms({ phone: recipientPhone, body: messageText, trackingNumber });
       return NextResponse.json({
         ok: true,
         channel: "text",
