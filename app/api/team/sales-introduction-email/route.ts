@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
@@ -110,6 +111,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "This lead does not have a valid email address." }, { status: 409 });
     }
 
+    const normalizedEmail = opportunity.email.trim().toLowerCase();
+    const suppressions = await rest<Array<{ reason: string }>>(
+      `sales_email_suppressions?email=eq.${encodeURIComponent(normalizedEmail)}&active=eq.true&select=reason&limit=1`,
+    );
+    if (suppressions[0]) {
+      const label = suppressions[0].reason === "complaint"
+        ? "This guest marked an Epic email as spam."
+        : suppressions[0].reason === "unsubscribe"
+          ? "This guest unsubscribed from sales emails."
+          : "This email address is suppressed.";
+      return NextResponse.json({ error: label }, { status: 409 });
+    }
+
     const links = await rest<OpportunityDraftLink[]>(
       `sales_opportunity_drafts?opportunity_id=eq.${encodeURIComponent(opportunityId)}&select=draft_id`,
     );
@@ -128,6 +142,17 @@ export async function POST(request: NextRequest) {
     }
 
     const bookingUrl = `https://epic4x4.tripworks.com/widgets/tripBuilder?trip=${encodeURIComponent(draft.confirmation_code)}`;
+    const unsubscribeToken = randomUUID();
+    await rest("sales_email_unsubscribe_tokens", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        token: unsubscribeToken,
+        email: normalizedEmail,
+        opportunity_id: opportunity.id,
+      }),
+    });
+    const unsubscribeUrl = `https://www.myepicreservation.com/api/email/sales-unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
     const callAvailability = REP_AVAILABILITY[profile.display_name] || "Call us during regular business hours and ask for me.";
     const senderFirstName = firstName(profile.display_name);
     const guestFirstName = firstName(opportunity.customer_name);
@@ -136,7 +161,7 @@ export async function POST(request: NextRequest) {
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
       from: requiredEnv("GUEST_EMAIL_FROM"),
-      to: opportunity.email.trim().toLowerCase(),
+      to: normalizedEmail,
       replyTo: REPLY_TO,
       template: {
         id: TEMPLATE_ALIAS,
@@ -147,6 +172,7 @@ export async function POST(request: NextRequest) {
           PERSONAL_MESSAGE: personalMessage,
           CALL_AVAILABILITY: callAvailability,
           BOOKING_URL: bookingUrl,
+          EPIC_UNSUBSCRIBE_URL: unsubscribeUrl,
         },
       },
     }, { idempotencyKey: `sales-introduction-${opportunity.id}` });
@@ -176,7 +202,7 @@ export async function POST(request: NextRequest) {
         gmail_thread_id: null,
         direction: "outbound",
         from_email: requiredEnv("GUEST_EMAIL_FROM"),
-        to_emails: [opportunity.email.trim().toLowerCase()],
+        to_emails: [normalizedEmail],
         subject: "Happy to help with your Moab plans",
         body_text: bodyText,
         sent_at: now,
@@ -184,7 +210,7 @@ export async function POST(request: NextRequest) {
         match_method: "resend_sales_introduction",
         match_confidence: "high",
         contact_name: opportunity.customer_name,
-        contact_email: opportunity.email.trim().toLowerCase(),
+        contact_email: normalizedEmail,
         contact_phone: opportunity.phone_e164,
         source_type: "sales_introduction",
         updated_at: now,
@@ -194,7 +220,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       provider_message_id: data.id,
-      recipient: opportunity.email.trim().toLowerCase(),
+      recipient: normalizedEmail,
       booking_url: bookingUrl,
       call_availability: callAvailability,
       experience_description: experience,
