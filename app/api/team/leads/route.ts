@@ -28,6 +28,19 @@ async function requireEmployee(request: NextRequest) {
   return profile;
 }
 
+async function latestTrackingNumberForOpportunity(opportunityId: string, phone: string | null) {
+  const filters = [`matched_opportunity_id.eq.${encodeURIComponent(opportunityId)}`];
+  if (phone) filters.push(`normalized_customer_phone.eq.${encodeURIComponent(phone)}`);
+  const rows = await rest<Array<{direction:string|null;source_number:string|null;destination_number:string|null;sent_at:string|null;first_received_at:string|null}>>(
+    `callrail_text_messages?or=(${filters.join(",")})&select=${encodeURIComponent("direction,source_number,destination_number,sent_at,first_received_at")}&order=sent_at.desc.nullslast,first_received_at.desc&limit=25`,
+  );
+  for (const row of rows) {
+    const tracking = (row.direction || "").toLowerCase() === "inbound" ? row.destination_number : row.source_number;
+    if (tracking?.trim()) return tracking.trim();
+  }
+  return null;
+}
+
 function errorText(value: unknown) {
   if (!value) return null;
   if (typeof value === "string") return value;
@@ -198,7 +211,8 @@ export async function POST(request: NextRequest) {
       const phone = contact?.canonical_phone || opportunity.phone_e164;
       if (!phone) return NextResponse.json({ error: "This customer does not have a phone number." }, { status: 409 });
 
-      const result = await sendCallRailSms({ phone, body: messageText });
+      const trackingNumber = await latestTrackingNumberForOpportunity(opportunityId, phone);
+      const result = await sendCallRailSms({ phone, body: messageText, trackingNumber });
       return NextResponse.json({ ok: true, sent_at: new Date().toISOString(), conversation_id: result.conversationId });
     }
 
