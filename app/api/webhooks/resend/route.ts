@@ -35,6 +35,52 @@ function isFailure(type: string) {
   return ["email.bounced", "email.failed", "email.suppressed"].includes(type);
 }
 
+function suppressionReason(event: ResendEvent) {
+  if (event.type === "email.complained") return "complaint";
+  const bounceType = event.data?.bounce?.type?.toLowerCase();
+  if (event.type === "email.bounced" && (bounceType === "permanent" || bounceType === "hard")) return "hard_bounce";
+  return null;
+}
+
+async function suppressSalesEmail(url: string, key: string, event: ResendEvent, messageId: string, recipient: string | null) {
+  const reason = suppressionReason(event);
+  if (!reason || !recipient) return false;
+  const email = recipient.trim().toLowerCase();
+  const params = new URLSearchParams({
+    select: "id",
+    email: `eq.${email}`,
+    reason: `eq.${reason}`,
+    limit: "1",
+  });
+  const existingResponse = await fetch(`${url}/rest/v1/sales_email_suppressions?${params}`, {
+    headers: headers(key),
+    cache: "no-store",
+  });
+  if (!existingResponse.ok) throw new Error(`Unable to inspect sales suppression: ${await existingResponse.text()}`);
+  const existing = await existingResponse.json() as Array<{ id: string }>;
+  const payload = {
+    email,
+    reason,
+    source: "resend_webhook",
+    provider_message_id: messageId,
+    active: true,
+    updated_at: new Date().toISOString(),
+  };
+  const response = existing[0]
+    ? await fetch(`${url}/rest/v1/sales_email_suppressions?id=eq.${encodeURIComponent(existing[0].id)}`, {
+        method: "PATCH",
+        headers: { ...headers(key), Prefer: "return=minimal" },
+        body: JSON.stringify(payload),
+      })
+    : await fetch(`${url}/rest/v1/sales_email_suppressions`, {
+        method: "POST",
+        headers: { ...headers(key), Prefer: "return=minimal" },
+        body: JSON.stringify(payload),
+      });
+  if (!response.ok) throw new Error(`Unable to suppress sales email: ${await response.text()}`);
+  return true;
+}
+
 function copyEmailStatus(type: string) {
   if (type === "email.delivered") return "sent";
   if (isFailure(type)) return "failed";
@@ -96,6 +142,8 @@ export async function POST(request: NextRequest) {
     const { url, key } = supabaseConfig();
     const recipient = event.data?.to?.[0] ?? null;
     const eventAt = event.created_at ?? new Date().toISOString();
+
+    const suppressedSales = await suppressSalesEmail(url, key, event, messageId, recipient);
 
     const eventInsert = await fetch(`${url}/rest/v1/guest_email_delivery_events`, {
       method: "POST",
@@ -180,7 +228,7 @@ export async function POST(request: NextRequest) {
       confirmationCode = rows[0]?.confirmation_code ?? null;
     }
 
-    if (!communicationId) return NextResponse.json({ ok: true, matched: false });
+    if (!communicationId) return NextResponse.json({ ok: true, matched: false, salesSuppressed: suppressedSales });
 
     if (eventType === "email.delivered") {
       const incidentFilter = confirmationCode
@@ -222,7 +270,7 @@ export async function POST(request: NextRequest) {
       if (!response.ok) throw new Error(`Unable to record delivery incident: ${await response.text()}`);
     }
 
-    return NextResponse.json({ ok: true, matched: true, stateChanged: true });
+    return NextResponse.json({ ok: true, matched: true, stateChanged: true, salesSuppressed: suppressedSales });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown Resend webhook error.";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
