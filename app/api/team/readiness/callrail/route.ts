@@ -221,35 +221,61 @@ export async function GET(request: NextRequest) {
     );
     const readinessId = readinessRows[0]?.readiness_id || null;
     if (readinessId) {
-      const pbxRows = await rest<Array<{id:string;start_time:string|null;disposition:string|null;billsec:number|null;duration_seconds:number|null;caller_name:string|null;src:string|null}>>(
-        `grandstream_cdr_events?matched_readiness_id=eq.${encodeURIComponent(readinessId)}&direction=eq.Outbound&select=${encodeURIComponent("id,start_time,disposition,billsec,duration_seconds,caller_name,src")}&order=start_time.asc&limit=500`,
+      const phone10 = (normalizedPhone || "").replace(/\D/g, "").slice(-10);
+      const pbxFilter = phone10
+        ? `or=(matched_readiness_id.eq.${encodeURIComponent(readinessId)},normalized_customer_phone.eq.${encodeURIComponent(phone10)})`
+        : `matched_readiness_id=eq.${encodeURIComponent(readinessId)}`;
+      const pbxRowsRaw = await rest<Array<{id:string;start_time:string|null;direction:string|null;disposition:string|null;billsec:number|null;duration_seconds:number|null;caller_name:string|null;src:string|null;dst:string|null;session:string|null}>>(
+        `grandstream_cdr_events?${pbxFilter}&select=${encodeURIComponent("id,start_time,direction,disposition,billsec,duration_seconds,caller_name,src,dst,session")}&order=start_time.asc&limit=500`,
       );
-      const ids = pbxRows.map((row) => row.id);
-      const recRows = ids.length ? await rest<Array<{grandstream_cdr_id:string;storage_path:string|null;transcription_text:string|null;ai_summary:string|null}>>(
-        `telnyx_call_recordings?grandstream_cdr_id=in.(${ids.join(",")})&select=${encodeURIComponent("grandstream_cdr_id,storage_path,transcription_text,ai_summary")}`,
+
+      const inboundBySession = new Map<string, typeof pbxRowsRaw[number]>();
+      const pbxRows: typeof pbxRowsRaw = [];
+      for (const row of pbxRowsRaw) {
+        if ((row.direction || "").toLowerCase() !== "inbound") {
+          pbxRows.push(row);
+          continue;
+        }
+        const key = row.session || row.id;
+        const existing = inboundBySession.get(key);
+        const rowScore = (row.billsec || 0) * 10000 + (row.duration_seconds || 0);
+        const existingScore = existing ? (existing.billsec || 0) * 10000 + (existing.duration_seconds || 0) : -1;
+        if (!existing || rowScore > existingScore) inboundBySession.set(key, row);
+      }
+      pbxRows.push(...inboundBySession.values());
+
+      const outboundIds = pbxRows
+        .filter((row) => (row.direction || "").toLowerCase() === "outbound")
+        .map((row) => row.id);
+      const recRows = outboundIds.length ? await rest<Array<{grandstream_cdr_id:string;storage_path:string|null;transcription_text:string|null;ai_summary:string|null}>>(
+        `telnyx_call_recordings?grandstream_cdr_id=in.(${outboundIds.join(",")})&select=${encodeURIComponent("grandstream_cdr_id,storage_path,transcription_text,ai_summary")}`,
       ) : [];
       const recByCall = new Map(recRows.map((row) => [row.grandstream_cdr_id, row]));
+
       for (const row of pbxRows) {
+        const direction = (row.direction || "outbound").toLowerCase() === "inbound" ? "inbound" : "outbound";
         const rec = recByCall.get(row.id);
         calls.push({
           id: `pbx-${row.id}`,
           at: row.start_time ?? new Date(0).toISOString(),
-          direction: "outbound",
+          direction,
           answered: row.disposition === "ANSWERED",
           voicemail: false,
           duration_seconds: row.billsec ?? row.duration_seconds,
           caller_name: null,
           caller_phone: normalizedPhone,
-          recording_url: rec?.storage_path ? `/api/team/readiness/pbx-recording?call=${encodeURIComponent(row.id)}` : null,
-          summary: rec?.ai_summary || null,
-          transcription: rec?.transcription_text || null,
+          recording_url: direction === "outbound" && rec?.storage_path ? `/api/team/readiness/pbx-recording?call=${encodeURIComponent(row.id)}` : null,
+          summary: direction === "outbound" ? rec?.ai_summary || null : null,
+          transcription: direction === "outbound" ? rec?.transcription_text || null : null,
           lead_score: null,
           lead_explanation: null,
           sentiment: null,
           call_highlights: [],
           speaker_percent: {},
           keywords: null,
-          source_name: row.caller_name || `Ext. ${row.src || ""}`,
+          source_name: direction === "inbound"
+            ? (row.dst ? `Answered by Ext. ${row.dst}` : "Grandstream PBX")
+            : (row.caller_name || `Ext. ${row.src || ""}`),
           campaign: "Grandstream PBX",
           medium: "phone",
           device_type: null,
