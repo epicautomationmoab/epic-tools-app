@@ -19,6 +19,7 @@ export default function InviteTeamPanel() {
   const [profiles, setProfiles] = useState<TeamProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [workingKey, setWorkingKey] = useState("");
+  const [filter, setFilter] = useState<"active" | "all">("active");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -110,6 +111,9 @@ export default function InviteTeamPanel() {
     }
   }
 
+  const visibleProfiles = filter === "active" ? profiles.filter((profile) => profile.active) : profiles;
+  const activeCount = profiles.filter((profile) => profile.active).length;
+
   const cellStyle = { padding: "12px 14px", borderBottom: "1px solid #f2f4f7", verticalAlign: "middle" as const };
 
   return (
@@ -129,7 +133,40 @@ export default function InviteTeamPanel() {
       {loading ? (
         <p>Loading team profiles...</p>
       ) : (
-        <div style={{ background: "#fff", border: "1px solid #e4e7ec", borderRadius: 12, overflow: "hidden" }}>
+        <>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
+            <button
+              type="button"
+              onClick={() => setFilter("active")}
+              style={{
+                border: filter === "active" ? "1px solid #344054" : "1px solid #d0d5dd",
+                borderRadius: 8,
+                padding: "8px 12px",
+                background: filter === "active" ? "#344054" : "#fff",
+                color: filter === "active" ? "#fff" : "#344054",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Active ({activeCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter("all")}
+              style={{
+                border: filter === "all" ? "1px solid #344054" : "1px solid #d0d5dd",
+                borderRadius: 8,
+                padding: "8px 12px",
+                background: filter === "all" ? "#344054" : "#fff",
+                color: filter === "all" ? "#fff" : "#344054",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              All ({profiles.length})
+            </button>
+          </div>
+          <div style={{ background: "#fff", border: "1px solid #e4e7ec", borderRadius: 12, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: "26%" }} />
@@ -146,7 +183,7 @@ export default function InviteTeamPanel() {
               </tr>
             </thead>
             <tbody>
-              {profiles.map((profile) => {
+              {visibleProfiles.map((profile) => {
                 const inviteKey = `invite:${profile.email}`;
                 const resetKey = `reset_password:${profile.email}`;
                 const isWorkstation = profile.role === "workstation";
@@ -232,7 +269,8 @@ export default function InviteTeamPanel() {
               })}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
