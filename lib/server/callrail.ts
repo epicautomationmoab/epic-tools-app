@@ -81,7 +81,7 @@ export async function getCallRailTextConversation(conversationId: string) {
   return callRailGet(`/v3/a/${encodeURIComponent(accountId)}/text-messages/${encodeURIComponent(conversationId)}.json?per_page=100&with_msg_errors=true`);
 }
 
-export async function sendCallRailSms(input: { phone: string; body: string }) {
+export async function sendCallRailSms(input: { phone: string; body: string; trackingNumber?: string | null }) {
   const { accountId, companyId } = await resolveIdentifiers();
   const response = await fetch(`https://api.callrail.com/v3/a/${encodeURIComponent(accountId)}/text-messages.json`, {
     method: "POST",
@@ -92,7 +92,7 @@ export async function sendCallRailSms(input: { phone: string; body: string }) {
     },
     body: JSON.stringify({
       customer_phone_number: input.phone,
-      tracking_number: requiredEnv("CALLRAIL_TRACKING_NUMBER"),
+      tracking_number: input.trackingNumber?.trim() || requiredEnv("CALLRAIL_TRACKING_NUMBER"),
       content: input.body,
       company_id: companyId,
     }),
