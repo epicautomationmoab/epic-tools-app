@@ -105,10 +105,8 @@ export default function DamageAcknowledgmentEnhancer() {
         const activity = bestActivityMatch(portal.reservation?.activities ?? [], drawer);
         if (!activity) return;
 
-        const anchor = drawer.querySelector<HTMLButtonElement>("#guest-form-quick-add")
-          ?? Array.from(drawer.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Resend Confirmation Email")
-          ?? null;
-        if (!anchor || drawer.querySelector("#damage-acknowledgment-quick-add")) return;
+        const rail = drawer.querySelector<HTMLElement>("#reservation-action-rail");
+        if (!rail || drawer.querySelector("#damage-acknowledgment-quick-add")) return;
 
         const button = document.createElement("button");
         button.type = "button";
@@ -117,7 +115,7 @@ export default function DamageAcknowledgmentEnhancer() {
         styleButton(button);
         button.title = "Add Vehicle Damage Acknowledgment to My Epic Reservation";
         button.setAttribute("aria-label", "Add Vehicle Damage Acknowledgment to guest portal");
-        anchor.insertAdjacentElement("afterend", button);
+        rail.appendChild(button);
 
         const applyState = async () => {
           if (!document.body.contains(drawer) || !document.body.contains(button)) return;
