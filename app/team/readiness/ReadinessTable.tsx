@@ -1349,6 +1349,8 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     View Guest Portal
                   </a>
                 ) : null}
+
+                <div id="reservation-action-island" aria-label="Reservation quick actions" />
               </div>
               <button
                 className={styles.drawerClose}
