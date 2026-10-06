@@ -154,6 +154,19 @@ export async function linkTeamProfileUser(profileId: string, userId: string) {
   });
 }
 
+export async function setTeamProfileActive(profileId: string, active: boolean) {
+  const rows = await adminRest<TeamProfile[]>(
+    `team_profiles?id=eq.${encodeURIComponent(profileId)}&select=id,user_id,display_name,email,role,active,tripworks_user_id,tripworks_full_name`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ active, updated_at: new Date().toISOString() }),
+    },
+  );
+  if (!rows[0]) throw new Error("EpicTools employee profile was not found.");
+  return rows[0];
+}
+
 export async function inviteTeamProfile(email: string, redirectTo: string) {
   const profile = await getTeamProfileByEmail(email);
   if (!profile || !profile.active) throw new Error("No active EpicTools team profile exists for that email.");

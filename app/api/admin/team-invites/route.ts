@@ -6,6 +6,7 @@ import {
   listSupabaseAuthUsers,
   listTeamProfiles,
   sendTeamPasswordReset,
+  setTeamProfileActive,
 } from "@/lib/team-auth";
 
 function hasPreviewAccess(request: NextRequest) {
@@ -106,6 +107,31 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to manage employee authentication." },
+      { status: 500 },
+    );
+  }
+}
+
+
+export async function PATCH(request: NextRequest) {
+  if (!await isAuthorizedManager(request)) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => null);
+  const profileId = typeof body?.profile_id === "string" ? body.profile_id.trim() : "";
+  const active = typeof body?.active === "boolean" ? body.active : null;
+
+  if (!profileId || active === null) {
+    return NextResponse.json({ error: "Profile and active status are required." }, { status: 400 });
+  }
+
+  try {
+    const profile = await setTeamProfileActive(profileId, active);
+    return NextResponse.json({ success: true, profile });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unable to update employee access." },
       { status: 500 },
     );
   }

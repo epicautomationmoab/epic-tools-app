@@ -78,6 +78,38 @@ export default function InviteTeamPanel() {
     }
   }
 
+  async function setAccess(profile: TeamProfile, active: boolean) {
+    const actionLabel = active ? "reactivate" : "archive";
+    if (!active && !window.confirm(`Archive ${profile.display_name}? They will immediately lose EpicTools access, but their profile and history will remain in the system.`)) {
+      return;
+    }
+
+    const key = `${actionLabel}:${profile.id}`;
+    setWorkingKey(key);
+    setMessage("");
+    setError("");
+    try {
+      const response = await fetch("/api/admin/team-invites", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile_id: profile.id, active }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to update employee access.");
+
+      setMessage(
+        active
+          ? `${profile.display_name} was reactivated.`
+          : `${profile.display_name} was archived. Their history is preserved and EpicTools access is disabled.`,
+      );
+      await loadProfiles();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update employee access.");
+    } finally {
+      setWorkingKey("");
+    }
+  }
+
   const cellStyle = { padding: "12px 14px", borderBottom: "1px solid #f2f4f7", verticalAlign: "middle" as const };
 
   return (
@@ -127,13 +159,15 @@ export default function InviteTeamPanel() {
                     <td style={cellStyle}>{profile.role}</td>
                     <td style={cellStyle}>{profile.tripworks_user_id ?? "—"}</td>
                     <td style={cellStyle}>
-                      {isWorkstation
-                        ? "Shared workstation"
-                        : profile.user_id
-                          ? "Active / linked"
-                          : profile.invitation_pending
-                            ? "Invitation sent / pending setup"
-                            : "Not invited"}
+                      {!profile.active
+                        ? "Archived / access disabled"
+                        : isWorkstation
+                          ? "Shared workstation"
+                          : profile.user_id
+                            ? "Active / linked"
+                            : profile.invitation_pending
+                              ? "Invitation sent / pending setup"
+                              : "Not invited"}
                       {profile.invitation_pending && profile.invitation_sent_at ? (
                         <div style={{ marginTop: 4, color: "#667085", fontSize: 12 }}>
                           {new Date(profile.invitation_sent_at).toLocaleString("en-US", {
@@ -148,28 +182,49 @@ export default function InviteTeamPanel() {
                     <td style={cellStyle}>
                       {isWorkstation ? (
                         <span style={{ color: "#667085" }}>Managed separately</span>
-                      ) : profile.user_id ? (
+                      ) : !profile.active ? (
                         <button
                           type="button"
-                          disabled={!profile.active || Boolean(workingKey)}
-                          onClick={() => void manageAuth(profile, "reset_password")}
-                          style={{ border: "1px solid #d0d5dd", borderRadius: 8, padding: "9px 12px", background: "#fff", color: "#344054", fontWeight: 700, cursor: workingKey ? "wait" : "pointer", whiteSpace: "nowrap", maxWidth: "100%" }}
+                          disabled={Boolean(workingKey)}
+                          onClick={() => void setAccess(profile, true)}
+                          style={{ border: "1px solid #b7dfc5", borderRadius: 8, padding: "9px 12px", background: "#eefaf2", color: "#18794e", fontWeight: 700, cursor: workingKey ? "wait" : "pointer", whiteSpace: "nowrap", maxWidth: "100%" }}
                         >
-                          {workingKey === resetKey ? "Sending..." : "Reset password"}
+                          {workingKey === `reactivate:${profile.id}` ? "Saving..." : "Reactivate"}
                         </button>
                       ) : (
-                        <button
-                          type="button"
-                          disabled={!profile.active || Boolean(workingKey)}
-                          onClick={() => void manageAuth(profile, "invite")}
-                          style={{ border: 0, borderRadius: 8, padding: "9px 12px", background: "#d5521d", color: "#fff", fontWeight: 700, cursor: workingKey ? "wait" : "pointer", whiteSpace: "nowrap", maxWidth: "100%" }}
-                        >
-                          {workingKey === inviteKey
-                            ? "Sending..."
-                            : profile.invitation_pending
-                              ? "Resend invite"
-                              : "Send invite"}
-                        </button>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          {profile.user_id ? (
+                            <button
+                              type="button"
+                              disabled={Boolean(workingKey)}
+                              onClick={() => void manageAuth(profile, "reset_password")}
+                              style={{ border: "1px solid #d0d5dd", borderRadius: 8, padding: "9px 12px", background: "#fff", color: "#344054", fontWeight: 700, cursor: workingKey ? "wait" : "pointer", whiteSpace: "nowrap", maxWidth: "100%" }}
+                            >
+                              {workingKey === resetKey ? "Sending..." : "Reset password"}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={Boolean(workingKey)}
+                              onClick={() => void manageAuth(profile, "invite")}
+                              style={{ border: 0, borderRadius: 8, padding: "9px 12px", background: "#d5521d", color: "#fff", fontWeight: 700, cursor: workingKey ? "wait" : "pointer", whiteSpace: "nowrap", maxWidth: "100%" }}
+                            >
+                              {workingKey === inviteKey
+                                ? "Sending..."
+                                : profile.invitation_pending
+                                  ? "Resend invite"
+                                  : "Send invite"}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={Boolean(workingKey)}
+                            onClick={() => void setAccess(profile, false)}
+                            style={{ border: "1px solid #f0b8b8", borderRadius: 8, padding: "9px 12px", background: "#fff6f6", color: "#b42318", fontWeight: 700, cursor: workingKey ? "wait" : "pointer", whiteSpace: "nowrap", maxWidth: "100%" }}
+                          >
+                            {workingKey === `archive:${profile.id}` ? "Saving..." : "Archive"}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
