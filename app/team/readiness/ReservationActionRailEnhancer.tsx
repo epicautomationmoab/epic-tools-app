@@ -10,15 +10,8 @@ const ICON_ORDER = [
 ];
 
 function ensureRail(drawer: Element) {
-  const portalLink = drawer.querySelector<HTMLAnchorElement>('a[href^="/guest/"]');
-  if (!portalLink) return;
-
-  const resendButton = Array.from(drawer.querySelectorAll<HTMLButtonElement>("button"))
-    .find((button) => button.textContent?.trim() === "Resend Confirmation Email" || button.textContent?.trim() === "Confirmation Sent" || button.textContent?.trim() === "Sending...");
-  if (!resendButton) return;
-
-  const actionContainer = portalLink.parentElement;
-  if (!actionContainer || resendButton.parentElement !== actionContainer) return;
+  const actionContainer = drawer.querySelector<HTMLElement>("#reservation-action-island");
+  if (!actionContainer) return;
 
   let divider = actionContainer.querySelector<HTMLElement>(":scope > #reservation-action-divider");
   let rail = actionContainer.querySelector<HTMLElement>(":scope > #reservation-action-rail");
