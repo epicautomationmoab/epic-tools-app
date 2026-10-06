@@ -496,8 +496,11 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
           };
         };
 
+        // Enrich the table data in the background, but do not replace an already-open
+        // drawer wholesale. Replacing selected here causes a visible drawer repaint and
+        // can momentarily mix old/new derived values while enhancers are also updating.
+        // Newly opened drawers will use the enriched localRows automatically.
         setLocalRows((current) => current.map(mergeEnrichment));
-        setSelected((current) => (current ? mergeEnrichment(current) : current));
       })
       .catch((error) => {
         console.error("Unable to background-load Readiness enrichment.", error);
