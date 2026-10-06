@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
         READINESS_MESSAGE: readiness.message,
         RESERVATION_SUMMARY: buildReservationSummary(portalRows),
       } },
-    }, { idempotencyKey: `manual-confirmation-${communication.id}-${Date.now()}` });
+    }, { idempotencyKey: `manual-confirmation-${communication.id}-${Math.floor(Date.now() / 60_000)}` });
 
     if (error) throw new Error(error.message);
     if (!data?.id) throw new Error("Resend did not return a message ID.");
