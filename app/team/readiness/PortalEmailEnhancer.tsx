@@ -242,6 +242,8 @@ export default function PortalEmailEnhancer() {
 
       const drawer = portalLink.closest('[role="dialog"]');
       if (!drawer) return;
+      const actionIsland = drawer.querySelector<HTMLElement>("#reservation-action-island");
+      if (!actionIsland) return;
 
       const resendCandidates = Array.from(drawer.querySelectorAll<HTMLButtonElement>("button"))
         .filter((button) => {
@@ -309,8 +311,8 @@ export default function PortalEmailEnhancer() {
       });
 
       portalLink.dataset.emailEnhanced = "true";
-      if (resendButton.parentElement !== portalLink.parentElement || resendButton.previousElementSibling !== portalLink) {
-        portalLink.insertAdjacentElement("afterend", resendButton);
+      if (resendButton.parentElement !== actionIsland) {
+        actionIsland.prepend(resendButton);
       }
 
       if (!businessLine || !portalToken) return;
@@ -330,7 +332,9 @@ export default function PortalEmailEnhancer() {
         formButton.type = "button";
         formButton.id = "guest-form-quick-add";
         styleIconButton(formButton);
-        resendButton.insertAdjacentElement("afterend", formButton);
+        const rail = drawer.querySelector<HTMLElement>("#reservation-action-rail");
+        if (!rail) return;
+        if (formButton.parentElement !== rail) rail.appendChild(formButton);
 
         const applyTaskState = async () => {
           if (!document.body.contains(drawer) || !document.body.contains(formButton)) return;
