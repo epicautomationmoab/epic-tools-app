@@ -9,12 +9,12 @@ import "../readiness/journey-preview/preview.css";
 export default function PreviousGuestsPage() {
   return (
     <div className={styles.page}>
-      <TeamSidebar active="Previous Guest Lookup" />
+      <TeamSidebar active="Guest Lookup" />
 
       <main className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.titleBlock}>
-            <h1>Previous Guest Lookup</h1>
+            <h1>Guest Lookup</h1>
             <HeaderClock />
           </div>
           <div className={styles.headerActions}>
