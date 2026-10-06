@@ -51,6 +51,8 @@ type EmailIncident = {
 type JobRow = {
   id: string;
   confirmation_code: string;
+  mpwr_confirmation_number: string | null;
+  mpwr_reservation_url: string | null;
   status: string;
   result_message: string | null;
   last_error: string | null;
@@ -69,7 +71,7 @@ async function getEmailIncidents() {
 
 async function getLatestJobs(table: "cassie_mpwr_jobs" | "victor_deposit_jobs") {
   const rows = await rest<JobRow>(table, new URLSearchParams({
-    select: "id,confirmation_code,status,result_message,last_error,attempts,updated_at",
+    select: "id,confirmation_code,mpwr_confirmation_number,mpwr_reservation_url,status,result_message,last_error,attempts,updated_at",
     order: "updated_at.desc",
     limit: "1000",
   }));
@@ -174,7 +176,22 @@ function JobExceptionRow({ row, guestName, label, sourceType }: { row: JobRow; g
     <article style={rowStyle}>
       <div>
         {guestName ? <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{guestName}</div> : null}
-        <strong style={{ fontSize: 16 }}>{row.confirmation_code}</strong>
+        {row.mpwr_confirmation_number ? (
+          row.mpwr_reservation_url ? (
+            <a
+              href={row.mpwr_reservation_url}
+              target="_blank"
+              rel="noreferrer"
+              style={{ fontSize: 16, fontWeight: 850, color: "#315f8a", textDecoration: "underline" }}
+            >
+              {row.mpwr_confirmation_number} ↗ MPWR
+            </a>
+          ) : (
+            <strong style={{ fontSize: 16 }}>{row.mpwr_confirmation_number}</strong>
+          )
+        ) : (
+          <strong style={{ fontSize: 16 }}>MPWR reservation unavailable</strong>
+        )}
         <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatMoabTime(row.updated_at)}</div>
       </div>
       <div>
@@ -186,10 +203,10 @@ function JobExceptionRow({ row, guestName, label, sourceType }: { row: JobRow; g
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <Link
-          href={`/team/previous-guests?q=${encodeURIComponent(row.confirmation_code)}`}
+          href={`/team/previous-guests?q=${encodeURIComponent(row.mpwr_confirmation_number || row.confirmation_code)}`}
           style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none", textAlign: "center" }}
         >
-          Previous Guest
+          Guest Lookup
         </Link>
         <ExceptionAction sourceType={sourceType} sourceId={row.id} />
       </div>
@@ -228,6 +245,8 @@ export default async function ExceptionsPage() {
       paymentExceptions.unshift({
         id: "preview-test-exception",
         confirmation_code: "PREVIEW-TEST",
+        mpwr_confirmation_number: "CO-PREVIEW-TEST",
+        mpwr_reservation_url: null,
         status: "failed",
         result_message: "Preview-only test exception for validating the Mark Fixed workflow.",
         last_error: null,
@@ -320,10 +339,10 @@ export default async function ExceptionsPage() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <Link
-                    href={`/team/readiness?confirmation=${encodeURIComponent(incident.confirmation_code)}`}
+                    href={`/team/previous-guests?q=${encodeURIComponent(incident.confirmation_code)}`}
                     style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none", textAlign: "center" }}
                   >
-                    Open Reservation
+                    Guest Lookup
                   </Link>
                   <ExceptionAction sourceType="email_delivery" sourceId={incident.id} />
                 </div>
