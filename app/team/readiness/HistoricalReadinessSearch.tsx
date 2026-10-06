@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import C360Bridge from "./C360Bridge";
 import styles from "./ReadinessShell.module.css";
@@ -33,6 +32,11 @@ function formatPhone(value?: string | null) {
 
 export default function HistoricalReadinessSearch() {
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const initial = new URLSearchParams(window.location.search).get("q")?.trim() || "";
+    if (initial) setQuery(initial);
+  }, []);
   const [rows, setRows] = useState<HistoricalRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -73,26 +77,25 @@ export default function HistoricalReadinessSearch() {
     };
   }, [query]);
 
-  const historicalRows = useMemo(() => rows.filter((row) => row.is_historical), [rows]);
 
   return (
     <section style={{ marginBottom: 18 }}>
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#667085", marginBottom: 6 }}>
-          Search Previous Guests
+          Search Guests
         </div>
         <label className={styles.searchWrap} style={{ display: "block", maxWidth: "none" }}>
           <span className={styles.searchIcon} aria-hidden="true">⌕</span>
           <input
             type="search"
-            name="previous-guest-search"
+            name="guest-search"
             autoComplete="off"
             inputMode="search"
             className={styles.search}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by guest name, confirmation, phone, email, or MPWR..."
-            aria-label="Search previous guests"
+            aria-label="Search guests"
           />
           {query ? (
             <button type="button" className={styles.searchClear} onClick={() => setQuery("")} aria-label="Clear search">×</button>
@@ -100,13 +103,13 @@ export default function HistoricalReadinessSearch() {
         </label>
       </div>
 
-      {loading ? <div style={{ padding: "10px 0", color: "#667085" }}>Searching previous guests…</div> : null}
+      {loading ? <div style={{ padding: "10px 0", color: "#667085" }}>Searching guests…</div> : null}
       {error ? <div className={styles.error}>{error}</div> : null}
-      {query.trim().length >= 2 && !loading && historicalRows.length === 0 && !error ? (
-        <div className={styles.empty}>No previous Store Visits found.</div>
+      {query.trim().length >= 2 && !loading && rows.length === 0 && !error ? (
+        <div className={styles.empty}>No matching guests found.</div>
       ) : null}
 
-      {historicalRows.length ? (
+      {rows.length ? (
         <section className={styles.tableCard}>
           <table className={styles.table}>
             <thead>
@@ -122,14 +125,14 @@ export default function HistoricalReadinessSearch() {
               </tr>
             </thead>
             <tbody>
-              {historicalRows.map((row) => {
+              {rows.map((row) => {
                 const epicReceived = row.epic_document_received_count ?? 0;
                 const epicExpected = row.epic_document_expected_count ?? row.expected_guest_count ?? 0;
                 const mpwrReceived = row.mpwr_document_received_count ?? 0;
                 const mpwrExpected = row.mpwr_document_expected_count ?? row.expected_guest_count ?? 0;
                 return (
                   <tr key={row.readiness_id} onClick={() => setSelected(row)} style={{ cursor: "pointer" }}>
-                    <td><div className={styles.mainLine}>{formatDateTime(row.visit_start_time)}</div><div className={styles.subLine}>Historical Visit</div></td>
+                    <td><div className={styles.mainLine}>{formatDateTime(row.visit_start_time)}</div><div className={styles.subLine}>{row.is_historical ? "Previous Visit" : "Current/Future Visit"}</div></td>
                     <td><div className={styles.mainLine}>{row.customer_name}</div><div className={styles.subLine}>{formatPhone(row.customer_phone) || row.confirmation_code}</div></td>
                     <td><div className={styles.mainLine}>{row.product_display_name}</div>{row.rental_duration ? <div className={styles.subLine}>{row.rental_duration}</div> : null}</td>
                     <td>{row.total_vehicle_count ?? 0}</td>
