@@ -26,6 +26,38 @@ function formatVehicleCount(count?: number | null) {
   return `${count} ${count === 1 ? "Vehicle" : "Vehicles"}`;
 }
 
+function shortVehicleModel(model: string) {
+  return model
+    .replace(/^2026\s+/i, "")
+    .replace(/Polaris\s+RZR\s+/i, "")
+    .replace(/RZR\s+/i, "")
+    .replace(/\s+1000\s+Ultimate$/i, "")
+    .replace(/Turbo\s+Pro\s+S/i, "Pro S")
+    .replace(/XP\s+S/i, "XP S")
+    .trim();
+}
+
+function reservationLabel(row: ArrivalBoardRow) {
+  if (row.business_line !== "rental") {
+    return row.product_display_name || row.board_activity_label;
+  }
+
+  const breakdown = (row.vehicle_breakdown ?? []).filter(
+    (item) => item.quantity > 0 && item.model?.trim(),
+  );
+
+  if (!breakdown.length) {
+    return row.product_display_name || row.board_activity_label;
+  }
+
+  return breakdown
+    .map((item) => {
+      const model = shortVehicleModel(item.model);
+      return item.quantity > 1 ? `${item.quantity}× ${model}` : model;
+    })
+    .join(" + ");
+}
+
 export default function ArrivalBoardDisplay({
   rows,
 }: {
@@ -97,9 +129,7 @@ export default function ArrivalBoardDisplay({
               </div>
 
               <div className={styles.activity}>
-                <strong>
-                  {row.product_display_name || row.board_activity_label}
-                </strong>
+                <strong>{reservationLabel(row)}</strong>
                 {details.length ? <span>{details.join(" • ")}</span> : null}
               </div>
 
