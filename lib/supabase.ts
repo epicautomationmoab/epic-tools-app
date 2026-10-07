@@ -94,6 +94,7 @@ export type ArrivalBoardRow = {
   product_display_name?: string | null;
   rental_duration?: string | null;
   total_vehicle_count?: number | null;
+  vehicle_breakdown?: VehicleBreakdownItem[] | null;
   board_action_label: "Proceed to Kiosk" | "See Agent" | string;
   board_action_type: "kiosk" | "agent" | string;
   handoff_status?: "checked_in" | "tour_returned" | "rental_out" | "rental_returned" | null;
@@ -490,7 +491,7 @@ export async function getArrivalBoardRows() {
 
   const arrivalParams = new URLSearchParams({ select: "*", limit: "100" });
   const readinessParams = new URLSearchParams({
-    select: "readiness_id,confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count,expected_guest_count,amount_due_cents,mpwr_document_received_count,mpwr_document_expected_count,ohv_required,ohv_certificate_uploaded",
+    select: "readiness_id,confirmation_code,visit_start_time,business_line,customer_phone_last_four,handoff_status,product_display_name,rental_duration,total_vehicle_count,vehicle_breakdown,expected_guest_count,amount_due_cents,mpwr_document_received_count,mpwr_document_expected_count,ohv_required,ohv_certificate_uploaded",
     limit: "100",
   });
   for (const [key, value] of dateFilters) {
@@ -510,6 +511,7 @@ export async function getArrivalBoardRows() {
       "product_display_name" |
       "rental_duration" |
       "total_vehicle_count" |
+      "vehicle_breakdown" |
       "expected_guest_count" |
       "amount_due_cents" |
       "mpwr_document_received_count" |
@@ -607,6 +609,7 @@ export async function getArrivalBoardRows() {
         product_display_name: readiness?.product_display_name ?? row.product_display_name ?? row.board_activity_label,
         rental_duration: readiness?.rental_duration ?? row.rental_duration ?? null,
         total_vehicle_count: totalVehicleCount,
+        vehicle_breakdown: readiness?.vehicle_breakdown ?? row.vehicle_breakdown ?? null,
         board_action_label:
           row.business_line === "rental"
             ? rentalReady
