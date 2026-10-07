@@ -1,0 +1,77 @@
+{
+  "vehicle": {
+    "year": 2026,
+    "model": "RZR XP S 4 1000 Ultimate",
+    "supported_model_codes": ["Z26NMY99A4", "Z26NMY99B4"],
+    "finish": "STEALTH GRAY NON-METALLIC"
+  },
+  "assemblies": {
+    "suspension_front_shock_mounting": {
+      "assembly_id": "255452",
+      "name": "SUSPENSION, FRONT SHOCK MOUNTING",
+      "drive_file_id": "1hn_v9MlZkpvi8uQITSytR3GyykTLJKwv",
+      "parts": [
+        {"ref":"1","part_number":"7046371","description":"SHOCK-FRONT,LH","quantity":1,"side":"LH"},
+        {"ref":"1","part_number":"7046372","description":"SHOCK-FRONT,RH","quantity":1,"side":"RH"},
+        {"ref":"2","part_number":"7046379-831","description":"SPR-450 6.70 FL3.04-3.04ID,BRZ","quantity":1},
+        {"ref":"3","part_number":"7046380-831","description":"SPR-300 12.00FL3.04-3.04ID,BRZ","quantity":1},
+        {"ref":"3","part_number":"7046381-831","description":"SPR-300 8.50FL 3.04-3.04ID,BRZ","quantity":1},
+        {"ref":"4","part_number":"5858640","description":"SPACER-SPRING,2.5","quantity":2},
+        {"ref":"5","part_number":"1501211","description":"RETAINER-SPRING,2.5","quantity":2},
+        {"ref":"6","part_number":"7521334-65","description":"SCR-HXFL-M12X1.75X65 10.9 ZFB","quantity":4},
+        {"ref":"7","part_number":"7557236","description":"WSHR-FLAT-M12X2.5 ZTB","quantity":4},
+        {"ref":"8","part_number":"7548030","description":"NUT-HXFL-M12X1.75 8 ZTB NYL","quantity":4}
+      ]
+    },
+    "suspension_front_shock_internals": {
+      "assembly_id": "255451",
+      "name": "SUSPENSION, FRONT SHOCK INTERNALS",
+      "drive_file_id": "10pNB7ZwzHBiUMFDrdjroK2iuO6mXTjA1",
+      "parts": [
+        {"ref":"assembly","part_number":"7046371","description":"SHOCK-FRONT,LH","quantity":1,"side":"LH","includes_refs":["1-36"]},
+        {"ref":"assembly","part_number":"7046372","description":"SHOCK-FRONT,RH","quantity":1,"side":"RH","includes_refs":["1-36"]},
+        {"ref":"30","part_number":"1501211","description":"RETAINER-SPRING,2.5","quantity":1}
+      ],
+      "selection_policy": "Only rows with an actual Polaris service part number are selectable. Diagram-only internal components remain visible reference material but are not addable to an assessment."
+    },
+    "suspension_rear_shock_mounting": {
+      "assembly_id": "255456",
+      "name": "SUSPENSION, REAR SHOCK MOUNTING",
+      "drive_file_id": "19fxZm_c7gpmaxn3M1V_rG96DlWrIH3-1",
+      "parts": [
+        {"ref":"1","part_number":"1501211","description":"RETAINER-SPRING,2.5","quantity":2},
+        {"ref":"2","part_number":"5258172","description":"MOUNT, SHOCK GUARD","quantity":2},
+        {"ref":"3","part_number":"5438873-070","description":"GUARD, SHOCK ROD, REAR, BLACK","quantity":2},
+        {"ref":"4","part_number":"5458640","description":"SPACER-SPRING,2.5","quantity":4},
+        {"ref":"5","part_number":"7046381-831","description":"SPR-300 8.50FL 3.04-3.04ID,BRZ","quantity":1},
+        {"ref":"6","part_number":"7046378-831","description":"SPR-225 16.00 FL3.04-3.04ID,BZ","quantity":1},
+        {"ref":"7","part_number":"7046373","description":"SHOCK-REAR,LH","quantity":1,"side":"LH"},
+        {"ref":"7","part_number":"7046374","description":"SHOCK-REAR,RH","quantity":1,"side":"RH"},
+        {"ref":"8","part_number":"7512084","description":"SCR-10-24X1/2, PHTXTRIRD, SEMS-Y","quantity":6},
+        {"ref":"9","part_number":"7521334-65","description":"SCR-HXFL-M12X1.75X65 10.9 ZFB","quantity":2},
+        {"ref":"10","part_number":"7548030","description":"NUT-HXFL-M12X1.75 8 ZTB NYL","quantity":2}
+      ]
+    },
+    "suspension_rear_stabilizer": {
+      "assembly_id": "255458",
+      "name": "SUSPENSION, STABILIZER BAR, REAR",
+      "drive_file_id": "1vH4bkN3NPjNseQFavS9ogbIVBjDwj5_u",
+      "parts": [
+        {"ref":"1","part_number":"1545217","description":"ASM-LINKAGE,STABILIZER BAR,TR","quantity":2},
+        {"ref":"2","part_number":"5347075-458","description":"BAR-STABILIZER,22MM,BLK","quantity":1,"valid_to":"2025-09-26"},
+        {"ref":"2","part_number":"5347075","description":"BAR-STABILIZER,22MM","quantity":1,"valid_from":"2025-09-26"},
+        {"ref":"3","part_number":"5465815","description":"BUSHING-SWAY BAR","quantity":4},
+        {"ref":"4","part_number":"5633408","description":"BRKT-CAP,SWAY BAR,1.25","quantity":2},
+        {"ref":"5","part_number":"7080510","description":"FITTING-ZERK.25 S/TAP90D-3054B","quantity":2},
+        {"ref":"6","part_number":"7521334-65","description":"SCR-HXFL-M12X1.75X65 10.9 ZFB","quantity":8},
+        {"ref":"7","part_number":"7521333-55","description":"SCR-HXFL-M10X1.5X55 10.9 ZFB","quantity":4},
+        {"ref":"8","part_number":"7548029","description":"NUT-HXFL-M10X1.5 8 ZTB NYL","quantity":4},
+        {"ref":"9","part_number":"7557236","description":"WSHR-FLAT-M12X2.5 ZTB","quantity":2},
+        {"ref":"10","part_number":"7548030","description":"NUT-HXFL-M12X1.75 8 ZTB NYL","quantity":4},
+        {"ref":"11","part_number":"7557235","description":"WSHR-FLAT-M10X2.0 ZTB","quantity":4}
+      ],
+      "selection_policy": "Resolve ref 2 by vehicle build date; do not guess when build date is unavailable."
+    }
+  },
+  "status": "ready_for_ui_binding"
+}

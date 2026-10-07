@@ -1,0 +1,21 @@
+{
+  "vehicle": {
+    "year": 2026,
+    "model": "RZR XP S 4 1000 Ultimate",
+    "supported_model_codes": ["Z26NMY99A4", "Z26NMY99B4"],
+    "finish": "STEALTH GRAY NON-METALLIC",
+    "finish_code": "804"
+  },
+  "catalog_policy": {
+    "single_fleet_finish": true,
+    "exclude_unsupported_color_variants": true,
+    "unsupported_model_codes": ["Z26NMY99A6", "Z26NMY99B6"],
+    "notes": "Epic fleet uses only Stealth Gray for this model. Sand Dune/color-alternate service part numbers must not appear in the active parts selector. Preserve side, mechanical option, and build-date distinctions only when they can apply to Epic vehicles."
+  },
+  "active_color_parts": {
+    "front_door_skin_lh": "5459367-804",
+    "front_door_skin_rh": "5459368-804",
+    "rear_door_skin_lh": "5465028-804",
+    "rear_door_skin_rh": "5465029-804"
+  }
+}

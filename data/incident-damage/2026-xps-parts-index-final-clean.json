@@ -1,0 +1,94 @@
+{
+  "vehicle": {
+    "year": 2026,
+    "model": "RZR XP S 4 1000 Ultimate",
+    "supported_model_codes": ["Z26NMY99A4", "Z26NMY99B4"],
+    "finish": "STEALTH GRAY NON-METALLIC"
+  },
+  "assemblies": {
+    "accessory_front_bumper": {
+      "assembly_id": "255378",
+      "name": "ACCESSORY, BUMPER AND RELATED",
+      "parts": [
+        {"ref":"1","part_number":"1028894-831","description":"WELD-FRT,BUMPER,SHDW BRONZE","quantity":1},
+        {"ref":"2","part_number":"7518705","description":"SCR-SHXFL-M12X1.75X90 10.9 ZPC","quantity":1},
+        {"ref":"3","part_number":"7547441","description":"NUT-HXFL M12X1.75 8 ZOD NYL","quantity":1},
+        {"ref":"4","part_number":"2691649","description":"ASM-TOW STRAP","quantity":1},
+        {"ref":"5","part_number":"1029073-458","description":"WELD-FRONT PLATE,BLK","quantity":1},
+        {"ref":"6","part_number":"7519071","description":"SCR-M10X1.5X25 8.8 HXFL ZOD","quantity":6,"valid_to":"2025-09-26"},
+        {"ref":"6","part_number":"7521333-20","description":"SCR-HXFL-M10X1.5X20 10.9 ZFB","quantity":6,"valid_from":"2025-09-26"},
+        {"ref":"7","part_number":"7547423","description":"NUT-M10X1.5 HFN NYLOC ZOD","quantity":4},
+        {"ref":"8","part_number":"7518960","description":"SCR-M10X1.5X65 8.8 HX/FL ZOD","quantity":2}
+      ]
+    },
+    "body_grab_bar_passenger": {
+      "assembly_id": "255387",
+      "name": "BODY, GRAB BAR, PASSENGER",
+      "parts": [
+        {"ref":"1","part_number":"2637771","description":"ASM-GRAB BAR","quantity":1},
+        {"ref":"2","part_number":"5457427","description":"BUSHING-GRAB BAR,UPPER","quantity":2},
+        {"ref":"3","part_number":"5457511","description":"NUT-GRAB BAR","quantity":1},
+        {"ref":"4","part_number":"5457512","description":"CAP,GRAB BAR LEVER","quantity":1},
+        {"ref":"5","part_number":"5457891","description":"BUSHING-GRAB BAR,LOWER","quantity":2},
+        {"ref":"6","part_number":"5459039","description":"LEVER,GRAB BAR","quantity":1},
+        {"ref":"7","part_number":"7521309","description":"ROD-GRAB BAR THREADED","quantity":1},
+        {"ref":"8","part_number":"7663047","description":"PIN-GRAB BAR","quantity":1}
+      ]
+    },
+    "brakes_lines_master": {
+      "assembly_id": "255398",
+      "name": "BRAKES, BRAKE LINES AND MASTER CYLINDER",
+      "parts": [
+        {"ref":"1","part_number":"1910499","description":"BOLT-BANJO,10MMX1.00-6G","quantity":4},
+        {"ref":"2","part_number":"1910958","description":"BOLT-BANJO, 10MM X 1.25-6G","quantity":1},
+        {"ref":"3","part_number":"1913633","description":"ASM,FLANGE-MNT-TMC","quantity":1,"includes_refs":["28","29","30","35"]},
+        {"ref":"4","part_number":"1913963","description":"LINE-BRK,RL","quantity":1,"side":"LH"},
+        {"ref":"5","part_number":"1913750","description":"LINE-BRK,FL","quantity":1,"side":"LH"},
+        {"ref":"6","part_number":"1913962","description":"LINE-BRK,RR","quantity":1,"side":"RH"},
+        {"ref":"7","part_number":"1912881","description":"LINE-BRK,FR","quantity":1,"side":"RH"},
+        {"ref":"8","part_number":"1914097","description":"LINE-BRK,MCT","quantity":1},
+        {"ref":"9","part_number":"4081264","description":"SWITCH-BRK,M10X1.25,DBL-BANJO","quantity":1},
+        {"ref":"10","part_number":"5413212","description":"SEAL-STAT-0-3/8, 70EP","quantity":13},
+        {"ref":"11","part_number":"7052293","description":"FITTING-TEE,BRAKE","quantity":1},
+        {"ref":"24","part_number":"5454095","description":"GUIDE,RZR,XP,REAR,LH","quantity":1,"side":"LH"},
+        {"ref":"25","part_number":"5454096","description":"GUIDE,RZR,XP,REAR,RH","quantity":1,"side":"RH"},
+        {"ref":"26","part_number":"5633827","description":"SCRAPER,RZR,1K,FRONT,LH","quantity":1,"side":"LH"},
+        {"ref":"27","part_number":"5633828","description":"SCRAPER,RZR,1K,FRONT,RH","quantity":1,"side":"RH"},
+        {"ref":"28","part_number":"2209326","description":"K-SERVICE,CAP ASM,TNDM MC,HB","quantity":1},
+        {"ref":"29","part_number":"2203457","description":"KIT-NUTS,CLEVIS,M/C TANDEM","quantity":1,"includes":"2 nuts"},
+        {"ref":"30","part_number":"2207060","description":"K-SERVICE,MC CLEVIS","quantity":1},
+        {"ref":"33","part_number":"5268914","description":"BRKT-GUARD,MASTER CYL","quantity":1},
+        {"ref":"34","part_number":"1025542-329","description":"WELD-BRAKE PEDAL,ECOAT","quantity":1},
+        {"ref":"35","part_number":"4018206","description":"K-SERVICE,FLS,N/C","quantity":1}
+      ]
+    },
+    "fuel_tank": {
+      "assembly_id": "255444",
+      "name": "FUEL SYSTEMS, FUEL TANK",
+      "parts": [
+        {"ref":"1","part_number":"2637709","description":"ASM-FUEL TANK,RZR","quantity":1,"includes":"ref 2, gasket and nut"},
+        {"ref":"2","part_number":"2208991","description":"K-FUEL PUMP","quantity":1},
+        {"ref":"3","part_number":"5259555-329","description":"STRAP, FUEL TANK, BLK","quantity":1},
+        {"ref":"4","part_number":"2522316","description":"CAP-GAS TANK,TETHER,12","quantity":1},
+        {"ref":"5","part_number":"5810290","description":"PAD-BATTERY","quantity":5},
+        {"ref":"6","part_number":"5263305-329","description":"BRKT-MOUNT RACK,ECOAT","quantity":1,"note":"Polaris marks [B]"},
+        {"ref":"7","part_number":"5455061-070","description":"PANEL-ACCESS,TANK,BLK","quantity":1},
+        {"ref":"8","part_number":"7661855","description":"RIVET-TUFLOK,.315-.325X.787","quantity":2},
+        {"ref":"9","part_number":"7518529","description":"SCR-M6X1.0X20,HXHD,FLG,TDFM,BK","quantity":1},
+        {"ref":"10","part_number":"7520122","description":"SCREW-HXFL, M6x1.0x20 8.8 ZPB","quantity":2,"note":"Polaris marks [B]"},
+        {"ref":"11","part_number":"7547339","description":"NUT-M6X1.0, FLG-NYLOC-OLIVE D","quantity":2,"note":"Polaris marks [B]"}
+      ]
+    }
+  },
+  "catalog_policy": {
+    "exclude_unsupported_color_variants": true,
+    "side_mapping": "Driver=LH; Passenger=RH",
+    "build_date_resolution": "Resolve date-split parts by vehicle build date.",
+    "public_repo_policy": "Do not store Google Drive file IDs or internal source URLs in repository catalog files."
+  },
+  "known_catalog_correction": {
+    "suspension_front_carrier_hub_assembly_id": "255449",
+    "note": "Earlier assembly catalog entry 255452 is incorrect; 255452 is FRONT SHOCK MOUNTING. Use 255449 for FRONT CARRIER AND HUB."
+  },
+  "status": "remaining_clean_assemblies_indexed"
+}
