@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type TranscriptTurn={speaker:"Agent"|"Caller"|"Unknown";text:string};
+type TranscriptTurn={speaker:"Agent"|"Customer"|"Unknown";text:string};
 
 function normalizeTranscriptText(value:string){
   return value
@@ -32,7 +32,7 @@ function chunkReadable(text:string,maxSentences=3){
 
 function parseTranscript(transcript:string):TranscriptTurn[]{
   const normalized=normalizeTranscriptText(transcript);
-  const explicit=/\b(Agent|Caller|Speaker\s*1|Speaker\s*2):\s*/gi;
+  const explicit=/\b(Agent|Customer|Caller|Speaker\s*1|Speaker\s*2):\s*/gi;
   const parts=normalized.split(explicit).filter(Boolean);
 
   const turns:TranscriptTurn[]=[];
@@ -46,8 +46,8 @@ function parseTranscript(transcript:string):TranscriptTurn[]{
       sawExplicit=true;
       continue;
     }
-    if(tag==="caller"||tag==="speaker 2"){
-      speaker="Caller";
+    if(tag==="customer"||tag==="caller"||tag==="speaker 2"){
+      speaker="Customer";
       sawExplicit=true;
       continue;
     }
