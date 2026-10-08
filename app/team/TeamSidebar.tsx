@@ -1,3 +1,4 @@
+import PingBadge from "./PingBadge";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
@@ -10,6 +11,7 @@ type Props = {
     | "Held-Over Rentals"
     | "Deposits On-Hold"
     | "Tour Dispatch"
+    | "Epic Ping"
     | "Guest Lookup"
     | "Rental Inbox"
     | "Tour Inbox"
@@ -24,6 +26,7 @@ const baseNavItems = [
   { label: "Deposits On-Hold", href: "/team/deposits-on-hold", external: false },
   { label: "Tour Dispatch", href: "/team/tour-dispatch", external: false },
   { label: "Guest Lookup", href: "/team/previous-guests", external: false },
+  { label: "Epic Ping", href: "/team/epic-ping", external: false },
   { label: "Rental Inbox", href: "/team/service-inbox/rentals", external: false },
   { label: "Tour Inbox", href: "/team/service-inbox/tours", external: false },
   { label: "Exceptions", href: "/team/email-delivery", external: false },
@@ -83,7 +86,7 @@ export default async function TeamSidebar({ active }: Props) {
           const content = (
             <>
               <span aria-hidden="true">◇</span>
-              <span style={{ flex: 1 }}>{item.label}</span>
+              <span style={{ flex: 1 }}>{item.label}</span>{item.label==="Epic Ping"?<PingBadge endpoint="/api/team/epic-ping" href="/team/epic-ping"/>:null}
               {item.label === "Held-Over Rentals" && activeRentalCount > 0 ? (
                 <span
                   aria-label={`${activeRentalCount} held-over rental${activeRentalCount === 1 ? "" : "s"}`}
