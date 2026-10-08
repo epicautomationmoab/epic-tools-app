@@ -1665,3 +1665,20 @@
 .manualMpwrError {
   color: #b42318;
 }
+
+/* Keep the two reservation header actions on the same row. */
+.reservationActionIsland {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 13px;
+}
+.reservationActionIsland .guestPortalButton {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+.reservationActionIsland :global(#resend-confirmation-email) {
+  margin-left: 0 !important;
+  flex: 0 0 auto;
+}
