@@ -126,7 +126,6 @@ export async function POST(request: NextRequest) {
     customer_name?: string | null;
     subject?: string | null;
     message_text?: string | null;
-    message_html?: string | null;
   } | null;
 
   const channel = payload?.channel;
@@ -220,7 +219,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const subject = payload?.subject?.trim() || "Your Epic 4X4 Adventure";
+    const subject = payload?.subject?.trim() || "";
+    if (!subject) return NextResponse.json({ error: "Enter an email subject." }, { status: 400 });
     if (subject.length > 250) return NextResponse.json({ error: "Subject is too long." }, { status: 400 });
     if (!recipientEmail || !recipientEmail.includes("@")) {
       return NextResponse.json({ error: "This person does not have a valid email address." }, { status: 409 });
