@@ -1,3 +1,4 @@
+import PingBadge from "./PingBadge";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
@@ -85,7 +86,7 @@ export default async function TeamSidebar({ active }: Props) {
           const content = (
             <>
               <span aria-hidden="true">◇</span>
-              <span style={{ flex: 1 }}>{item.label}</span>
+              <span style={{ flex: 1 }}>{item.label}</span>{item.label==="Epic Ping"?<PingBadge endpoint="/api/team/epic-ping" href="/team/epic-ping"/>:null}
               {item.label === "Held-Over Rentals" && activeRentalCount > 0 ? (
                 <span
                   aria-label={`${activeRentalCount} held-over rental${activeRentalCount === 1 ? "" : "s"}`}
