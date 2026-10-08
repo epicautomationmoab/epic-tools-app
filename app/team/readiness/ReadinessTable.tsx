@@ -1378,7 +1378,9 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     >
                       View Guest Portal
                     </a>
-                  ) : null}
+                  ) : (
+                    <span className={styles.guestPortalButton} aria-live="polite">Guest Portal link loading or unavailable</span>
+                  )}
                 </div>
               </div>
               <button
