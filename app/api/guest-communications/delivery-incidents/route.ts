@@ -94,11 +94,29 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
     });
     if (!response.ok) throw new Error(`Unable to load delivery incidents: ${await response.text()}`);
-    const incidents = await response.json() as Array<{ confirmation_code: string }>;
+    const incidents = await response.json() as Array<{ id: string; confirmation_code: string }>;
+
+    // The Exceptions page treats operational_exception_resolutions as authoritative
+    // for manually fixed items. Apply the same rule here so Readiness cannot keep
+    // warning about an incident that Exceptions already considers resolved.
+    let activeIncidents = incidents;
+    if (incidents.length) {
+      const sourceIds = incidents.map((incident) => incident.id).filter(Boolean);
+      const inList = `(${sourceIds.map((id) => `"${id.replaceAll('"', '')}"`).join(",")})`;
+      const resolvedResponse = await fetch(
+        `${url}/rest/v1/operational_exception_resolutions?source_type=eq.email_delivery&source_id=in.${encodeURIComponent(inList)}&select=source_id`,
+        { headers: supabaseHeaders(key), cache: "no-store" },
+      );
+      if (!resolvedResponse.ok) throw new Error(`Unable to load resolved delivery incidents: ${await resolvedResponse.text()}`);
+      const resolvedRows = await resolvedResponse.json() as Array<{ source_id: string }>;
+      const resolvedIds = new Set(resolvedRows.map((row) => row.source_id));
+      activeIncidents = incidents.filter((incident) => !resolvedIds.has(incident.id));
+    }
+
     return NextResponse.json({
-      activeCount: incidents.length,
-      confirmationCodes: [...new Set(incidents.map((incident) => incident.confirmation_code).filter(Boolean))],
-      incidents,
+      activeCount: activeIncidents.length,
+      confirmationCodes: [...new Set(activeIncidents.map((incident) => incident.confirmation_code).filter(Boolean))],
+      incidents: activeIncidents,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown delivery incident query error.";
