@@ -1368,18 +1368,18 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     )}
                 </p>
 
-                {selected.guest_portal_token ? (
-                  <a
-                    className={styles.guestPortalButton}
-                    href={`/guest/${selected.guest_portal_token}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View Guest Portal
-                  </a>
-                ) : null}
-
-                <div id="reservation-action-island" aria-label="Reservation quick actions" />
+                <div id="reservation-action-island" className={styles.reservationActionIsland} aria-label="Reservation quick actions">
+                  {selected.guest_portal_token ? (
+                    <a
+                      className={styles.guestPortalButton}
+                      href={`/guest/${selected.guest_portal_token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View Guest Portal
+                    </a>
+                  ) : null}
+                </div>
               </div>
               <button
                 className={styles.drawerClose}
