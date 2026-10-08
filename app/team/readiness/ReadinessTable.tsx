@@ -396,6 +396,21 @@ function removePeopleOverride(readinessId: string) {
   );
 }
 
+// Merge lightweight snapshots without losing already fetched drawer-only data.
+function mergeReadinessDetail(previous: ReadinessRow, incoming: ReadinessRow): ReadinessRow {
+  return {
+    ...previous,
+    ...incoming,
+    guest_portal_token: incoming.guest_portal_token || previous.guest_portal_token,
+    epic_document_signers: incoming.epic_document_signers?.length
+      ? incoming.epic_document_signers : previous.epic_document_signers ?? incoming.epic_document_signers,
+    mpwr_waivers: incoming.mpwr_waivers?.length
+      ? incoming.mpwr_waivers : previous.mpwr_waivers ?? incoming.mpwr_waivers,
+    rental_v2_signers: incoming.rental_v2_signers?.length
+      ? incoming.rental_v2_signers : previous.rental_v2_signers ?? incoming.rental_v2_signers,
+  };
+}
+
 export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
@@ -460,23 +475,9 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   } | null>(null);
 
   useEffect(() => {
-    // Preserve detailed documents already fetched for the open drawer.
-    // Background table refreshes intentionally carry lighter-weight rows.
-    const preserveDocuments = (incoming: ReadinessRow, previous: ReadinessRow): ReadinessRow => ({
-      ...incoming,
-      epic_document_signers:
-        incoming.epic_document_signers?.length
-          ? incoming.epic_document_signers
-          : previous.epic_document_signers?.length
-            ? previous.epic_document_signers
-            : incoming.epic_document_signers,
-      mpwr_waivers:
-        incoming.mpwr_waivers?.length
-          ? incoming.mpwr_waivers
-          : previous.mpwr_waivers?.length
-            ? previous.mpwr_waivers
-            : incoming.mpwr_waivers,
-    });
+    // Lightweight refreshes cannot erase details fetched for a reservation.
+    const preserveDocuments = (incoming: ReadinessRow, previous: ReadinessRow): ReadinessRow =>
+      mergeReadinessDetail(previous, incoming);
     setLocalRows((current) => {
       const existing = new Map(current.map((row) => [row.readiness_id, row]));
       return rows.map((row) => {
@@ -514,17 +515,15 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
           if (!enriched) return row;
 
           return {
-            ...row,
-            ...enriched,
+            ...mergeReadinessDetail(row, enriched),
             visit_start_time: row.visit_start_time,
           };
         };
 
-        // Enrich the table data in the background, but do not replace an already-open
-        // drawer wholesale. Replacing selected here causes a visible drawer repaint and
-        // can momentarily mix old/new derived values while enhancers are also updating.
-        // Newly opened drawers will use the enriched localRows automatically.
+        // Refresh the open reservation only through a lossless detail merge.
+        // This restores the Guest Portal token even when the initial table is lightweight.
         setLocalRows((current) => current.map(mergeEnrichment));
+        setSelected((current) => current ? mergeEnrichment(current) : current);
       })
       .catch((error) => {
         console.error("Unable to background-load Readiness enrichment.", error);
@@ -537,7 +536,9 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
 
   useEffect(() => {
     if (!selected?.readiness_id) return;
-    if ((selected.epic_document_signers?.length ?? 0) > 0 || (selected.mpwr_waivers?.length ?? 0) > 0) return;
+    // Load both document sources; one populated group does not mean the other is ready.
+    if ((selected.epic_document_signers?.length ?? 0) > 0 &&
+        (selected.mpwr_waivers?.length ?? 0) > 0) return;
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
