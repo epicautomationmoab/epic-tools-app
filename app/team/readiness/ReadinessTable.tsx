@@ -536,9 +536,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
 
   useEffect(() => {
     if (!selected?.readiness_id) return;
-    // Load both document sources; one populated group does not mean the other is ready.
-    if ((selected.epic_document_signers?.length ?? 0) > 0 &&
-        (selected.mpwr_waivers?.length ?? 0) > 0) return;
+    // Always resolve the selected reservation token, even when documents are present.
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -546,7 +544,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
 
     let cancelled = false;
     const params = new URLSearchParams({
-      select: "readiness_id,epic_document_signers,mpwr_waivers",
+      select: "readiness_id,guest_portal_token,epic_document_signers,mpwr_waivers",
       readiness_id: `eq.${selected.readiness_id}`,
       limit: "1",
     });
@@ -557,13 +555,14 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     })
       .then(async (response) => {
         if (!response.ok) throw new Error(await response.text());
-        return response.json() as Promise<Array<Pick<ReadinessRow, "readiness_id" | "epic_document_signers" | "mpwr_waivers">>>;
+        return response.json() as Promise<Array<Pick<ReadinessRow, "readiness_id" | "guest_portal_token" | "epic_document_signers" | "mpwr_waivers">>>;
       })
       .then((detailRows) => {
         if (cancelled || !detailRows[0]) return;
         const detail = detailRows[0];
         const mergeDetail = (row: ReadinessRow): ReadinessRow => ({
           ...row,
+          guest_portal_token: row.guest_portal_token || detail.guest_portal_token,
           epic_document_signers: detail.epic_document_signers?.length
             ? detail.epic_document_signers
             : row.epic_document_signers ?? [],
