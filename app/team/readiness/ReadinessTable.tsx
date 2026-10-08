@@ -460,10 +460,34 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   } | null>(null);
 
   useEffect(() => {
-    setLocalRows(rows);
+    // Preserve detailed documents already fetched for the open drawer.
+    // Background table refreshes intentionally carry lighter-weight rows.
+    const preserveDocuments = (incoming: ReadinessRow, previous: ReadinessRow): ReadinessRow => ({
+      ...incoming,
+      epic_document_signers:
+        incoming.epic_document_signers?.length
+          ? incoming.epic_document_signers
+          : previous.epic_document_signers?.length
+            ? previous.epic_document_signers
+            : incoming.epic_document_signers,
+      mpwr_waivers:
+        incoming.mpwr_waivers?.length
+          ? incoming.mpwr_waivers
+          : previous.mpwr_waivers?.length
+            ? previous.mpwr_waivers
+            : incoming.mpwr_waivers,
+    });
+    setLocalRows((current) => {
+      const existing = new Map(current.map((row) => [row.readiness_id, row]));
+      return rows.map((row) => {
+        const previous = existing.get(row.readiness_id);
+        return previous ? preserveDocuments(row, previous) : row;
+      });
+    });
     setSelected((current) => {
       if (!current?.readiness_id) return current;
-      return rows.find((row) => row.readiness_id === current.readiness_id) ?? current;
+      const incoming = rows.find((row) => row.readiness_id === current.readiness_id);
+      return incoming ? preserveDocuments(incoming, current) : current;
     });
   }, [rows]);
 
@@ -539,8 +563,12 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
         const detail = detailRows[0];
         const mergeDetail = (row: ReadinessRow): ReadinessRow => ({
           ...row,
-          epic_document_signers: detail.epic_document_signers ?? [],
-          mpwr_waivers: detail.mpwr_waivers ?? [],
+          epic_document_signers: detail.epic_document_signers?.length
+            ? detail.epic_document_signers
+            : row.epic_document_signers ?? [],
+          mpwr_waivers: detail.mpwr_waivers?.length
+            ? detail.mpwr_waivers
+            : row.mpwr_waivers ?? [],
         });
         setLocalRows((current) =>
           current.map((row) => row.readiness_id === selected.readiness_id ? mergeDetail(row) : row),
