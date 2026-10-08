@@ -230,8 +230,8 @@ export async function POST(request: NextRequest) {
     const communicationId = randomUUID();
     // The template owns the representative and company signature. Never append
     // a signature to the message body or the composer-supplied HTML.
-    const cleanBody = messageText.replace(/(?:\\n\\s*)?(?:Best regards,?|Best,?|Warm regards,?|Kind regards,?)\\s*$/i, "").trim();
-    const closingBody = `${cleanBody}\\n\\nBest regards,`;
+    const cleanBody = messageText.replace(/(?:\n\s*)?(?:Best regards,?|Best,?|Warm regards,?|Kind regards,?)\s*$/i, "").trim();
+    const closingBody = `${cleanBody}\n\nBest regards,`;
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
       from: `${senderFirstName} at Epic 4X4 Adventures <${requiredEnv("GUEST_EMAIL_FROM").match(/<([^>]+)>/)?.[1] || requiredEnv("GUEST_EMAIL_FROM")}>`,
