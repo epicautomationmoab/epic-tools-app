@@ -1,13 +1,13 @@
 import { randomUUID } from "crypto";
+import { Resend } from "resend";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
-import { firstNameFromDisplayName, renderEpicEmailHtml, renderEpicPlainTextSignature, renderEpicSignatureHtml } from "@/lib/server/epic-email-signature";
+import { firstNameFromDisplayName } from "@/lib/server/epic-email-signature";
 import { sendCallRailSms } from "@/lib/server/callrail";
 
 const EXPECTED_MAILBOX = "hello@epic4x4adventures.com";
-const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
+const C360_TEMPLATE = "epic-c360-general-correspondence";
 
 function bearerToken(request: NextRequest) {
   const header = request.headers.get("authorization") || "";
@@ -46,43 +46,6 @@ async function latestCallRailTrackingNumber(phone: string | null, opportunityId:
     if (tracking?.trim()) return tracking.trim();
   }
   return null;
-}
-
-function encodeSubject(subject: string) {
-  return `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`;
-}
-
-function base64Url(value: string) {
-  return Buffer.from(value, "utf8").toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
-}
-
-function buildRawMessage(to: string, subject: string, body: string, senderFirstName: string, trackingUrl: string, htmlBody?: string | null) {
-  const altBoundary = `epic_alt_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const plainText = `${body}\n\n${renderEpicPlainTextSignature(senderFirstName)}`;
-  const html = `${htmlBody || renderEpicEmailHtml(body, senderFirstName)}${renderEpicSignatureHtml(senderFirstName)}<img src="${trackingUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;opacity:0" />`;
-  const lines = [
-    `From: ${senderFirstName} at Epic 4X4 Adventures <${EXPECTED_MAILBOX}>`,
-    `To: ${to}`,
-    `Reply-To: ${EXPECTED_MAILBOX}`,
-    `Subject: ${encodeSubject(subject)}`,
-    "MIME-Version: 1.0",
-    `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
-    "",
-    `--${altBoundary}`,
-    'Content-Type: text/plain; charset="UTF-8"',
-    "Content-Transfer-Encoding: 8bit",
-    "",
-    plainText,
-    "",
-    `--${altBoundary}`,
-    'Content-Type: text/html; charset="UTF-8"',
-    "Content-Transfer-Encoding: 8bit",
-    "",
-    html,
-    "",
-    `--${altBoundary}--`,
-  ];
-  return base64Url(lines.join("\r\n"));
 }
 
 async function rest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -173,7 +136,6 @@ export async function POST(request: NextRequest) {
   const requestedEmail = payload?.email?.trim().toLowerCase() || null;
   const requestedPhone = normalizePhone(payload?.phone || null);
   const messageText = payload?.message_text?.trim() || "";
-  const messageHtml = payload?.message_html?.trim() || null;
 
   if (channel !== "email" && channel !== "text") {
     return NextResponse.json({ error: "Choose Email or Text." }, { status: 400 });
@@ -264,49 +226,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "This person does not have a valid email address." }, { status: 409 });
     }
 
-    const connections = await rest<Array<{ refresh_token: string }>>(
-      `google_mailbox_connections?mailbox_email=eq.${encodeURIComponent(EXPECTED_MAILBOX)}&select=refresh_token&limit=1`,
-    );
-    const refreshToken = connections[0]?.refresh_token;
-    if (!refreshToken) {
-      return NextResponse.json({ error: "The hello@epic4x4adventures.com mailbox is not connected." }, { status: 503 });
-    }
-
-    const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: requiredEnv("GOOGLE_GMAIL_CLIENT_ID"),
-        client_secret: requiredEnv("GOOGLE_GMAIL_CLIENT_SECRET"),
-        refresh_token: refreshToken,
-        grant_type: "refresh_token",
-      }),
-      cache: "no-store",
-    });
-    const tokenPayload = await tokenResponse.json();
-    if (!tokenResponse.ok || !tokenPayload?.access_token) {
-      throw new Error(tokenPayload?.error_description || tokenPayload?.error || "Unable to refresh Gmail authorization.");
-    }
-
     const senderFirstName = firstNameFromDisplayName(profile.display_name);
     const communicationId = randomUUID();
-    const trackingUrl = new URL(`/api/email/open/${communicationId}`, request.nextUrl.origin).toString();
-    const gmailResponse = await fetch(GMAIL_SEND_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${tokenPayload.access_token}`,
-        "Content-Type": "application/json",
+    // The template owns the representative and company signature. Never append
+    // a signature to the message body or the composer-supplied HTML.
+    const cleanBody = messageText.replace(/(?:\\n\\s*)?(?:Best regards,?|Best,?|Warm regards,?|Kind regards,?)\\s*$/i, "").trim();
+    const closingBody = `${cleanBody}\\n\\nBest regards,`;
+    const resend = new Resend(requiredEnv("RESEND_API_KEY"));
+    const { data, error } = await resend.emails.send({
+      from: `${senderFirstName} at Epic 4X4 Adventures <${requiredEnv("GUEST_EMAIL_FROM").match(/<([^>]+)>/)?.[1] || requiredEnv("GUEST_EMAIL_FROM")}>`,
+      to: recipientEmail,
+      replyTo: EXPECTED_MAILBOX,
+      subject,
+      template: {
+        id: C360_TEMPLATE,
+        variables: { MESSAGE_BODY: closingBody, REP_NAME: senderFirstName },
       },
-      body: JSON.stringify({ raw: buildRawMessage(recipientEmail, subject, messageText, senderFirstName, trackingUrl, messageHtml) }),
-      cache: "no-store",
-    });
-    const gmailPayload = await gmailResponse.json();
-    if (!gmailResponse.ok || !gmailPayload?.id) {
-      throw new Error(gmailPayload?.error?.message || "Gmail did not send the message.");
-    }
-
+    }, { idempotencyKey: `c360-correspondence-${communicationId}` });
+    if (error) throw new Error(error.message);
+    if (!data?.id) throw new Error("Resend did not return a message ID.");
     const now = new Date().toISOString();
-    const threadId = gmailPayload.threadId || null;
+    const threadId = null;
     const matchedReservation = reservation || customerReservation;
 
     if (confirmation) {
@@ -320,7 +260,7 @@ export async function POST(request: NextRequest) {
           customer_name: customerName,
           customer_email: recipientEmail,
           status: "sent",
-          provider_message_id: gmailPayload.id,
+          provider_message_id: data.id,
           provider_thread_id: threadId,
           sent_at: now,
           queued_at: now,
@@ -340,10 +280,10 @@ export async function POST(request: NextRequest) {
       headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
       body: JSON.stringify({
         mailbox_email: EXPECTED_MAILBOX,
-        gmail_message_id: gmailPayload.id,
+        gmail_message_id: data.id,
         gmail_thread_id: threadId,
         direction: "outbound",
-        from_email: EXPECTED_MAILBOX,
+        from_email: requiredEnv("GUEST_EMAIL_FROM"),
         to_emails: [recipientEmail],
         subject,
         body_text: messageText,
@@ -351,7 +291,7 @@ export async function POST(request: NextRequest) {
         matched_confirmation_code: confirmation || matchedReservation?.confirmation_code || null,
         matched_reservation_id: matchedReservation?.id || null,
         matched_sales_opportunity_id: opportunityId,
-        match_method: "epic_send",
+        match_method: `resend_c360:${profile.id}`,
         match_confidence: "high",
         contact_name: customerName,
         contact_email: recipientEmail,
@@ -364,7 +304,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       channel: "email",
-      message_id: gmailPayload.id,
+      message_id: data.id,
       thread_id: threadId,
       recipient: recipientEmail,
       transactional_customer: isCustomer,
