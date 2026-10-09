@@ -5,6 +5,14 @@ import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
 
 const TEMPLATE_ALIAS = "abandoned-cart-activity-information";
+const ACTIVITY_TEMPLATE_ALIASES:Record<string,string>={
+  moab_discovery:"epic-activity-moab-discovery",
+  gateway_hells_revenge:"epic-activity-gateway-hells-revenge",
+  poison_spider:"epic-activity-poison-spider",
+  pro_r_ultimate:"epic-activity-pro-r-ultimate",
+  rental_rzr:"epic-activity-polaris-rentals",
+  xpedition:"epic-activity-polaris-rentals",
+};
 const REPLY_TO = "hello@epic4x4adventures.com";
 
 const REP_AVAILABILITY: Record<string, string> = {
@@ -15,6 +23,9 @@ const REP_AVAILABILITY: Record<string, string> = {
 };
 
 const ACTIVITY_LIBRARY = {
+  moab_discovery:{name:"Moab Discovery Tour",overview:"Discover Moab’s hidden wonders in comfort.",guidance:"Explore the spectacular landscape and fascinating history of Moab."},
+  gateway_hells_revenge:{name:"Gateway to Hell’s Revenge",overview:"Two legendary Moab trails in one extraordinary adventure.",guidance:"Discover the famous slickrock with an experienced guide."},
+  pro_r_ultimate:{name:"Hell’s Revenge Pro R Ultimate Experience",overview:"A decidedly grown-up experience with extraordinary performance.",guidance:"Morning and sunset departure options are available."},
   hells_revenge: {
     name: "Hell’s Revenge",
     overview: "Hell’s Revenge is one of Moab’s signature slickrock experiences. It combines dramatic scenery with the kind of terrain that makes Moab famous, while your Epic guide helps the group understand what is ahead and how to approach it.",
@@ -173,6 +184,7 @@ export async function POST(request: NextRequest) {
     }
 
     const activity = ACTIVITY_LIBRARY[activityKey];
+    const templateAlias = ACTIVITY_TEMPLATE_ALIASES[activityKey] || TEMPLATE_ALIAS;
     const bookingUrl = `https://epic4x4.tripworks.com/widgets/tripBuilder?trip=${encodeURIComponent(draft.confirmation_code)}`;
     const unsubscribeToken = randomUUID();
     await rest("sales_email_unsubscribe_tokens", {
@@ -195,13 +207,10 @@ export async function POST(request: NextRequest) {
       to: normalizedEmail,
       replyTo: REPLY_TO,
       template: {
-        id: TEMPLATE_ALIAS,
+        id: templateAlias,
         variables: {
           GUEST_NAME: guestFirstName,
           REP_FIRST_NAME: senderFirstName,
-          ACTIVITY_NAME: activity.name,
-          ACTIVITY_OVERVIEW: activity.overview,
-          ACTIVITY_GUIDANCE: activity.guidance,
           PERSONAL_MESSAGE: personalMessage,
           CALL_AVAILABILITY: callAvailability,
           BOOKING_URL: bookingUrl,
@@ -235,7 +244,7 @@ export async function POST(request: NextRequest) {
         direction: "outbound",
         from_email: requiredEnv("GUEST_EMAIL_FROM"),
         to_emails: [normalizedEmail],
-        subject: `A little more about ${activity.name}`,
+        subject: `Activity information: ${activity.name}`,
         body_text: bodyText,
         sent_at: now,
         matched_sales_opportunity_id: opportunity.id,
@@ -253,6 +262,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       provider_message_id: data.id,
       activity_key: activityKey,
+      template_alias: templateAlias,
       activity_name: activity.name,
       draft_id: draft.id,
       booking_url: bookingUrl,
