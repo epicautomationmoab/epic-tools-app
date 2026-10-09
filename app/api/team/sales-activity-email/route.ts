@@ -112,12 +112,14 @@ export async function POST(request: NextRequest) {
   const payload = await request.json().catch(() => null) as {
     opportunity_id?: string;
     activity_key?: string;
+    draft_id?: string;
     personal_message?: string;
   } | null;
 
   const opportunityId = payload?.opportunity_id?.trim() || "";
   const activityKey = payload?.activity_key?.trim() as ActivityKey | undefined;
   const personalMessage = payload?.personal_message?.trim() || "";
+  const selectedDraftId = payload?.draft_id?.trim() || "";
   if (!opportunityId) return NextResponse.json({ error: "Sales opportunity is required." }, { status: 400 });
   if (!activityKey || !(activityKey in ACTIVITY_LIBRARY)) {
     return NextResponse.json({ error: "Choose an approved activity email." }, { status: 400 });
@@ -155,6 +157,7 @@ export async function POST(request: NextRequest) {
       `sales_opportunity_drafts?opportunity_id=eq.${encodeURIComponent(opportunityId)}&select=draft_id`,
     );
     const draftIds = links.map((row) => row.draft_id).filter(Boolean);
+    if(selectedDraftId && !draftIds.includes(selectedDraftId))return NextResponse.json({error:"Selected draft does not belong to this lead."},{status:403});
     if (!draftIds.length) {
       return NextResponse.json({ error: "No active TripWorks draft is linked to this lead." }, { status: 409 });
     }
@@ -162,7 +165,9 @@ export async function POST(request: NextRequest) {
     const drafts = await rest<Draft[]>(
       `sales_drafts?id=in.(${encodeURIComponent(quoted)})&is_current_draft=eq.true&converted_at=is.null&select=id,confirmation_code,is_current_draft,converted_at,last_trip_status,value_cents,last_seen_at&order=value_cents.desc.nullslast,last_seen_at.desc.nullslast`,
     );
-    const draft = drafts.find((row) => row.confirmation_code && row.last_trip_status !== "converted");
+    const draft = selectedDraftId
+      ? drafts.find((row) => row.id === selectedDraftId && row.confirmation_code && row.last_trip_status !== "converted")
+      : drafts.find((row) => row.confirmation_code && row.last_trip_status !== "converted");
     if (!draft?.confirmation_code) {
       return NextResponse.json({ error: "No current unconverted TripWorks draft is available for this lead." }, { status: 409 });
     }
@@ -203,7 +208,7 @@ export async function POST(request: NextRequest) {
           EPIC_UNSUBSCRIBE_URL: unsubscribeUrl,
         },
       },
-    }, { idempotencyKey: `sales-activity-${activityKey}-${opportunity.id}-${new Date().toISOString().slice(0,10)}` });
+    }, { idempotencyKey: `sales-activity-${activityKey}-${draft.id}-${opportunity.id}-${new Date().toISOString().slice(0,10)}` });
 
     if (error) throw new Error(error.message);
     if (!data?.id) throw new Error("Resend did not return a message ID.");
@@ -249,6 +254,8 @@ export async function POST(request: NextRequest) {
       provider_message_id: data.id,
       activity_key: activityKey,
       activity_name: activity.name,
+      draft_id: draft.id,
+      booking_url: bookingUrl,
       recipient: normalizedEmail,
       sent_by: profile.display_name,
     });
