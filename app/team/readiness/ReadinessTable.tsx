@@ -560,7 +560,7 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     let cancelled = false;
     setDocumentDetailStatus("loading");
     const params = new URLSearchParams({
-      select: "readiness_id,guest_portal_token,epic_document_signers,mpwr_waivers",
+      select: "readiness_id,epic_document_signers,mpwr_waivers",
       readiness_id: `eq.${selected.readiness_id}`,
       limit: "1",
     });
