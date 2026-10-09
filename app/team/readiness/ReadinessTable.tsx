@@ -417,6 +417,8 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [query, setQuery] = useState("");
   const [localRows, setLocalRows] = useState(rows);
   const [selected, setSelected] = useState<ReadinessRow | null>(null);
+  const [documentDetailStatus, setDocumentDetailStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [documentDetailRetry, setDocumentDetailRetry] = useState(0);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteStatus, setNoteStatus] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -543,48 +545,57 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
     if (!url || !key) return;
 
     let cancelled = false;
+    setDocumentDetailStatus("loading");
     const params = new URLSearchParams({
       select: "readiness_id,guest_portal_token,epic_document_signers,mpwr_waivers",
       readiness_id: `eq.${selected.readiness_id}`,
       limit: "1",
     });
 
-    fetch(`${url}/rest/v1/guest_readiness_with_handoff_v?${params.toString()}`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(await response.text());
-        return response.json() as Promise<Array<Pick<ReadinessRow, "readiness_id" | "guest_portal_token" | "epic_document_signers" | "mpwr_waivers">>>;
-      })
-      .then((detailRows) => {
-        if (cancelled || !detailRows[0]) return;
-        const detail = detailRows[0];
-        const mergeDetail = (row: ReadinessRow): ReadinessRow => ({
-          ...row,
-          guest_portal_token: row.guest_portal_token || detail.guest_portal_token,
-          epic_document_signers: detail.epic_document_signers?.length
-            ? detail.epic_document_signers
-            : row.epic_document_signers ?? [],
-          mpwr_waivers: detail.mpwr_waivers?.length
-            ? detail.mpwr_waivers
-            : row.mpwr_waivers ?? [],
-        });
-        setLocalRows((current) =>
-          current.map((row) => row.readiness_id === selected.readiness_id ? mergeDetail(row) : row),
-        );
-        setSelected((current) =>
-          current && current.readiness_id === selected.readiness_id ? mergeDetail(current) : current,
-        );
-      })
-      .catch((error) => {
-        console.error("Unable to lazy-load Readiness document detail.", error);
-      });
-
+    const loadDocumentDetail = async () => {
+      // A transient view timeout must not be presented as proof that no waivers exist.
+      for (let attempt = 0; attempt < 3 && !cancelled; attempt += 1) {
+        try {
+          const response = await fetch(
+            `${url}/rest/v1/guest_readiness_with_handoff_v?${params.toString()}`,
+            {
+              headers: { apikey: key, Authorization: `Bearer ${key}` },
+              cache: "no-store",
+            },
+          );
+          if (!response.ok) throw new Error(await response.text());
+          const detailRows = await response.json() as Array<Pick<ReadinessRow, "readiness_id" | "guest_portal_token" | "epic_document_signers" | "mpwr_waivers">>;
+          if (cancelled) return;
+          if (!detailRows[0]) throw new Error("Reservation detail was not returned.");
+          const detail = detailRows[0];
+          const mergeDetail = (row: ReadinessRow): ReadinessRow => ({
+            ...row,
+            guest_portal_token: row.guest_portal_token || detail.guest_portal_token,
+            epic_document_signers: detail.epic_document_signers?.length
+              ? detail.epic_document_signers : row.epic_document_signers ?? [],
+            mpwr_waivers: detail.mpwr_waivers?.length
+              ? detail.mpwr_waivers : row.mpwr_waivers ?? [],
+          });
+          setLocalRows((current) =>
+            current.map((row) => row.readiness_id === selected.readiness_id ? mergeDetail(row) : row),
+          );
+          setSelected((current) =>
+            current && current.readiness_id === selected.readiness_id ? mergeDetail(current) : current,
+          );
+          setDocumentDetailStatus("ready");
+          return;
+        } catch (error) {
+          console.error("Unable to load Readiness document detail.", { attempt: attempt + 1, error });
+          if (attempt === 2 && !cancelled) setDocumentDetailStatus("error");
+          if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+        }
+      }
+    };
+    void loadDocumentDetail();
     return () => {
       cancelled = true;
     };
-  }, [selected?.readiness_id]);
+  }, [selected?.readiness_id, documentDetailRetry]);
 
   useEffect(() => {
     if (!selected) return;
@@ -2144,7 +2155,16 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 </div>
               ) : (
                 <p className={styles.drawerEmpty}>
-                  No Epic document records were received.
+                  {documentDetailStatus === "loading"
+                    ? "Retrieving Epic documents..."
+                    : documentDetailStatus === "error"
+                      ? "Unable to retrieve Epic documents. This does not mean they are missing."
+                      : (selected.epic_document_received_count ?? 0) > 0
+                        ? "Documents are recorded as received, but signer details are not available. Please retry."
+                        : "No Epic document records were received."}
+                  {documentDetailStatus !== "loading" && ((selected.epic_document_received_count ?? 0) > 0 || documentDetailStatus === "error") && (
+                    <button type="button" onClick={() => setDocumentDetailRetry((count) => count + 1)}>Retry documents</button>
+                  )}
                 </p>
               )}
             </section>
@@ -2192,9 +2212,11 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 </div>
               ) : (
                 <p className={styles.drawerEmpty}>
-                  {isRetrievingMpwrWaivers(selected)
-                    ? "Retrieving waivers..."
-                    : "No MPWR waiver records were received."}
+                  {documentDetailStatus === "error"
+                    ? "Unable to retrieve MPWR waivers. Please retry."
+                    : documentDetailStatus === "loading" || isRetrievingMpwrWaivers(selected)
+                      ? "Retrieving waivers..."
+                      : "No MPWR waiver records were received."}
                 </p>
               )}
             </section>
