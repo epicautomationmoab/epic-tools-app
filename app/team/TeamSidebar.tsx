@@ -1,4 +1,5 @@
 import PingBadge from "./PingBadge";
+import IncomingCallPopup from "./IncomingCallPopup";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
@@ -122,6 +123,7 @@ export default async function TeamSidebar({ active }: Props) {
       </nav>
 
       <div className={styles.sidebarPhoto} />
+      <IncomingCallPopup />
     </aside>
   );
 }
