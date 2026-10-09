@@ -210,6 +210,9 @@ export async function POST(request: NextRequest) {
         id: templateAlias,
         variables: {
           GUEST_NAME: guestFirstName,
+          ACTIVITY_NAME: activity.name,
+          ACTIVITY_OVERVIEW: activity.overview,
+          ACTIVITY_GUIDANCE: activity.guidance,
           REP_FIRST_NAME: senderFirstName,
           PERSONAL_MESSAGE: personalMessage,
           CALL_AVAILABILITY: callAvailability,
@@ -244,7 +247,7 @@ export async function POST(request: NextRequest) {
         direction: "outbound",
         from_email: requiredEnv("GUEST_EMAIL_FROM"),
         to_emails: [normalizedEmail],
-        subject: `Activity information: ${activity.name}`,
+        subject: `A little more about ${activity.name}`,
         body_text: bodyText,
         sent_at: now,
         matched_sales_opportunity_id: opportunity.id,
