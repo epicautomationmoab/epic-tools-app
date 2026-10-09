@@ -50,7 +50,7 @@ function elapsed(startedAt: number | null, now: number) {
 }
 
 export default function TechTimeDraftPage() {
-  const [view, setView] = useState<"tech" | "report">("tech");
+  const [view, setView] = useState<"tech" | "board" | "report">("tech");
   const [tech, setTech] = useState("Tech 1");
   const [vehicle, setVehicle] = useState("");
   const [category, setCategory] = useState("Damage Repair");
@@ -112,6 +112,7 @@ export default function TechTimeDraftPage() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setView("tech")} style={tab(view === "tech")}>Tech Station</button>
+          <button onClick={() => setView("board")} style={tab(view === "board")}>Shop Board</button>
           <button onClick={() => setView("report")} style={tab(view === "report")}>Weekly Report</button>
         </div>
       </header>
@@ -199,6 +200,70 @@ export default function TechTimeDraftPage() {
               </div>
             </aside>
           </div>
+        ) : view === "board" ? (
+          <section style={{ ...card, background: "#111923", color: "white", minHeight: 620 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 20, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 13, color: "#9aa7b5", fontWeight: 900, letterSpacing: ".12em" }}>BIG SCREEN SHOP VIEW</div>
+                <h2 style={{ margin: "5px 0 0", fontSize: 34 }}>What is happening in the shop right now?</h2>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 13, color: "#9aa7b5", fontWeight: 800 }}>TODAY</div>
+                <div style={{ fontSize: 24, fontWeight: 900 }}>2 ACTIVE · 6 COMPLETED</div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginTop: 24 }}>
+              {[
+                { tech: "Tech 1", vehicle: "42", task: "Damage Repair", note: "LF fender + mount", started: "9:12 AM", elapsed: "1h 38m" },
+                { tech: "Tech 2", vehicle: "31", task: "Belt", note: "Inspect + replace", started: "10:04 AM", elapsed: "46m" },
+              ].map((j) => (
+                <div key={j.tech} style={{ border: "2px solid #2aa567", background: "#17242f", borderRadius: 18, padding: 22 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                    <div>
+                      <div style={{ color: "#57d58e", fontSize: 13, fontWeight: 900, letterSpacing: ".08em" }}>WORKING NOW</div>
+                      <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{j.tech}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ color: "#9aa7b5", fontSize: 12, fontWeight: 800 }}>VEHICLE</div>
+                      <div style={{ fontSize: 38, fontWeight: 900 }}>{j.vehicle}</div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 18, fontSize: 24, fontWeight: 900 }}>{j.task}</div>
+                  <div style={{ color: "#b7c0ca", marginTop: 5, fontSize: 16 }}>{j.note}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 22, paddingTop: 16, borderTop: "1px solid #33414f" }}>
+                    <span style={{ color: "#9aa7b5" }}>Started {j.started}</span>
+                    <strong style={{ fontSize: 22 }}>{j.elapsed}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 28 }}>
+              <div style={{ fontSize: 14, color: "#9aa7b5", fontWeight: 900, letterSpacing: ".08em", marginBottom: 10 }}>COMPLETED TODAY</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr 1fr .7fr .7fr", padding: "10px 14px", color: "#9aa7b5", fontSize: 12, fontWeight: 900, borderBottom: "1px solid #35414d" }}>
+                <span>TECH</span><span>VEHICLE</span><span>JOB</span><span>TIME</span><span>FINISHED</span>
+              </div>
+              {sampleJobs.slice(0, 6).map((job, i) => (
+                <div key={job.id} style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr 1fr .7fr .7fr", padding: "14px", borderBottom: "1px solid #293541", fontSize: 16, alignItems: "center" }}>
+                  <strong>{job.technician}</strong><strong>#{job.vehicle}</strong><span>{job.category}</span><strong>{fmt(job.minutes)}</strong><span style={{ color: "#b7c0ca" }}>{["8:41 AM","9:18 AM","10:02 AM","10:26 AM","11:11 AM","11:42 AM"][i]}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 14, marginTop: 24 }}>
+              {[
+                ["Productive Time Today", "6.8 hrs"],
+                ["Jobs Completed", "6"],
+                ["Avg Completed Job", "68 min"],
+              ].map(([label,value]) => (
+                <div key={label} style={{ background: "#1a2733", border: "1px solid #33414f", borderRadius: 14, padding: 16 }}>
+                  <div style={{ color: "#9aa7b5", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>{label}</div>
+                  <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          </section>
         ) : (
           <section style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap" }}>
