@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReadinessRow, VehicleBreakdownItem } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 import CancellationAgreementPanel from "./CancellationAgreementPanel";
@@ -417,6 +417,19 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [query, setQuery] = useState("");
   const [localRows, setLocalRows] = useState(rows);
   const [selected, setSelected] = useState<ReadinessRow | null>(null);
+  // Preserve signed-document details by reservation, even across drawer reopenings.
+  const documentCache = useRef(new Map<string, ReadinessRow>());
+  const preserveCachedDocuments = (row: ReadinessRow): ReadinessRow => {
+    if (!row.readiness_id) return row;
+    const previous = documentCache.current.get(row.readiness_id);
+    const merged = previous ? mergeReadinessDetail(previous, row) : row;
+    if ((merged.epic_document_signers?.length ?? 0) > 0 ||
+        (merged.mpwr_waivers?.length ?? 0) > 0 ||
+        (merged.rental_v2_signers?.length ?? 0) > 0) {
+      documentCache.current.set(row.readiness_id, merged);
+    }
+    return merged;
+  };
   const [documentDetailStatus, setDocumentDetailStatus] = useState<"loading" | "ready" | "error">("loading");
   const [documentDetailRetry, setDocumentDetailRetry] = useState(0);
   const [noteDraft, setNoteDraft] = useState("");
@@ -484,13 +497,13 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
       const existing = new Map(current.map((row) => [row.readiness_id, row]));
       return rows.map((row) => {
         const previous = existing.get(row.readiness_id);
-        return previous ? preserveDocuments(row, previous) : row;
+        return preserveCachedDocuments(previous ? preserveDocuments(row, previous) : row);
       });
     });
     setSelected((current) => {
       if (!current?.readiness_id) return current;
       const incoming = rows.find((row) => row.readiness_id === current.readiness_id);
-      return incoming ? preserveDocuments(incoming, current) : current;
+      return incoming ? preserveCachedDocuments(preserveDocuments(incoming, current)) : current;
     });
   }, [rows]);
 
@@ -524,8 +537,8 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
 
         // Refresh the open reservation only through a lossless detail merge.
         // This restores the Guest Portal token even when the initial table is lightweight.
-        setLocalRows((current) => current.map(mergeEnrichment));
-        setSelected((current) => current ? mergeEnrichment(current) : current);
+        setLocalRows((current) => current.map((row) => preserveCachedDocuments(mergeEnrichment(row))));
+        setSelected((current) => current ? preserveCachedDocuments(mergeEnrichment(current)) : current);
       })
       .catch((error) => {
         console.error("Unable to background-load Readiness enrichment.", error);
@@ -577,10 +590,10 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
               ? detail.mpwr_waivers : row.mpwr_waivers ?? [],
           });
           setLocalRows((current) =>
-            current.map((row) => row.readiness_id === selected.readiness_id ? mergeDetail(row) : row),
+            current.map((row) => row.readiness_id === selected.readiness_id ? preserveCachedDocuments(mergeDetail(row)) : row),
           );
           setSelected((current) =>
-            current && current.readiness_id === selected.readiness_id ? mergeDetail(current) : current,
+            current && current.readiness_id === selected.readiness_id ? preserveCachedDocuments(mergeDetail(current)) : current,
           );
           setDocumentDetailStatus("ready");
           return;
@@ -1209,7 +1222,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                           : undefined
                   }
                   onClick={() => {
-                    setSelected(row);
+                    setSelected(preserveCachedDocuments(row));
                     setEditingField(null);
                     setEditValue("");
                   }}
@@ -1329,7 +1342,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                         aria-label="Open note"
                         onClick={(event) => {
                           event.stopPropagation();
-                          setSelected(row);
+                          setSelected(preserveCachedDocuments(row));
                           setEditingField(null);
                           setEditValue("");
                         }}
