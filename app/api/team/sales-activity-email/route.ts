@@ -209,10 +209,8 @@ export async function POST(request: NextRequest) {
       template: {
         id: templateAlias,
         variables: {
+          ...(!ACTIVITY_TEMPLATE_ALIASES[activityKey] ? { ACTIVITY_NAME: activity.name, ACTIVITY_OVERVIEW: activity.overview, ACTIVITY_GUIDANCE: activity.guidance } : {}),
           GUEST_NAME: guestFirstName,
-          ACTIVITY_NAME: activity.name,
-          ACTIVITY_OVERVIEW: activity.overview,
-          ACTIVITY_GUIDANCE: activity.guidance,
           REP_FIRST_NAME: senderFirstName,
           PERSONAL_MESSAGE: personalMessage,
           CALL_AVAILABILITY: callAvailability,
