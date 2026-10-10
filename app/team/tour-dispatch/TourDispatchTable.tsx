@@ -134,7 +134,7 @@ function GuideField({ group, initialValue }: { group: ManifestGroup; initialValu
   }
 
   return <div className={styles.guideField}>
-    <label>Guide <span>(optional)</span></label>
+    <label>Guide</label>
     <input
       value={value}
       onChange={(e) => { setValue(e.target.value); setMessage(""); }}
@@ -143,7 +143,7 @@ function GuideField({ group, initialValue }: { group: ManifestGroup; initialValu
       placeholder="Guide name"
       aria-label={`Guide for ${group.activity} at ${formatTime(group.visitStartTime)}`}
     />
-    <GuideVehicleIssueReporter storeVisitId={group.rows[0].store_visit_id} guideName={value} activity={group.activity} />
+    <div style={{ gridColumn: 2, display: "flex", justifyContent: "flex-end" }}><GuideVehicleIssueReporter storeVisitId={group.rows[0].store_visit_id} guideName={value} activity={group.activity} /></div>
     {busy ? <span className={styles.guideStatus}>Saving…</span> : message ? <span className={message.includes("Unable") ? styles.error : styles.guideStatus}>{message}</span> : null}
   </div>;
 }

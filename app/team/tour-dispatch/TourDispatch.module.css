@@ -227,19 +227,19 @@
   min-width: 285px;
 }
 
-.guideField label {
+.guideField > label {
   color: #4f5963;
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.guideField label span {
+.guideField > label span {
   color: #7e8790;
   font-weight: 600;
 }
 
-.guideField input {
+.guideField > input {
   width: 100%;
   height: 36px;
   border: 1px solid #cbd1d8;
@@ -249,7 +249,7 @@
   background: #fff;
 }
 
-.guideField input:focus {
+.guideField > input:focus {
   outline: 3px solid var(--manifest-ring);
   border-color: var(--manifest-accent);
 }
