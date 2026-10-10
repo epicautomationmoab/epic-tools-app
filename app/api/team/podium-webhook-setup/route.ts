@@ -31,7 +31,9 @@ export async function GET(request: NextRequest) {
   if (!profile || !["admin","manager"].includes(profile.role)) return NextResponse.json({error:"Manager access required."},{status:403});
   try {
     const {result} = await podiumWebhookRequest("GET");
-    return NextResponse.json({ok:true, result});
+    let signing_secret_check = "available";
+    try { await loadSigningSecret(); } catch (error) { signing_secret_check = error instanceof Error ? error.message : "Unavailable"; }
+    return NextResponse.json({ok:true, result, signing_secret_check});
   } catch(error) {
     return NextResponse.json({error:error instanceof Error?error.message:"Podium webhook listing failed."},{status:502});
   }
