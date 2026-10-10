@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   try {
     const visit = await resolveVisit(request);
     if (!visit) return NextResponse.json({ error:"Reservation could not be identified." }, { status:404 });
-    const notes = await rest<Array<Record<string,unknown>>>(`guest_readiness_staff_notes?readiness_id=eq.${encodeURIComponent(visit.readiness_id)}&archived_at=is.null&select=${encodeURIComponent("note_id,readiness_id,note_text,note_category,created_by,created_at,updated_at")}&order=created_at.desc`);
+    const notes = await rest<Array<Record<string,unknown>>>(`epic_unified_notes?readiness_id=eq.${encodeURIComponent(visit.readiness_id)}&archived_at=is.null&visible_in_readiness=eq.true&select=${encodeURIComponent("note_id,readiness_id,note_text,note_scope,source,visible_in_readiness,author_name,created_at,updated_at")}&order=created_at.desc`);
     return NextResponse.json({ ok:true, readiness_id:visit.readiness_id, legacy_note:visit.notes || null, notes });
   } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to load notes." }, { status:500 }); }
 }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json(); const visit = await resolveVisit(request, body); const noteText = String(body?.note_text || "").trim();
     if (!visit || !noteText) return NextResponse.json({ error:"Reservation and note text are required." }, { status:400 });
-    const rows = await rest<Array<Record<string,unknown>>>("guest_readiness_staff_notes", { method:"POST", headers:{ Prefer:"return=representation" }, body:JSON.stringify({ readiness_id:visit.readiness_id, note_text:noteText, note_category:"operations", created_by:profile.display_name }) });
+    const rows = await rest<Array<Record<string,unknown>>>("epic_unified_notes", { method:"POST", headers:{ Prefer:"return=representation" }, body:JSON.stringify({ readiness_id:visit.readiness_id, note_text:noteText, note_scope:"reservation", source:"readiness", visible_in_readiness:true, confirmation_code:String(body?.confirmation || "").trim().toUpperCase() || null, author_name:profile.display_name }) });
     return NextResponse.json({ ok:true, note:rows[0] || null });
   } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to save note." }, { status:500 }); }
 }
@@ -76,7 +76,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json(); const noteId = String(body?.note_id || "").trim(); const noteText = String(body?.note_text || "").trim();
     if (!noteId || !noteText) return NextResponse.json({ error:"note_id and note_text are required." }, { status:400 });
     if (noteId === "legacy") { const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, noteText); return NextResponse.json({ ok:true }); }
-    const rows = await rest<Array<Record<string,unknown>>>(`guest_readiness_staff_notes?note_id=eq.${encodeURIComponent(noteId)}`, { method:"PATCH", headers:{ Prefer:"return=representation" }, body:JSON.stringify({ note_text:noteText, updated_at:new Date().toISOString() }) });
+    const rows = await rest<Array<Record<string,unknown>>>(`epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}`, { method:"PATCH", headers:{ Prefer:"return=representation" }, body:JSON.stringify({ note_text:noteText, updated_at:new Date().toISOString() }) });
     return NextResponse.json({ ok:true, note:rows[0] || null });
   } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to update note." }, { status:500 }); }
 }
@@ -86,7 +86,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json(); const noteId = String(body?.note_id || "").trim(); if (!noteId) return NextResponse.json({ error:"note_id is required." }, { status:400 });
     if (noteId === "legacy") { const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, ""); return NextResponse.json({ ok:true }); }
-    await rest<void>(`guest_readiness_staff_notes?note_id=eq.${encodeURIComponent(noteId)}`, { method:"PATCH", headers:{ Prefer:"return=minimal" }, body:JSON.stringify({ archived_at:new Date().toISOString(), updated_at:new Date().toISOString() }) });
+    await rest<void>(`epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}`, { method:"PATCH", headers:{ Prefer:"return=minimal" }, body:JSON.stringify({ archived_at:new Date().toISOString(), updated_at:new Date().toISOString() }) });
     return NextResponse.json({ ok:true });
   } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to remove note." }, { status:500 }); }
 }
