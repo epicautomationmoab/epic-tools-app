@@ -56,7 +56,7 @@ export default function StaffNotesDrawerEnhancer() {
         if (!response.ok) throw new Error(payload.error || "Unable to load notes.");
 
         const notes: Note[] = payload.notes || [];
-        const legacy = typeof payload.legacy_note === "string" && payload.legacy_note.trim()
+        const legacy: Note | null = typeof payload.legacy_note === "string" && payload.legacy_note.trim()
           ? { note_id:"legacy", note_text:payload.legacy_note.trim(), created_by:null, created_at:"", updated_at:"" }
           : null;
 
