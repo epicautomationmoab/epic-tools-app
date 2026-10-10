@@ -53,13 +53,27 @@ async function saveLegacy(readinessId:string, noteText:string) {
 export async function GET(request: NextRequest) {
   if (!await employee(request)) return NextResponse.json({ error:"Employee login required." }, { status:401 });
   try {
-    const visit = await resolveVisit(request);
-    if (!visit) return NextResponse.json({ error:"Reservation could not be identified." }, { status:404 });
     const confirmation=String(request.nextUrl.searchParams.get("confirmation")||"").trim().toUpperCase();
-    const identityFilter=confirmation?`or=(readiness_id.eq.${encodeURIComponent(visit.readiness_id)},confirmation_code.eq.${encodeURIComponent(confirmation)})`:`readiness_id=eq.${encodeURIComponent(visit.readiness_id)}`;
-    const notes = await rest<Array<Record<string,unknown>>>(`epic_unified_notes?${identityFilter}&archived_at=is.null&visible_in_readiness=eq.true&select=${encodeURIComponent("note_id,readiness_id,note_text,note_category:note_scope,created_by:author_name,created_at,updated_at,source,source_note_id,visible_in_readiness")}&order=created_at.desc`);
-    return NextResponse.json({ ok:true, readiness_id:visit.readiness_id, legacy_note:notes.some(n=>n.source_note_id===`legacy:${visit.readiness_id}`)?null:(visit.notes||null), notes });
-  } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to load notes." }, { status:500 }); }
+    const requestedReadinessId=String(request.nextUrl.searchParams.get("readiness_id")||"").trim();
+    if (!confirmation && !requestedReadinessId) return NextResponse.json({error:"Reservation required."},{status:400});
+    // Query by confirmation directly: C360-origin notes may not have a readiness_id.
+    // Don't fail the whole drawer because a historic Readiness view cannot resolve a visit.
+    const filter=confirmation
+      ? `confirmation_code=eq.${encodeURIComponent(confirmation)}`
+      : `readiness_id=eq.${encodeURIComponent(requestedReadinessId)}`;
+    const rows=await rest<Array<Record<string,unknown>>>(`epic_unified_notes?${filter}&archived_at=is.null&visible_in_readiness=eq.true&select=*&order=created_at.desc`);
+    const notes=rows.map(n=>({...n,note_category:n.note_scope,created_by:n.author_name}));
+    let visit:VisitIdentity|null=null;
+    try { visit=await resolveVisit(request); }
+    catch(error){ console.warn("[readiness-notes] legacy visit lookup unavailable",error instanceof Error?error.message:String(error)); }
+    const readinessId=visit?.readiness_id||requestedReadinessId||null;
+    const legacyExists=readinessId ? notes.some(n=>n.source_note_id===`legacy:${readinessId}`) : false;
+    return NextResponse.json({ok:true,readiness_id:readinessId,legacy_note:legacyExists?null:(visit?.notes||null),notes});
+  }catch(error){
+    const message=error instanceof Error?error.message:"Unable to load notes.";
+    console.error("[readiness-notes] GET failed",message);
+    return NextResponse.json({error:message},{status:500});
+  }
 }
 
 export async function POST(request: NextRequest) {
