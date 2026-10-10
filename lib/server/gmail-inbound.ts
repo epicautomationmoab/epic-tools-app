@@ -1,3 +1,4 @@
+import { WEBFLOW_SENDERS, parseWebflowGuest } from "@/lib/server/webflow-form";
 import { getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -206,7 +207,12 @@ async function syncMailbox(mailbox:string, connection:Connection, force:boolean)
     const bodyText = textFromPart(message.payload).slice(0, 100_000);
     const receivedAt = message.internalDate ? new Date(Number(message.internalDate)).toISOString() : new Date().toISOString();
     const threadId = message.threadId || null;
-    const match = await matchMessage(fromEmail, threadId);
+    const isWebflow = WEBFLOW_SENDERS.has(fromEmail);
+    const guest = isWebflow ? parseWebflowGuest(bodyText) : null;
+    // A Webflow notification sender/thread identifies Webflow, not a guest.
+    const match: Match = isWebflow
+      ? guest?.email ? await matchMessage(guest.email, null) : { confirmation: null, reservationId: null, opportunityId: null, method: null, confidence: null }
+      : await matchMessage(fromEmail, threadId);
 
     await rest("gmail_messages", {
       method: "POST",
@@ -228,6 +234,10 @@ async function syncMailbox(mailbox:string, connection:Connection, force:boolean)
         matched_sales_opportunity_id: match.opportunityId,
         match_method: match.method,
         match_confidence: match.confidence,
+        contact_name: guest?.name || null,
+        contact_email: guest?.email || null,
+        contact_phone: guest?.phone || null,
+        source_type: isWebflow ? "webflow_form" : null,
         updated_at: new Date().toISOString(),
       }),
     });
