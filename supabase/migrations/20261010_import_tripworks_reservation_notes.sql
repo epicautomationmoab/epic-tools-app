@@ -37,7 +37,7 @@ begin
          n.value->'user_avatar'->>'full_name',n.value->>'id',
          coalesce(nullif(n.value->>'created_at','')::timestamptz,w.received_at),w.received_at
   from jsonb_array_elements(w.payload->'notes') n
-  left join public.guest_readiness_operational r on r.confirmation_code=w.payload->>'confirmation_code'
+  left join lateral (select readiness_id from public.guest_readiness_operational where confirmation_code=w.payload->>'confirmation_code' order by readiness_id limit 1) r on true
   where w.payload->>'confirmation_code' is not null and n.value->>'id' is not null
     and nullif(btrim(coalesce(n.value->>'text','')),'') is not null
   on conflict (source,source_note_id) where source_note_id is not null
