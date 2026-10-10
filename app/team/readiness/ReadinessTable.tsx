@@ -417,6 +417,8 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   const [query, setQuery] = useState("");
   const [localRows, setLocalRows] = useState(rows);
   const [selected, setSelected] = useState<ReadinessRow | null>(null);
+  const [unifiedNoteFlags, setUnifiedNoteFlags] = useState<{ids:Set<string>;codes:Set<string>}>({ids:new Set(),codes:new Set()});
+  useEffect(()=>{let active=true;async function load(){try{const r=await fetch("/api/team/readiness/note-flags",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({readiness_ids:localRows.map(row=>row.readiness_id).filter(Boolean),confirmations:localRows.map(row=>row.confirmation_code).filter(Boolean)})});if(!r.ok)return;const p=await r.json();if(active)setUnifiedNoteFlags({ids:new Set(p.readiness_ids||[]),codes:new Set(p.confirmations||[])});}catch{}}void load();const timer=window.setInterval(()=>void load(),30000);return()=>{active=false;window.clearInterval(timer)}},[localRows]);
   // Preserve signed-document details by reservation, even across drawer reopenings.
   const documentCache = useRef(new Map<string, ReadinessRow>());
   const preserveCachedDocuments = (row: ReadinessRow): ReadinessRow => {
@@ -1335,7 +1337,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     <KioskSelect row={row} />
                   </td>
                   <td className={styles.center}>
-                    {row.notes?.trim() || (row.tripworks_notes?.length ?? 0) > 0 ? (
+                    {row.notes?.trim() || (row.tripworks_notes?.length ?? 0) > 0 || unifiedNoteFlags.ids.has(row.readiness_id) || unifiedNoteFlags.codes.has(row.confirmation_code) ? (
                       <button
                         className={styles.noteButton}
                         type="button"
