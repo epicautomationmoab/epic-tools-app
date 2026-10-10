@@ -59,13 +59,18 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const storeVisitId = String(body?.store_visit_id ?? "").trim();
+    const guideVehicle = body?.guide_vehicle === true;
     const vehicleSlot = Number(body?.vehicle_slot);
+    const requestedVehicleNumber = String(body?.vehicle_number ?? "").trim().toUpperCase();
     const experienceReport = String(body?.experience_report ?? "").trim();
     const escalationLevel = String(body?.escalation_level ?? "").trim().toLowerCase();
     const guideName = String(body?.guide_name ?? "").trim();
 
-    if (!storeVisitId || !Number.isInteger(vehicleSlot) || vehicleSlot < 1) {
+    if (!storeVisitId || (!guideVehicle && (!Number.isInteger(vehicleSlot) || vehicleSlot < 1))) {
       return NextResponse.json({ error: "Invalid tour vehicle slot." }, { status: 400 });
+    }
+    if (guideVehicle && (!requestedVehicleNumber || requestedVehicleNumber.length > 20 || !/^[A-Z0-9 -]+$/.test(requestedVehicleNumber))) {
+      return NextResponse.json({ error: "Enter a valid guide car number." }, { status: 400 });
     }
     if (!experienceReport) {
       return NextResponse.json({ error: "Describe what you or the guest experienced with this vehicle." }, { status: 400 });
@@ -82,12 +87,12 @@ export async function POST(request: NextRequest) {
       new URLSearchParams({
         select: "id,store_visit_id,confirmation_code,vehicle_slot,vehicle_label,vehicle_number",
         store_visit_id: `eq.${storeVisitId}`,
-        vehicle_slot: `eq.${vehicleSlot}`,
+        ...(!guideVehicle ? { vehicle_slot: `eq.${vehicleSlot}` } : {}),
         limit: "1",
       }),
     );
     const dispatch = dispatches[0];
-    if (!dispatch) return NextResponse.json({ error: "Tour vehicle dispatch record not found." }, { status: 404 });
+    if (!dispatch) return NextResponse.json({ error: "Tour manifest not found." }, { status: 404 });
 
     const settingsRows = await supabaseSelect<NotificationSettings>(
       "tour_vehicle_issue_notification_settings",
@@ -101,11 +106,12 @@ export async function POST(request: NextRequest) {
     if (!settings) return NextResponse.json({ error: "Vehicle issue notification settings are missing." }, { status: 500 });
 
     const reporterName = guideName || profile?.display_name || "Epic Workstation";
-    const vehicleNumber = dispatch.vehicle_number || dispatch.vehicle_label || "Unknown";
+    const vehicleNumber = guideVehicle ? requestedVehicleNumber : dispatch.vehicle_number || dispatch.vehicle_label || "Unknown";
     const smsRequired = escalationLevel === "urgent" ? settings.sms_on_urgent : escalationLevel === "critical" ? settings.sms_on_critical : false;
 
     const report = await supabaseInsert<IssueReport>("tour_vehicle_issue_reports", {
-      dispatch_id: dispatch.id,
+      dispatch_id: guideVehicle ? null : dispatch.id,
+      ...(guideVehicle ? { source: "guide_tour" } : {}),
       vehicle_number: vehicleNumber,
       confirmation_code: dispatch.confirmation_code,
       store_visit_id: dispatch.store_visit_id,
@@ -120,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     const title = escalationLabel(escalationLevel);
     const slackText = [
-      `${escalationLevel === "critical" ? "🚨" : escalationLevel === "urgent" ? "⚠️" : "🔧"} *${title} — Vehicle ${vehicleNumber}*`,
+      `${escalationLevel === "critical" ? "🚨" : escalationLevel === "urgent" ? "⚠️" : "🔧"} *${title} — ${guideVehicle ? "Guide Vehicle" : "Vehicle"} ${vehicleNumber}*`,
       `Reported by: ${reporterName}`,
       dispatch.confirmation_code ? `TripWorks: ${dispatch.confirmation_code}` : null,
       `What was experienced: ${experienceReport}`,
@@ -144,7 +150,7 @@ export async function POST(request: NextRequest) {
         smsError = "SMS recipient phone is not configured.";
       } else {
         const smsBody = [
-          `${title} - Vehicle ${vehicleNumber}`,
+          `${title} - ${guideVehicle ? "Guide Vehicle" : "Vehicle"} ${vehicleNumber}`,
           `Reported by ${reporterName}`,
           experienceReport,
           dispatch.confirmation_code ? `TripWorks ${dispatch.confirmation_code}` : null,
