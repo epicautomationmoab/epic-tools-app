@@ -1337,7 +1337,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     <KioskSelect row={row} />
                   </td>
                   <td className={styles.center}>
-                    {row.notes?.trim() || (row.tripworks_notes?.length ?? 0) > 0 || unifiedNoteFlags.ids.has(row.readiness_id) || unifiedNoteFlags.codes.has(row.confirmation_code) ? (
+                    {row.notes?.trim() || (row.tripworks_notes?.length ?? 0) > 0 || unifiedNoteFlags.ids.has(row.readiness_id || "") || unifiedNoteFlags.codes.has(row.confirmation_code || "") ? (
                       <button
                         className={styles.noteButton}
                         type="button"
