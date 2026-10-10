@@ -13,6 +13,19 @@ type LiveCall = {
 
 export default function IncomingCallPopup() {
   const [call, setCall] = useState<LiveCall | null>(null);
+  // Keep an undecided call available across navigation and page refreshes.
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem("epic-incoming-call-pending");
+      if (saved) setCall(JSON.parse(saved) as LiveCall);
+    } catch { /* storage may be unavailable */ }
+  }, []);
+  useEffect(() => {
+    try {
+      if (call) window.sessionStorage.setItem("epic-incoming-call-pending", JSON.stringify(call));
+      else window.sessionStorage.removeItem("epic-incoming-call-pending");
+    } catch { /* storage may be unavailable */ }
+  }, [call]);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -48,6 +61,7 @@ export default function IncomingCallPopup() {
     if (!call) return;
     const id = call.id;
     setCall(null);
+    try { window.sessionStorage.removeItem("epic-incoming-call-pending"); } catch {}
     try {
       const res = await fetch("/api/team/live-calls", {
         method: "POST",
