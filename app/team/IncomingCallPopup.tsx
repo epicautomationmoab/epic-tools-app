@@ -77,9 +77,7 @@ export default function IncomingCallPopup() {
   if (!call) return null;
   const q = call.caller_phone || call.confirmation_code || call.route_label || "";
   const recognized = Boolean(call.route_kind && call.route_kind !== "new_lead");
-  const href = recognized
-    ? "https://epicc360.com/customers?q=" + encodeURIComponent(q) + "&open=1"
-    : "https://epic-sales-qpox1a2fw-automation-4515s-projects.vercel.app/inbox?lead_phone=" + encodeURIComponent(call.caller_phone || "") + "&lead_name=" + encodeURIComponent(call.caller_name || "");
+  const href = "https://epicc360.com/customers?q=" + encodeURIComponent(q) + "&open=1";
   return (
     <section role="alertdialog" aria-label="Incoming call" style={{
       position:"fixed", bottom:24, right:24, zIndex:99999, width:"min(360px, calc(100vw - 32px))",
@@ -94,7 +92,7 @@ export default function IncomingCallPopup() {
         <a href={href} target="_blank" rel="noopener noreferrer" onClick={()=>void dismiss()} style={{
           flex:1, padding:"10px 12px", textAlign:"center", textDecoration:"none", borderRadius:8,
           background:"#c92e23", color:"#fff", fontWeight:800, fontSize:13
-        }}>{recognized ? "Open C360 →" : "Open Lead Sheet →"}</a>
+        }}>Open C360 →</a>
         <button type="button" onClick={()=>void dismiss()} style={{
           padding:"10px 12px",borderRadius:8,border:"1px solid #cbd0d7",background:"#fff",
           color:"#252b35",cursor:"pointer",fontWeight:700
