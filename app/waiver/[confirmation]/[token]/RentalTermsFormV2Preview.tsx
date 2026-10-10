@@ -31,6 +31,25 @@ function formatPhone(value: string | null) {
   return value.trim();
 }
 
+function possibleEmailError(value: string) {
+  const domain = value.trim().toLowerCase().split("@")[1] || "";
+  const commonTypos = new Set([
+    "gnail.com",
+    "gail.com",
+    "gmial.com",
+    "gmai.com",
+    "gmail.co",
+    "gmail.con",
+    "ail.com",
+    "cox.ner",
+    "yahoo.con",
+    "hotmail.con",
+    "outlook.con",
+    "icloud.con",
+  ]);
+  return commonTypos.has(domain) || domain.endsWith(".ner") || domain.endsWith(".con");
+}
+
 function emptyMinor(): Minor {
   return { firstName: "", lastName: "", dob: "", relationship: "" };
 }
@@ -196,6 +215,13 @@ export default function RentalTermsFormV2Preview({
 
   async function handleSignatureAction() {
     if (!validateSignature()) return;
+
+    if (
+      possibleEmailError(email) &&
+      !window.confirm(`Please confirm your email address. Possible error detected.\n\n${email.trim()}\n\nSelect OK if this email is correct, or Cancel to edit it.`)
+    ) {
+      return;
+    }
 
     if (!writeEnabled) {
       setSignatureSuccess("Signature captured and V2 form validation passed. Preview mode does not record or submit this agreement.");
