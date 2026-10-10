@@ -12,7 +12,7 @@ async function loadSigningSecret() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SECRET_KEY?.trim();
   if (!url || !key) throw new Error("Missing Supabase server configuration.");
-  const r = await fetch(`${url.replace(/\\/+$/, "")}/rest/v1/podium_webhook_settings?id=eq.primary&select=signing_secret&limit=1`,{
+  const r = await fetch(`${url.replace(/\/+$/, "")}/rest/v1/podium_webhook_settings?id=eq.primary&select=signing_secret&limit=1`,{
     headers:{apikey:key,Authorization:`Bearer ${key}`},cache:"no-store",
   });
   if(!r.ok) throw new Error("Unable to load signing secret.");
@@ -22,7 +22,7 @@ async function loadSigningSecret() {
 }
 
 function authorize(request: NextRequest) {
-  const bearer = request.headers.get("authorization")?.match(/^Bearer\\s+(.+)$/i)?.[1];
+  const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
   return getAuthenticatedTeamProfile(bearer || request.cookies.get("epic_access_token")?.value || null);
 }
 
@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
     if(!uid)return NextResponse.json({error:"Podium did not provide the existing webhook ID."},{status:409});
     const {result} = await podiumWebhookRequest("PUT", {
       eventTypes: EVENTS,
-      locationUid: listed.locationUid,
       secret,
       url: SUPABASE_RECEIVER,
     },uid);
