@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PrintSingleVehicleTagButton } from "./NativePrintButton";
 import { VehicleIssueReporter } from "./VehicleIssueReporter";
+import { GuideVehicleIssueReporter } from "./GuideVehicleIssueReporter";
 import styles from "./TourDispatch.module.css";
 
 export type TourDispatchRow = {
@@ -142,6 +143,7 @@ function GuideField({ group, initialValue }: { group: ManifestGroup; initialValu
       placeholder="Guide name"
       aria-label={`Guide for ${group.activity} at ${formatTime(group.visitStartTime)}`}
     />
+    <GuideVehicleIssueReporter storeVisitId={group.rows[0].store_visit_id} guideName={value} activity={group.activity} />
     {busy ? <span className={styles.guideStatus}>Saving…</span> : message ? <span className={message.includes("Unable") ? styles.error : styles.guideStatus}>{message}</span> : null}
   </div>;
 }
