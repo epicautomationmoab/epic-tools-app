@@ -10,7 +10,7 @@ export async function POST(request:NextRequest){
   if(!ids.length&&!codes.length)return NextResponse.json({ok:true,readiness_ids:[],confirmations:[]});
   const raw=process.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),key=process.env.SUPABASE_SECRET_KEY?.trim();
   if(!raw||!key)throw Error("Supabase server configuration missing.");
-  const url=(/^https?:\/\//i.test(raw)?raw:`https://${raw}`).replace(/\/+$/,"");
+  const url=(process.env.EPIC_NOTES_PREVIEW_URL||(/^https?:\/\//i.test(raw)?raw:`https://${raw}`)).replace(/\/+$/,"");
   const filters=[ids.length?`readiness_id.in.(${ids.join(",")})`:null,codes.length?`confirmation_code.in.(${codes.join(",")})`:null].filter(Boolean).join(",");
   const query=new URLSearchParams({select:"readiness_id,confirmation_code",or:`(${filters})`,archived_at:"is.null",visible_in_readiness:"eq.true",limit:"200"});
   const response=await fetch(`${url}/rest/v1/epic_unified_notes?${query}`,{headers:{apikey:key,Authorization:`Bearer ${key}`},cache:"no-store"});
