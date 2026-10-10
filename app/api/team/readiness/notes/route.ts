@@ -12,7 +12,7 @@ async function employee(request: NextRequest) {
   return profile && profile.role !== "workstation" ? profile : null;
 }
 async function rest<T>(path: string, init?: RequestInit): Promise<T> {
-  const { url, key } = config();
+  const { url, key } = path.startsWith("epic_unified_notes") && process.env.EPIC_NOTES_PREVIEW_URL && process.env.EPIC_NOTES_PREVIEW_KEY ? {url:process.env.EPIC_NOTES_PREVIEW_URL,key:process.env.EPIC_NOTES_PREVIEW_KEY} : config();
   const response = await fetch(`${url}/rest/v1/${path}`, { ...init, headers: { apikey:key, Authorization:`Bearer ${key}`, "Content-Type":"application/json", ...(init?.headers || {}) }, cache:"no-store" });
   const text = await response.text();
   if (!response.ok) throw new Error(text || `Supabase request failed (${response.status}).`);
