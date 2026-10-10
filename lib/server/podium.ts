@@ -239,9 +239,9 @@ export async function sendPodiumSms(input: { phone: string; body: string; contac
 }
 
 /** Server-only access for the Podium webhook configuration flow. */
-export async function podiumWebhookRequest(method: "GET" | "POST", payload?: Record<string, unknown>) {
+export async function podiumWebhookRequest(method: "GET" | "POST" | "PUT", payload?: Record<string, unknown>, webhookUid?: string) {
   let connection = await activeConnection();
-  const invoke = (token: string) => fetch(`${PODIUM_API_BASE}/v4/webhooks`, {
+  const invoke = (token: string) => fetch(`${PODIUM_API_BASE}/v4/webhooks${webhookUid ? `/${encodeURIComponent(webhookUid)}` : ""}`, {
     method,
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     ...(payload ? { body: JSON.stringify(payload) } : {}),
