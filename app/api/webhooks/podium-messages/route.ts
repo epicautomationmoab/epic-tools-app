@@ -13,7 +13,7 @@ type PodiumMessage = {
   conversation?: { uid?: string | null; channel?: { type?: string; identifier?: string } };
 };
 type PodiumEvent = {
-  metadata?: { eventType?: string; eventUid?: string };
+  metadata?: { eventType?: string; event_type?: string; eventUid?: string };
   data?: PodiumMessage;
 };
 
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   try { event = JSON.parse(raw) as PodiumEvent; }
   catch { return NextResponse.json({ error: "Invalid JSON." }, { status: 400 }); }
 
-  const kind = event.metadata?.eventType;
+  const kind = event.metadata?.eventType || event.metadata?.event_type;
   const data = event.data;
   if (!["message.received", "message.sent", "message.failed"].includes(kind || "") ||
       data?.conversation?.channel?.type !== "phone") {
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         customer_phone: phone,
         direction: kind === "message.received" ? "inbound" : "outbound",
         event_type: kind,
-        body: data.body || null,
+        body: data.body || (Array.isArray((data as PodiumMessage & { items?: Array<{type?:string;body?:string}> }).items) ? (data as PodiumMessage & {items?:Array<{type?:string;body?:string}>}).items?.filter(item => item.type === "text" || item.body).map(item => item.body || "").join("\n") : null),
         failure_reason: data.failureReason || null,
         message_at: data.createdAt || null,
         raw_payload: event,
