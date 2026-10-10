@@ -237,3 +237,22 @@ export async function sendPodiumSms(input: { phone: string; body: string; contac
     failureReason: item?.failureReason || null,
   };
 }
+
+/** Server-only access for the Podium webhook configuration flow. */
+export async function podiumWebhookRequest(method: "GET" | "POST", payload?: Record<string, unknown>) {
+  let connection = await activeConnection();
+  const invoke = (token: string) => fetch(`${PODIUM_API_BASE}/v4/webhooks`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    ...(payload ? { body: JSON.stringify(payload) } : {}),
+    cache: "no-store",
+  });
+  let response = await invoke(connection.access_token);
+  if (response.status === 401) {
+    connection = await refreshConnection(connection);
+    response = await invoke(connection.access_token);
+  }
+  const result = await response.json().catch(() => null) as unknown;
+  if (!response.ok) throw new Error(`Podium webhooks API failed (${response.status}): ${JSON.stringify(result).slice(0,350)}`);
+  return { result, locationUid: connection.location_uid };
+}
