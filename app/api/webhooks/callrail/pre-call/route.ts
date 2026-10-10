@@ -64,15 +64,18 @@ function verify(raw: string, signature: string | null, secret: string | undefine
 }
 
 export async function POST(request: NextRequest) {
+  const started=Date.now();
+  const requestId=crypto.randomUUID();
+  console.info("[callrail-precall]",JSON.stringify({requestId,stage:"received",method:"POST"}));
   const raw = await request.text();
   const payload = parsePayload(raw, request.headers.get("content-type"));
   const signingSecret = process.env.CALLRAIL_WEBHOOK_SIGNING_SECRET;
   const signature = request.headers.get("signature") || request.headers.get("x-callrail-signature");
   const signatureValid = verify(raw, signature, signingSecret);
-  if (signingSecret?.trim() && !signatureValid) return NextResponse.json({ ok: false, error: "Invalid CallRail signature." }, { status: 401 });
+  if (signingSecret?.trim() && !signatureValid) {console.warn("[callrail-precall]",JSON.stringify({requestId,stage:"rejected_signature",hasSignature:Boolean(signature)}));return NextResponse.json({ ok: false, error: "Invalid CallRail signature." }, { status: 401 });}
 
   const callerPhone = normalizePhone(value(payload, "customer_phone_number", "caller_number", "callernum", "from"));
-  if (!callerPhone) return NextResponse.json({ ok: false, error: "Caller phone missing." }, { status: 400 });
+  if (!callerPhone) {console.warn("[callrail-precall]",JSON.stringify({requestId,stage:"missing_caller_phone",hasSignature:Boolean(signature),hasConfiguredSigningSecret:Boolean(signingSecret?.trim())}));return NextResponse.json({ ok: false, error: "Caller phone missing." }, { status: 400 });}
 
   try {
     const digits = callerPhone.replace(/\D/g, "");
@@ -140,8 +143,10 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(row),
     });
 
+    console.info("[callrail-precall]",JSON.stringify({requestId,stage:"saved",routeKind,elapsedMs:Date.now()-started}));
     return NextResponse.json({ ok: true, live_call_id: saved[0]?.id || null, route_kind: routeKind, route_label: routeLabel, confirmation_code: confirmationCode, opportunity_id: opportunityId, reservation_id: reservationId, contact_id: contactId, signature_valid: signatureValid });
   } catch (error) {
+    console.error("[callrail-precall]",JSON.stringify({requestId,stage:"database_or_routing_failure",elapsedMs:Date.now()-started,errorType:error instanceof Error?error.name:"unknown"}));
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Unable to route pre-call." }, { status: 500 });
   }
 }
