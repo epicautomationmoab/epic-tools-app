@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 type Note = {
   note_id: string;
+  source?: string;
   note_text: string;
   created_by: string | null;
   created_at: string;
@@ -55,7 +56,7 @@ export default function StaffNotesDrawerEnhancer() {
         if (!response.ok) throw new Error(payload.error || "Unable to load notes.");
 
         const notes: Note[] = payload.notes || [];
-        const legacy = typeof payload.legacy_note === "string" && payload.legacy_note.trim()
+        const legacy: Note | null = typeof payload.legacy_note === "string" && payload.legacy_note.trim()
           ? { note_id:"legacy", note_text:payload.legacy_note.trim(), created_by:null, created_at:"", updated_at:"" }
           : null;
 
@@ -107,7 +108,7 @@ export default function StaffNotesDrawerEnhancer() {
               const top = document.createElement("div"); top.style.cssText="display:flex;align-items:flex-start;justify-content:space-between;gap:10px";
               const text = document.createElement("div"); text.textContent=note.note_text; text.style.cssText="white-space:pre-wrap;color:#25303b;font-size:13px;line-height:1.45";
               const edit = document.createElement("button"); edit.type="button"; edit.textContent="✎"; edit.setAttribute("aria-label","Edit note"); edit.style.cssText="border:0;background:transparent;color:#6f7885;font-size:16px;cursor:pointer;padding:0"; edit.onclick=()=>{editingId=note.note_id;draft=note.note_text;render();};
-              top.append(text,edit); card.appendChild(top);
+              top.appendChild(text); if(note.source!=="tripworks") top.appendChild(edit); card.appendChild(top);
               const meta = document.createElement("div"); meta.style.cssText="margin-top:7px;color:#8a94a1;font-size:10px"; meta.textContent = note.note_id === "legacy" ? "Existing readiness note" : [fmt(note.created_at), note.created_by ? `by ${note.created_by}` : ""].filter(Boolean).join(" · "); card.appendChild(meta);
             }
             shell.appendChild(card);
