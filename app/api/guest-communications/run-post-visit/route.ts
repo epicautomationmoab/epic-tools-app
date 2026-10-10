@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendPostVisitEmail } from "@/lib/server/post-visit-email";
-import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
+import { supabaseInsert, supabasePatch, supabasePatchRows, supabaseSelect } from "@/lib/server/supabase-rest";
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -55,11 +55,15 @@ function safeRecipientKey(email: string) {
 }
 
 async function processJob(job: JobRow) {
-  await supabasePatch(
+  const claimed = await supabasePatchRows<JobRow>(
     "post_visit_email_jobs",
     new URLSearchParams({ id: `eq.${job.id}`, status: "eq.pending" }),
     { status: "processing", last_error: null, updated_at: new Date().toISOString() },
   );
+
+  if (claimed.length !== 1) {
+    return { jobId: job.id, confirmationCode: job.confirmation_code, sent: 0, skipped: true, reason: "Already claimed." };
+  }
 
   try {
     const [preferences, signers, existingRecipients] = await Promise.all([
@@ -197,12 +201,21 @@ async function run(request: Request) {
       return NextResponse.json({ ok: true, skipped: true, reason: "Not 10:00 AM America/Denver." });
     }
 
+    // Preflight sender configuration before claiming any jobs. A misconfigured
+    // invocation must never turn otherwise-valid work into failed queue rows.
+    requiredEnv("RESEND_API_KEY");
+    requiredEnv("GUEST_EMAIL_FROM");
+
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
     const jobs = await supabaseSelect<JobRow>(
       "post_visit_email_jobs",
       new URLSearchParams({
         select: "id,readiness_id,confirmation_code,business_line,scheduled_for,status",
         status: "eq.pending",
-        scheduled_for: `lte.${new Date().toISOString()}`,
+        scheduled_for: `lte.${now.toISOString()}`,
+        and: `(scheduled_for.gte.${cutoff.toISOString()})`,
         order: "scheduled_for.asc",
         limit: "100",
       }),

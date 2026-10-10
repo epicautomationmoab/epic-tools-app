@@ -58,6 +58,21 @@ export async function supabasePatch(
   if (!response.ok) throw new Error(`Unable to update ${resource}: ${await response.text()}`);
 }
 
+export async function supabasePatchRows<T>(
+  resource: string,
+  filters: URLSearchParams,
+  body: Record<string, unknown>,
+) {
+  const { url } = getServerSupabaseConfig();
+  const response = await fetch(`${url}/rest/v1/${resource}?${filters}`, {
+    method: "PATCH",
+    headers: serverSupabaseHeaders("return=representation"),
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`Unable to update ${resource}: ${await response.text()}`);
+  return (await response.json()) as T[];
+}
+
 export async function supabaseRpc<T>(name: string, body: Record<string, unknown>) {
   const { url } = getServerSupabaseConfig();
   const response = await fetch(`${url}/rest/v1/rpc/${name}`, {
