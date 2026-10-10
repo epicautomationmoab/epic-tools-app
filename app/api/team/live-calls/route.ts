@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
 
   try {
-    const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString();
     const calls = await rest<Array<Record<string, unknown>>>(
-      `live_calls?received_at=gte.${encodeURIComponent(since)}&select=${encodeURIComponent("id,callrail_call_id,caller_phone,caller_name,tracking_phone,source_name,campaign,received_at,route_kind,opportunity_id,reservation_id,contact_id,confirmation_code,route_label")}&order=received_at.desc&limit=20`,
+      `live_calls?received_at=gte.${encodeURIComponent(since)}&select=${encodeURIComponent("id,callrail_call_id,caller_phone,caller_name,tracking_phone,source_name,campaign,received_at,route_kind,opportunity_id,reservation_id,contact_id,confirmation_code,route_label")}&order=received_at.desc&limit=100`,
     );
     if (!calls.length) return NextResponse.json({ ok: true, call: null });
 
