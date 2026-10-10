@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     try { visit=await resolveVisit(request); }
     catch(error){ console.warn("[readiness-notes] legacy visit lookup unavailable",error instanceof Error?error.message:String(error)); }
     const readinessId=visit?.readiness_id||requestedReadinessId||null;
-    const legacyExists=readinessId ? notes.some(n=>n.source_note_id===`legacy:${readinessId}`) : false;
+    const legacyExists=readinessId ? rows.some(n=>n.source_note_id===`legacy:${readinessId}`) : false;
     return NextResponse.json({ok:true,readiness_id:readinessId,legacy_note:legacyExists?null:(visit?.notes||null),notes});
   }catch(error){
     const message=error instanceof Error?error.message:"Unable to load notes.";
