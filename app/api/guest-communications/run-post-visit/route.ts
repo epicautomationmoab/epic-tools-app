@@ -201,6 +201,11 @@ async function run(request: Request) {
       return NextResponse.json({ ok: true, skipped: true, reason: "Not 10:00 AM America/Denver." });
     }
 
+    // Preflight sender configuration before claiming any jobs. A misconfigured
+    // invocation must never turn otherwise-valid work into failed queue rows.
+    requiredEnv("RESEND_API_KEY");
+    requiredEnv("GUEST_EMAIL_FROM");
+
     const now = new Date();
     const cutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
