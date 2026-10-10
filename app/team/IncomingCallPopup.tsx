@@ -79,7 +79,7 @@ export default function IncomingCallPopup() {
   const recognized = Boolean(call.route_kind && call.route_kind !== "new_lead");
   const href = recognized
     ? "https://epicc360.com/customers?q=" + encodeURIComponent(q) + "&open=1"
-    : "https://epic-sales-2tcmqdmh2-automation-4515s-projects.vercel.app/inbox?lead_phone=" + encodeURIComponent(call.caller_phone || "") + "&lead_name=" + encodeURIComponent(call.caller_name || "");
+    : "https://epic-sales-qpox1a2fw-automation-4515s-projects.vercel.app/inbox?lead_phone=" + encodeURIComponent(call.caller_phone || "") + "&lead_name=" + encodeURIComponent(call.caller_name || "");
   return (
     <section role="alertdialog" aria-label="Incoming call" style={{
       position:"fixed", bottom:24, right:24, zIndex:99999, width:"min(360px, calc(100vw - 32px))",
