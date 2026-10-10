@@ -45,6 +45,8 @@ Deno.serve(async (request) => {
     const event = JSON.parse(raw) as Record<string, unknown>;
     const metadata = field(event, "metadata");
     const kind = str(field(metadata, "event_type")) || str(field(metadata, "eventType"));
+    // Only log the event envelope shape, never customer phone numbers, bodies or payload values.
+    console.info("Podium webhook envelope", { event_type: kind || "missing", envelope_keys: Object.keys(event).sort(), metadata_keys: metadata && typeof metadata === "object" ? Object.keys(metadata).sort() : [] });
     if (!kind || !["message.received", "message.sent", "message.failed"].includes(kind)) { console.info("Podium webhook ignored", { reason: "non_message_event", event_type: kind || "missing" }); return reply({ ok: true, ignored: true }); }
     const data = field(event, "data");
     const conversation = field(data, "conversation");
@@ -54,7 +56,7 @@ Deno.serve(async (request) => {
     const number = normalize(field(channel, "identifier"));
     const connections = await select("podium_oauth_connections", "id=eq.primary&select=location_uid,podium_phone_number&limit=1");
     if (!number || !connections[0] || location !== connections[0].location_uid || !String(connections[0].podium_phone_number || "").replace(/\D/g, "").endsWith("2700")) {
-      console.info("Podium webhook ignored", { reason: "location_or_number_mismatch", event_type: kind, has_number: Boolean(number), has_connection: Boolean(connections[0]), location_matches: Boolean(connections[0] && location === connections[0].location_uid), number_configured: Boolean(connections[0] && String(connections[0].podium_phone_number || "").replace(/\\D/g, "").endsWith("2700")) });
+      console.info("Podium webhook ignored", { reason: "location_or_number_mismatch", event_type: kind, has_number: Boolean(number), has_connection: Boolean(connections[0]), location_matches: Boolean(connections[0] && location === connections[0].location_uid), number_configured: Boolean(connections[0] && String(connections[0].podium_phone_number || "").replace(/\D/g, "").endsWith("2700")) });
       return reply({ ok: true, ignored: true });
     }
     const items = field(data, "items");
