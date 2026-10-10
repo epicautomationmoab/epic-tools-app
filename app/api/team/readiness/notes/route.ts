@@ -55,7 +55,9 @@ export async function GET(request: NextRequest) {
   try {
     const visit = await resolveVisit(request);
     if (!visit) return NextResponse.json({ error:"Reservation could not be identified." }, { status:404 });
-    const notes = await rest<Array<Record<string,unknown>>>(`epic_unified_notes?readiness_id=eq.${encodeURIComponent(visit.readiness_id)}&archived_at=is.null&visible_in_readiness=eq.true&select=${encodeURIComponent("note_id,readiness_id,note_text,note_category:note_scope,created_by:author_name,created_at,updated_at,source,visible_in_readiness")}&order=created_at.desc`);
+    const confirmation=String(request.nextUrl.searchParams.get("confirmation")||"").trim().toUpperCase();
+    const identityFilter=confirmation?`or=(readiness_id.eq.${encodeURIComponent(visit.readiness_id)},confirmation_code.eq.${encodeURIComponent(confirmation)})`:`readiness_id=eq.${encodeURIComponent(visit.readiness_id)}`;
+    const notes = await rest<Array<Record<string,unknown>>>(`epic_unified_notes?${identityFilter}&archived_at=is.null&visible_in_readiness=eq.true&select=${encodeURIComponent("note_id,readiness_id,note_text,note_category:note_scope,created_by:author_name,created_at,updated_at,source,visible_in_readiness")}&order=created_at.desc`);
     return NextResponse.json({ ok:true, readiness_id:visit.readiness_id, legacy_note:visit.notes || null, notes });
   } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to load notes." }, { status:500 }); }
 }
