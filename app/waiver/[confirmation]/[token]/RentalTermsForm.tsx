@@ -20,6 +20,25 @@ function normalize(value: string) {
   return value.trim().replace(/\./g, "").replace(/\s+/g, " ").toLowerCase();
 }
 
+function possibleEmailError(value: string) {
+  const domain = value.trim().toLowerCase().split("@")[1] || "";
+  const commonTypos = new Set([
+    "gnail.com",
+    "gail.com",
+    "gmial.com",
+    "gmai.com",
+    "gmail.co",
+    "gmail.con",
+    "ail.com",
+    "cox.ner",
+    "yahoo.con",
+    "hotmail.con",
+    "outlook.con",
+    "icloud.con",
+  ]);
+  return commonTypos.has(domain) || domain.endsWith(".ner") || domain.endsWith(".con");
+}
+
 function dateValue() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Denver",
@@ -142,6 +161,14 @@ export default function RentalTermsForm({
       setError(validation);
       return;
     }
+
+    if (
+      possibleEmailError(email) &&
+      !window.confirm(`Please confirm your email address. Possible error detected.\n\n${email.trim()}\n\nSelect OK if this email is correct, or Cancel to edit it.`)
+    ) {
+      return;
+    }
+
 
     const drawnPng = method === "drawn" ? canvas.current?.toDataURL("image/png") : undefined;
     const payload = {
