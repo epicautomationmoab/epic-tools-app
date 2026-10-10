@@ -13,10 +13,17 @@ export default function EmailDeliveryAlert() {
 
   useEffect(() => {
     let cancelled = false;
+    let unauthorized = false;
 
     async function load() {
+      if (cancelled || unauthorized) return;
       try {
         const response = await fetch("/api/guest-communications/delivery-incidents", { cache: "no-store" });
+        if (response.status === 401 || response.status === 403) {
+          unauthorized = true;
+          if (!cancelled) setSummary(null);
+          return;
+        }
         if (!response.ok) return;
         const body = await response.json() as IncidentSummary;
         if (!cancelled) setSummary(body);
