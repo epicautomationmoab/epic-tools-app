@@ -45,15 +45,16 @@ Deno.serve(async (request) => {
     const event = JSON.parse(raw) as Record<string, unknown>;
     const metadata = field(event, "metadata");
     const kind = str(field(metadata, "event_type")) || str(field(metadata, "eventType"));
-    if (!kind || !["message.received", "message.sent", "message.failed"].includes(kind)) return reply({ ok: true, ignored: true });
+    if (!kind || !["message.received", "message.sent", "message.failed"].includes(kind)) { console.info("Podium webhook ignored", { reason: "non_message_event", event_type: kind || "missing" }); return reply({ ok: true, ignored: true }); }
     const data = field(event, "data");
     const conversation = field(data, "conversation");
     const channel = field(conversation, "channel") || field(data, "channel");
-    if (field(channel, "type") !== "phone") return reply({ ok: true, ignored: true });
+    if (field(channel, "type") !== "phone") { console.info("Podium webhook ignored", { reason: "non_phone_channel", event_type: kind, channel_type: field(channel, "type") || "missing" }); return reply({ ok: true, ignored: true }); }
     const location = field(field(data, "location"), "uid") || field(data, "locationUid");
     const number = normalize(field(channel, "identifier"));
     const connections = await select("podium_oauth_connections", "id=eq.primary&select=location_uid,podium_phone_number&limit=1");
     if (!number || !connections[0] || location !== connections[0].location_uid || !String(connections[0].podium_phone_number || "").replace(/\D/g, "").endsWith("2700")) {
+      console.info("Podium webhook ignored", { reason: "location_or_number_mismatch", event_type: kind, has_number: Boolean(number), has_connection: Boolean(connections[0]), location_matches: Boolean(connections[0] && location === connections[0].location_uid), number_configured: Boolean(connections[0] && String(connections[0].podium_phone_number || "").replace(/\\D/g, "").endsWith("2700")) });
       return reply({ ok: true, ignored: true });
     }
     const items = field(data, "items");
@@ -81,6 +82,7 @@ Deno.serve(async (request) => {
       console.error("Podium SMS persistence failed", response.status);
       return reply({ error: "Temporary storage failure" }, 503);
     }
+    console.info("Podium webhook stored", { event_type: kind });
     return reply({ ok: true });
   } catch (error) {
     console.error("Podium SMS webhook error", error instanceof Error ? error.message : "unknown");
