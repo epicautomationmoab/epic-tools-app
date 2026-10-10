@@ -77,7 +77,14 @@ export async function PATCH(request: NextRequest) {
         body: JSON.stringify({ note_text: noteText, updated_at: now }),
       },
     );
-    if (!rows.length) return NextResponse.json({ error: "Readiness note not found." }, { status: 404 });
+    if (!rows.length) {
+      const unified = await rest<Array<{note_id:string;note_text:string;author_name:string|null;created_at:string;updated_at:string}>>(
+        `epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}&source=neq.tripworks`,
+        {method:"PATCH",headers:{Prefer:"return=representation"},body:JSON.stringify({note_text:noteText,updated_at:now})}
+      );
+      if (!unified.length) return NextResponse.json({error:"Readiness note not found."},{status:404});
+      return NextResponse.json({ok:true,note:unified[0]});
+    }
     return NextResponse.json({ ok: true, note: rows[0] });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to update note." }, { status: 500 });
