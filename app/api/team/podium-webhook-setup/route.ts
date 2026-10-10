@@ -15,7 +15,7 @@ async function loadSigningSecret() {
   const r = await fetch(`${url.replace(/\/+$/, "")}/rest/v1/podium_webhook_settings?id=eq.primary&select=signing_secret&limit=1`,{
     headers:{apikey:key,Authorization:`Bearer ${key}`},cache:"no-store",
   });
-  if(!r.ok) throw new Error("Unable to load signing secret.");
+  if(!r.ok) { const raw = await r.json().catch(()=>({})) as {code?:string}; throw new Error(`Unable to load signing secret (HTTP ${r.status}${raw.code ? `, code ${raw.code}` : ""}).`); }
   const rows=await r.json() as Array<{signing_secret:string}>;
   if(!rows[0]?.signing_secret)throw new Error("Podium webhook secret not configured.");
   return rows[0].signing_secret;
