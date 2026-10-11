@@ -237,3 +237,10 @@ export async function sendPodiumSms(input: { phone: string; body: string; contac
     failureReason: item?.failureReason || null,
   };
 }
+
+// Refreshes the shared Podium connection using Epic Tools' existing OAuth credentials.
+// No token material is returned to the caller.
+export async function ensurePodiumConnectionFresh() {
+  await activeConnection();
+  return true;
+}
