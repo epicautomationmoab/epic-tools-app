@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendPostVisitEmail } from "@/lib/server/post-visit-email";
 import { supabaseInsert, supabasePatch, supabasePatchRows, supabaseSelect } from "@/lib/server/supabase-rest";
+import { guestCommunicationsOwnerReason, isGuestCommunicationsOwner } from "@/lib/server/guest-communications-owner";
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -66,6 +67,10 @@ async function processJob(job: JobRow) {
   }
 
   try {
+    if (!isGuestCommunicationsOwner()) {
+      return NextResponse.json({ ok: true, skipped: true, reason: guestCommunicationsOwnerReason() });
+    }
+
     const [preferences, signers, existingRecipients] = await Promise.all([
       supabaseSelect<PreferenceRow>(
         "post_visit_email_preferences",
