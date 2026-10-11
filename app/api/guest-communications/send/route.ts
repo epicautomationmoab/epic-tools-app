@@ -2,6 +2,7 @@ import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getPattiPolicyDecision } from "@/lib/server/patti-policy-source";
+import { guestCommunicationsOwnerReason, isGuestCommunicationsOwner } from "@/lib/server/guest-communications-owner";
 import {
   buildCancellationPolicyText,
   buildConfirmationPaymentSummary,
@@ -240,6 +241,9 @@ function templateIdFor(communicationType: string) {
 }
 
 export async function POST(request: Request) {
+  if (!isGuestCommunicationsOwner()) {
+    return NextResponse.json({ ok: true, sent: false, skipped: true, reason: guestCommunicationsOwnerReason() });
+  }
   let senderSecret: string | null = null;
   let communicationId: string | null = null;
   try {

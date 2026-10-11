@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { POST as sendCommunication } from "../send/route";
+import { guestCommunicationsOwnerReason, isGuestCommunicationsOwner } from "@/lib/server/guest-communications-owner";
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -66,6 +67,10 @@ async function drainReminderQueue() {
 
 async function run(request: Request) {
   try {
+    if (!isGuestCommunicationsOwner()) {
+      return NextResponse.json({ ok: true, skipped: true, reason: guestCommunicationsOwnerReason() });
+    }
+
     const authorization = request.headers.get("authorization");
     const cronSecret = requiredEnv("CRON_SECRET");
 
