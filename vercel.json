@@ -1,18 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/guest-communications/run-confirmations",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/guest-communications/run-reminders",
-      "schedule": "0 14,15 * * *"
-    },
-    {
-      "path": "/api/guest-communications/run-post-visit",
-      "schedule": "0 16,17 * * *"
-    },
-    {
       "path": "/api/referral/reconcile",
       "schedule": "*/5 * * * *"
     },
