@@ -27,6 +27,7 @@ export default function IncomingCallPopup() {
     } catch { /* storage may be unavailable */ }
   }, [call]);
   const [error, setError] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     let stopped = false;
@@ -74,6 +75,26 @@ export default function IncomingCallPopup() {
     }
   }
 
+  async function dismissAll() {
+    if (clearing) return;
+    setClearing(true);
+    try {
+      const response = await fetch("/api/team/live-calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dismiss_all" }),
+      });
+      if (!response.ok) throw new Error("Unable to dismiss pending calls.");
+      setCall(null);
+      setError(false);
+      try { window.sessionStorage.removeItem("epic-incoming-call-pending"); } catch {}
+    } catch {
+      setError(true);
+    } finally {
+      setClearing(false);
+    }
+  }
+
   if (!call) return null;
   const q = call.caller_phone || call.confirmation_code || call.route_label || "";
   const recognized = Boolean(call.route_kind && call.route_kind !== "new_lead");
@@ -100,6 +121,7 @@ export default function IncomingCallPopup() {
           color:"#252b35",cursor:"pointer",fontWeight:700
         }}>Dismiss</button>
       </div>
+      <button type="button" disabled={clearing} onClick={()=>void dismissAll()} style={{marginTop:9,padding:"6px 4px",border:0,background:"transparent",color:"#586675",fontSize:12,fontWeight:700,cursor:clearing?"wait":"pointer",textDecoration:"underline"}}>{clearing?"Dismissing…":"Dismiss All Pending Calls"}</button>
       {error && <div style={{fontSize:11,marginTop:7,color:"#b42318"}}>Call feed temporarily unavailable.</div>}
     </section>
   );
