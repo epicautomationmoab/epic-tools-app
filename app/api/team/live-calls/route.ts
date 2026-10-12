@@ -53,7 +53,27 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const profile = await requireEmployee(request);
   if (!profile) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
-  const body = await request.json().catch(() => null) as { live_call_id?: string } | null;
+  const body = await request.json().catch(() => null) as { live_call_id?: string; action?: string } | null;
+  if (body?.action === "dismiss_all") {
+    try {
+      const since = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString();
+      const cutoff = new Date().toISOString();
+      const rows = await rest<Array<{ id: string }>>(
+        `live_calls?received_at=gte.${encodeURIComponent(since)}&received_at=lte.${encodeURIComponent(cutoff)}&select=id&order=received_at.desc&limit=100`,
+      );
+      if (rows.length) {
+        const seenAt = new Date().toISOString();
+        await rest<void>("live_call_seen?on_conflict=live_call_id,profile_id", {
+          method: "POST",
+          headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+          body: JSON.stringify(rows.map((row) => ({ live_call_id: row.id, profile_id: profile.id, seen_at: seenAt }))),
+        });
+      }
+      return NextResponse.json({ ok: true, dismissed: rows.length });
+    } catch {
+      return NextResponse.json({ error: "Unable to dismiss pending calls." }, { status: 500 });
+    }
+  }
   const liveCallId = body?.live_call_id?.trim();
   if (!liveCallId) return NextResponse.json({ error: "Live call is required." }, { status: 400 });
 
