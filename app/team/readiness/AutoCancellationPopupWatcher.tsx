@@ -106,7 +106,9 @@ export default function AutoCancellationPopupWatcher() {
         const row = data.candidates?.[0];
         if (response.ok && row?.readiness_id) {
           seen.current.add(row.readiness_id);
-          setActive(row);
+          const statusResponse = await fetch(`/api/team/cancellation-agreements?readinessId=${encodeURIComponent(row.readiness_id)}`, { cache: "no-store" });
+          const statusData = statusResponse.ok ? await statusResponse.json() : null;
+          if (statusResponse.ok && !["sent", "opened", "accepted"].includes(statusData?.agreement?.status)) setActive(row);
         }
       } finally {
         params.delete("cancellationReadinessId");
@@ -140,6 +142,10 @@ export default function AutoCancellationPopupWatcher() {
         for (const row of data.candidates ?? []) {
           if (!row.readiness_id || seen.current.has(row.readiness_id)) continue;
           seen.current.add(row.readiness_id);
+          const stateResponse = await fetch(`/api/team/cancellation-agreements?readinessId=${encodeURIComponent(row.readiness_id)}`, {cache:"no-store"});
+          if (!stateResponse.ok) continue;
+          const state = await stateResponse.json();
+          if (["sent","opened","accepted"].includes(state?.agreement?.status)) continue;
           queued.current.push(row);
         }
         showNext();
@@ -229,7 +235,7 @@ export default function AutoCancellationPopupWatcher() {
       ) : null}
 
       {active ? (
-        <CancellationAgreementPanel key={active.readiness_id} row={active} autoOpen showLauncher={false} onPopupClose={closeActive} />
+        <CancellationAgreementPanel key={active.readiness_id} row={active} autoOpen showLauncher={false} autoDismissIfHandledElsewhere onPopupClose={closeActive} />
       ) : null}
     </>
   );

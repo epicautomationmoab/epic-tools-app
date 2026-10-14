@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ReadinessRow } from "@/lib/supabase";
 import styles from "./CancellationAgreementPanel.module.css";
@@ -38,6 +38,7 @@ type CancellationAgreementPanelProps = {
   autoOpen?: boolean;
   showLauncher?: boolean;
   onPopupClose?: () => void;
+  autoDismissIfHandledElsewhere?: boolean;
 };
 
 const TEAM = ["Alex", "Cody", "Jenna", "Kim", "Lonnie", "Maggie", "Price", "Randy", "Taylin"];
@@ -66,6 +67,7 @@ export default function CancellationAgreementPanel({
   autoOpen = false,
   showLauncher = true,
   onPopupClose,
+  autoDismissIfHandledElsewhere = false,
 }: CancellationAgreementPanelProps) {
   const [isOpen, setIsOpen] = useState(autoOpen);
   const [agreement, setAgreement] = useState<AgreementStatus | null>(null);
@@ -87,6 +89,7 @@ export default function CancellationAgreementPanel({
   const [podiumConfigured, setPodiumConfigured] = useState(false);
   const [emailConfigured, setEmailConfigured] = useState(false);
   const [error, setError] = useState("");
+  const sentHereRef = useRef(false);
 
   function closePopup() {
     setIsOpen(false);
@@ -106,6 +109,7 @@ export default function CancellationAgreementPanel({
         error?: string;
       };
       if (!response.ok) throw new Error(data.error || "Unable to load agreement status.");
+      if (autoDismissIfHandledElsewhere && !sentHereRef.current && data.agreement && ["sent", "opened", "accepted"].includes(data.agreement.status)) { closePopup(); return; }
       setAgreement(data.agreement ?? null);
       setPolicyDecision(data.policyDecision ?? null);
       if (!data.agreement && data.policyDecision?.status && !overridePolicy) {
@@ -155,10 +159,10 @@ export default function CancellationAgreementPanel({
   }, [row.readiness_id, row.customer_name, row.customer_phone, row.customer_email, autoOpen]);
 
   useEffect(() => {
-    if (!agreement || !["created", "sent", "opened"].includes(agreement.status)) return;
+    if (!isOpen || (autoDismissIfHandledElsewhere && !sentHereRef.current ? false : !agreement || !["created", "sent", "opened"].includes(agreement.status))) return;
     const timer = window.setInterval(() => void loadStatus(true), 2000);
     return () => window.clearInterval(timer);
-  }, [agreement?.status, row.readiness_id]);
+  }, [agreement?.status, row.readiness_id, isOpen, autoDismissIfHandledElsewhere]);
 
   async function createAgreement(mode: "sms" | "email" | "both" | "copy") {
     if (!row.readiness_id) return;
@@ -191,6 +195,7 @@ export default function CancellationAgreementPanel({
       });
       const data = (await response.json()) as { error?: string; agreementUrl?: string };
       if (!response.ok) throw new Error(data.error || "Unable to send agreement.");
+      if (mode !== "copy" && !("duplicatePrevented" in data)) sentHereRef.current = true;
       if (mode === "copy" && data.agreementUrl) {
         await navigator.clipboard.writeText(data.agreementUrl);
         setCopied(true);
