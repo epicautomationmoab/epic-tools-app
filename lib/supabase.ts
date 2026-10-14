@@ -248,6 +248,19 @@ export async function getReadinessRows(options: { fast?: boolean; enrich?: boole
   const readinessView = options.fast ? "guest_readiness_fast_v" : "guest_readiness_with_handoff_v";
   const rows = await fetchView<ReadinessRow>(readinessView, params);
   if (options.enrich === false) {
+    // The fast readiness view may lag certificate uploads. Read the authoritative
+    // upload records so the main OHV indicator agrees with the document drawer.
+    const rentalIds = [...new Set(rows.filter(row => row.business_line === "rental").map(row => row.readiness_id).filter((id): id is string => Boolean(id)))];
+    const uploaded = new Set<string>();
+    for (let i = 0; i < rentalIds.length; i += 100) {
+      const chunk = rentalIds.slice(i, i + 100);
+      const ids = chunk.map(id => '"' + id.replace(/["\\]/g, "") + '"').join(",");
+      const certificates = await fetchView<{readiness_id:string}>("ohv_certificate_uploads",new URLSearchParams({select:"readiness_id",readiness_id:"in.("+ids+")",limit:"1000"}),true);
+      certificates.forEach(c => uploaded.add(c.readiness_id));
+    }
+    for (const row of rows) {
+      if (row.business_line === "rental" && row.readiness_id && uploaded.has(row.readiness_id)) row.ohv_certificate_uploaded = true;
+    }
     return rows.sort(
       (a, b) =>
         a.visit_start_time.localeCompare(b.visit_start_time) ||
