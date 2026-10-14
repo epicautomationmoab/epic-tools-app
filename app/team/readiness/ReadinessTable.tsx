@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReadinessRow, VehicleBreakdownItem } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 import CancellationAgreementPanel from "./CancellationAgreementPanel";
+import { guestFacingBalanceCents } from "@/lib/guest-confirmation-accounting";
 
 type TimeFilter = "all" | "today" | "tomorrow";
 type Filter = "all" | "rental" | "tour";
@@ -1531,9 +1532,9 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 <span>Balance</span>
                 <strong>
                   {linkedValue(
-                    (selected.amount_due_cents ?? 0) > 0
-                      ? `$${((selected.amount_due_cents ?? 0) / 100).toFixed(2)}`
-                      : "$0",
+                    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
+                      guestFacingBalanceCents(selected.amount_due_cents) / 100,
+                    ),
                     selected.tripworks_booking_url,
                   )}
                 </strong>
