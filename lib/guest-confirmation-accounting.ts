@@ -48,7 +48,7 @@ function successfulGuestPaymentsCents(payload: unknown) {
   }, 0);
 }
 
-function guestFacingBalanceCents(baseDueCents: number | null) {
+export function guestFacingBalanceCents(baseDueCents: number | null) {
   return Math.round(Math.max(baseDueCents ?? 0, 0) * CUSTOMER_BOOKING_FEE_MULTIPLIER);
 }
 
