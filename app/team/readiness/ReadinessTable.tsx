@@ -1328,7 +1328,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     <span
                       className={due > 0 ? styles.moneyBad : styles.moneyGood}
                     >
-                      {due > 0 ? `$${(due / 100).toFixed(2)}` : "$0"}
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(guestFacingBalanceCents(due) / 100)}
                     </span>
                   </td>
                   <td>
