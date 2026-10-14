@@ -159,7 +159,7 @@ export default function CancellationAgreementPanel({
   }, [row.readiness_id, row.customer_name, row.customer_phone, row.customer_email, autoOpen]);
 
   useEffect(() => {
-    if (!agreement || !["created", "sent", "opened"].includes(agreement.status)) return;
+    if (!isOpen || (autoDismissIfHandledElsewhere && !sentHereRef.current ? false : !agreement || !["created", "sent", "opened"].includes(agreement.status))) return;
     const timer = window.setInterval(() => void loadStatus(true), 2000);
     return () => window.clearInterval(timer);
   }, [agreement?.status, row.readiness_id, isOpen, autoDismissIfHandledElsewhere]);
