@@ -126,6 +126,7 @@ export async function POST(request: NextRequest) {
     customer_name?: string | null;
     subject?: string | null;
     message_text?: string | null;
+    tracking_number?: string | null;
   } | null;
 
   const channel = payload?.channel;
@@ -206,7 +207,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "SMS blocked: this prospect opted out in TripWorks." }, { status: 403 });
       }
 
-      const trackingNumber = await latestCallRailTrackingNumber(recipientPhone, opportunityId, reservation?.id || customerReservation?.id || null);
+      let trackingNumber = await latestCallRailTrackingNumber(recipientPhone, opportunityId, reservation?.id || customerReservation?.id || null);
+      const requestedTracking=normalizePhone(payload?.tracking_number||null);
+      if(requestedTracking){
+        const history=await rest<Array<{direction:string|null;source_number:string|null;destination_number:string|null}>>(
+          "callrail_text_messages?normalized_customer_phone=eq."+encodeURIComponent(recipientPhone)+
+          "&select=direction,source_number,destination_number&limit=500"
+        );
+        const permitted=history.some(m=>normalizePhone((m.direction||"").toLowerCase()==="inbound"?m.destination_number:m.source_number)===requestedTracking);
+        if(!permitted)return NextResponse.json({error:"Selected CallRail number does not belong to this customer's conversation."},{status:409});
+        trackingNumber=requestedTracking;
+      }
       const result = await sendCallRailSms({ phone: recipientPhone, body: messageText, trackingNumber });
       return NextResponse.json({
         ok: true,
