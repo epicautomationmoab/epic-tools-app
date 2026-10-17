@@ -228,7 +228,7 @@ async function archiveCallRailMms(messageId:string,conversationId:string|null,me
   if(typeof value!=="string")continue;
   try {
    const link=new URL(value);
-   if(link.protocol!=="https:"||link.hostname!=="api.callrail.com"||!/^\\/v3\\/a\\/[^/]+\\/text-messages\\//.test(link.pathname))throw new Error("Invalid CallRail media URL");
+   if(link.protocol!=="https:"||link.hostname!=="api.callrail.com"||!link.pathname.startsWith("/v3/a/")||!link.pathname.includes("/text-messages/"))throw new Error("Invalid CallRail media URL");
    const attachmentKey=createHash("sha256").update(value).digest("hex");
    const metadata={provider:"callrail",provider_event_id:messageId,provider_message_id:messageId,conversation_id:conversationId,attachment_key:attachmentKey};
    await rest<void>("c360_message_attachments?on_conflict=provider,provider_event_id,attachment_key",{
