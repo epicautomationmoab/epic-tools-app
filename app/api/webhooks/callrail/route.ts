@@ -233,7 +233,7 @@ async function archiveCallRailMms(messageId:string,conversationId:string|null,me
    // Canonicalize to the documented token-authenticated API media endpoint.
    let downloadUrl=value;
    if(link.hostname==="app.callrail.com"){
-     const match=link.pathname.match(/^\\/msg\\/a\\/([0-9]+)\\/messages\\/(SCI[a-zA-Z0-9]+)\\/media\\/([0-9]+)$/);
+     const parts=link.pathname.split("/"); const match=parts.length===8&&parts[1]==="msg"&&parts[2]==="a"&&parts[4]==="messages"&&parts[6]==="media"&&parts[7]?["",parts[3],parts[5],parts[7]]:null;
      if(!match||match[2]!==messageId)throw new Error("Unexpected CallRail media path");
      const token=process.env.CALLRAIL_API_KEY?.trim();
      const accountNumericId=process.env.CALLRAIL_ACCOUNT_NUMERIC_ID?.trim();
