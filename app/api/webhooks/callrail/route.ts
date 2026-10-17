@@ -219,6 +219,40 @@ async function dryRunMatch(normalizedPhone: string | null) {
   return { contactId, opportunityId, matchType, matchConfidence, matchDetail };
 }
 
+
+async function archiveCallRailMms(messageId:string,conversationId:string|null,mediaUrls:unknown[]) {
+ const {url:base,key}=getSupabaseConfig();
+ const apiToken=process.env.CALLRAIL_API_KEY?.trim();
+ if(!apiToken)return;
+ for(const value of mediaUrls){
+  if(typeof value!=="string")continue;
+  try {
+   const link=new URL(value);
+   if(link.protocol!=="https:"||link.hostname!=="api.callrail.com"||!link.pathname.startsWith("/v3/a/")||!link.pathname.includes("/text-messages/"))throw new Error("Invalid CallRail media URL");
+   const attachmentKey=createHash("sha256").update(value).digest("hex");
+   const metadata={provider:"callrail",provider_event_id:messageId,provider_message_id:messageId,conversation_id:conversationId,attachment_key:attachmentKey};
+   await rest<void>("c360_message_attachments?on_conflict=provider,provider_event_id,attachment_key",{
+    method:"POST",headers:{Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify(metadata)
+   });
+   const media=await fetch(value,{headers:{Authorization:`Token token="${apiToken}"`},signal:AbortSignal.timeout(12000)});
+   if(!media.ok)throw Error("CallRail media download failed");
+   const mime=(media.headers.get("content-type")||"").split(";")[0].trim().toLowerCase();
+   const formats:Record<string,string>={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"};
+   if(!formats[mime])throw Error("Unsupported media format");
+   if(Number(media.headers.get("content-length")||0)>15728640)throw Error("Media too large");
+   const bytes=await media.arrayBuffer();
+   if(bytes.byteLength>15728640)throw Error("Media too large");
+   const objectPath=`callrail/${messageId.replace(/[^a-zA-Z0-9_-]/g,"_")}/${attachmentKey}.${formats[mime]}`;
+   const stored=await fetch(`${base}/storage/v1/object/c360-message-media/${objectPath}`,{
+    method:"POST",headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":mime,"x-upsert":"true"},body:bytes
+   });
+   if(!stored.ok)throw Error("Private media upload failed");
+   await rest<void>(`c360_message_attachments?provider=eq.callrail&provider_event_id=eq.${encodeURIComponent(messageId)}&attachment_key=eq.${attachmentKey}`,{
+    method:"PATCH",headers:{Prefer:"return=minimal"},body:JSON.stringify({storage_path:objectPath,content_type:mime,byte_size:bytes.byteLength,stored_at:new Date().toISOString(),ingestion_status:"stored",source_url:null,last_error:null})
+   });
+  }catch(error){console.error("CallRail MMS archive failed",error instanceof Error?error.message:"unknown");}
+ }
+}
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const parsed = parsePayload(rawBody, request.headers.get("content-type"));
@@ -317,6 +351,10 @@ export async function POST(request: NextRequest) {
         headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
         body: JSON.stringify(textRow),
       });
+
+      if(direction==="inbound"&&Array.isArray(textRow.media_urls)&&textRow.media_urls.length) {
+        await archiveCallRailMms(messageId,conversationId,textRow.media_urls);
+      }
 
       return NextResponse.json({
         ok: true,
