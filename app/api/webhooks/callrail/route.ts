@@ -228,13 +228,29 @@ async function archiveCallRailMms(messageId:string,conversationId:string|null,me
   if(typeof value!=="string")continue;
   try {
    const link=new URL(value);
-   if(link.protocol!=="https:"||link.hostname!=="api.callrail.com"||!link.pathname.startsWith("/v3/a/")||!link.pathname.includes("/text-messages/"))throw new Error("Invalid CallRail media URL");
+   if(link.protocol!=="https:"||!["api.callrail.com","app.callrail.com"].includes(link.hostname))throw new Error("Invalid CallRail media URL");
+   // CallRail webhook URLs may point to its UI host with a numeric account ID.
+   // Canonicalize to the documented token-authenticated API media endpoint.
+   let downloadUrl=value;
+   if(link.hostname==="app.callrail.com"){
+     const match=link.pathname.match(/^\\/msg\\/a\\/([0-9]+)\\/messages\\/(SCI[a-zA-Z0-9]+)\\/media\\/([0-9]+)$/);
+     if(!match||match[2]!==messageId)throw new Error("Unexpected CallRail media path");
+     const token=process.env.CALLRAIL_API_KEY?.trim();
+     const accountNumericId=process.env.CALLRAIL_ACCOUNT_NUMERIC_ID?.trim();
+     if(!token||!accountNumericId||accountNumericId!==match[1])throw new Error("CallRail account mismatch");
+     const accountResponse=await fetch("https://api.callrail.com/v3/a.json?fields=numeric_id&per_page=100",{headers:{Authorization:`Token token="${token}"`}});
+     if(!accountResponse.ok)throw new Error("Unable to resolve CallRail account");
+     const accounts=((await accountResponse.json()).accounts||[]) as Array<{id:string;numeric_id:number}>;
+     const account=accounts.find(a=>String(a.numeric_id)===match[1]);
+     if(!account)throw new Error("CallRail account not found");
+     downloadUrl=`https://api.callrail.com/v3/a/${encodeURIComponent(account.id)}/text-messages/${messageId}/media/${match[3]}`;
+   }else if(!link.pathname.startsWith("/v3/a/")||!link.pathname.includes("/text-messages/"))throw new Error("Unexpected API media path");
    const attachmentKey=createHash("sha256").update(value).digest("hex");
    const metadata={provider:"callrail",provider_event_id:messageId,provider_message_id:messageId,conversation_id:conversationId,attachment_key:attachmentKey};
    await rest<void>("c360_message_attachments?on_conflict=provider,provider_event_id,attachment_key",{
     method:"POST",headers:{Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify(metadata)
    });
-   const media=await fetch(value,{headers:{Authorization:`Token token="${apiToken}"`},signal:AbortSignal.timeout(12000)});
+   const media=await fetch(downloadUrl,{headers:{Authorization:`Token token="${apiToken}"`},signal:AbortSignal.timeout(12000)});
    if(!media.ok)throw Error("CallRail media download failed");
    const mime=(media.headers.get("content-type")||"").split(";")[0].trim().toLowerCase();
    const formats:Record<string,string>={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"};
