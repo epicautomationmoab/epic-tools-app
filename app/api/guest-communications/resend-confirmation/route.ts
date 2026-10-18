@@ -173,6 +173,19 @@ async function loadGuestPortalRows(token: string) {
   return (await response.json()) as GuestPortalRow[];
 }
 
+export async function GET(request: NextRequest) {
+  if (!await canResendConfirmation(request)) return NextResponse.json({error:"Unauthorized."},{status:401});
+  const confirmationCode=(request.nextUrl.searchParams.get("confirmationCode")||"").trim().toUpperCase();
+  if (!/^[A-Z0-9-]{3,25}$/.test(confirmationCode))return NextResponse.json({error:"Invalid confirmation code"},{status:400});
+  try {
+    const communication=await loadCommunication(confirmationCode);
+    if(!communication)return NextResponse.json({error:"No confirmation email exists for this reservation"},{status:404});
+    const recipient=await loadEffectiveEmail(confirmationCode,communication.customer_email);
+    if(!recipient)return NextResponse.json({error:"No email address on this reservation"},{status:409});
+    return NextResponse.json({confirmationCode,recipient},{headers:{"Cache-Control":"no-store"}});
+  } catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Unable to preview recipient"},{status:500});}
+}
+
 export async function POST(request: NextRequest) {
   if (!await canResendConfirmation(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   let body: { confirmationCode?: string };
