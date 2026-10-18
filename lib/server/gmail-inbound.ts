@@ -231,6 +231,32 @@ async function syncMailbox(mailbox:string, connection:Connection, force:boolean)
         updated_at: new Date().toISOString(),
       }),
     });
+    // An unmatched inbound email is still a C360 customer identity. Create a
+    // searchable contact without inventing a booking or linking unrelated people.
+    // Exact-email matches only; ambiguous existing contacts require review.
+    const existingContacts = await rest<Array<{ id: string }>>(
+      `sales_contacts?canonical_email=eq.${encodeURIComponent(fromEmail)}&select=id&limit=2`,
+    );
+    if (existingContacts.length === 0) {
+      const now = new Date().toISOString();
+      await rest("sales_contacts", {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({
+          canonical_email: fromEmail,
+          display_name: header(message, "From").replace(/<[^>]*>/g, "").replace(/^["']|["']$/g, "").trim() || fromEmail,
+          first_seen_at: receivedAt,
+          last_seen_at: receivedAt,
+          updated_at: now,
+        }),
+      });
+    } else if (existingContacts.length === 1) {
+      await rest(`sales_contacts?id=eq.${encodeURIComponent(existingContacts[0].id)}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ last_seen_at: receivedAt, updated_at: new Date().toISOString() }),
+      });
+    }
     processed += 1;
     if (match.reservationId || match.opportunityId || match.confirmation) matched += 1; else unmatched += 1;
   }
