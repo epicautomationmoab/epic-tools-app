@@ -81,6 +81,22 @@ function emailsFromHeader(value: string) {
   return value.split(",").map(emailFromHeader).filter((item): item is string => Boolean(item));
 }
 
+
+const WEBFORM_SENDER = "no-reply@webforms.io";
+function submittedWebformIdentity(fromEmail: string, body: string) {
+  if (fromEmail !== WEBFORM_SENDER) return null;
+  const field = (name: string) => {
+    const prefix = new RegExp("^\\s*" + name + "\\s*:\\s*", "i");
+    const line = body.split(/\r?\n/).find((item) => prefix.test(item));
+    return line?.replace(prefix, "").trim() || "";
+  };
+  const name = [field("First Name"), field("Last Name")].filter(Boolean).join(" ");
+  const email = emailFromHeader(field("Email"));
+  const phoneDigits = field("Phone").replace(/\D/g, "");
+  const phone = phoneDigits.length === 10 ? "+1" + phoneDigits : phoneDigits.length === 11 && phoneDigits.startsWith("1") ? "+" + phoneDigits : null;
+  return { name, email, phone };
+}
+
 async function accessToken(refreshToken: string) {
   const response = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
@@ -206,7 +222,12 @@ async function syncMailbox(mailbox:string, connection:Connection, force:boolean)
     const bodyText = textFromPart(message.payload).slice(0, 100_000);
     const receivedAt = message.internalDate ? new Date(Number(message.internalDate)).toISOString() : new Date().toISOString();
     const threadId = message.threadId || null;
-    const match = await matchMessage(fromEmail, threadId);
+    const webform = submittedWebformIdentity(fromEmail, bodyText);
+    const customerEmail = webform ? webform.email : fromEmail;
+    // Shared notification threads are not customer conversations.
+    const match: Match = customerEmail
+      ? await matchMessage(customerEmail, webform ? null : threadId)
+      : { confirmation: null, reservationId: null, opportunityId: null, method: null, confidence: null };
 
     await rest("gmail_messages", {
       method: "POST",
@@ -228,23 +249,27 @@ async function syncMailbox(mailbox:string, connection:Connection, force:boolean)
         matched_sales_opportunity_id: match.opportunityId,
         match_method: match.method,
         match_confidence: match.confidence,
+        ...(webform ? { contact_name: webform.name || null, contact_email: webform.email, contact_phone: webform.phone, source_type: "webform_submission" } : {}),
         updated_at: new Date().toISOString(),
       }),
     });
     // An unmatched inbound email is still a C360 customer identity. Create a
     // searchable contact without inventing a booking or linking unrelated people.
     // Exact-email matches only; ambiguous existing contacts require review.
-    const existingContacts = await rest<Array<{ id: string }>>(
-      `sales_contacts?canonical_email=eq.${encodeURIComponent(fromEmail)}&select=id&limit=2`,
-    );
-    if (existingContacts.length === 0) {
+    const existingContacts = customerEmail ? await rest<Array<{ id: string }>>(
+      `sales_contacts?canonical_email=eq.${encodeURIComponent(customerEmail)}&select=id&limit=2`,
+    ) : webform?.phone ? await rest<Array<{ id: string }>>(
+      `sales_contacts?canonical_phone=eq.${encodeURIComponent(webform.phone)}&select=id&limit=2`,
+    ) : [];
+    if (existingContacts.length === 0 && (customerEmail || webform?.phone)) {
       const now = new Date().toISOString();
       await rest("sales_contacts", {
         method: "POST",
         headers: { Prefer: "return=minimal" },
         body: JSON.stringify({
-          canonical_email: fromEmail,
-          display_name: header(message, "From").replace(/<[^>]*>/g, "").replace(/^["']|["']$/g, "").trim() || fromEmail,
+          canonical_email: customerEmail,
+          canonical_phone: webform?.phone || null,
+          display_name: webform?.name || header(message, "From").replace(/<[^>]*>/g, "").replace(/^["']|["']$/g, "").trim() || customerEmail,
           first_seen_at: receivedAt,
           last_seen_at: receivedAt,
           updated_at: now,
