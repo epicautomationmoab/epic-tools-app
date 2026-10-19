@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import TeamSidebar from "../../TeamSidebar";
-import { getFleetIncidentCases, getFleetVehicle } from "@/lib/fleet-maintenance";
+import { getFleetIncidentCases, getFleetVehicle, getLatestFleetService } from "@/lib/fleet-maintenance";
+import ServiceWorkflow from "./ServiceWorkflow";
 import styles from "../../readiness/ReadinessShell.module.css";
 
 function fmt(value: string) {
@@ -12,7 +13,7 @@ export default async function FleetVehiclePage({ params }: { params: Promise<{ v
   const { vehicleNumber } = await params;
   const n = Number(vehicleNumber);
   if (!Number.isInteger(n)) notFound();
-  const [v, cases] = await Promise.all([getFleetVehicle(n), getFleetIncidentCases(n)]);
+  const [v, cases, serviceData] = await Promise.all([getFleetVehicle(n), getFleetIncidentCases(n), getLatestFleetService(n)]);
   if (!v) notFound();
 
   return (
@@ -60,7 +61,7 @@ export default async function FleetVehiclePage({ params }: { params: Promise<{ v
               <h3 style={{ margin:"5px 0 14px", fontSize:22 }}>1,000-Mile Service</h3>
               <Field label="Last Service Mileage" value={v.last_service_mileage == null ? "Not entered" : v.last_service_mileage.toLocaleString()} muted={v.last_service_mileage == null} />
               <Field label="Miles Until Service" value={v.miles_until_service == null ? "Waiting for mileage" : String(v.miles_until_service)} muted={v.miles_until_service == null} />
-              <div style={placeholder}>Service checklist and completion history will live here.</div>
+              <ServiceWorkflow vehicleNumber={v.vehicle_number} currentMileage={v.current_mileage} initialService={serviceData.service} initialItems={serviceData.items} />
             </section>
 
             <section style={card}>
