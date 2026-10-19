@@ -244,16 +244,29 @@ export async function POST(request: NextRequest) {
     const cleanBody = messageText.replace(/(?:\n\s*)?(?:Best regards,?|Best,?|Warm regards,?|Kind regards,?)\s*$/i, "").trim();
     const closingBody = `${cleanBody}\n\nBest regards,`;
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
-    const { data, error } = await resend.emails.send({
-      from: `${senderFirstName} at Epic 4X4 Adventures <${requiredEnv("GUEST_EMAIL_FROM").match(/<([^>]+)>/)?.[1] || requiredEnv("GUEST_EMAIL_FROM")}>`,
-      to: recipientEmail,
-      replyTo: EXPECTED_MAILBOX,
-      subject,
-      template: {
-        id: C360_TEMPLATE,
-        variables: { MESSAGE_BODY: closingBody, REP_NAME: senderFirstName },
-      },
-    }, { idempotencyKey: `c360-correspondence-${communicationId}` });
+    const sender = `${senderFirstName} at Epic 4X4 Adventures <${requiredEnv("GUEST_EMAIL_FROM").match(/<([^>]+)>/)?.[1] || requiredEnv("GUEST_EMAIL_FROM")}>`;
+    const sendOptions = { idempotencyKey: `c360-correspondence-${communicationId}` };
+    // Resend template variable values have a shorter limit than the C360 email
+    // composer. Long customer replies must be sent as full email content instead.
+    const { data, error } = closingBody.length > 1800
+      ? await resend.emails.send({
+          from: sender,
+          to: recipientEmail,
+          replyTo: EXPECTED_MAILBOX,
+          subject,
+          text: `${closingBody}\n${senderFirstName}\nEpic 4X4 Adventures`,
+          html: `<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#20242b"><div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e5e5e5;border-radius:10px;overflow:hidden"><div style="background:#1b1b1b;padding:22px 28px;color:#fff;font-size:20px;font-weight:bold">EPIC <span style="color:#e84b3c">4X4</span> ADVENTURES</div><div style="padding:28px;line-height:1.65;font-size:15px;white-space:normal">${closingBody.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/\n/g,"<br />")}<br />${senderFirstName.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}<br />Epic 4X4 Adventures</div></div></body></html>`,
+        }, sendOptions)
+      : await resend.emails.send({
+          from: sender,
+          to: recipientEmail,
+          replyTo: EXPECTED_MAILBOX,
+          subject,
+          template: {
+            id: C360_TEMPLATE,
+            variables: { MESSAGE_BODY: closingBody, REP_NAME: senderFirstName },
+          },
+        }, sendOptions);
     if (error) throw new Error(error.message);
     if (!data?.id) throw new Error("Resend did not return a message ID.");
     const now = new Date().toISOString();
