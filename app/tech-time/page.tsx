@@ -208,7 +208,6 @@ export default function TechTimePage() {
         return false;
       }
       if (!r.ok) throw new Error(p.error || "Tech Time action failed.");
-      setPin("");
       setExistingPrompt(null);
       setTwoPersonPrompt(null);
       await load();
@@ -350,8 +349,8 @@ export default function TechTimePage() {
                   </div>
                   {selectedBoardRow.entry_state === "paused" && selectedBoardRow.pause_reason ? <div style={{ marginTop: 10, color: "#8b6118" }}>Paused: {fmtResult(selectedBoardRow.pause_reason)}</div> : null}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 18 }}>
-                    {selectedBoardRow.entry_state === "running" ? <button disabled={busy || !pin} onClick={() => setPauseOpen(true)} style={secondary}>Pause</button> : <button disabled={busy || !pin} onClick={resume} style={primary}>Resume</button>}
-                    <button disabled={busy || !pin} onClick={() => setStopOpen(true)} style={danger}>Stop Job</button>
+                    {selectedBoardRow.entry_state === "running" ? <button disabled={busy} onClick={() => { if (!pin) { setMessage("Enter your PIN above to pause this job."); return; } setPauseOpen(true); }} style={secondary}>Pause</button> : <button disabled={busy} onClick={() => { if (!pin) { setMessage("Enter your PIN above to resume this job."); return; } resume(); }} style={primary}>Resume</button>}
+                    <button disabled={busy} onClick={() => { if (!pin) { setMessage("Enter your PIN above to stop this job."); return; } setStopOpen(true); }} style={danger}>Stop Job</button>
                     <div style={{ border: "1px solid #dfe3e8", borderRadius: 12, padding: 11, textAlign: "center", color: "#69727e" }}>
                       {selectedBoardRow.book_minutes == null ? "Book time: —" : `Book time: ${selectedBoardRow.book_minutes}m`}
                     </div>
