@@ -267,10 +267,10 @@ export default function FleetDashboardClient({ initialVehicles, activeTechRows }
             <label style={label}>Reason / note</label>
             <input value={reason} onChange={(e)=>setReason(e.target.value)} placeholder="Why is availability changing?" style={input} />
             <div style={{ display:"grid", gap:9, marginTop:16 }}>
-              <button disabled={saving} onClick={()=>setInventory("hard_blackout")} style={{...actionButton,background:"#b53a30",color:"white"}}>Hard Blackout</button>
-              <button disabled={saving} onClick={()=>setInventory("out_for_service")} style={{...actionButton,background:"#8b572a",color:"white"}}>Out for Service</button>
-              <button disabled={saving} onClick={()=>setInventory("soft_blackout")} style={{...actionButton,background:"#f0a23a",color:"#34240f"}}>Soft Blackout</button>
-              <button disabled={saving} onClick={()=>setInventory("available")} style={{...actionButton,background:"#258b53",color:"white"}}>Return to Available</button>
+              <button disabled={saving} onClick={()=>setInventory("hard_blackout")} style={{...actionButton,background:"linear-gradient(135deg,#241f24 0%,#51222b 52%,#742c35 100%)",color:"white"}}>Hard Blackout</button>
+              <button disabled={saving} onClick={()=>setInventory("out_for_service")} style={{...actionButton,background:"linear-gradient(135deg,#2c2823 0%,#59412d 48%,#765438 100%)",color:"white"}}>Out for Service</button>
+              <button disabled={saving} onClick={()=>setInventory("soft_blackout")} style={{...actionButton,background:"linear-gradient(135deg,#253342 0%,#355368 48%,#526f78 100%)",color:"white"}}>Soft Blackout</button>
+              <button disabled={saving} onClick={()=>setInventory("available")} style={{...actionButton,background:"linear-gradient(135deg,#21372f 0%,#285947 48%,#3f735c 100%)",color:"white"}}>Return to Available</button>
             </div>
             <p style={{ color:"#737d88", fontSize:12, lineHeight:1.5, marginBottom:0 }}>Iron Jack will read this same inventory state. Hard Blackout and Out for Service are not sellable. Soft Blackout remains overrideable by authorized staff.</p>
           </div>
@@ -305,7 +305,7 @@ const modal:React.CSSProperties={background:"white",borderRadius:16,padding:20,b
 const closeButton:React.CSSProperties={border:0,background:"transparent",fontSize:28,cursor:"pointer"};
 const label:React.CSSProperties={display:"block",fontWeight:900,fontSize:12,marginTop:16,marginBottom:6};
 const input:React.CSSProperties={width:"100%",boxSizing:"border-box",border:"1px solid #cfd6dd",borderRadius:9,padding:"11px 12px",fontSize:14};
-const actionButton:React.CSSProperties={border:0,borderRadius:10,padding:"13px 14px",fontSize:15,fontWeight:900,cursor:"pointer"};
+const actionButton:React.CSSProperties={border:"1px solid rgba(255,255,255,.12)",borderRadius:10,padding:"13px 14px",fontSize:15,fontWeight:900,cursor:"pointer",boxShadow:"inset 0 1px 0 rgba(255,255,255,.10),0 4px 12px rgba(25,31,38,.10)"};
 const th:React.CSSProperties={textAlign:"left",padding:"9px 7px",background:"#f5f7f8",position:"sticky",top:0,zIndex:1,color:"#6f7883",fontSize:10,textTransform:"uppercase"};
 const td:React.CSSProperties={padding:"7px"};
 const cellInput:React.CSSProperties={width:"100%",minWidth:90,boxSizing:"border-box",border:"1px solid #d7dde3",borderRadius:7,padding:"7px 8px",fontSize:12};
