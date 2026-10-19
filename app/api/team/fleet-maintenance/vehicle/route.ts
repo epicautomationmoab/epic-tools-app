@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
-import { supabasePatch } from "@/lib/server/supabase-rest";
+import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
 
 async function manager(request: NextRequest) {
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
@@ -28,7 +28,12 @@ export async function PATCH(request: NextRequest) {
     if (key in (body || {})) updates[key] = body[key] === "" || body[key] == null ? null : Number(body[key]);
   }
 
+  let previousInventoryState: string | null = null;
+  let vehicleId: string | null = null;
   if ("booking_inventory_state" in (body || {})) {
+    const current = await supabaseSelect<{id:string;booking_inventory_state:string}>("fleet_vehicles", new URLSearchParams({ select:"id,booking_inventory_state", vehicle_number:`eq.${vehicleNumber}`, limit:"1" }));
+    vehicleId = current[0]?.id ?? null;
+    previousInventoryState = current[0]?.booking_inventory_state ?? null;
     if (!allowedStates.has(body.booking_inventory_state)) {
       return NextResponse.json({ error: "Invalid inventory state." }, { status: 400 });
     }
@@ -39,5 +44,18 @@ export async function PATCH(request: NextRequest) {
   }
 
   await supabasePatch("fleet_vehicles", new URLSearchParams({ vehicle_number: `eq.${vehicleNumber}` }), updates);
+
+  if ("booking_inventory_state" in (body || {}) && vehicleId && previousInventoryState !== body.booking_inventory_state) {
+    await supabaseInsert("fleet_inventory_events", {
+      vehicle_id: vehicleId,
+      vehicle_number: vehicleNumber,
+      previous_state: previousInventoryState,
+      new_state: body.booking_inventory_state,
+      reason: typeof body.booking_inventory_reason === "string" ? body.booking_inventory_reason : null,
+      changed_by_profile_id: profile.id,
+      changed_by_name: profile.display_name,
+    });
+  }
+
   return NextResponse.json({ ok: true });
 }
