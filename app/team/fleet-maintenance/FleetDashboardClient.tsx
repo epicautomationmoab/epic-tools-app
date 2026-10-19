@@ -23,6 +23,8 @@ export default function FleetDashboardClient({ initialVehicles }: { initialVehic
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [modelFilter, setModelFilter] = useState("all");
+  const [attentionFilters, setAttentionFilters] = useState<string[]>([]);
 
   const counts = useMemo(() => ({
     total: vehicles.length,
@@ -33,6 +35,35 @@ export default function FleetDashboardClient({ initialVehicles }: { initialVehic
     unavailable: vehicles.filter((v) => ["repair","waiting_for_parts","out_of_service"].includes(v.operational_status) || v.booking_inventory_state !== "available").length,
     setup: vehicles.filter((v) => v.setup_needed).length,
   }), [vehicles]);
+
+  const modelOutline = (model: string) => {
+    if (model === "Pro R Boost") return "#6f1d2b"; // deep burgundy
+    if (model === "Xpedition") return "#0f5b45"; // deep emerald
+    if (model === "XP S" || model === "XP S4") return "#174a7e"; // deep sapphire
+    return "#5a2f6f"; // deep plum for Pro S / Pro S4
+  };
+
+  const toggleAttentionFilter = (key: string) => {
+    setAttentionFilters((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
+    );
+  };
+
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter((v) => {
+      if (modelFilter !== "all" && v.model_family !== modelFilter) return false;
+      if (!attentionFilters.length) return true;
+
+      return attentionFilters.every((filter) => {
+        if (filter === "service") return v.service_status === "due";
+        if (filter === "hard_blackout") return v.booking_inventory_state === "hard_blackout";
+        if (filter === "soft_blackout") return v.booking_inventory_state === "soft_blackout";
+        if (filter === "damage") return v.operational_status === "repair";
+        if (filter === "service_hold") return v.booking_inventory_state === "out_for_service";
+        return true;
+      });
+    });
+  }, [vehicles, modelFilter, attentionFilters]);
 
   async function patchVehicle(vehicleNumber: number, patch: Record<string, unknown>) {
     setSaving(true);
@@ -90,22 +121,70 @@ export default function FleetDashboardClient({ initialVehicles }: { initialVehic
       </div>
 
       <div style={{ background:"white", border:"1px solid #e0e4e8", borderRadius:16, overflow:"hidden" }}>
-        <div style={{ padding:"16px 18px", borderBottom:"1px solid #e7eaee", display:"flex", justifyContent:"space-between", gap:20, alignItems:"center" }}>
-          <div>
-            <div style={{ fontSize:19, fontWeight:900 }}>Fleet Registry</div>
-            <div style={{ color:"#6f7883", fontSize:13, marginTop:3 }}>Fleet Maintenance is the physical source of truth. Iron Jack consumes availability from the same vehicle record.</div>
+        <div style={{ padding:"16px 18px", borderBottom:"1px solid #e7eaee" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", gap:20, alignItems:"center" }}>
+            <div>
+              <div style={{ fontSize:19, fontWeight:900 }}>Fleet Registry</div>
+              <div style={{ color:"#6f7883", fontSize:13, marginTop:3 }}>Fleet Maintenance is the physical source of truth. Iron Jack consumes availability from the same vehicle record.</div>
+            </div>
+            <button onClick={() => setSetupOpen(true)} style={button}>Bulk Fleet Setup</button>
           </div>
-          <button onClick={() => setSetupOpen(true)} style={button}>Bulk Fleet Setup</button>
+
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center", marginTop:16 }}>
+            <select value={modelFilter} onChange={(e)=>setModelFilter(e.target.value)} style={{ ...filterControl, minWidth:190 }}>
+              <option value="all">All Model Types</option>
+              <option value="Pro R Boost">Pro R Boost</option>
+              <option value="Xpedition">Xpedition</option>
+              <option value="XP S">XP S</option>
+              <option value="XP S4">XP S4</option>
+              <option value="Pro S">Pro S</option>
+              <option value="Pro S4">Pro S4</option>
+            </select>
+
+            {[
+              ["service","Due for Service"],
+              ["hard_blackout","Hard Blackout"],
+              ["soft_blackout","Soft Blackout"],
+              ["damage","Down for Damage"],
+              ["service_hold","Hold for Service"],
+            ].map(([key,labelText]) => {
+              const active = attentionFilters.includes(key);
+              return (
+                <button
+                  key={key}
+                  onClick={()=>toggleAttentionFilter(key)}
+                  style={{
+                    ...filterControl,
+                    background: active ? "#202a34" : "white",
+                    color: active ? "white" : "#27313b",
+                    borderColor: active ? "#202a34" : "#cfd6dd",
+                    fontWeight:900,
+                    cursor:"pointer",
+                  }}
+                >
+                  {labelText}
+                </button>
+              );
+            })}
+
+            {(modelFilter !== "all" || attentionFilters.length > 0) ? (
+              <button onClick={()=>{setModelFilter("all");setAttentionFilters([]);}} style={{ ...filterControl, border:"none", background:"transparent", color:"#6d7782", cursor:"pointer", fontWeight:800 }}>Clear Filters</button>
+            ) : null}
+
+            <div style={{ marginLeft:"auto", fontSize:12, color:"#6f7883", fontWeight:800 }}>
+              Showing {filteredVehicles.length} of {vehicles.length}
+            </div>
+          </div>
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(6,minmax(0,1fr))", gap:10, padding:14 }}>
-          {vehicles.map((v) => {
+          {filteredVehicles.map((v) => {
             const displayedStatus = v.on_ride ? "on_ride" : v.booking_inventory_state !== "available" ? v.booking_inventory_state : v.operational_status;
             const op = tone(displayedStatus);
             const svc = tone(v.service_status);
             const ins = tone(v.inspection_status);
             return (
-              <div key={v.id} style={{ position:"relative", border:"1px solid #dde2e7", borderRadius:13, padding:13, background:"#fff", minHeight:170 }}>
+              <div key={v.id} style={{ position:"relative", border:`3px solid ${modelOutline(v.model_family)}`, borderRadius:13, padding:13, background:"#fff", minHeight:170, boxShadow:`0 0 0 1px ${modelOutline(v.model_family)}18` }}>
                 <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"start" }}>
                   <Link href={`/team/fleet-maintenance/${v.vehicle_number}`} style={{ textDecoration:"none", color:"inherit", flex:1 }}>
                     <div style={{ fontSize:26, fontWeight:900 }}>#{v.vehicle_number}</div>
@@ -127,6 +206,19 @@ export default function FleetDashboardClient({ initialVehicles }: { initialVehic
               </div>
             );
           })}
+        </div>
+
+        <div style={{ display:"flex", gap:14, flexWrap:"wrap", padding:"0 14px 14px", fontSize:11, color:"#66717c" }}>
+          {[
+            ["#6f1d2b","Pro R Boost"],
+            ["#0f5b45","Xpedition"],
+            ["#174a7e","XP S / XP S4"],
+            ["#5a2f6f","Pro S / Pro S4"],
+          ].map(([color,labelText]) => (
+            <span key={labelText} style={{ display:"inline-flex", alignItems:"center", gap:6, fontWeight:800 }}>
+              <span style={{ width:12, height:12, borderRadius:3, background:color }} />{labelText}
+            </span>
+          ))}
         </div>
       </div>
 
@@ -204,3 +296,5 @@ const th:React.CSSProperties={textAlign:"left",padding:"9px 7px",background:"#f5
 const td:React.CSSProperties={padding:"7px"};
 const cellInput:React.CSSProperties={width:"100%",minWidth:90,boxSizing:"border-box",border:"1px solid #d7dde3",borderRadius:7,padding:"7px 8px",fontSize:12};
 const smallButton:React.CSSProperties={border:0,borderRadius:8,padding:"8px 10px",background:"#258b53",color:"white",fontWeight:900,cursor:"pointer"};
+
+const filterControl:React.CSSProperties={border:"1px solid #cfd6dd",borderRadius:999,padding:"8px 12px",fontSize:12,background:"white"};
