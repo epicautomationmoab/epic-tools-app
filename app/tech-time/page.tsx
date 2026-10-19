@@ -379,10 +379,11 @@ export default function TechTimePage() {
                   const unavailable = row.on_ride;
                   return (
                     <div key={row.vehicle_number} style={{
-                      border: overdue ? "2px solid #9d2f2a" : veryClose ? "2px solid #b67a19" : "1px solid #dfe4e9",
-                      background: overdue ? "#fff1ef" : veryClose ? "#fff8e8" : "#f8fafb",
+                      border: row.on_ride ? "1px solid #cfd5da" : overdue ? "2px solid #9d2f2a" : veryClose ? "2px solid #b67a19" : "1px solid #dfe4e9",
+                      background: row.on_ride ? "#eef1f3" : overdue ? "#fff1ef" : veryClose ? "#fff8e8" : "#f8fafb",
                       borderRadius:12,
-                      padding:11
+                      padding:11,
+                      opacity: row.on_ride ? .68 : 1
                     }}>
                       <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"start" }}>
                         <div>
@@ -414,7 +415,6 @@ export default function TechTimePage() {
                           {unavailable ? "On-Ride" : "Grab"}
                         </button>
                       </div>
-                      {row.on_ride ? <div style={{ color:"#285e9a", fontSize:11, marginTop:8, lineHeight:1.4 }}>Do not hunt this vehicle down — it is currently checked out.</div> : null}
                     </div>
                   );
                 }) : (
