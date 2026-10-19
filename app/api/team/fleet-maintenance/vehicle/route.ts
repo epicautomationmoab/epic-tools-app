@@ -19,11 +19,19 @@ export async function PATCH(request: NextRequest) {
   }
 
   const allowedStates = new Set(["available","soft_blackout","hard_blackout","out_for_service"]);
+  const allowedOperationalStates = new Set(["setup_needed","available","in_service","repair","waiting_for_parts","out_of_service"]);
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   for (const key of ["vin","mpwr_vehicle_reference","booking_resource_id","booking_resource_name","status_reason","booking_inventory_reason","in_service_date"]) {
     if (key in (body || {})) updates[key] = body[key] === "" ? null : body[key];
   }
+  if ("operational_status" in (body || {})) {
+    if (!allowedOperationalStates.has(body.operational_status)) {
+      return NextResponse.json({ error: "Invalid operational status." }, { status: 400 });
+    }
+    updates.operational_status = body.operational_status;
+  }
+
   for (const key of ["current_mileage","current_engine_hours","last_service_mileage"]) {
     if (key in (body || {})) updates[key] = body[key] === "" || body[key] == null ? null : Number(body[key]);
   }
