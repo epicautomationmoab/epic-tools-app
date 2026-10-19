@@ -142,8 +142,8 @@ export default function FleetDashboardClient({ initialVehicles }: { initialVehic
             </div>
             <div style={{ overflow:"auto", maxHeight:"70vh", marginTop:16 }}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-                <thead><tr>{["#","Model","VIN","M Power Ref","Iron Jack Inventory ID","Mileage","Hours","In Service",""].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
-                <tbody>{vehicles.map((v) => <SetupRow key={v.id} vehicle={v} saving={saving} onSave={async (patch) => { const ok=await patchVehicle(v.vehicle_number,patch); if(ok) setVehicles((rows)=>rows.map((x)=>x.vehicle_number===v.vehicle_number?{...x,...patch,setup_needed:false}:x)); }} />)}</tbody>
+                <thead><tr>{["#","Model","VIN","M Power Ref","Mileage","Hours","In Service",""].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                <tbody>{vehicles.map((v) => <SetupRow key={v.id} vehicle={v} saving={saving} onSave={async (patch) => { const ok=await patchVehicle(v.vehicle_number,patch); if(ok) setVehicles((rows)=>rows.map((x)=>x.vehicle_number===v.vehicle_number?{...x,...patch,setup_needed:!(String(patch.vin||"").trim()&&String(patch.mpwr_vehicle_reference||"").trim()&&String(patch.current_mileage||"").trim()&&String(patch.current_engine_hours||"").trim()&&String(patch.in_service_date||"").trim())}:x)); }} />)}</tbody>
               </table>
             </div>
           </div>
@@ -177,7 +177,6 @@ export default function FleetDashboardClient({ initialVehicles }: { initialVehic
 function SetupRow({ vehicle, saving, onSave }: { vehicle:FleetVehicle; saving:boolean; onSave:(patch:Record<string,unknown>)=>Promise<void> }) {
   const [vin,setVin]=useState(vehicle.vin||"");
   const [mpwr,setMpwr]=useState(vehicle.mpwr_vehicle_reference||"");
-  const [inventory,setInventory]=useState(vehicle.booking_resource_id||"");
   const [mileage,setMileage]=useState(vehicle.current_mileage?.toString()||"");
   const [hours,setHours]=useState(vehicle.current_engine_hours?.toString()||"");
   const [date,setDate]=useState(vehicle.in_service_date||"");
@@ -186,11 +185,10 @@ function SetupRow({ vehicle, saving, onSave }: { vehicle:FleetVehicle; saving:bo
     <td style={td}>{vehicle.model_family}</td>
     <td style={td}><input value={vin} onChange={e=>setVin(e.target.value)} style={cellInput}/></td>
     <td style={td}><input value={mpwr} onChange={e=>setMpwr(e.target.value)} style={cellInput}/></td>
-    <td style={td}><input value={inventory} onChange={e=>setInventory(e.target.value)} style={cellInput}/></td>
     <td style={td}><input value={mileage} onChange={e=>setMileage(e.target.value.replace(/\D/g,""))} style={cellInput}/></td>
     <td style={td}><input value={hours} onChange={e=>setHours(e.target.value.replace(/[^0-9.]/g,""))} style={cellInput}/></td>
     <td style={td}><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={cellInput}/></td>
-    <td style={td}><button disabled={saving} onClick={()=>onSave({vin,mpwr_vehicle_reference:mpwr,booking_resource_id:inventory,booking_resource_name:`Vehicle ${vehicle.vehicle_number}`,current_mileage:mileage,current_engine_hours:hours,in_service_date:date,operational_status:"available"})} style={smallButton}>Save</button></td>
+    <td style={td}><button disabled={saving} onClick={()=>onSave({vin,mpwr_vehicle_reference:mpwr,current_mileage:mileage,current_engine_hours:hours,in_service_date:date,operational_status:"available"})} style={smallButton}>Save</button></td>
   </tr>;
 }
 
