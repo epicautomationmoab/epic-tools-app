@@ -4,6 +4,17 @@ import { identifyTeamProfileByPin } from "@/lib/server/team-pin";
 import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 import { supabaseInsert, supabasePatch, supabasePatchRows, supabaseSelect } from "@/lib/server/supabase-rest";
 
+type FleetServiceQueueRow = {
+  vehicle_number: number;
+  model_family: string;
+  current_mileage: number | null;
+  miles_until_service: number | null;
+  service_status: string;
+  booking_inventory_state: string;
+  operational_status: string;
+  on_ride: boolean;
+};
+
 type TeamProfileRow = {
   id: string;
   display_name: string;
@@ -157,11 +168,24 @@ async function getRecentCompleted() {
   return entries.map((e) => ({ ...e, job: byId.get(e.job_id) ?? null }));
 }
 
+async function getServiceQueue() {
+  const rows = await supabaseSelect<FleetServiceQueueRow>(
+    "fleet_maintenance_dashboard_v2",
+    new URLSearchParams({
+      select: "vehicle_number,model_family,current_mileage,miles_until_service,service_status,booking_inventory_state,operational_status,on_ride",
+      current_mileage: "not.is.null",
+      service_status: "in.(due,upcoming)",
+      order: "miles_until_service.asc,vehicle_number.asc",
+    }),
+  );
+  return rows;
+}
+
 export async function GET(request: NextRequest) {
   if (!await requestAccess(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   try {
-    const [profiles, board, recent] = await Promise.all([
+    const [profiles, board, recent, serviceQueue] = await Promise.all([
       supabaseSelect<TeamProfileRow>(
         "team_profiles",
         new URLSearchParams({
@@ -174,9 +198,10 @@ export async function GET(request: NextRequest) {
       ),
       getBoard(),
       getRecentCompleted(),
+      getServiceQueue(),
     ]);
 
-    return NextResponse.json({ profiles, board, recent });
+    return NextResponse.json({ profiles, board, recent, serviceQueue });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to load Tech Time." },
