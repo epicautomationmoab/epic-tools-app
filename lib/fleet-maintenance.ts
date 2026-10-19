@@ -147,3 +147,70 @@ export async function getLatestFleetService(vehicleNumber: number) {
   );
   return { service, items };
 }
+
+
+export type FleetInspection = {
+  id: string;
+  vehicle_id: string;
+  vehicle_number: number;
+  inspection_type: "weekly" | "during_service";
+  status: string;
+  inspection_date: string;
+  mileage: number | null;
+  engine_hours: number | null;
+  inspector_profile_id: string | null;
+  inspector_name: string | null;
+  linked_service_record_id: string | null;
+  issues_damage_found: string | null;
+  action_required: string | null;
+  work_order_reference: string | null;
+  assigned_to: string | null;
+  target_completion_date: string | null;
+  inspection_result: string | null;
+  release_decision_notes: string | null;
+  inspector_signature: string | null;
+  fleet_manager_review: string | null;
+  fleet_manager_name: string | null;
+  fleet_manager_reviewed_at: string | null;
+  date_closed: string | null;
+  completed_at: string | null;
+  slack_notification_status: string;
+  slack_notification_error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FleetInspectionItem = {
+  id: string;
+  inspection_id: string;
+  category_code: string;
+  category_label: string;
+  item_code: string;
+  label: string;
+  status: "pending" | "pass" | "needs_attention" | "not_applicable";
+  notes: string | null;
+  sort_order: number;
+};
+
+export async function getLatestFleetInspection(vehicleNumber: number) {
+  const rows = await supabaseSelect<FleetInspection>(
+    "fleet_inspections",
+    new URLSearchParams({
+      select: "*",
+      vehicle_number: `eq.${vehicleNumber}`,
+      order: "created_at.desc",
+      limit: "1",
+    }),
+  );
+  const inspection = rows[0] ?? null;
+  if (!inspection) return { inspection: null, items: [] as FleetInspectionItem[] };
+  const items = await supabaseSelect<FleetInspectionItem>(
+    "fleet_inspection_items",
+    new URLSearchParams({
+      select: "*",
+      inspection_id: `eq.${inspection.id}`,
+      order: "sort_order.asc",
+    }),
+  );
+  return { inspection, items };
+}
