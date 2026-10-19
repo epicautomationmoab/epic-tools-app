@@ -2,6 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+type ServiceQueueRow = {
+  vehicle_number: number;
+  model_family: string;
+  current_mileage: number | null;
+  miles_until_service: number | null;
+  service_status: string;
+  booking_inventory_state: string;
+  operational_status: string;
+  on_ride: boolean;
+};
+
 type Profile = { id: string; display_name: string; role: string; pin_set_at: string | null };
 type BoardRow = {
   job_id: string;
@@ -98,6 +109,7 @@ export default function TechTimePage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [board, setBoard] = useState<BoardRow[]>([]);
   const [recent, setRecent] = useState<RecentRow[]>([]);
+  const [serviceQueue, setServiceQueue] = useState<ServiceQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(true);
   const [workstationPassword, setWorkstationPassword] = useState("");
@@ -129,6 +141,7 @@ export default function TechTimePage() {
         setProfiles([]);
         setBoard([]);
         setRecent([]);
+        setServiceQueue([]);
         return;
       }
       const p = await r.json();
@@ -137,6 +150,7 @@ export default function TechTimePage() {
       setProfiles(p.profiles || []);
       setBoard(p.board || []);
       setRecent(p.recent || []);
+      setServiceQueue(p.serviceQueue || []);
       if (!selectedTech && p.profiles?.length) setSelectedTech(p.profiles[0].display_name);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Unable to load Tech Time.");
@@ -217,6 +231,27 @@ export default function TechTimePage() {
       return false;
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function startServiceVehicle(row: ServiceQueueRow) {
+    if (!selectedTech || !pin) {
+      setMessage("Choose your name and enter your PIN before grabbing a service.");
+      return;
+    }
+    setVehicle(String(row.vehicle_number));
+    setCategory("Scheduled Maintenance");
+    setDescription("1,000-mile service");
+    const ok = await action({
+      action: "start",
+      vehicleNumber: String(row.vehicle_number),
+      category: "Scheduled Maintenance",
+      description: "1,000-mile service",
+      confirmTwoPerson: false,
+    });
+    if (ok) {
+      setVehicle("");
+      setDescription("");
     }
   }
 
@@ -360,6 +395,56 @@ export default function TechTimePage() {
                 <>
                   <label style={label}>Vehicle Number</label>
                   <input value={vehicle} onChange={(e) => setVehicle(e.target.value.replace(/[^0-9A-Za-z-]/g, ""))} placeholder="e.g. 42" style={input} />
+
+                  {serviceQueue.length ? (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"end", marginBottom:8 }}>
+                        <div>
+                          <div style={{ fontWeight:900 }}>Vehicles Needing Service</div>
+                          <div style={{ color:"#707b87", fontSize:12, marginTop:2 }}>Most critical first. Grab one to start Scheduled Maintenance automatically.</div>
+                        </div>
+                        <div style={{ color:"#7d8792", fontSize:12 }}>{serviceQueue.length} due / approaching</div>
+                      </div>
+                      <div style={{ display:"grid", gap:8, maxHeight:270, overflowY:"auto" }}>
+                        {serviceQueue.map((row) => {
+                          const overdue = (row.miles_until_service ?? 999999) < 0;
+                          return (
+                            <div key={row.vehicle_number} style={{
+                              display:"grid",
+                              gridTemplateColumns:"1fr auto auto",
+                              alignItems:"center",
+                              gap:12,
+                              border: overdue ? "2px solid #9d2f2a" : "1px solid #dfe4e9",
+                              background: overdue ? "#fff1ef" : "#f8fafb",
+                              borderRadius:11,
+                              padding:"10px 12px"
+                            }}>
+                              <div>
+                                <div style={{ fontWeight:900 }}>Vehicle {row.vehicle_number} · {row.model_family}</div>
+                                <div style={{ color:"#6d7782", fontSize:12, marginTop:2 }}>
+                                  {row.current_mileage?.toLocaleString() ?? "—"} miles
+                                </div>
+                              </div>
+                              <div style={{ textAlign:"right" }}>
+                                {overdue ? (
+                                  <div style={{ color:"#982f28", fontWeight:900 }}>
+                                    {Math.abs(row.miles_until_service || 0)} mi OVERDUE
+                                  </div>
+                                ) : (
+                                  <div style={{ fontWeight:900, color:(row.miles_until_service ?? 9999) <= 25 ? "#9b5d0e" : "#36414d" }}>
+                                    {row.miles_until_service} mi to service
+                                  </div>
+                                )}
+                              </div>
+                              <button disabled={busy} onClick={() => startServiceVehicle(row)} style={overdue ? danger : smallButton}>
+                                Grab
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
 
                   <label style={label}>Vehicle Work</label>
                   <select value={category} onChange={(e) => setCategory(e.target.value)} style={input}>
