@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import TeamSidebar from "../../TeamSidebar";
-import { getFleetIncidentCases, getFleetVehicle, getLatestFleetService } from "@/lib/fleet-maintenance";
+import { getFleetIncidentCases, getFleetVehicle, getLatestFleetInspection, getLatestFleetService } from "@/lib/fleet-maintenance";
 import ServiceWorkflow from "./ServiceWorkflow";
+import InspectionWorkflow from "./InspectionWorkflow";
 import styles from "../../readiness/ReadinessShell.module.css";
 
 function fmt(value: string) {
@@ -13,7 +14,7 @@ export default async function FleetVehiclePage({ params }: { params: Promise<{ v
   const { vehicleNumber } = await params;
   const n = Number(vehicleNumber);
   if (!Number.isInteger(n)) notFound();
-  const [v, cases, serviceData] = await Promise.all([getFleetVehicle(n), getFleetIncidentCases(n), getLatestFleetService(n)]);
+  const [v, cases, serviceData, inspectionData] = await Promise.all([getFleetVehicle(n), getFleetIncidentCases(n), getLatestFleetService(n), getLatestFleetInspection(n)]);
   if (!v) notFound();
 
   return (
