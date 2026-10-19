@@ -359,7 +359,72 @@ export default function TechTimePage() {
         {message ? <div style={errorBox}>{message}</div> : null}
 
         {view === "tech" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.3fr) minmax(330px,.7fr)", gap: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(280px,.72fr) minmax(430px,1.28fr) minmax(300px,.72fr)", gap: 18, alignItems:"start" }}>
+            <aside style={{...card, position:"sticky", top:18}}>
+              <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"end" }}>
+                <div>
+                  <div style={{ fontSize:11, fontWeight:900, color:"#7b8490", letterSpacing:".1em" }}>NEXT WORK</div>
+                  <h3 style={{ margin:"4px 0 0" }}>Service Queue</h3>
+                </div>
+                <div style={{ fontSize:12, color:"#7d8792" }}>{serviceQueue.length}</div>
+              </div>
+              <div style={{ color:"#69737e", fontSize:12, lineHeight:1.5, marginTop:8 }}>
+                Closest to the 1,000-mile service is first. Overdue vehicles are critical.
+              </div>
+
+              <div style={{ display:"grid", gap:9, marginTop:14, maxHeight:"68vh", overflowY:"auto", paddingRight:2 }}>
+                {serviceQueue.length ? serviceQueue.map((row) => {
+                  const overdue = (row.miles_until_service ?? 999999) < 0;
+                  const veryClose = !overdue && (row.miles_until_service ?? 999999) <= 25;
+                  const unavailable = row.on_ride;
+                  return (
+                    <div key={row.vehicle_number} style={{
+                      border: overdue ? "2px solid #9d2f2a" : veryClose ? "2px solid #b67a19" : "1px solid #dfe4e9",
+                      background: overdue ? "#fff1ef" : veryClose ? "#fff8e8" : "#f8fafb",
+                      borderRadius:12,
+                      padding:11
+                    }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"start" }}>
+                        <div>
+                          <div style={{ fontWeight:900 }}>Vehicle {row.vehicle_number}</div>
+                          <div style={{ color:"#6d7782", fontSize:12, marginTop:2 }}>{row.model_family}</div>
+                        </div>
+                        {row.on_ride ? <span style={{ background:"#e8f1ff", color:"#285e9a", border:"1px solid #bfd3ee", borderRadius:999, padding:"4px 7px", fontSize:10, fontWeight:900 }}>ON-RIDE</span> : null}
+                      </div>
+
+                      <div style={{ marginTop:9, display:"flex", justifyContent:"space-between", gap:8, alignItems:"end" }}>
+                        <div>
+                          <div style={{ fontSize:12, color:"#737d88" }}>{row.current_mileage?.toLocaleString() ?? "—"} miles</div>
+                          {overdue ? (
+                            <div style={{ color:"#982f28", fontWeight:900, marginTop:2 }}>{Math.abs(row.miles_until_service || 0)} mi OVERDUE</div>
+                          ) : (
+                            <div style={{ color:veryClose ? "#9b5d0e" : "#36414d", fontWeight:900, marginTop:2 }}>{row.miles_until_service} mi to service</div>
+                          )}
+                        </div>
+                        <button
+                          disabled={busy || unavailable}
+                          onClick={() => startServiceVehicle(row)}
+                          title={unavailable ? "Vehicle is currently On-Ride" : "Grab this vehicle for scheduled maintenance"}
+                          style={{
+                            ...(overdue ? danger : smallButton),
+                            opacity: unavailable ? .45 : 1,
+                            cursor: unavailable ? "not-allowed" : "pointer"
+                          }}
+                        >
+                          {unavailable ? "On-Ride" : "Grab"}
+                        </button>
+                      </div>
+                      {row.on_ride ? <div style={{ color:"#285e9a", fontSize:11, marginTop:8, lineHeight:1.4 }}>Do not hunt this vehicle down — it is currently checked out.</div> : null}
+                    </div>
+                  );
+                }) : (
+                  <div style={{ border:"1px dashed #d3d9df", borderRadius:11, padding:14, color:"#7a8490", fontSize:13 }}>
+                    No vehicles are due or approaching service right now.
+                  </div>
+                )}
+              </div>
+            </aside>
+
             <section style={card}>
               <h2 style={{ marginTop: 0 }}>Tech Station</h2>
 
@@ -395,56 +460,6 @@ export default function TechTimePage() {
                 <>
                   <label style={label}>Vehicle Number</label>
                   <input value={vehicle} onChange={(e) => setVehicle(e.target.value.replace(/[^0-9A-Za-z-]/g, ""))} placeholder="e.g. 42" style={input} />
-
-                  {serviceQueue.length ? (
-                    <div style={{ marginTop: 16 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"end", marginBottom:8 }}>
-                        <div>
-                          <div style={{ fontWeight:900 }}>Vehicles Needing Service</div>
-                          <div style={{ color:"#707b87", fontSize:12, marginTop:2 }}>Most critical first. Grab one to start Scheduled Maintenance automatically.</div>
-                        </div>
-                        <div style={{ color:"#7d8792", fontSize:12 }}>{serviceQueue.length} due / approaching</div>
-                      </div>
-                      <div style={{ display:"grid", gap:8, maxHeight:270, overflowY:"auto" }}>
-                        {serviceQueue.map((row) => {
-                          const overdue = (row.miles_until_service ?? 999999) < 0;
-                          return (
-                            <div key={row.vehicle_number} style={{
-                              display:"grid",
-                              gridTemplateColumns:"1fr auto auto",
-                              alignItems:"center",
-                              gap:12,
-                              border: overdue ? "2px solid #9d2f2a" : "1px solid #dfe4e9",
-                              background: overdue ? "#fff1ef" : "#f8fafb",
-                              borderRadius:11,
-                              padding:"10px 12px"
-                            }}>
-                              <div>
-                                <div style={{ fontWeight:900 }}>Vehicle {row.vehicle_number} · {row.model_family}</div>
-                                <div style={{ color:"#6d7782", fontSize:12, marginTop:2 }}>
-                                  {row.current_mileage?.toLocaleString() ?? "—"} miles
-                                </div>
-                              </div>
-                              <div style={{ textAlign:"right" }}>
-                                {overdue ? (
-                                  <div style={{ color:"#982f28", fontWeight:900 }}>
-                                    {Math.abs(row.miles_until_service || 0)} mi OVERDUE
-                                  </div>
-                                ) : (
-                                  <div style={{ fontWeight:900, color:(row.miles_until_service ?? 9999) <= 25 ? "#9b5d0e" : "#36414d" }}>
-                                    {row.miles_until_service} mi to service
-                                  </div>
-                                )}
-                              </div>
-                              <button disabled={busy} onClick={() => startServiceVehicle(row)} style={overdue ? danger : smallButton}>
-                                Grab
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
 
                   <label style={label}>Vehicle Work</label>
                   <select value={category} onChange={(e) => setCategory(e.target.value)} style={input}>
