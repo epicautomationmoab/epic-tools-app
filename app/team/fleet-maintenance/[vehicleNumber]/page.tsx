@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import TeamSidebar from "../../TeamSidebar";
-import { getFleetVehicle } from "@/lib/fleet-maintenance";
+import { getFleetIncidentCases, getFleetVehicle } from "@/lib/fleet-maintenance";
 import styles from "../../readiness/ReadinessShell.module.css";
 
 function fmt(value: string) {
@@ -12,7 +12,7 @@ export default async function FleetVehiclePage({ params }: { params: Promise<{ v
   const { vehicleNumber } = await params;
   const n = Number(vehicleNumber);
   if (!Number.isInteger(n)) notFound();
-  const v = await getFleetVehicle(n);
+  const [v, cases] = await Promise.all([getFleetVehicle(n), getFleetIncidentCases(n)]);
   if (!v) notFound();
 
   return (
@@ -50,6 +50,7 @@ export default async function FleetVehiclePage({ params }: { params: Promise<{ v
               <div style={{ borderTop:"1px solid #e3e6ea", margin:"18px 0" }} />
               <Field label="Service Status" value={fmt(v.service_status)} />
               <Field label="Weekly Inspection" value={fmt(v.inspection_status)} />
+              <Field label="Iron Jack Inventory" value={v.on_ride ? "On-Ride" : fmt(v.booking_inventory_state)} />
             </aside>
           </div>
 
@@ -73,8 +74,26 @@ export default async function FleetVehiclePage({ params }: { params: Promise<{ v
             <section style={card}>
               <div style={sectionKicker}>REPAIRS & DAMAGE</div>
               <h3 style={{ margin:"5px 0 14px", fontSize:22 }}>Open Work</h3>
-              <div style={placeholder}>Incident & Damage cases, repair status, parts, flat rate, and Tech Time will attach here.</div>
-              <div style={{ marginTop:12, fontSize:13, color:"#6f7883" }}>Vehicle #{v.vehicle_number} is now the canonical anchor for all of it.</div>
+              {cases.length ? (
+                <div style={{ display:"grid", gap:9 }}>
+                  {cases.slice(0,6).map((item) => (
+                    <div key={item.id} style={{ border:"1px solid #e0e4e8", borderRadius:10, padding:11 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", gap:10 }}>
+                        <strong>{fmt(item.case_type)}</strong>
+                        <span style={{ fontSize:11, fontWeight:900, color:item.status==="closed"?"#257248":"#9f5e16" }}>{fmt(item.status)}</span>
+                      </div>
+                      <div style={{ color:"#6f7883", fontSize:12, marginTop:5 }}>
+                        {item.opened_at ? new Date(item.opened_at).toLocaleDateString() : "Date unavailable"}
+                        {item.confirmation_code ? ` · Reservation ${item.confirmation_code}` : ""}
+                      </div>
+                      <div style={{ color:"#8b949e", fontSize:10, marginTop:5 }}>Case {item.id.slice(0,8).toUpperCase()}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={placeholder}>No Incident & Damage cases are linked to this vehicle yet.</div>
+              )}
+              <div style={{ marginTop:12, fontSize:13, color:"#6f7883" }}>New Incident Cases using Vehicle #{v.vehicle_number} will link here automatically.</div>
             </section>
           </div>
         </section>
