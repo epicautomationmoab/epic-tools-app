@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { FleetVehicle } from "@/lib/fleet-maintenance";
+import type { ActiveTechTimeRow, FleetVehicle } from "@/lib/fleet-maintenance";
 
 function labelize(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase());
@@ -16,7 +16,7 @@ function tone(status: string) {
   return { bg:"#f3f5f7", fg:"#68717c", bd:"#dce1e6" };
 }
 
-export default function FleetDashboardClient({ initialVehicles }: { initialVehicles: FleetVehicle[] }) {
+export default function FleetDashboardClient({ initialVehicles, activeTechRows }: { initialVehicles: FleetVehicle[]; activeTechRows: ActiveTechTimeRow[] }) {
   const [vehicles, setVehicles] = useState(initialVehicles);
   const [setupOpen, setSetupOpen] = useState(false);
   const [menuVehicle, setMenuVehicle] = useState<FleetVehicle | null>(null);
@@ -25,6 +25,18 @@ export default function FleetDashboardClient({ initialVehicles }: { initialVehic
   const [message, setMessage] = useState("");
   const [modelFilter, setModelFilter] = useState("all");
   const [attentionFilters, setAttentionFilters] = useState<string[]>([]);
+
+  const activeTechByVehicle = useMemo(() => {
+    const map = new Map<number, ActiveTechTimeRow[]>();
+    for (const row of activeTechRows) {
+      const n = Number(row.vehicle_number);
+      if (!Number.isFinite(n)) continue;
+      const list = map.get(n) || [];
+      list.push(row);
+      map.set(n, list);
+    }
+    return map;
+  }, [activeTechRows]);
 
   const counts = useMemo(() => ({
     total: vehicles.length,
@@ -183,6 +195,7 @@ export default function FleetDashboardClient({ initialVehicles }: { initialVehic
             const op = tone(displayedStatus);
             const svc = tone(v.service_status);
             const ins = tone(v.inspection_status);
+            const techs = activeTechByVehicle.get(v.vehicle_number) || [];
             return (
               <div key={v.id} style={{ position:"relative", border:`3px solid ${modelOutline(v.model_family)}`, borderRadius:13, padding:13, background:"#fff", minHeight:170, boxShadow:`0 0 0 1px ${modelOutline(v.model_family)}18` }}>
                 <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"start" }}>
@@ -193,6 +206,7 @@ export default function FleetDashboardClient({ initialVehicles }: { initialVehic
                   <button aria-label={`Vehicle ${v.vehicle_number} actions`} onClick={() => { setMenuVehicle(v); setReason(v.booking_inventory_reason || ""); }} style={{ border:0, background:"transparent", fontSize:24, lineHeight:1, cursor:"pointer", padding:"0 2px" }}>⋮</button>
                 </div>
                 <div style={{ marginTop:7 }}>
+                  {techs.length ? <span style={{ ...pill, marginRight:5, background:"#fff2d8", color:"#8a5a00", borderColor:"#efcf8d" }}>TECH ON JOB · {techs.map(t=>t.technician_name).join(" + ")}</span> : null}
                   <span style={{ ...pill, background:op.bg, color:op.fg, borderColor:op.bd }}>{labelize(displayedStatus)}</span>
                   {v.setup_needed ? <span style={{ ...pill, marginLeft:5, background:"#f3f5f7", color:"#68717c", borderColor:"#dce1e6" }}>Setup Needed</span> : null}
                 </div>
