@@ -75,3 +75,75 @@ export async function getFleetIncidentCases(vehicleNumber: number) {
     }),
   );
 }
+
+
+export type ActiveTechTimeRow = {
+  vehicle_number: string;
+  technician_name: string;
+  entry_state: string;
+  job_number: number;
+  category: string;
+};
+
+export async function getActiveTechTimeRows() {
+  return supabaseSelect<ActiveTechTimeRow>(
+    "tech_time_board_v",
+    new URLSearchParams({ select: "vehicle_number,technician_name,entry_state,job_number,category", order: "started_at.asc" }),
+  );
+}
+
+export type FleetServiceRecord = {
+  id: string;
+  vehicle_id: string;
+  vehicle_number: number;
+  service_type: string;
+  status: string;
+  due_mileage: number | null;
+  start_mileage: number | null;
+  completion_mileage: number | null;
+  technician_profile_id: string | null;
+  technician_name: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  parts_and_fluids_used: string | null;
+  additional_concerns: string | null;
+  mpwr_documented: boolean;
+  full_inspection_completed: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FleetServiceItem = {
+  id: string;
+  service_record_id: string;
+  item_code: string;
+  label: string;
+  action_text: string;
+  model_scope: string | null;
+  status: string;
+  notes: string | null;
+  sort_order: number;
+};
+
+export async function getLatestFleetService(vehicleNumber: number) {
+  const rows = await supabaseSelect<FleetServiceRecord>(
+    "fleet_service_records",
+    new URLSearchParams({
+      select: "*",
+      vehicle_number: `eq.${vehicleNumber}`,
+      order: "created_at.desc",
+      limit: "1",
+    }),
+  );
+  const service = rows[0] ?? null;
+  if (!service) return { service: null, items: [] as FleetServiceItem[] };
+  const items = await supabaseSelect<FleetServiceItem>(
+    "fleet_service_record_items",
+    new URLSearchParams({
+      select: "*",
+      service_record_id: `eq.${service.id}`,
+      order: "sort_order.asc",
+    }),
+  );
+  return { service, items };
+}
