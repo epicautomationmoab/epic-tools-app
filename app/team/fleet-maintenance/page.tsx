@@ -1,10 +1,10 @@
 import TeamSidebar from "../TeamSidebar";
-import { getFleetVehicles } from "@/lib/fleet-maintenance";
+import { getActiveTechTimeRows, getFleetVehicles } from "@/lib/fleet-maintenance";
 import FleetDashboardClient from "./FleetDashboardClient";
 import styles from "../readiness/ReadinessShell.module.css";
 
 export default async function FleetMaintenancePage() {
-  const vehicles = await getFleetVehicles();
+  const [vehicles, activeTech] = await Promise.all([getFleetVehicles(), getActiveTechTimeRows()]);
 
   return (
     <div className={styles.page}>
@@ -18,7 +18,7 @@ export default async function FleetMaintenancePage() {
         </header>
 
         <section className={styles.content}>
-          <FleetDashboardClient initialVehicles={vehicles} />
+          <FleetDashboardClient initialVehicles={vehicles} activeTechRows={activeTech} />
         </section>
       </main>
     </div>
