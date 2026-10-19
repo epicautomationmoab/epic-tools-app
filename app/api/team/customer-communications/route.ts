@@ -7,7 +7,6 @@ import { firstNameFromDisplayName } from "@/lib/server/epic-email-signature";
 import { sendCallRailSms } from "@/lib/server/callrail";
 
 const EXPECTED_MAILBOX = "hello@epic4x4adventures.com";
-const C360_TEMPLATE = "epic-c360-general-correspondence";
 
 function bearerToken(request: NextRequest) {
   const header = request.headers.get("authorization") || "";
@@ -239,34 +238,25 @@ export async function POST(request: NextRequest) {
 
     const senderFirstName = firstNameFromDisplayName(profile.display_name);
     const communicationId = randomUUID();
-    // The template owns the representative and company signature. Never append
-    // a signature to the message body or the composer-supplied HTML.
+    // Render the published Epic C360 correspondence design directly, avoiding
+    // Resend's 2,000-character template-variable limit for customer messages.
+    // Keep the same layout for both short and long replies.
     const cleanBody = messageText.replace(/(?:\n\s*)?(?:Best regards,?|Best,?|Warm regards,?|Kind regards,?)\s*$/i, "").trim();
     const closingBody = `${cleanBody}\n\nBest regards,`;
+    const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    const bodyHtml = escapeHtml(closingBody);
+    const nameHtml = escapeHtml(senderFirstName);
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="IE=edge"></head><body style="margin:0;background-color:#eeeae3;font-family:Arial,Helvetica,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background-color:#eeeae3;"><tr><td align="center" style="padding-top:24px;padding-right:12px;padding-bottom:32px;padding-left:12px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;"><tr><td align="center" bgcolor="#171717" style="background-color:#171717;padding-top:22px;padding-right:24px;padding-bottom:22px;padding-left:24px;"><img src="https://myepicreservation.com/epic-logo.png" width="205" height="70" border="0" alt="Epic 4X4 Adventures" style="display:block;width:205px;height:auto;"></td></tr><tr><td bgcolor="#c6492d" style="background-color:#c6492d;height:5px;font-size:5px;line-height:5px;">&nbsp;</td></tr><tr><td style="padding-top:34px;padding-right:38px;padding-bottom:30px;padding-left:38px;"><p style="margin-top:0;margin-bottom:0;color:#303030;font-size:16px;line-height:26px;white-space:pre-wrap;">${bodyHtml}</p></td></tr><tr><td style="padding-top:0;padding-right:38px;padding-bottom:34px;padding-left:38px;"><p style="margin-top:0;margin-bottom:3px;color:#171717;font-size:16px;line-height:23px;font-weight:bold;">${nameHtml}</p><p style="margin-top:0;margin-bottom:0;color:#666666;font-size:14px;line-height:21px;">Epic 4X4 Adventures</p></td></tr><tr><td align="center" bgcolor="#171717" style="background-color:#171717;padding-top:22px;padding-right:20px;padding-bottom:24px;padding-left:20px;"><p style="margin-top:0;margin-bottom:5px;color:#ffffff;font-size:15px;line-height:22px;font-weight:bold;">Epic 4X4 Adventures</p><p style="margin-top:0;margin-bottom:6px;color:#cacaca;font-size:13px;line-height:20px;">Moab, Utah · (435) 220-2700</p><p style="margin-top:0;margin-bottom:0;color:#cacaca;font-size:13px;line-height:20px;"><a href="https://epic4x4adventures.com" style="color:#ffffff;text-decoration:underline;">epic4x4adventures.com</a></p></td></tr></table></td></tr></table></body></html>`;
+    const textBody = `${closingBody}\n${senderFirstName}\n\nEpic 4X4 Adventures\n\nEpic 4X4 Adventures\nMoab, Utah · (435) 220-2700\nepic4x4adventures.com https://epic4x4adventures.com`;
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
-    const sender = `${senderFirstName} at Epic 4X4 Adventures <${requiredEnv("GUEST_EMAIL_FROM").match(/<([^>]+)>/)?.[1] || requiredEnv("GUEST_EMAIL_FROM")}>`;
-    const sendOptions = { idempotencyKey: `c360-correspondence-${communicationId}` };
-    // Resend template variable values have a shorter limit than the C360 email
-    // composer. Long customer replies must be sent as full email content instead.
-    const { data, error } = closingBody.length > 1800
-      ? await resend.emails.send({
-          from: sender,
-          to: recipientEmail,
-          replyTo: EXPECTED_MAILBOX,
-          subject,
-          text: `${closingBody}\n${senderFirstName}\nEpic 4X4 Adventures`,
-          html: `<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#20242b"><div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e5e5e5;border-radius:10px;overflow:hidden"><div style="background:#1b1b1b;padding:22px 28px;color:#fff;font-size:20px;font-weight:bold">EPIC <span style="color:#e84b3c">4X4</span> ADVENTURES</div><div style="padding:28px;line-height:1.65;font-size:15px;white-space:normal">${closingBody.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/\n/g,"<br />")}<br />${senderFirstName.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}<br />Epic 4X4 Adventures</div></div></body></html>`,
-        }, sendOptions)
-      : await resend.emails.send({
-          from: sender,
-          to: recipientEmail,
-          replyTo: EXPECTED_MAILBOX,
-          subject,
-          template: {
-            id: C360_TEMPLATE,
-            variables: { MESSAGE_BODY: closingBody, REP_NAME: senderFirstName },
-          },
-        }, sendOptions);
+    const { data, error } = await resend.emails.send({
+      from: `${senderFirstName} at Epic 4X4 Adventures <${requiredEnv("GUEST_EMAIL_FROM").match(/<([^>]+)>/)?.[1] || requiredEnv("GUEST_EMAIL_FROM")}>`,
+      to: recipientEmail,
+      replyTo: EXPECTED_MAILBOX,
+      subject,
+      html,
+      text: textBody,
+    }, { idempotencyKey: `c360-correspondence-${communicationId}` });
     if (error) throw new Error(error.message);
     if (!data?.id) throw new Error("Resend did not return a message ID.");
     const now = new Date().toISOString();
