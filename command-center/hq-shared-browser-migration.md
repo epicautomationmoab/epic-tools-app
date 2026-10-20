@@ -35,3 +35,6 @@ No production credential, role, or database change is authorized by this checkli
 - In the shared-workstation fallback, guest form creation records a generic actor name with no individual profile identifier.
 - The guest payment visibility route updates a reservation property displayed in the guest portal. The reviewed route does not itself store actor and before/after values. Database-level audit coverage remains to be checked.
 - Migration priority: verify all callers, add stable named actor identity to sensitive writes, test both browsers and the guest portal, then retire the fallback.
+
+## Database trigger verification
+Read-only inspection of production Postgres trigger definitions on public.operational_reservations found no trigger directly dedicated to auditing guest_portal_payment_hidden changes. Existing triggers cover contacts, reservation normalization, readiness signals, balance synchronization and Patti reconciliation. This does not rule out audit logging inside other functions or services. Before enabling the manager Audit Center for this action, trace those indirect functions and record an explicit named-employee old/new audit event for the payment-visibility mutation. No production change was made.
