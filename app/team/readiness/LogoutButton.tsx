@@ -8,7 +8,7 @@ type AuthProfile = {
   role: "admin" | "manager" | "agent" | "workstation";
 };
 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 20 * 60 * 1000;
 const LAST_ACTIVITY_KEY = "epic_last_activity_at";
 
 export default function LogoutButton() {
@@ -134,7 +134,7 @@ export default function LogoutButton() {
           <div role="alertdialog" aria-modal="true" aria-label={`Unlock ${profile.display_name}`} style={{ width: "min(390px, 100%)", borderRadius: 16, background: "#fff", padding: 26, boxShadow: "0 24px 70px rgba(0,0,0,.32)" }}>
             <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: ".08em", textTransform: "uppercase", color: "#e45b22" }}>Epic Tools Locked</div>
             <h2 style={{ margin: "5px 0 6px", color: "#202733" }}>{profile.display_name}</h2>
-            <p style={{ margin: 0, color: "#667085", fontSize: 14 }}>30 minutes of inactivity. Enter your PIN to continue without signing in again.</p>
+            <p style={{ margin: 0, color: "#667085", fontSize: 14 }}>20 minutes of inactivity. Enter your PIN to continue without signing in again.</p>
 
             <label style={{ display: "block", marginTop: 20 }}>
               <span style={{ display: "block", marginBottom: 6, fontWeight: 800, color: "#344054" }}>PIN</span>
