@@ -5,7 +5,7 @@ create table if not exists public.guest_payment_visibility_audit (
   reservation_id uuid not null,
   confirmation_code text not null,
   actor_profile_id uuid not null references public.team_profiles(id),
-  previous_hidden boolean not null,
+  previous_hidden boolean,
   new_hidden boolean not null,
   changed_at timestamptz not null default now()
 );
@@ -27,15 +27,20 @@ as $$
 declare
   v_reservation public.operational_reservations%rowtype;
   v_old boolean;
+  v_effective_old boolean;
 begin
+  if p_confirmation_code is null or btrim(p_confirmation_code) = '' or p_hidden is null or p_actor_profile_id is null then
+    raise exception 'Nonempty confirmation, explicit visibility and named employee required';
+  end if;
   if not exists (select 1 from public.team_profiles
       where id = p_actor_profile_id and active is true and role <> 'workstation') then
     raise exception 'Active named employee required';
   end if;
   select * into strict v_reservation from public.operational_reservations
      where confirmation_code = p_confirmation_code for update;
-  v_old := coalesce(v_reservation.guest_portal_payment_hidden,false);
-  if v_old is distinct from p_hidden then
+  v_old := v_reservation.guest_portal_payment_hidden;
+  v_effective_old := coalesce(v_old,false);
+  if v_effective_old is distinct from p_hidden then
     update public.operational_reservations
       set guest_portal_payment_hidden = p_hidden
       where id = v_reservation.id;
@@ -43,7 +48,7 @@ begin
       (reservation_id, confirmation_code, actor_profile_id, previous_hidden, new_hidden)
       values (v_reservation.id, p_confirmation_code, p_actor_profile_id, v_old, p_hidden);
   end if;
-  return jsonb_build_object('hidden',p_hidden,'changed',v_old is distinct from p_hidden);
+  return jsonb_build_object('hidden',p_hidden,'changed',v_effective_old is distinct from p_hidden);
 end
 $$;
 revoke all on function public.set_guest_payment_visibility_audited(text, boolean, uuid) from public, anon, authenticated;
