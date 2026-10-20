@@ -15,7 +15,7 @@ type EventRow = {
 };
 
 async function loadAuditEvents(): Promise<{ events: EventRow[]; errors: string[] }> {
-  const origin = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\\/$/, "");
+  const origin = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/[/]$/, "");
   const secret = process.env.SUPABASE_SECRET_KEY;
   if (!origin || !secret) return {events: [], errors: ["Operational database configuration unavailable."]};
   const headers = { apikey: secret, Authorization: `Bearer ${secret}` };
