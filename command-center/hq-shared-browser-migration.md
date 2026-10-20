@@ -29,3 +29,9 @@ Owner direction: HQ main computer uses Safari and Chrome as separate employee wo
 - If your PIN fails or the wrong name appears, stop and ask a manager; do not conduct customer or payment actions under another person.
 
 No production credential, role, or database change is authorized by this checklist.
+
+## Verified caller findings (October 20)
+- The workstation identity helper is used by session-status, guest form creation/list/document endpoints, waiver PDF access, post-visit email controls, and guest payment visibility.
+- In the shared-workstation fallback, guest form creation records a generic actor name with no individual profile identifier.
+- The guest payment visibility route updates a reservation property displayed in the guest portal. The reviewed route does not itself store actor and before/after values. Database-level audit coverage remains to be checked.
+- Migration priority: verify all callers, add stable named actor identity to sensitive writes, test both browsers and the guest portal, then retire the fallback.
