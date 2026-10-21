@@ -25,6 +25,27 @@ export default function NativeCustomerSearch() {
   const [rows, setRows] = useState<Customer[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState("");
+  const [selected, setSelected] = useState<Customer | null>(null);
+  const [details, setDetails] = useState<Record<string, unknown> | null>(null);
+  const [detailError, setDetailError] = useState("");
+  const [detailLoading, setDetailLoading] = useState(false);
+  useEffect(() => {
+    if (!selected) { setDetails(null); return; }
+    const controller = new AbortController();
+    const q = new URLSearchParams();
+    if (selected.contact_id) q.set("contact", selected.contact_id);
+    else if (selected.reservation_id) q.set("reservation", selected.reservation_id);
+    else if (selected.phone) q.set("phone", selected.phone);
+    else if (selected.email) q.set("email", selected.email);
+    if (!q.toString()) { setDetailError("This customer has no usable identifier."); return; }
+    setDetailLoading(true); setDetailError(""); setDetails(null);
+    fetch("/api/team/command-center/customer-detail?" + q, { signal: controller.signal, cache: "no-store" })
+      .then(async response => { const result = await response.json(); if (!response.ok) throw new Error(result.error || "Details unavailable"); return result.customer; })
+      .then(customer => { if (!controller.signal.aborted) setDetails(customer); })
+      .catch(error => { if (!controller.signal.aborted) setDetailError(error instanceof Error ? error.message : "Details unavailable"); })
+      .finally(() => { if (!controller.signal.aborted) setDetailLoading(false); });
+    return () => controller.abort();
+  }, [selected]);
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) { setRows([]); setStatus("idle"); return; }
@@ -72,12 +93,34 @@ export default function NativeCustomerSearch() {
               {row.reservation_count || 0} known reservations
               {row.has_open_lead ? " | Open sales opportunity" : ""}
             </div>
+            <button type="button" onClick={() => setSelected(row)} style={{ cursor: "pointer", marginTop: 9, padding: "8px 12px", borderRadius: 7, border: "1px solid #bccbdd", background: "#f5f8fc" }}>View customer details</button>
             <p style={{ fontSize: 12, color: "#8a5560" }}>
               Full Customer 360 actions will become available here after the native detail and messaging dependencies pass tests.
             </p>
           </article>
         ))}
       </div>}
+      {selected && <section aria-label="Customer details" style={{ marginTop: 20, borderTop: "2px solid #d9e2ef", paddingTop: 16 }}>
+        <button type="button" onClick={() => setSelected(null)}>Close details</button>
+        <h2>{selected.customer_name || "Customer details"}</h2>
+        {detailLoading && <p role="status">Loading customer history...</p>}
+        {detailError && <p role="alert">{detailError}</p>}
+        {details && <>
+          <p><strong>Read-only customer history</strong> — the full C360 detail interface and actions are still being migrated.</p>
+          {(["reservations", "opportunities", "drafts", "quotes", "calls", "texts", "emails", "notes"] as const).map(kind => {
+            const records = details[kind];
+            const items = Array.isArray(records) ? records as Array<Record<string, unknown>> : [];
+            return <details key={kind} style={{ marginTop: 9, border: "1px solid #e0e6ed", borderRadius: 9, padding: 11 }}>
+              <summary style={{ cursor: "pointer", fontWeight: 700, textTransform: "capitalize" }}>{kind} ({items.length})</summary>
+              <div style={{ marginTop: 8 }}>{items.slice(0, 100).map((item, index) => <div key={String(item.id || index)} style={{ padding: 10, borderTop: "1px solid #eef2f5", fontSize: 13 }}>
+                <strong>{String(item.experience_name || item.subject || item.customer_name || item.confirmation_code || item.direction || item.author_name || kind.slice(0, -1))}</strong>
+                <div>{String(item.at || item.start_time || item.created_at || item.updated_at || "")}</div>
+                <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{String(item.summary || item.note_text || item.body || item.text || "")}</div>
+              </div>)}</div>
+            </details>;
+          })}
+        </>}
+      </section>}
     </section>
   );
 }
