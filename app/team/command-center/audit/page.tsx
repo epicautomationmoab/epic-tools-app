@@ -44,17 +44,7 @@ async function loadAuditEvents(): Promise<{ events: EventRow[]; errors: string[]
         detail: `${String(r.previous_state || "—")} → ${String(r.new_state || "—")}`,
       }),
     },
-    {
-      name: "Sales follow-ups",
-      table: "sales_followup_events",
-      fields: "id,created_at,actor_profile_id,followup_id,event_type",
-      sort: "created_at",
-      map: (r: Record<string, unknown>): EventRow => ({
-        id: String(r.id), at: String(r.created_at), actor: "Staff profile",
-        actor_id: r.actor_profile_id ? String(r.actor_profile_id) : null,
-        domain: "Sales", action: String(r.event_type || "Follow-up"), object: String(r.followup_id), detail: "Follow-up event",
-      }),
-    },
+
   ];
   const results = await Promise.all(tasks.map(async t => {
     try {
@@ -89,6 +79,7 @@ export default async function ManagerAuditPreview({
   const employee=(params.employee||"").slice(0,100).trim().toLowerCase();
   const area=(params.area||"").slice(0,40);
   const {events,errors}=await loadAuditEvents();
+  const uncovered = "Sales follow-up history is not yet available to this preview (database SELECT permission is restricted).";
   const visible=events.filter(e=>(!employee||e.actor.toLowerCase().includes(employee)||e.actor_id?.toLowerCase().includes(employee)) && (!area||e.domain===area));
   return <main style={{maxWidth:1250,margin:"0 auto",padding:"25px 20px",fontFamily:"system-ui,sans-serif",color:"#17304b"}}>
     <p style={{fontSize:12,color:"#657c92"}}>EPIC COMMAND CENTER / MANAGEMENT / AUDIT PREVIEW</p>
@@ -101,14 +92,14 @@ export default async function ManagerAuditPreview({
       <button type="submit" style={{background:"#173b56",color:"#fff",border:0,borderRadius:8,padding:"11px 16px"}}>Filter activity</button>
     </form>
     {errors.length>0&&<p role="status" style={{background:"#fff1df",padding:12}}>Some sources were unavailable: {errors.join("; ")}. Results may be incomplete.</p>}
-    <p style={{color:"#627b92"}}>{visible.length} matching events (up to 120 recent events combined from three sources)</p>
+    <p style={{color:"#627b92"}}>{visible.length} matching events (up to 120 recent events from two available sources). {uncovered}</p>
     <div style={{overflowX:"auto",background:"white",border:"1px solid #dce6ee",borderRadius:12}}>
-      <table style={{borderCollapse:"collapse",width:"100%",fontSize:13,textAlign:"left"}}>
-        <thead><tr style={{background:"#eff4f8"}}>{["When (Moab)","Area","Action","Employee","Record","Change"].map(x=><th key={x} style={{padding:13,borderBottom:"1px solid #dce6ee"}}>{x}</th>)}</tr></thead>
+      <table style={{borderCollapse:"collapse",width:"100%",minWidth:950,tableLayout:"fixed",fontSize:13,textAlign:"left"}}>
+        <thead><tr style={{background:"#eff4f8"}}>{["When (Moab)","Area","Action","Employee","Record","Change"].map(x=><th key={x} style={{padding:13,borderBottom:"1px solid #dce6ee",width:["18%","9%","18%","16%","18%","21%"][["When (Moab)","Area","Action","Employee","Record","Change"].indexOf(x)]}}>{x}</th>)}</tr></thead>
         <tbody>{visible.map(x=><tr key={x.domain+x.id}>{[
           new Date(x.at).toLocaleString("en-US",{timeZone:"America/Denver",dateStyle:"medium",timeStyle:"short"}),
-          x.domain,x.action,x.actor,x.object,x.detail
-        ].map((s,i)=><td key={i} style={{padding:12,borderBottom:"1px solid #eaf0f4",whiteSpace:i===5?"normal":"nowrap"}}>{s}</td>)}</tr>)}</tbody>
+          x.domain,x.action,x.actor,(x.object.startsWith("Vehicle ") ? x.object : `…${x.object.slice(-8)}`),x.detail
+        ].map((s,i)=><td key={i} style={{padding:12,borderBottom:"1px solid #eaf0f4",whiteSpace:i===0?"nowrap":"normal",overflowWrap:"anywhere"}} title={i===4?x.object:undefined}>{s}</td>)}</tr>)}</tbody>
       </table>
       {!visible.length&&<p style={{padding:20}}>No recorded events match these filters.</p>}
     </div>
