@@ -7,7 +7,7 @@ import NativeCustomerSearch from "./NativeCustomerSearch";
 export default async function CommandCenterCustomerPage() {
   const token = (await cookies()).get("epic_access_token")?.value;
   const profile = await getAuthenticatedTeamProfile(token);
-  if (!profile || profile.role === "workstation") redirect("/team/login");
+  if (!profile || profile.role === "workstation") redirect("/employee-login");
 
   return (
     <main style={{ minHeight: "100vh", background: "#f4f6f9", padding: "clamp(16px,3vw,44px)", color: "#17263b" }}>
