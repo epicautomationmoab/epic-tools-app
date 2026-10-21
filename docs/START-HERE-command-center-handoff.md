@@ -39,3 +39,10 @@ User's explicit objective: ONE modern and maintainable employee team app, ONE co
 
 ## Communication / autonomy contract
 User wants substantial task execution without constant 'keep going' prompts; engage only when a true decision, blocker, or meaningful tested milestone requires it. Be precise: distinguish committed code, Vercel build READY, browser testing, integration completeness, deployment authorization. Continue on the same branch. Do not suggest a preview is complete when it is a search-only slice.
+
+## 2026-10-21 next progress: native customer detail (read-only)
+- Native API added: app/api/team/command-center/customer-detail/route.ts, commit 1f65af0. It authenticates active staff, rejects workstation, and calls the existing get_epic_customer_360 Supabase RPC directly under employee token; no Epic Sales app proxy and no mutation handler.
+- NativeCustomerSearch now offers selecting a search result and expanding read-only reservation, opportunities, drafts, quotes, calls, texts, emails and notes, commit b9e32f3. This is deliberately a **partial, simple inspector**, NOT the full Customer360Modal, call merging/enrichment, complex lifecycle, or permissions/action parity.
+- Latest Vercel deployment for b9e32f3 was INITIALIZING on last inspection; do not claim build or runtime success until verified. Earlier dependency-document-only SHA f1630fd was READY.
+- Important: preserve Colorado/Denver time normalization from legacy C360; its TripWorks wall-clock timestamps are not safely represented by naive Date parsing. Preserve confirmation-to-visit ambiguity and linked phone identity rules. Current native detail RPC lacks original C360's additional PBX call enrichment, cross-linked contacts, social activities and readiness extras; must not be treated as equivalent.
+- No merge, schema change or production action was performed. Continue building native detail UI and adapter parity under tests, not dashboard links.
