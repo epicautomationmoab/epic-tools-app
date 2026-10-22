@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { detailLabel, displayCustomerDate } from "@/lib/command-center/customer-display";
+import NativeCustomerDetail from "./NativeCustomerDetail";
 
 type Customer = {
   identity_key: string;
@@ -107,21 +107,7 @@ export default function NativeCustomerSearch() {
         <h2>{selected.customer_name || "Customer details"}</h2>
         {detailLoading && <p role="status">Loading customer history...</p>}
         {detailError && <p role="alert">{detailError}</p>}
-        {details && <>
-          <p><strong>Read-only customer history</strong> — the full C360 detail interface and actions are still being migrated.</p>
-          {(["reservations", "opportunities", "drafts", "quotes", "calls", "texts", "emails", "notes"] as const).map(kind => {
-            const records = details[kind];
-            const items = Array.isArray(records) ? records as Array<Record<string, unknown>> : [];
-            return <details key={kind} style={{ marginTop: 9, border: "1px solid #e0e6ed", borderRadius: 9, padding: 11 }}>
-              <summary style={{ cursor: "pointer", fontWeight: 700, textTransform: "capitalize" }}>{kind} ({items.length})</summary>
-              <div style={{ marginTop: 8 }}>{items.slice(0, 100).map((item, index) => <div key={String(item.id || index)} style={{ padding: 10, borderTop: "1px solid #eef2f5", fontSize: 13 }}>
-                <strong>{String(item.experience_name || item.subject || item.customer_name || item.confirmation_code || item.direction || item.author_name || kind.slice(0, -1))}</strong>
-                <div>{String(item.at || item.start_time || item.created_at || item.updated_at || "")}</div>
-                <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{String(item.summary || item.note_text || item.body || item.text || "")}</div>
-              </div>)}</div>
-            </details>;
-          })}
-        </>}
+        {details && <NativeCustomerDetail value={details} />}
       </section>}
     </section>
   );
