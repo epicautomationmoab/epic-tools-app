@@ -46,3 +46,10 @@ User wants substantial task execution without constant 'keep going' prompts; eng
 - Latest Vercel deployment for b9e32f3 was INITIALIZING on last inspection; do not claim build or runtime success until verified. Earlier dependency-document-only SHA f1630fd was READY.
 - Important: preserve Colorado/Denver time normalization from legacy C360; its TripWorks wall-clock timestamps are not safely represented by naive Date parsing. Preserve confirmation-to-visit ambiguity and linked phone identity rules. Current native detail RPC lacks original C360's additional PBX call enrichment, cross-linked contacts, social activities and readiness extras; must not be treated as equivalent.
 - No merge, schema change or production action was performed. Continue building native detail UI and adapter parity under tests, not dashboard links.
+
+## 2026-10-22 incremental accuracy fixes
+- Confirmed Vercel READY for prior native read-only Customer 360 branch build d45758d (not authenticated browser QA).
+- Added lib/command-center/customer-display.ts with separate Moab wall-clock reservation formatting versus America/Denver timestamp event rendering, commit 32511df.
+- Updated NativeCustomerSearch to clear previously selected customer as the search changes, reducing risk of acting on stale selected identity; history date fields now use dedicated display helpers, commit 25dc1dc.
+- Latest build for 25dc1dc not yet verified at handoff update. No outbound actions enabled, no production merged or altered.
+- Important follow-up: This helper assumes raw RPC reservation timestamps have the documented TripWorks wall-clock format; before release, test 2026 daylight-saving boundaries against the original C360 normalization. The legacy C360 source performs extra enrichment for PBX, linked contacts, social and readiness that the read-only prototype still lacks.
