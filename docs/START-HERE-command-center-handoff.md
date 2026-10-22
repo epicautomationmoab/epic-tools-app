@@ -53,3 +53,8 @@ User wants substantial task execution without constant 'keep going' prompts; eng
 - Updated NativeCustomerSearch to clear previously selected customer as the search changes, reducing risk of acting on stale selected identity; history date fields now use dedicated display helpers, commit 25dc1dc.
 - Latest build for 25dc1dc not yet verified at handoff update. No outbound actions enabled, no production merged or altered.
 - Important follow-up: This helper assumes raw RPC reservation timestamps have the documented TripWorks wall-clock format; before release, test 2026 daylight-saving boundaries against the original C360 normalization. The legacy C360 source performs extra enrichment for PBX, linked contacts, social and readiness that the read-only prototype still lacks.
+
+## 2026-10-22 native read-only customer detail component
+- Created app/team/command-center/NativeCustomerDetail.tsx (9078ac0) and wired NativeCustomerSearch to use it (2705a66). Displays identity, record counts, grouped existing C360 RPC data and explicit reservation identifiers. Duplicate confirmation codes across reservations are flagged for manual exact-visit choice before any future action. This is a read-only native UI, NOT complete C360 parity.
+- No communication writes, booking/payment actions, worker changes, or database mutations. Avoid treating missing native enrichments as absence of records; source C360 still has PBX merge, linked phone, social, readiness and other enrichers.
+- Latest Vercel preview build for 2705a66 not yet observed as READY; confirm before testing. Browser authenticated tests still outstanding.
