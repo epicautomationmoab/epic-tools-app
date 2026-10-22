@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { detailLabel, displayCustomerDate } from "@/lib/command-center/customer-display";
 
 type Customer = {
   identity_key: string;
@@ -48,6 +49,7 @@ export default function NativeCustomerSearch() {
   }, [selected]);
   useEffect(() => {
     const q = query.trim();
+    setSelected(null);
     if (q.length < 2) { setRows([]); setStatus("idle"); return; }
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
