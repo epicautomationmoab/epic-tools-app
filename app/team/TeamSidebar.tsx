@@ -17,6 +17,7 @@ type Props = {
     | "Rental Inbox"
     | "Tour Inbox"
     | "Exceptions"
+    | "Today’s Sales"
     | "Referral Partners"
     | "Manage Users";
 };
@@ -31,6 +32,7 @@ const baseNavItems = [
   { label: "Rental Inbox", href: "/team/service-inbox/rentals", external: false },
   { label: "Tour Inbox", href: "/team/service-inbox/tours", external: false },
   { label: "Exceptions", href: "/team/email-delivery", external: false },
+  { label: "Today’s Sales", href: "/team/sales-report", external: false },
 ] as const;
 
 async function getDepositNeedsReviewCount() {
