@@ -144,7 +144,11 @@ export async function loadRentalV2Readiness(
     }),
   );
 
-  const sessionByReadinessId = new Map<string, SessionRow>();
+  // An Epic rental agreement may remain valid across visits under the same
+  // booking confirmation. Include earlier active sessions rather than only the
+  // session created for the current store visit. Cross-booking reuse requires
+  // separate verified customer identity and agreement-version eligibility.
+  const sessionsByReadinessId = new Map<string, SessionRow[]>();
   for (const source of rentalSources) {
     const operational = operationalById.get(source.readinessId);
     if (!operational) continue;
@@ -154,14 +158,10 @@ export async function loadRentalV2Readiness(
         session.business_line === "rental" &&
         session.session_status === "active",
     );
-    const exact = operational.source_store_visit_id
-      ? candidates.find((session) => session.store_visit_id === operational.source_store_visit_id)
-      : null;
-    const selected = exact ?? (candidates.length === 1 ? candidates[0] : null);
-    if (selected) sessionByReadinessId.set(source.readinessId, selected);
+    if (candidates.length) sessionsByReadinessId.set(source.readinessId, candidates);
   }
 
-  const sessionIds = [...new Set([...sessionByReadinessId.values()].map((session) => session.id))];
+  const sessionIds = [...new Set([...sessionsByReadinessId.values()].flatMap((group) => group.map((session) => session.id)))];
   if (!sessionIds.length) return result;
 
   // select=* is intentional during staged rollout: production does not have
@@ -202,11 +202,12 @@ export async function loadRentalV2Readiness(
 
   for (const source of rentalSources) {
     const base = result.get(source.readinessId)!;
-    const session = sessionByReadinessId.get(source.readinessId);
-    if (!session) continue;
+    const sourceSessions = sessionsByReadinessId.get(source.readinessId);
+    if (!sourceSessions?.length) continue;
 
+    const eligibleSessionIds = new Set(sourceSessions.map((session) => session.id));
     const sessionSignatures = signatures.filter(
-      (signature) => signature.waiver_session_id === session.id,
+      (signature) => eligibleSessionIds.has(signature.waiver_session_id),
     );
     const latestByIdentity = new Map<string, SignatureRow>();
     const duplicateKeys = new Set<string>();
