@@ -55,17 +55,17 @@ type RhettJob = {
 async function getRhettExceptions() {
   const rows = await rest<RhettJob>("mpwr_agent_queue", new URLSearchParams({
     select: "id,confirmation_code,customer_name,status,last_error,updated_at,mpwr_confirmation_number,attempt_count",
-    status: "in.(failed,needs_human_review,needs_review)",
     action_type: "eq.create_reservation",
+    updated_at: `gte.${new Date(Date.now() - 45 * 86400000).toISOString()}`,
     order: "updated_at.desc",
-    limit: "300",
+    limit: "3000",
   }));
   const latestByConfirmation = new Map<string, RhettJob>();
   for (const job of rows) {
     if (!job.confirmation_code || latestByConfirmation.has(job.confirmation_code)) continue;
     latestByConfirmation.set(job.confirmation_code, job);
   }
-  return [...latestByConfirmation.values()].filter(job => !job.mpwr_confirmation_number);
+  return [...latestByConfirmation.values()].filter(job => ["failed", "needs_human_review", "needs_review"].includes(job.status) && !job.mpwr_confirmation_number);
 }
 
 type EmailIncident = {
