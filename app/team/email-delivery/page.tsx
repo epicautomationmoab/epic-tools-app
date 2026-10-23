@@ -209,7 +209,7 @@ function JobExceptionRow({ row, guestName, label, sourceType }: { row: JobRow; g
         >
           Guest Lookup
         </Link>
-        {sourceType === "payment" && row.id !== "preview-test-exception" ? <CassieRetryAction sourceId={row.id} mpwrConfirmation={row.mpwr_confirmation_number} /> : null}
+        {sourceType === "payment" && row.id !== "preview-test-exception" ? <CassieRetryAction sourceId={row.id} /> : null}
         <ExceptionAction sourceType={sourceType} sourceId={row.id} />
       </div>
     </article>
