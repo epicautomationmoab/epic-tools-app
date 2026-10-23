@@ -4,6 +4,8 @@ import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
 import ExceptionAction from "./ExceptionAction";
 import CassieRetryAction from "./CassieRetryAction";
+import RhettRepairAction from "./RhettRepairAction";
+import RhettManualResolution from "./RhettManualResolution";
 import styles from "../readiness/ReadinessShell.module.css";
 
 function requiredEnv(name: string) {
@@ -68,6 +70,15 @@ async function getRhettExceptions() {
   return [...latestByConfirmation.values()].filter(job => ["failed", "needs_human_review", "needs_review"].includes(job.status) && !job.mpwr_confirmation_number);
 }
 
+type DeferredBooking = { queue_job_id: string; confirmation_code: string; customer_name: string | null; activity_date: string; note: string; };
+async function getDeferredBookings() {
+  return rest<DeferredBooking>("mpwr_deferred_booking_jobs", new URLSearchParams({
+    select: "queue_job_id,confirmation_code,customer_name,activity_date,note",
+    order: "activity_date.asc",
+    limit: "500",
+  }));
+}
+
 type EmailIncident = {
   id: string;
   confirmation_code: string;
@@ -115,11 +126,11 @@ async function getLatestJobs(table: "cassie_mpwr_jobs" | "victor_deposit_jobs") 
   );
 }
 
-type ResolutionRow = { source_type: "payment" | "deposit_release" | "email_delivery" | "rhett_booking"; source_id: string; confirmation_code: string | null; original_status: string | null; original_message: string | null; resolved_by_name: string | null; resolved_at: string; };
+type ResolutionRow = { source_type: "payment" | "deposit_release" | "email_delivery" | "rhett_booking"; source_id: string; confirmation_code: string | null; original_status: string | null; original_message: string | null; resolved_by_name: string | null; resolution_note: string | null; resolved_at: string; };
 
 async function getResolutions() {
   return rest<ResolutionRow>("operational_exception_resolutions", new URLSearchParams({
-    select: "source_type,source_id,confirmation_code,original_status,original_message,resolved_by_name,resolved_at",
+    select: "source_type,source_id,confirmation_code,original_status,original_message,resolved_by_name,resolution_note,resolved_at",
     order: "resolved_at.desc",
     limit: "200",
   }));
@@ -250,15 +261,17 @@ export default async function ExceptionsPage() {
   let depositExceptions: JobRow[] = [];
   let guestNames = new Map<string, string>();
   let resolutions: ResolutionRow[] = [];
+  let deferredBookings: DeferredBooking[] = [];
   let error = "";
 
   try {
-    [rhettExceptions, emailIncidents, paymentExceptions, depositExceptions, resolutions] = await Promise.all([
+    [rhettExceptions, emailIncidents, paymentExceptions, depositExceptions, resolutions, deferredBookings] = await Promise.all([
       getRhettExceptions(),
       getEmailIncidents(),
       getLatestJobs("cassie_mpwr_jobs"),
       getLatestJobs("victor_deposit_jobs"),
       getResolutions(),
+      getDeferredBookings(),
     ]);
 
     const confirmationCodes = [...new Set([
@@ -268,7 +281,8 @@ export default async function ExceptionsPage() {
     ].filter(Boolean))];
     guestNames = await getGuestNames(confirmationCodes);
     const resolvedKeys = new Set(resolutions.map((row) => `${row.source_type}:${row.source_id}`));
-    rhettExceptions = rhettExceptions.filter((row) => !resolvedKeys.has(`rhett_booking:${row.id}`));
+    const deferredIds = new Set(deferredBookings.map(row => row.queue_job_id));
+    rhettExceptions = rhettExceptions.filter((row) => !resolvedKeys.has(`rhett_booking:${row.id}`) && !deferredIds.has(row.id));
     paymentExceptions = paymentExceptions.filter((row) => !resolvedKeys.has(`payment:${row.id}`));
     depositExceptions = depositExceptions.filter((row) => !resolvedKeys.has(`deposit_release:${row.id}`));
     emailIncidents = emailIncidents.filter((row) => !resolvedKeys.has(`email_delivery:${row.id}`));
@@ -329,11 +343,11 @@ export default async function ExceptionsPage() {
 
           <section style={sectionStyle}>
             <SectionHeader
-              title="Booking Exceptions — Rhett"
-              description="TripWorks-to-MPWR bookings that Rhett could not finish automatically. Review in Guest Lookup before attempting a new booking."
+              title="Booking Exceptions"
+              description="Bookings that could not be completed automatically in MPWR. Review in Guest Lookup before attempting a new booking."
               count={rhettExceptions.length}
             />
-            {rhettExceptions.length === 0 ? <Empty>No unresolved Rhett booking exceptions.</Empty> : rhettExceptions.map(job => (
+            {rhettExceptions.length === 0 ? <Empty>No unresolved booking exceptions.</Empty> : rhettExceptions.map(job => (
               <article key={job.id} style={rowStyle}>
                 <div>
                   <strong style={{ fontSize: 16 }}>{job.customer_name || "Guest"}</strong>
@@ -342,7 +356,7 @@ export default async function ExceptionsPage() {
                 </div>
                 <div>
                   <div style={{ fontWeight: 850, fontSize: 16 }}>MPWR booking needs attention</div>
-                  <div style={{ marginTop: 4, color: "#394452", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{(job.last_error || "Rhett could not complete booking.").slice(0, 700)}</div>
+                  <div style={{ marginTop: 4, color: "#394452", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{(job.last_error || "MPWR booking could not be completed.").slice(0, 700)}</div>
                   <div style={{ marginTop: 6, color: "#a73b2e", fontSize: 13, fontWeight: 700 }}>{job.status === "failed" ? "Failed" : "Needs human review"} · {job.attempt_count ?? 0} attempts</div>
                 </div>
                 <div>
@@ -350,6 +364,8 @@ export default async function ExceptionsPage() {
                     style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none", display: "inline-block" }}>
                     Guest Lookup
                   </Link>
+                  <div style={{ marginTop: 8 }}><RhettRepairAction sourceId={job.id} /></div>
+                  <div style={{ marginTop: 8 }}><RhettManualResolution sourceId={job.id} /></div>
                 </div>
               </article>
             ))}
@@ -358,7 +374,7 @@ export default async function ExceptionsPage() {
           <section style={sectionStyle}>
             <SectionHeader
               title="Payment Exceptions"
-              description="Cassie payment settlements whose latest job failed or needs review."
+              description="Payment settlements whose latest attempt failed or needs review."
               count={paymentExceptions.length}
             />
             {paymentExceptions.length === 0 ? <Empty>No active payment exceptions.</Empty> : paymentExceptions.map((row) => (
@@ -369,7 +385,7 @@ export default async function ExceptionsPage() {
           <section style={sectionStyle}>
             <SectionHeader
               title="Security Deposit Release Exceptions"
-              description="Victor deposit releases whose latest job failed or needs review."
+              description="Security deposit releases whose latest attempt failed or needs review."
               count={depositExceptions.length}
             />
             {depositExceptions.length === 0 ? <Empty>No active security deposit release exceptions.</Empty> : depositExceptions.map((row) => (
@@ -412,6 +428,20 @@ export default async function ExceptionsPage() {
 
           <details style={{ ...sectionStyle, padding: 0 }}>
             <summary style={{ cursor: "pointer", padding: "17px 20px", fontWeight: 900, color: "#202733" }}>
+              Deferred — Manual 2027 ({deferredBookings.length} booking jobs)
+            </summary>
+            <p style={{ padding: "0 20px", color: "#6f7885", fontSize: 13 }}>These future reservations are not completed in MPWR. They are intentionally held for manual entry when Epic is ready.</p>
+            {deferredBookings.map(row => (
+              <article key={row.queue_job_id} style={{ ...rowStyle, gridTemplateColumns: "190px minmax(300px, 1fr)" }}>
+                <div><strong>{row.customer_name || "Guest"}</strong><div style={{ fontWeight: 800, marginTop: 4 }}>{row.confirmation_code}</div></div>
+                <div><div style={{ fontWeight: 850 }}>Deferred — Manual 2027 · {row.activity_date}</div>
+                <div style={{ color: "#6f7885", marginTop: 4 }}>{row.note}</div></div>
+              </article>
+            ))}
+          </details>
+
+          <details style={{ ...sectionStyle, padding: 0 }}>
+            <summary style={{ cursor: "pointer", padding: "17px 20px", fontWeight: 900, color: "#202733" }}>
               Resolved History ({resolutions.length})
             </summary>
             {resolutions.length === 0 ? <Empty>No manually resolved exceptions yet.</Empty> : resolutions.map((row) => (
@@ -421,8 +451,9 @@ export default async function ExceptionsPage() {
                   <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatMoabTime(row.resolved_at)}</div>
                 </div>
                 <div>
-                  <div style={{ fontWeight: 850 }}>{row.source_type === "payment" ? "Payment" : row.source_type === "deposit_release" ? "Security Deposit Release" : "Email Delivery"} · Manually Fixed</div>
+                  <div style={{ fontWeight: 850 }}>{row.source_type === "payment" ? "Payment" : row.source_type === "deposit_release" ? "Security Deposit Release" : row.source_type === "rhett_booking" ? "Booking" : "Email Delivery"} · Manually Fixed</div>
                   <div style={{ marginTop: 4, color: "#394452" }}>{row.original_message || "No failure detail recorded."}</div>
+                  {row.resolution_note ? <div style={{ marginTop: 6, fontSize: 13, color: "#394452" }}><strong>Resolution note:</strong> {row.resolution_note}</div> : null}
                   <div style={{ marginTop: 6, color: "#187a45", fontSize: 13, fontWeight: 700 }}>Resolved by {row.resolved_by_name || "EpicTools staff"}</div>
                 </div>
               </article>
