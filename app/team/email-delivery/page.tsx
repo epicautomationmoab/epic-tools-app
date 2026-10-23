@@ -70,6 +70,15 @@ async function getRhettExceptions() {
   return [...latestByConfirmation.values()].filter(job => ["failed", "needs_human_review", "needs_review"].includes(job.status) && !job.mpwr_confirmation_number);
 }
 
+type DeferredBooking = { queue_job_id: string; confirmation_code: string; customer_name: string | null; activity_date: string; note: string; };
+async function getDeferredBookings() {
+  return rest<DeferredBooking>("mpwr_deferred_booking_jobs", new URLSearchParams({
+    select: "queue_job_id,confirmation_code,customer_name,activity_date,note",
+    order: "activity_date.asc",
+    limit: "500",
+  }));
+}
+
 type EmailIncident = {
   id: string;
   confirmation_code: string;
@@ -252,15 +261,17 @@ export default async function ExceptionsPage() {
   let depositExceptions: JobRow[] = [];
   let guestNames = new Map<string, string>();
   let resolutions: ResolutionRow[] = [];
+  let deferredBookings: DeferredBooking[] = [];
   let error = "";
 
   try {
-    [rhettExceptions, emailIncidents, paymentExceptions, depositExceptions, resolutions] = await Promise.all([
+    [rhettExceptions, emailIncidents, paymentExceptions, depositExceptions, resolutions, deferredBookings] = await Promise.all([
       getRhettExceptions(),
       getEmailIncidents(),
       getLatestJobs("cassie_mpwr_jobs"),
       getLatestJobs("victor_deposit_jobs"),
       getResolutions(),
+      getDeferredBookings(),
     ]);
 
     const confirmationCodes = [...new Set([
@@ -270,7 +281,8 @@ export default async function ExceptionsPage() {
     ].filter(Boolean))];
     guestNames = await getGuestNames(confirmationCodes);
     const resolvedKeys = new Set(resolutions.map((row) => `${row.source_type}:${row.source_id}`));
-    rhettExceptions = rhettExceptions.filter((row) => !resolvedKeys.has(`rhett_booking:${row.id}`));
+    const deferredIds = new Set(deferredBookings.map(row => row.queue_job_id));
+    rhettExceptions = rhettExceptions.filter((row) => !resolvedKeys.has(`rhett_booking:${row.id}`) && !deferredIds.has(row.id));
     paymentExceptions = paymentExceptions.filter((row) => !resolvedKeys.has(`payment:${row.id}`));
     depositExceptions = depositExceptions.filter((row) => !resolvedKeys.has(`deposit_release:${row.id}`));
     emailIncidents = emailIncidents.filter((row) => !resolvedKeys.has(`email_delivery:${row.id}`));
@@ -413,6 +425,20 @@ export default async function ExceptionsPage() {
               </article>
             ))}
           </section>
+
+          <details style={{ ...sectionStyle, padding: 0 }}>
+            <summary style={{ cursor: "pointer", padding: "17px 20px", fontWeight: 900, color: "#202733" }}>
+              Deferred — Manual 2027 ({deferredBookings.length} booking jobs)
+            </summary>
+            <p style={{ padding: "0 20px", color: "#6f7885", fontSize: 13 }}>These future reservations are not completed in MPWR. They are intentionally held for manual entry when Epic is ready.</p>
+            {deferredBookings.map(row => (
+              <article key={row.queue_job_id} style={{ ...rowStyle, gridTemplateColumns: "190px minmax(300px, 1fr)" }}>
+                <div><strong>{row.customer_name || "Guest"}</strong><div style={{ fontWeight: 800, marginTop: 4 }}>{row.confirmation_code}</div></div>
+                <div><div style={{ fontWeight: 850 }}>Deferred — Manual 2027 · {row.activity_date}</div>
+                <div style={{ color: "#6f7885", marginTop: 4 }}>{row.note}</div></div>
+              </article>
+            ))}
+          </details>
 
           <details style={{ ...sectionStyle, padding: 0 }}>
             <summary style={{ cursor: "pointer", padding: "17px 20px", fontWeight: 900, color: "#202733" }}>
