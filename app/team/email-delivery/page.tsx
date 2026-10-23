@@ -4,6 +4,7 @@ import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
 import ExceptionAction from "./ExceptionAction";
 import CassieRetryAction from "./CassieRetryAction";
+import RhettRepairAction from "./RhettRepairAction";
 import styles from "../readiness/ReadinessShell.module.css";
 
 function requiredEnv(name: string) {
@@ -350,6 +351,7 @@ export default async function ExceptionsPage() {
                     style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none", display: "inline-block" }}>
                     Guest Lookup
                   </Link>
+                  <div style={{ marginTop: 8 }}><RhettRepairAction sourceId={job.id} /></div>
                 </div>
               </article>
             ))}
