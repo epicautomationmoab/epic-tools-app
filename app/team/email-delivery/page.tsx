@@ -115,7 +115,7 @@ async function getLatestJobs(table: "cassie_mpwr_jobs" | "victor_deposit_jobs") 
   );
 }
 
-type ResolutionRow = { source_type: "payment" | "deposit_release" | "email_delivery"; source_id: string; confirmation_code: string | null; original_status: string | null; original_message: string | null; resolved_by_name: string | null; resolved_at: string; };
+type ResolutionRow = { source_type: "payment" | "deposit_release" | "email_delivery" | "rhett_booking"; source_id: string; confirmation_code: string | null; original_status: string | null; original_message: string | null; resolved_by_name: string | null; resolved_at: string; };
 
 async function getResolutions() {
   return rest<ResolutionRow>("operational_exception_resolutions", new URLSearchParams({
@@ -268,6 +268,7 @@ export default async function ExceptionsPage() {
     ].filter(Boolean))];
     guestNames = await getGuestNames(confirmationCodes);
     const resolvedKeys = new Set(resolutions.map((row) => `${row.source_type}:${row.source_id}`));
+    rhettExceptions = rhettExceptions.filter((row) => !resolvedKeys.has(`rhett_booking:${row.id}`));
     paymentExceptions = paymentExceptions.filter((row) => !resolvedKeys.has(`payment:${row.id}`));
     depositExceptions = depositExceptions.filter((row) => !resolvedKeys.has(`deposit_release:${row.id}`));
     emailIncidents = emailIncidents.filter((row) => !resolvedKeys.has(`email_delivery:${row.id}`));
