@@ -5,6 +5,7 @@ import LogoutButton from "../readiness/LogoutButton";
 import ExceptionAction from "./ExceptionAction";
 import CassieRetryAction from "./CassieRetryAction";
 import RhettRepairAction from "./RhettRepairAction";
+import RhettManualResolution from "./RhettManualResolution";
 import styles from "../readiness/ReadinessShell.module.css";
 
 function requiredEnv(name: string) {
@@ -116,11 +117,11 @@ async function getLatestJobs(table: "cassie_mpwr_jobs" | "victor_deposit_jobs") 
   );
 }
 
-type ResolutionRow = { source_type: "payment" | "deposit_release" | "email_delivery" | "rhett_booking"; source_id: string; confirmation_code: string | null; original_status: string | null; original_message: string | null; resolved_by_name: string | null; resolved_at: string; };
+type ResolutionRow = { source_type: "payment" | "deposit_release" | "email_delivery" | "rhett_booking"; source_id: string; confirmation_code: string | null; original_status: string | null; original_message: string | null; resolved_by_name: string | null; resolution_note: string | null; resolved_at: string; };
 
 async function getResolutions() {
   return rest<ResolutionRow>("operational_exception_resolutions", new URLSearchParams({
-    select: "source_type,source_id,confirmation_code,original_status,original_message,resolved_by_name,resolved_at",
+    select: "source_type,source_id,confirmation_code,original_status,original_message,resolved_by_name,resolution_note,resolved_at",
     order: "resolved_at.desc",
     limit: "200",
   }));
@@ -352,6 +353,7 @@ export default async function ExceptionsPage() {
                     Guest Lookup
                   </Link>
                   <div style={{ marginTop: 8 }}><RhettRepairAction sourceId={job.id} /></div>
+                  <div style={{ marginTop: 8 }}><RhettManualResolution sourceId={job.id} /></div>
                 </div>
               </article>
             ))}
@@ -423,8 +425,9 @@ export default async function ExceptionsPage() {
                   <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatMoabTime(row.resolved_at)}</div>
                 </div>
                 <div>
-                  <div style={{ fontWeight: 850 }}>{row.source_type === "payment" ? "Payment" : row.source_type === "deposit_release" ? "Security Deposit Release" : "Email Delivery"} · Manually Fixed</div>
+                  <div style={{ fontWeight: 850 }}>{row.source_type === "payment" ? "Payment" : row.source_type === "deposit_release" ? "Security Deposit Release" : row.source_type === "rhett_booking" ? "Rhett Booking" : "Email Delivery"} · Manually Fixed</div>
                   <div style={{ marginTop: 4, color: "#394452" }}>{row.original_message || "No failure detail recorded."}</div>
+                  {row.resolution_note ? <div style={{ marginTop: 6, fontSize: 13, color: "#394452" }}><strong>Resolution note:</strong> {row.resolution_note}</div> : null}
                   <div style={{ marginTop: 6, color: "#187a45", fontSize: 13, fontWeight: 700 }}>Resolved by {row.resolved_by_name || "EpicTools staff"}</div>
                 </div>
               </article>
