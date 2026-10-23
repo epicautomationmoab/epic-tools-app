@@ -36,15 +36,15 @@ export async function GET(request: NextRequest) {
     const calls = await rest<Array<Record<string, unknown>>>(
       `live_calls?received_at=gte.${encodeURIComponent(since)}&select=${encodeURIComponent("id,callrail_call_id,caller_phone,caller_name,tracking_phone,source_name,campaign,received_at,route_kind,opportunity_id,reservation_id,contact_id,confirmation_code,route_label")}&order=received_at.desc&limit=100`,
     );
-    if (!calls.length) return NextResponse.json({ ok: true, call: null });
+    if (!calls.length) return NextResponse.json({ ok: true, call: null, dismissed_call_ids: [] });
 
     const ids = calls.map((call) => `"${String(call.id)}"`).join(",");
     const seen = await rest<Array<{ live_call_id: string }>>(
-      `live_call_seen?profile_id=eq.${encodeURIComponent(profile.id)}&live_call_id=in.(${ids})&select=live_call_id`,
+      `live_call_seen?live_call_id=in.(${ids})&select=live_call_id`,
     );
     const seenIds = new Set(seen.map((row) => row.live_call_id));
     const call = calls.find((row) => !seenIds.has(String(row.id))) || null;
-    return NextResponse.json({ ok: true, call });
+    return NextResponse.json({ ok: true, call, dismissed_call_ids: [...seenIds] });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load live calls." }, { status: 500 });
   }
