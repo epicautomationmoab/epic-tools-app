@@ -48,11 +48,10 @@ async function getBookings(date: string): Promise<Booking[]> {
   const to = new Date(utcMidnight + 48 * 3600000).toISOString();
   const params = new URLSearchParams({
     select: "confirmation_code,customer_name,reserved_at,experience_name,trip_method_name,trip_status,is_cancelled,total_sales_cents,total_amount_cents,start_time,business_line",
-    reserved_at: `gte.${from}`,
+    and: `(reserved_at.gte.${from},reserved_at.lt.${to})`,
     order: "reserved_at.desc",
     limit: "5000",
   });
-  params.append("reserved_at", `lt.${to}`);
   const response = await fetch(`${url}/rest/v1/operational_reservations?${params}`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
     cache: "no-store",
