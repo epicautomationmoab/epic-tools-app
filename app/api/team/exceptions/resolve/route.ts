@@ -26,7 +26,7 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
   return text ? JSON.parse(text) as T : undefined as T;
 }
 
-type SourceType = "payment" | "deposit_release" | "email_delivery";
+type SourceType = "payment" | "deposit_release" | "email_delivery" | "rhett_booking";
 
 export async function POST(request: NextRequest) {
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
@@ -37,13 +37,19 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as {
     source_type?: SourceType;
     source_id?: string;
+    resolution_note?: string;
   } | null;
 
   const sourceType = body?.source_type;
   const sourceId = body?.source_id?.trim();
+  const resolutionNote = body?.resolution_note?.trim() || "";
 
-  if (!sourceType || !["payment", "deposit_release", "email_delivery"].includes(sourceType) || !sourceId) {
+  if (!sourceType || !["payment", "deposit_release", "email_delivery", "rhett_booking"].includes(sourceType) || !sourceId) {
     return NextResponse.json({ error: "A valid exception source is required." }, { status: 400 });
+  }
+
+  if (sourceType === "rhett_booking" && (!resolutionNote || resolutionNote.length > 2000)) {
+    return NextResponse.json({ error: "A resolution note (up to 2,000 characters) is required." }, { status: 400 });
   }
 
   try {
@@ -79,6 +85,17 @@ export async function POST(request: NextRequest) {
       confirmationCode = row.confirmation_code;
       originalStatus = row.status;
       originalMessage = row.last_error?.trim() || row.result_message?.trim() || "";
+    } else if (sourceType === "rhett_booking") {
+      const rows = await rest<Array<{ confirmation_code: string; status: string; action_type: string; last_error: string | null; mpwr_confirmation_number: string | null }>>(
+        `mpwr_agent_queue?id=eq.${encodeURIComponent(sourceId)}&select=confirmation_code,status,action_type,last_error,mpwr_confirmation_number&limit=1`,
+      );
+      const row = rows[0];
+      if (!row || row.action_type !== "create_reservation") return NextResponse.json({ error: "Rhett booking exception not found." }, { status: 404 });
+      if (!["failed", "needs_human_review", "needs_review"].includes(row.status) || row.mpwr_confirmation_number)
+        return NextResponse.json({ error: "This is no longer an open Rhett booking exception." }, { status: 409 });
+      confirmationCode = row.confirmation_code;
+      originalStatus = row.status;
+      originalMessage = row.last_error?.trim() || "";
     } else {
       const rows = await rest<Array<{ confirmation_code: string; status: string; failure_type: string | null; failure_detail: string | null }>>(
         `guest_email_delivery_incidents?id=eq.${encodeURIComponent(sourceId)}&select=confirmation_code,status,failure_type,failure_detail&limit=1`,
@@ -100,6 +117,7 @@ export async function POST(request: NextRequest) {
         original_status: originalStatus || null,
         original_message: originalMessage || null,
         resolution_method: "manual_fixed",
+        resolution_note: sourceType === "rhett_booking" ? resolutionNote : null,
         resolved_by_profile_id: profile.id || null,
         resolved_by_name: profile.display_name || profile.email || "EpicTools staff",
       }),
