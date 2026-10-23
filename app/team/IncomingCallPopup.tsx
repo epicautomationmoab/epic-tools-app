@@ -41,7 +41,12 @@ export default function IncomingCallPopup() {
         const data = await response.json();
         if (!stopped) {
           setError(false);
-          setCall(current => current ?? (data.call || null));
+          setCall(current => {
+            // A teammate may have dismissed this call while it was open or cached in this tab.
+            const dismissed = new Set<string>(data.dismissed_call_ids || []);
+            if (current && dismissed.has(current.id)) return data.call || null;
+            return current ?? (data.call || null);
+          });
         }
       } catch {
         if (!stopped) setError(true);
