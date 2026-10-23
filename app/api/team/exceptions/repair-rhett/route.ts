@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "TripWorks reservation is cancelled. Do not rebook." }, { status: 409 });
     if (reservation.some(row => row.mpwr_confirmation_number))
       return NextResponse.json({ error: "A linked MPWR booking is already recorded. Review before rebooking." }, { status: 409 });
-    if (!job.mpwr_date_to_select || job.mpwr_date_to_select < new Date().toLocaleDateString("en-CA", {timeZone:"America/Denver"}))
+    if (!job.mpwr_date_to_select || job.mpwr_date_to_select < new Intl.DateTimeFormat("en-CA", {timeZone:"America/Denver", year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()))
       return NextResponse.json({ error: "The activity date has passed or is missing. Automatic retry blocked." }, { status: 409 });
     // The existing recovery RPC finishes stored MPWR results, flags partial
     // identities for review, or requeues the existing job when no identity is saved.
