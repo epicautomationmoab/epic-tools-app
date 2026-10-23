@@ -41,6 +41,33 @@ function formatMoabTime(value: string) {
   }).format(new Date(value));
 }
 
+type RhettJob = {
+  id: string;
+  confirmation_code: string;
+  customer_name: string | null;
+  status: string;
+  last_error: string | null;
+  updated_at: string;
+  mpwr_confirmation_number: string | null;
+  attempt_count: number | null;
+};
+
+async function getRhettExceptions() {
+  const rows = await rest<RhettJob>("mpwr_agent_queue", new URLSearchParams({
+    select: "id,confirmation_code,customer_name,status,last_error,updated_at,mpwr_confirmation_number,attempt_count",
+    action_type: "eq.create_reservation",
+    updated_at: `gte.${new Date(Date.now() - 45 * 86400000).toISOString()}`,
+    order: "updated_at.desc",
+    limit: "3000",
+  }));
+  const latestByConfirmation = new Map<string, RhettJob>();
+  for (const job of rows) {
+    if (!job.confirmation_code || latestByConfirmation.has(job.confirmation_code)) continue;
+    latestByConfirmation.set(job.confirmation_code, job);
+  }
+  return [...latestByConfirmation.values()].filter(job => ["failed", "needs_human_review", "needs_review"].includes(job.status) && !job.mpwr_confirmation_number);
+}
+
 type EmailIncident = {
   id: string;
   confirmation_code: string;
@@ -217,6 +244,7 @@ function JobExceptionRow({ row, guestName, label, sourceType }: { row: JobRow; g
 }
 
 export default async function ExceptionsPage() {
+  let rhettExceptions: RhettJob[] = [];
   let emailIncidents: EmailIncident[] = [];
   let paymentExceptions: JobRow[] = [];
   let depositExceptions: JobRow[] = [];
@@ -225,7 +253,8 @@ export default async function ExceptionsPage() {
   let error = "";
 
   try {
-    [emailIncidents, paymentExceptions, depositExceptions, resolutions] = await Promise.all([
+    [rhettExceptions, emailIncidents, paymentExceptions, depositExceptions, resolutions] = await Promise.all([
+      getRhettExceptions(),
       getEmailIncidents(),
       getLatestJobs("cassie_mpwr_jobs"),
       getLatestJobs("victor_deposit_jobs"),
@@ -261,7 +290,7 @@ export default async function ExceptionsPage() {
     error = err instanceof Error ? err.message : "Unable to load exceptions.";
   }
 
-  const total = emailIncidents.length + paymentExceptions.length + depositExceptions.length;
+  const total = rhettExceptions.length + emailIncidents.length + paymentExceptions.length + depositExceptions.length;
 
   return (
     <div className={styles.page}>
@@ -290,12 +319,40 @@ export default async function ExceptionsPage() {
               <div>
                 <div style={{ fontWeight: 900, color: total ? "#202733" : "#187a45" }}>{total ? "Active Exceptions" : "All clear"}</div>
                 <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}>
-                  {total ? "These items still need attention." : "No active payment, deposit-release, or email-delivery exceptions."}
+                  {total ? "These items still need attention." : "No active booking, payment, deposit-release, or email-delivery exceptions."}
                 </div>
               </div>
               <CountBadge count={total} />
             </div>
           ) : null}
+
+          <section style={sectionStyle}>
+            <SectionHeader
+              title="Booking Exceptions — Rhett"
+              description="TripWorks-to-MPWR bookings that Rhett could not finish automatically. Review in Guest Lookup before attempting a new booking."
+              count={rhettExceptions.length}
+            />
+            {rhettExceptions.length === 0 ? <Empty>No unresolved Rhett booking exceptions.</Empty> : rhettExceptions.map(job => (
+              <article key={job.id} style={rowStyle}>
+                <div>
+                  <strong style={{ fontSize: 16 }}>{job.customer_name || "Guest"}</strong>
+                  <div style={{ marginTop: 5, fontWeight: 800 }}>{job.confirmation_code}</div>
+                  <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatMoabTime(job.updated_at)}</div>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 850, fontSize: 16 }}>MPWR booking needs attention</div>
+                  <div style={{ marginTop: 4, color: "#394452", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{(job.last_error || "Rhett could not complete booking.").slice(0, 700)}</div>
+                  <div style={{ marginTop: 6, color: "#a73b2e", fontSize: 13, fontWeight: 700 }}>{job.status === "failed" ? "Failed" : "Needs human review"} · {job.attempt_count ?? 0} attempts</div>
+                </div>
+                <div>
+                  <Link href={`/team/previous-guests?q=${encodeURIComponent(job.confirmation_code)}`}
+                    style={{ whiteSpace: "nowrap", background: "#fff", border: "1px solid #c8d0d7", borderRadius: 8, padding: "10px 14px", color: "#26313b", fontWeight: 850, textDecoration: "none", display: "inline-block" }}>
+                    Guest Lookup
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </section>
 
           <section style={sectionStyle}>
             <SectionHeader
