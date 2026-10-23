@@ -3,6 +3,7 @@ import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
 import ExceptionAction from "./ExceptionAction";
+import CassieRetryAction from "./CassieRetryAction";
 import styles from "../readiness/ReadinessShell.module.css";
 
 function requiredEnv(name: string) {
@@ -208,6 +209,7 @@ function JobExceptionRow({ row, guestName, label, sourceType }: { row: JobRow; g
         >
           Guest Lookup
         </Link>
+        {sourceType === "payment" && row.id !== "preview-test-exception" ? <CassieRetryAction sourceId={row.id} /> : null}
         <ExceptionAction sourceType={sourceType} sourceId={row.id} />
       </div>
     </article>
