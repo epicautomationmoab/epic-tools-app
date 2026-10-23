@@ -343,11 +343,11 @@ export default async function ExceptionsPage() {
 
           <section style={sectionStyle}>
             <SectionHeader
-              title="Booking Exceptions — Rhett"
-              description="TripWorks-to-MPWR bookings that Rhett could not finish automatically. Review in Guest Lookup before attempting a new booking."
+              title="Booking Exceptions"
+              description="Bookings that could not be completed automatically in MPWR. Review in Guest Lookup before attempting a new booking."
               count={rhettExceptions.length}
             />
-            {rhettExceptions.length === 0 ? <Empty>No unresolved Rhett booking exceptions.</Empty> : rhettExceptions.map(job => (
+            {rhettExceptions.length === 0 ? <Empty>No unresolved booking exceptions.</Empty> : rhettExceptions.map(job => (
               <article key={job.id} style={rowStyle}>
                 <div>
                   <strong style={{ fontSize: 16 }}>{job.customer_name || "Guest"}</strong>
@@ -356,7 +356,7 @@ export default async function ExceptionsPage() {
                 </div>
                 <div>
                   <div style={{ fontWeight: 850, fontSize: 16 }}>MPWR booking needs attention</div>
-                  <div style={{ marginTop: 4, color: "#394452", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{(job.last_error || "Rhett could not complete booking.").slice(0, 700)}</div>
+                  <div style={{ marginTop: 4, color: "#394452", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{(job.last_error || "MPWR booking could not be completed.").slice(0, 700)}</div>
                   <div style={{ marginTop: 6, color: "#a73b2e", fontSize: 13, fontWeight: 700 }}>{job.status === "failed" ? "Failed" : "Needs human review"} · {job.attempt_count ?? 0} attempts</div>
                 </div>
                 <div>
@@ -374,7 +374,7 @@ export default async function ExceptionsPage() {
           <section style={sectionStyle}>
             <SectionHeader
               title="Payment Exceptions"
-              description="Cassie payment settlements whose latest job failed or needs review."
+              description="Payment settlements whose latest attempt failed or needs review."
               count={paymentExceptions.length}
             />
             {paymentExceptions.length === 0 ? <Empty>No active payment exceptions.</Empty> : paymentExceptions.map((row) => (
@@ -385,7 +385,7 @@ export default async function ExceptionsPage() {
           <section style={sectionStyle}>
             <SectionHeader
               title="Security Deposit Release Exceptions"
-              description="Victor deposit releases whose latest job failed or needs review."
+              description="Security deposit releases whose latest attempt failed or needs review."
               count={depositExceptions.length}
             />
             {depositExceptions.length === 0 ? <Empty>No active security deposit release exceptions.</Empty> : depositExceptions.map((row) => (
@@ -451,7 +451,7 @@ export default async function ExceptionsPage() {
                   <div style={{ fontSize: 12, color: "#7b8491", marginTop: 5 }}>{formatMoabTime(row.resolved_at)}</div>
                 </div>
                 <div>
-                  <div style={{ fontWeight: 850 }}>{row.source_type === "payment" ? "Payment" : row.source_type === "deposit_release" ? "Security Deposit Release" : row.source_type === "rhett_booking" ? "Rhett Booking" : "Email Delivery"} · Manually Fixed</div>
+                  <div style={{ fontWeight: 850 }}>{row.source_type === "payment" ? "Payment" : row.source_type === "deposit_release" ? "Security Deposit Release" : row.source_type === "rhett_booking" ? "Booking" : "Email Delivery"} · Manually Fixed</div>
                   <div style={{ marginTop: 4, color: "#394452" }}>{row.original_message || "No failure detail recorded."}</div>
                   {row.resolution_note ? <div style={{ marginTop: 6, fontSize: 13, color: "#394452" }}><strong>Resolution note:</strong> {row.resolution_note}</div> : null}
                   <div style={{ marginTop: 6, color: "#187a45", fontSize: 13, fontWeight: 700 }}>Resolved by {row.resolved_by_name || "EpicTools staff"}</div>
