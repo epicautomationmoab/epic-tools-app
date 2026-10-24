@@ -3,6 +3,12 @@ import ArrivalBoardRefresh from "./ArrivalBoardRefresh";
 import ArrivalBoardDisplay from "./ArrivalBoardDisplay";
 import styles from "./ArrivalBoard.module.css";
 
+function displayGuestName(fullName: string) {
+  const words = fullName.trim().split(" ").filter(Boolean);
+  if (words.length < 2) return words[0] || "Guest";
+  return words[0] + " " + words[words.length - 1].slice(0, 1).toUpperCase() + ".";
+}
+
 function formatToday() {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -24,7 +30,7 @@ export default async function ArrivalBoardPage() {
     rows = rawRows.map((row) => ({
       visit_start_time: row.visit_start_time,
       confirmation_code: row.confirmation_code,
-      customer_name: row.customer_name,
+      customer_name: displayGuestName(row.customer_name),
       customer_phone_last_four: row.customer_phone_last_four,
       business_line: row.business_line,
       board_activity_label: row.board_activity_label,
