@@ -536,7 +536,7 @@ export async function getArrivalBoardRows() {
       "mpwr_document_expected_count" |
       "ohv_required" |
       "ohv_certificate_uploaded"
-    >>("guest_readiness_with_handoff_v", readinessParams),
+    >>("guest_readiness_with_handoff_v", readinessParams, true),
   ]);
 
   const readinessIds = readinessRows
