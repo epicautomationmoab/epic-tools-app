@@ -122,7 +122,7 @@ function blocksDuplicateSend(agreement: AgreementRequest | null) {
 async function forwardPreviewAgreement(request: NextRequest, method: "GET"|"POST"|"DELETE") {
   const token=request.cookies.get("epic_access_token")?.value;
   const profile=await getAuthenticatedTeamProfile(token);
-  if (!token||!profile) return NextResponse.json({error:"Unauthorized."},{status:401});
+  if (!token || !profile || profile.role === "workstation") return NextResponse.json({error:"Employee login required."},{status:401});
   const target=new URL("/api/team/cancellation-agreements","https://epic-tools-app.vercel.app");
   const readinessId=request.nextUrl.searchParams.get("readinessId");
   if(method!=="POST"&&readinessId)target.searchParams.set("readinessId",readinessId);
