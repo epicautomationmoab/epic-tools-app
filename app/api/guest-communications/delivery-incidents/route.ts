@@ -127,7 +127,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "action must be claim, resolve, dismiss, or reopen." }, { status: 400 });
   }
 
-  const resolvedBy = body.resolvedBy?.trim();
   const actionActor = actor;
 
   try {
