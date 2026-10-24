@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  const previewToken = process.env.EPIC_PREVIEW_TOKEN;
-  const suppliedPreviewToken = request.cookies.get("epic_preview_access")?.value;
-  const hasPreviewAccess = Boolean(previewToken && suppliedPreviewToken === previewToken);
   const hasEmployeeSession = Boolean(request.cookies.get("epic_access_token")?.value);
   const pathname = request.nextUrl.pathname;
 
-  if (pathname.startsWith("/team") && !hasPreviewAccess && !hasEmployeeSession) {
+  if (pathname.startsWith("/team") && !hasEmployeeSession) {
     const loginUrl = new URL("/employee-login", request.url);
     return NextResponse.redirect(loginUrl);
   }
