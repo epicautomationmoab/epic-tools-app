@@ -4,7 +4,9 @@ export async function middleware(request: NextRequest) {
   const hasEmployeeSession = Boolean(request.cookies.get("epic_access_token")?.value);
   const pathname = request.nextUrl.pathname;
 
-  if (pathname.startsWith("/team") && !hasEmployeeSession) {
+  // Arrival Board is a guest-facing lobby display, not an employee work area.
+  const guestArrivalBoard = pathname === "/team/arrival-board" || pathname.startsWith("/team/arrival-board/");
+  if (pathname.startsWith("/team") && !guestArrivalBoard && !hasEmployeeSession) {
     const loginUrl = new URL("/employee-login", request.url);
     return NextResponse.redirect(loginUrl);
   }
