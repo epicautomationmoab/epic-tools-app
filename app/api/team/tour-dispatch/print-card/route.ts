@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { supabaseRpc } from "@/lib/server/supabase-rest";
-import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 export async function POST(request: NextRequest) {
   const accessToken = request.cookies.get("epic_access_token")?.value;
   const profile = await getAuthenticatedTeamProfile(accessToken);
-  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
 
-  if (!profile && !workstation) {
+  if (!profile || profile.role === "workstation") {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -21,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid tour vehicle slot." }, { status: 400 });
     }
 
-    const requestedBy = profile?.display_name ?? "Epic Workstation";
+    const requestedBy = profile.display_name;
     const jobId = await supabaseRpc<string>("queue_manual_tour_windshield_print", {
       p_store_visit_id: storeVisitId,
       p_vehicle_slot: vehicleSlot,
