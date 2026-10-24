@@ -107,7 +107,7 @@ export default function NativeCustomerSearch() {
         <h2>{selected.customer_name || "Customer details"}</h2>
         {detailLoading && <p role="status">Loading customer history...</p>}
         {detailError && <p role="alert">{detailError}</p>}
-        {details && <NativeCustomerDetail value={details} />}
+        {details && <NativeCustomerDetail key={selected.identity_key} value={details} />}
       </section>}
     </section>
   );
