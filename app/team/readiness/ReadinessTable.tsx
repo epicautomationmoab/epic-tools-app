@@ -352,34 +352,33 @@ async function callReadinessRpc<T>(
   return response.json() as Promise<T>;
 }
 
-function getPeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus | null>(
-    "get_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+async function peopleOverrideRpc<T>(operation: string, readinessId: string, extra: Record<string, unknown> = {}): Promise<T> {
+  const response = await fetch("/api/team/readiness/people-override", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ operation, readiness_id: readinessId, ...extra }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to update people override.");
+  }
+  return response.json() as Promise<T>;
 }
 
-function savePeopleOverride(
-  readinessId: string,
-  peopleCount: number,
-  reason: string,
-) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "set_readiness_people_override",
-    {
-      p_readiness_id: readinessId,
-      p_people_count: peopleCount,
-      p_reason: reason,
-      p_updated_by: "EpicTools",
-    },
-  );
+function getPeopleOverride(readinessId: string) {
+  return peopleOverrideRpc<PeopleOverrideStatus | null>("get_readiness_people_override", readinessId);
+}
+
+function savePeopleOverride(readinessId: string, peopleCount: number, reason: string) {
+  return peopleOverrideRpc<PeopleOverrideStatus>("set_readiness_people_override", readinessId, {
+    people_count: peopleCount,
+    reason,
+  });
 }
 
 function removePeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "clear_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+  return peopleOverrideRpc<PeopleOverrideStatus>("clear_readiness_people_override", readinessId);
 }
 
 // Merge lightweight snapshots without losing already fetched drawer-only data.
