@@ -40,40 +40,16 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function getSupabaseBrowserConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase configuration is missing.");
-  }
-
-  return { url, key };
-}
-
 async function saveAdventureAssure(readinessId: string, level: Level) {
-  const { url, key } = getSupabaseBrowserConfig();
-  const response = await fetch(
-    `${url}/rest/v1/rpc/set_readiness_adventure_assure_override`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        p_readiness_id: readinessId,
-        p_level: level,
-        p_reason: "Updated from Guest Readiness dashboard",
-        p_updated_by: "EpicTools",
-      }),
-    },
-  );
-
+  const response = await fetch("/api/team/readiness/adventure-assure", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ readiness_id: readinessId, level }),
+  });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to update Adventure Assure.");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to update Adventure Assure.");
   }
 }
 
