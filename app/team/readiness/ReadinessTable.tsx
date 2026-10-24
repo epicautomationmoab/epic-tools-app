@@ -1043,38 +1043,27 @@ await callReadinessRpc("manual_override_mpwr_information", {
   }
   async function completeCourtesyCall(
     readinessId: string,
-    completedBy: string,
+    _completedBy: string,
     notes: string,
     arrival: boolean,
     location: boolean,
     callOutcome: string,
   ) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!url || !key) {
-      throw new Error("Supabase configuration is missing.");
-    }
-
-    const response = await fetch(`${url}/rest/v1/rpc/complete_courtesy_call`, {
+    const response = await fetch("/api/team/readiness/courtesy-call", {
       method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        p_readiness_id: readinessId,
-        p_completed_by: completedBy,
-        p_notes: notes,
-        p_arrival_confirmed: arrival,
-        p_location_discussed: location,
-        p_call_outcome: callOutcome,
+        readiness_id: readinessId,
+        notes,
+        arrival_confirmed: arrival,
+        location_discussed: location,
+        call_outcome: callOutcome,
       }),
     });
-
     if (!response.ok) {
-      throw new Error(await response.text());
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.error || "Unable to complete courtesy call.");
     }
   }
 
