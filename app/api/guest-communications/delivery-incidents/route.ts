@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
-import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 type IncidentAction = "claim" | "resolve" | "dismiss" | "reopen";
 
@@ -28,21 +27,10 @@ function supabaseHeaders(key: string) {
   return { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
 }
 
-function hasPreviewAccess(request: NextRequest) {
-  const expected = process.env.EPIC_PREVIEW_TOKEN;
-  const supplied = request.cookies.get("epic_preview_access")?.value;
-  return Boolean(expected && supplied === expected);
-}
-
 async function getActor(request: NextRequest) {
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
-  if (profile) return profile.display_name || profile.email || "EpicTools team member";
-
-  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
-  if (workstation) return "EpicTools workstation";
-
-  if (hasPreviewAccess(request)) return "EpicTools preview";
-  return null;
+  if (!profile || profile.role === "workstation") return null;
+  return profile.display_name;
 }
 
 function patchForAction(action: IncidentAction, actor: string, note?: string) {
@@ -140,9 +128,7 @@ export async function POST(request: NextRequest) {
   }
 
   const resolvedBy = body.resolvedBy?.trim();
-  const actionActor = action === "dismiss" && actor === "EpicTools workstation" && resolvedBy
-    ? resolvedBy
-    : actor;
+  const actionActor = actor;
 
   try {
     const { url, key } = getSupabaseConfig();
