@@ -305,13 +305,17 @@ async function persistHandoff(
 }
 
 async function clearHandoff(readinessId: string) {
-  return callReadinessRpc<boolean>(
-    "clear_epic_operational_handoff",
-    {
-      p_readiness_id: readinessId,
-      p_recorded_by: "EpicTools",
-    },
-  );
+  const response = await fetch("/api/team/readiness/handoff", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ readiness_id: readinessId, handoff_status: "clear" }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to clear reservation handoff.");
+  }
+  return true;
 }
 
 function getSupabaseBrowserConfig() {
