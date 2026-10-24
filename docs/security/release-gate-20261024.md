@@ -35,3 +35,10 @@
 - Staff-facing backend service calls may use a privileged credential: require application-side validation and database-side EXECUTE restriction.
 - No automated test script was present in package.json beyond build/lint; a green Vercel build is not an access-control test.
 - Retiring workstation access can invalidate intended shared device workflows; confirm individual login setup before production rollout.
+
+## Preview isolation correction
+
+- Cancellation-agreement GET/POST/DELETE preview forwarding to production disabled in branch. Even GET could mutate agreement status.
+- Exception resolution POST blocked on Vercel previews until isolated test data is available.
+- This is not full preview isolation. Check every project environment target and test negative cases on preview before allowing write-enabled regression testing.
+- Test: preview cancellation GET/POST/DELETE and exception POST return 403; production authorized routes still behave correctly.
