@@ -43,3 +43,14 @@ All lacked `security_invoker` in the read-only inspection. Several include names
 ## Verification evidence required before merge
 
 - Production and preview view grant diff, dependency inventory, redacted authorization test logs, app smoke-test results, build/test pass, and a signed-off rollout/rollback plan.
+
+## October 24 direction: no shared workstation identity
+
+Owner decision: HQ shared workstation authentication is being retired; individual staff identity and attribution are required.
+
+Development-branch changes:
+- Readiness guard only accepts a validated active employee profile (excluding the workstation role).
+- Team middleware no longer treats the HQ workstation cookie as sufficient for route entry.
+- The legacy `getGuestFormsActor` function retains its name for importer compatibility but no longer accepts workstation cookie or returns anonymous HQ Reception attribution.
+
+Remaining work before merge: find every issuance/use of the HQ cookie, remove login/configuration flows, check the preview-token bypass, review server routes that access customer data, smoke-test affected forms and sign-in, and coordinate the employee transition. Do not revoke credential or delete workstation profiles until verified.
