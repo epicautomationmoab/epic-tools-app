@@ -27,9 +27,9 @@ export default async function ArrivalBoardPage() {
     const rawRows = await getArrivalBoardRows();
     // Public lobby display: allowlist fields before serializing data to the client.
     // Never pass through the entire internal Arrival Board database record.
-    rows = rawRows.map((row) => ({
+    rows = rawRows.map((row, index) => ({
       visit_start_time: row.visit_start_time,
-      confirmation_code: row.confirmation_code,
+      confirmation_code: `lobby-${index}`,
       customer_name: displayGuestName(row.customer_name),
       customer_phone_last_four: row.customer_phone_last_four,
       business_line: row.business_line,
