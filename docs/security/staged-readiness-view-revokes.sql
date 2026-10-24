@@ -12,3 +12,10 @@ COMMIT;
 -- through anonymous fetchView. Migrate it to least-privilege, authenticated/server-only
 -- or an explicitly sanitized public view before applying the above.
 -- Confirm anon denial and legitimate Readiness, Arrival Board and guest workflows.
+
+-- Dependency update (2026-10-24 security branch): Arrival Board now reads
+-- guest_readiness_with_handoff_v with server-side secret via fetchView(..., true).
+-- /team/arrival-board is intentionally public for the lobby and exempted from
+-- employee-only middleware. Review board DISPLAY FIELDS separately so the
+-- server-side access doesn't accidentally expose hidden customer information.
+-- Also inspect external callers before applying any SQL revoke.
