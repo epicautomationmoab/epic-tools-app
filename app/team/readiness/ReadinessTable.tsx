@@ -854,11 +854,20 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   throw new Error("This Store Visit is missing its readiness ID.");
 }
 
-await callReadinessRpc("manual_override_mpwr_information", {
-  p_readiness_id: selected.readiness_id,
-  p_mpwr_confirmation_number: confirmationNumber,
-  p_mpwr_waiver_url: waiverUrl,
+const overrideResponse = await fetch("/api/team/readiness/mpwr-override", {
+  method: "POST",
+  credentials: "same-origin",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    readiness_id: selected.readiness_id,
+    confirmation_number: confirmationNumber,
+    waiver_url: waiverUrl,
+  }),
 });
+if (!overrideResponse.ok) {
+  const payload = await overrideResponse.json().catch(() => null);
+  throw new Error(payload?.error || "Unable to save MPWR override.");
+}
 
       const updateRow = (row: ReadinessRow): ReadinessRow => ({
         ...row,
