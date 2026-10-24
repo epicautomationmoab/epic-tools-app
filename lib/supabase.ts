@@ -518,7 +518,7 @@ export async function getArrivalBoardRows() {
   }
 
   const [rows, readinessRows] = await Promise.all([
-    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams, true),
+    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams),
     fetchView<Pick<ReadinessRow,
       "readiness_id" |
       "confirmation_code" |
@@ -536,7 +536,7 @@ export async function getArrivalBoardRows() {
       "mpwr_document_expected_count" |
       "ohv_required" |
       "ohv_certificate_uploaded"
-    >>("guest_readiness_with_handoff_v", readinessParams, true),
+    >>("guest_readiness_with_handoff_v", readinessParams),
   ]);
 
   const readinessIds = readinessRows
