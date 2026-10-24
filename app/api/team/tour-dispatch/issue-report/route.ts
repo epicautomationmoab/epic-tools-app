@@ -3,7 +3,6 @@ import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { sendCallRailSms } from "@/lib/server/callrail";
 import { sendSlackChannelMessage } from "@/lib/server/slack";
 import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
-import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 type DispatchRow = {
   id: string;
@@ -53,8 +52,7 @@ function escalationLabel(level: string) {
 export async function POST(request: NextRequest) {
   const accessToken = request.cookies.get("epic_access_token")?.value;
   const profile = await getAuthenticatedTeamProfile(accessToken);
-  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
-  if (!profile && !workstation) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!profile || profile.role === "workstation") return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   try {
     const body = await request.json();
