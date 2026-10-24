@@ -65,35 +65,16 @@ function resolveReadinessRow(tableRow: HTMLTableRowElement, rows: NoShowRow[]) {
   );
 }
 
-function getSupabaseBrowserConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase configuration is missing.");
-  return { url, key };
-}
-
 async function setNoShow(readinessId: string, isNoShow: boolean) {
-  const { url, key } = getSupabaseBrowserConfig();
-  const functionName = isNoShow
-    ? "set_readiness_no_show"
-    : "clear_readiness_no_show";
-  const body = isNoShow
-    ? { p_readiness_id: readinessId, p_marked_by: "EpicTools" }
-    : { p_readiness_id: readinessId };
-
-  const response = await fetch(`${url}/rest/v1/rpc/${functionName}`, {
+  const response = await fetch("/api/team/readiness/no-show", {
     method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ readiness_id: readinessId, is_no_show: isNoShow }),
   });
-
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to update no-show status.");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to update no-show status.");
   }
 }
 
