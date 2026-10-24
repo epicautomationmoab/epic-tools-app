@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
-import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 type HistoryRow = {
   readiness_id: string;
@@ -79,16 +78,9 @@ type PortalRow = {
   guest_portal_token: string | null;
 };
 
-function hasPreviewAccess(request: NextRequest) {
-  const previewToken = process.env.EPIC_PREVIEW_TOKEN;
-  return Boolean(previewToken && request.cookies.get("epic_preview_access")?.value === previewToken);
-}
-
 async function authorized(request: NextRequest) {
-  const accessToken = request.cookies.get("epic_access_token")?.value;
-  if (await getAuthenticatedTeamProfile(accessToken)) return true;
-  if (verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value)) return true;
-  return hasPreviewAccess(request);
+  const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+  return Boolean(profile && profile.role !== "workstation");
 }
 
 function cleanSearchTerm(value: string) {
