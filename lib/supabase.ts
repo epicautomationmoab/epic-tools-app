@@ -518,7 +518,7 @@ export async function getArrivalBoardRows() {
   }
 
   const [rows, readinessRows] = await Promise.all([
-    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams, true),
+    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams),
     fetchView<Pick<ReadinessRow,
       "readiness_id" |
       "confirmation_code" |
