@@ -10,7 +10,6 @@ import { agreementEmailConfigured, sendAgreementEmail } from "@/lib/server/agree
 import { getPattiPolicyDecision } from "@/lib/server/patti-policy-source";
 import { podiumConnected, sendPodiumSms } from "@/lib/server/podium";
 import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
-import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 type ReadinessRecord = {
   readiness_id: string;
@@ -44,27 +43,11 @@ type AgreementRequest = {
   created_at: string;
 };
 
-type RequestIdentity = {
-  profile: TeamProfile | null;
-  legacyPreview: boolean;
-  workstation: boolean;
-};
-
-function hasPreviewAccess(request: NextRequest) {
-  const previewToken = process.env.EPIC_PREVIEW_TOKEN;
-  return Boolean(previewToken && request.cookies.get("epic_preview_access")?.value === previewToken);
-}
+type RequestIdentity = { profile: TeamProfile };
 
 async function getRequestIdentity(request: NextRequest): Promise<RequestIdentity | null> {
-  const accessToken = request.cookies.get("epic_access_token")?.value;
-  const profile = await getAuthenticatedTeamProfile(accessToken);
-  if (profile) return { profile, legacyPreview: false, workstation: false };
-
-  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
-  if (workstation) return { profile: null, legacyPreview: false, workstation: true };
-
-  if (hasPreviewAccess(request)) return { profile: null, legacyPreview: true, workstation: false };
-  return null;
+  const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+  return profile && profile.role !== "workstation" ? { profile } : null;
 }
 
 function normalizePhone(value: string) {
@@ -245,7 +228,7 @@ export async function POST(request: NextRequest) {
   }
 
   const readinessId = body.readinessId?.trim();
-  const sentBy = identity.profile?.display_name || body.sentBy?.trim();
+  const sentBy = identity.profile.display_name;
   const deliveryMode = ["sms", "email", "both", "copy"].includes(body.deliveryMode ?? "")
     ? body.deliveryMode as "sms" | "email" | "both" | "copy"
     : "copy";
