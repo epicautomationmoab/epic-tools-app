@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { displayCustomerDate } from "@/lib/command-center/customer-display";
 
 type RecordRow = Record<string, unknown>;
@@ -19,6 +20,8 @@ export default function NativeCustomerDetail({ value }:{ value: Record<string,un
   const identity = value.identity && typeof value.identity === "object" ? value.identity as RecordRow : {};
   const reservations = records(value.reservations);
   const repeatedConfirmations = countDuplicates(reservations);
+  const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
+  const selectedReservation = reservations.find(row => field(row, "id") === selectedReservationId) || null;
   return <div>
     <header style={{ border:"1px solid #d9e2ec",borderRadius:12,padding:16,background:"#f8fafc" }}>
       <div style={{ fontSize:11,letterSpacing:1.5,color:"#64748b" }}>CONFIRMED CUSTOMER RECORD</div>
@@ -28,6 +31,18 @@ export default function NativeCustomerDetail({ value }:{ value: Record<string,un
     {repeatedConfirmations.length>0 && <p role="status" style={{ color:"#92400e",padding:12,border:"1px solid #facc15",borderRadius:8 }}>
       More than one reservation record shares confirmation {repeatedConfirmations.join(", ")}. Choose the exact reservation before performing any visit-specific action.
     </p>}
+    <section aria-label="Exact reservation context" style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "1px solid #cbd5e1", background: "#fff" }}>
+      <strong>Reservation context</strong>
+      <p style={{ fontSize: 13, color: "#52647b" }}>Select a specific reservation by its unique ID before any future reservation-specific action. Selection is read-only.</p>
+      <select aria-label="Select exact reservation" value={selectedReservationId || ""} onChange={event => setSelectedReservationId(event.target.value || null)}
+        style={{ maxWidth: "100%", padding: 9, border: "1px solid #94a3b8", borderRadius: 7 }}>
+        <option value="">No reservation selected</option>
+        {reservations.filter(row => field(row,"id")).map(row =>
+          <option key={field(row,"id")} value={field(row,"id")}>{[field(row,"confirmation_code"), field(row,"experience_name"), displayCustomerDate(row.start_time,"reservation"), field(row,"id")].filter(Boolean).join(" · ")}</option>
+        )}
+      </select>
+      {selectedReservation && <p role="status" style={{ fontSize: 13 }}>Selected reservation ID: <strong>{field(selectedReservation,"id")}</strong> — {field(selectedReservation,"experience_name") || "Visit"}. No changes have been made.</p>}
+    </section>
     <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,margin:"15px 0" }}>
       {arrays.map(kind=><div key={kind} style={{ border:"1px solid #e2e8f0",borderRadius:9,padding:11 }}>
         <div style={{ fontSize:21,fontWeight:800 }}>{records(value[kind]).length}</div>
