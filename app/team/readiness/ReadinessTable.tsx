@@ -291,35 +291,16 @@ async function persistHandoff(
   readinessId: string,
   handoffStatus: "checked_in" | "rental_out" | "rental_returned",
 ) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase configuration is missing.");
-  }
-
-  const response = await fetch(
-    `${url}/rest/v1/rpc/set_epic_operational_handoff`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        p_readiness_id: readinessId,
-        p_handoff_status: handoffStatus,
-        p_recorded_by: "EpicTools",
-      }),
-    },
-  );
-
+  const response = await fetch("/api/team/readiness/handoff", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ readiness_id: readinessId, handoff_status: handoffStatus }),
+  });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to update reservation status.");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to update reservation status.");
   }
-
   return handoffStatus;
 }
 
