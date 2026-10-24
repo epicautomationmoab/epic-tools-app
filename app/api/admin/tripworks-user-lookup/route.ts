@@ -1,35 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 
-function hasPreviewAccess(request: NextRequest) {
-  const expected = process.env.EPIC_PREVIEW_TOKEN;
-  const supplied = request.cookies.get("epic_preview_access")?.value;
-  return Boolean(expected && supplied === expected);
-}
-
 async function canManageUsers(request: NextRequest) {
-  const accessToken = request.cookies.get("epic_access_token")?.value;
-  const profile = await getAuthenticatedTeamProfile(accessToken);
-  if (profile?.role === "admin" || profile?.role === "manager") return true;
-  return hasPreviewAccess(request);
+  const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+  return profile?.role === "admin" || profile?.role === "manager";
 }
-
-function getSupabaseConfig() {
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SECRET_KEY?.trim();
-  if (!rawUrl || !key) throw new Error("Supabase configuration is missing.");
-  const url = (/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`).replace(/\/+$/, "");
-  return { url, key };
-}
-
-type WebhookRow = {
-  payload: {
-    owner?: {
-      id?: number | string | null;
-      full_name?: string | null;
-    } | null;
-  } | null;
-};
 
 export async function GET(request: NextRequest) {
   if (!await canManageUsers(request)) {
