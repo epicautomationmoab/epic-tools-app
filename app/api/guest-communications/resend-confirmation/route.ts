@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
-import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 import { getPattiPolicyDecision } from "@/lib/server/patti-policy-source";
 import {
   buildCancellationPolicyText,
@@ -52,16 +51,9 @@ function supabaseHeaders(key: string) {
   return { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
 }
 
-function hasPreviewAccess(request: NextRequest) {
-  const expected = process.env.EPIC_PREVIEW_TOKEN;
-  const supplied = request.cookies.get("epic_preview_access")?.value;
-  return Boolean(expected && supplied === expected);
-}
-
 async function canResendConfirmation(request: NextRequest) {
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
-  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
-  return Boolean(profile || workstation || hasPreviewAccess(request));
+  return Boolean(profile && profile.role !== "workstation");
 }
 
 function firstName(fullName: string) {
