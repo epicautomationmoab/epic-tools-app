@@ -117,21 +117,17 @@ function blocksDuplicateSend(agreement: AgreementRequest | null) {
 }
 
 
-// Preview deployments use the established production agreement service for parity.
-// This is only enabled in Vercel preview; production uses the original handlers.
-async function forwardPreviewAgreement(request: NextRequest, method: "GET"|"POST"|"DELETE") {
-  const token=request.cookies.get("epic_access_token")?.value;
-  const profile=await getAuthenticatedTeamProfile(token);
-  if (!token || !profile || profile.role === "workstation") return NextResponse.json({error:"Employee login required."},{status:401});
-  const target=new URL("/api/team/cancellation-agreements","https://epic-tools-app.vercel.app");
-  const readinessId=request.nextUrl.searchParams.get("readinessId");
-  if(method!=="POST"&&readinessId)target.searchParams.set("readinessId",readinessId);
-  const response=await fetch(target,{method,headers:{Cookie:"epic_access_token="+encodeURIComponent(token),...(method==="POST"?{"Content-Type":"application/json"}:{})},...(method==="POST"?{body:await request.text()}:{}),cache:"no-store"});
-  return new NextResponse(await response.text(),{status:response.status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
+// Never forward preview requests to production. Even GET can mutate agreement
+// status during expired-state reconciliation. Preview must use isolated data.
+function previewUnavailable() {
+  return NextResponse.json(
+    { error: "Cancellation agreements are disabled in preview until an isolated test environment is configured." },
+    { status: 403, headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function GET(request: NextRequest) {
-  if(process.env.VERCEL_ENV==="preview") return forwardPreviewAgreement(request,"GET");
+  if (process.env.VERCEL_ENV === "preview") return previewUnavailable();
   if (!await getRequestIdentity(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
   if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
@@ -180,7 +176,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if(process.env.VERCEL_ENV==="preview") return forwardPreviewAgreement(request,"DELETE");
+  if (process.env.VERCEL_ENV === "preview") return previewUnavailable();
   if (!await getRequestIdentity(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
   if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
@@ -207,7 +203,7 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if(process.env.VERCEL_ENV==="preview") return forwardPreviewAgreement(request,"POST");
+  if (process.env.VERCEL_ENV === "preview") return previewUnavailable();
   const identity = await getRequestIdentity(request);
   if (!identity) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
