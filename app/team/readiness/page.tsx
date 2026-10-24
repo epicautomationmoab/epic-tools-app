@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createHash, timingSafeEqual } from "node:crypto";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import TeamSidebar from "../TeamSidebar";
 import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
@@ -43,22 +42,10 @@ import "./journey-preview/preview.css";
 
 async function requireReadinessAccess() {
   const store = await cookies();
-  const token = store.get("epic_access_token")?.value;
-  if (await getAuthenticatedTeamProfile(token)) return;
-
-  // Preserve the existing HQ workstation workflow, but validate its cookie
-  // rather than accepting the presence of an arbitrary employee cookie.
-  const password = process.env.EPIC_HQ_RECEPTION_PASSWORD?.trim();
-  const supplied = store.get("epic_workstation_access")?.value;
-  if (password && supplied) {
-    const expected = createHash("sha256").update(password).digest();
-    if (/^[0-9a-f]{64}$/i.test(supplied)) {
-      const actual = Buffer.from(supplied, "hex");
-      if (actual.length === expected.length && timingSafeEqual(actual, expected)) return;
-    }
-  }
-  redirect("/employee-login");
+  const profile = await getAuthenticatedTeamProfile(store.get("epic_access_token")?.value);
+  if (!profile || profile.role === "workstation") redirect("/employee-login");
 }
+
 
 type OperationalReadinessRow = ReadinessRow & {
   pickup_prior_evening?: boolean | null;
