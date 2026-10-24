@@ -6,6 +6,20 @@ async function canManageUsers(request: NextRequest) {
   return profile?.role === "admin" || profile?.role === "manager";
 }
 
+function getSupabaseConfig() {
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SECRET_KEY?.trim();
+  if (!rawUrl || !key) throw new Error("Supabase configuration is missing.");
+  const url = (/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`).replace(/\/+$/, "");
+  return { url, key };
+}
+
+type WebhookRow = {
+  payload: {
+    owner?: { id?: number | string | null; full_name?: string | null } | null;
+  } | null;
+};
+
 export async function GET(request: NextRequest) {
   if (!await canManageUsers(request)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
