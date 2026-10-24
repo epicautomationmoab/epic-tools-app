@@ -40,27 +40,20 @@ type DrawerTargets = {
   depositTarget: HTMLElement | null;
 };
 
-function getSupabaseBrowserConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase configuration is missing.");
-  return { url, key };
-}
-
 async function rpc<T>(functionName: string, body: Record<string, unknown> = {}) {
-  const { url, key } = getSupabaseBrowserConfig();
-  const response = await fetch(`${url}/rest/v1/rpc/${functionName}`, {
+  const response = await fetch("/api/team/readiness/finance", {
     method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      operation: functionName,
+      readiness_id: body.p_readiness_id,
+      basis: body.p_basis,
+    }),
   });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `Unable to run ${functionName}.`);
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to update rental deposit.");
   }
   return response.json() as Promise<T>;
 }
