@@ -18,7 +18,23 @@ export default async function ArrivalBoardPage() {
   let error = "";
 
   try {
-    rows = await getArrivalBoardRows();
+    const rawRows = await getArrivalBoardRows();
+    // Public lobby display: allowlist fields before serializing data to the client.
+    // Never pass through the entire internal Arrival Board database record.
+    rows = rawRows.map((row) => ({
+      visit_start_time: row.visit_start_time,
+      confirmation_code: row.confirmation_code,
+      customer_name: row.customer_name,
+      customer_phone_last_four: row.customer_phone_last_four,
+      business_line: row.business_line,
+      board_activity_label: row.board_activity_label,
+      product_display_name: row.product_display_name,
+      rental_duration: row.rental_duration,
+      total_vehicle_count: row.total_vehicle_count,
+      vehicle_breakdown: row.vehicle_breakdown,
+      board_action_label: row.board_action_label,
+      board_action_type: row.board_action_type,
+    }));
   } catch (err) {
     error = err instanceof Error ? err.message : "Unable to load arrival board rows.";
   }
