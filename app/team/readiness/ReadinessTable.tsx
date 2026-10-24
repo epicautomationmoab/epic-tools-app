@@ -265,25 +265,15 @@ function KioskSelect({ row }: { row: ReadinessRow }) {
 }
 
 async function persistNote(readinessId: string, notes: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase configuration is missing.");
-
-  const response = await fetch(`${url}/rest/v1/rpc/save_guest_readiness_note`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ p_readiness_id: readinessId, p_notes: notes }),
+  const response = await fetch("/api/team/readiness/legacy-note", {
+    method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ readiness_id: readinessId, notes }),
   });
-
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to save note.");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to save note.");
   }
-
   return notes.trim() || null;
 }
 
