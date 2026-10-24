@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 
-const allowed = new Set(["checked_in", "rental_out", "rental_returned"]);
+const allowed = new Set(["checked_in", "rental_out", "rental_returned", "clear"]);
 
 // Staff-only proxy for the privileged handoff RPC. Never accept actor attribution
 // from the caller; derive it from a verified employee session.
@@ -21,10 +21,14 @@ export async function POST(request: NextRequest) {
   const key = process.env.SUPABASE_SECRET_KEY?.trim();
   if (!url || !key) return NextResponse.json({ error: "Server configuration missing." }, { status: 503 });
 
-  const result = await fetch(`${url}/rest/v1/rpc/set_epic_operational_handoff`, {
+  const clearing = status === "clear";
+  const result = await fetch(`${url}/rest/v1/rpc/${clearing ? "clear_epic_operational_handoff" : "set_epic_operational_handoff"}`, {
     method: "POST",
     headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: JSON.stringify(clearing ? {
+      p_readiness_id: readinessId,
+      p_recorded_by: profile.display_name,
+    } : {
       p_readiness_id: readinessId,
       p_handoff_status: status,
       p_recorded_by: profile.display_name,
@@ -33,5 +37,5 @@ export async function POST(request: NextRequest) {
   }).catch(() => null);
   if (!result) return NextResponse.json({ error: "Handoff service unavailable." }, { status: 502 });
   if (!result.ok) return NextResponse.json({ error: "Unable to update reservation handoff." }, { status: result.status >= 500 ? 502 : 400 });
-  return NextResponse.json({ ok: true, handoff_status: status });
+  return NextResponse.json({ ok: true, handoff_status: clearing ? null : status });
 }
