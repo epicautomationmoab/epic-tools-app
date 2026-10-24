@@ -29,6 +29,9 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
 type SourceType = "payment" | "deposit_release" | "email_delivery" | "rhett_booking";
 
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL_ENV === "preview") {
+    return NextResponse.json({ error: "Exception resolution is disabled in preview until a test database is isolated." }, { status: 403 });
+  }
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
   if (!profile || profile.role === "workstation") {
     return NextResponse.json({ error: "Employee login required." }, { status: 401 });
