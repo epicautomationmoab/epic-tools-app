@@ -1,0 +1,1 @@
+create or replace function public.epic_unified_notes_employee_allowed() returns boolean language sql stable security definer set search_path=public as $$ select exists(select 1 from public.team_profiles p where p.user_id=auth.uid() and p.active=true and p.role <> 'workstation') $$;
