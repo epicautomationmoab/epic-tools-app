@@ -26,3 +26,11 @@
 - Establish a safe disposable integration database using an explicit, non-production configuration and representative synthetic data.
 - Apply only staged targeted REVOKE changes in that disposable environment, verify effective grants, and execute essential operational tests.
 - Prepare exact rollback steps and request the owner's approval before any production rollout.
+
+## Staging integration update — October 25, 2026
+
+- Dedicated Supabase staging project `cchsrkhpvvrvcuepkqdu` restored: 205 tables, 70 views, 339 functions, 18 RLS policies; all 205 tables have RLS enabled.
+- Staging `anon` and `authenticated` roles denied application schema access pending narrow test-specific permissions.
+- Vercel projects `epic-tools-app` and `epic-tools-preview` received **security-branch-only** preview overrides for `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` targeting staging, plus disabled placeholders for `SUPABASE_SECRET_KEY` and `RESEND_API_KEY`.
+- Staging-safe build does **not** imply authenticated end-to-end workflows work; server-side staging service credentials and synthetic employee fixtures still required.
+- Other external side-effect integrations must remain disabled or separately isolated before running write tests. Production unchanged.
