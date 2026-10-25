@@ -99,7 +99,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json(); const noteId = String(body?.note_id || "").trim(); const noteText = String(body?.note_text || "").trim();
     if (!noteId || !noteText) return NextResponse.json({ error:"note_id and note_text are required." }, { status:400 });
-    if (noteId === "legacy") { const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, noteText); return NextResponse.json({ ok:true }); }
+    if (noteId === "legacy") { if (profile.role !== "admin" && profile.role !== "manager") return NextResponse.json({error:"Manager authorization required for legacy notes."},{status:403}); const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, noteText); return NextResponse.json({ ok:true }); }
     if (!await canModifyNote(noteId, profile)) return NextResponse.json({error:"Not authorized to modify this note."},{status:403});
     const rows = await rest<Array<Record<string,unknown>>>(`epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}&source=neq.tripworks`, { method:"PATCH", headers:{ Prefer:"return=representation" }, body:JSON.stringify({ note_text:noteText, updated_at:new Date().toISOString() }) });
     return NextResponse.json({ ok:true, note:rows[0] || null });
