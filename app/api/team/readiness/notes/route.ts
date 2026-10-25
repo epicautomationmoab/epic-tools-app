@@ -111,7 +111,7 @@ export async function DELETE(request: NextRequest) {
   if (!profile) return NextResponse.json({ error:"Employee login required." }, { status:401 });
   try {
     const body = await request.json(); const noteId = String(body?.note_id || "").trim(); if (!noteId) return NextResponse.json({ error:"note_id is required." }, { status:400 });
-    if (noteId === "legacy") { const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, ""); return NextResponse.json({ ok:true }); }
+    if (noteId === "legacy") { if (profile.role !== "admin" && profile.role !== "manager") return NextResponse.json({error:"Manager authorization required for legacy notes."},{status:403}); const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, ""); return NextResponse.json({ ok:true }); }
     if (!await canModifyNote(noteId, profile)) return NextResponse.json({error:"Not authorized to archive this note."},{status:403});
     await rest<void>(`epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}&source=neq.tripworks`, { method:"PATCH", headers:{ Prefer:"return=minimal" }, body:JSON.stringify({ archived_at:new Date().toISOString(), updated_at:new Date().toISOString() }) });
     return NextResponse.json({ ok:true });
