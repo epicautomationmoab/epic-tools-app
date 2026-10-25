@@ -67,3 +67,32 @@ test("middleware behavior: unauthenticated staff redirected; lobby and kiosk rem
   assert.equal((await middleware(request("/team/arrival-board"))).kind, "next");
   assert.equal((await middleware(request("/kiosk"))).kind, "next");
 });
+
+test("handoff API rejects missing and workstation identities, permits valid employee", async () => {
+  const ts = require("typescript");
+  const vm = require("node:vm");
+  const source = read("app/api/team/readiness/handoff/route.ts");
+  const js = ts.transpileModule(source, {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+  let identity = null;
+  const calls = [];
+  const response = { json(body, options = {}) { return { body, status: options.status || 200 }; } };
+  const sandbox = { exports:{}, require(name) {
+    if (name === "next/server") return {NextResponse:response};
+    if (name === "@/lib/team-auth") return {getAuthenticatedTeamProfile:async () => identity};
+    throw new Error("unexpected module: "+name);
+  }, process:{env:{NEXT_PUBLIC_SUPABASE_URL:"https://stub.invalid",SUPABASE_SECRET_KEY:"test-only"}}, fetch:async (url,init) => {calls.push({url,init});return {ok:true,status:200};} };
+  vm.runInNewContext(js,sandbox,{filename:"handoff-route.js"});
+  const request = (body) => ({cookies:{get(){return undefined;}},json:async()=>body});
+  const valid = {readiness_id:"123e4567-e89b-42d3-a456-426614174000",handoff_status:"checked_in"};
+  assert.equal((await sandbox.exports.POST(request(valid))).status,401);
+  assert.equal(calls.length,0);
+  identity={role:"workstation",display_name:"Shared"};
+  assert.equal((await sandbox.exports.POST(request(valid))).status,401);
+  assert.equal(calls.length,0);
+  identity={role:"agent",display_name:"Test Employee"};
+  assert.equal((await sandbox.exports.POST(request({...valid,actorDisplayName:"Forged Actor"}))).status,200);
+  assert.equal(calls.length,1);
+  assert.equal(JSON.parse(calls[0].init.body).p_recorded_by,"Test Employee");
+  assert.equal((await sandbox.exports.POST(request({...valid,handoff_status:"unexpected"}))).status,400);
+  assert.equal(calls.length,1);
+});
