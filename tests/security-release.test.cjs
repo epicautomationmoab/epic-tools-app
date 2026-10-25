@@ -101,7 +101,7 @@ function mockedRoute(path, identity) {
   const ts=require("typescript"),vm=require("node:vm");
   let current=identity,calls=[];
   const response={json(body,options={}){return {body,status:options.status||200};}};
-  const sandbox={exports:{},require(name){
+  const sandbox={exports:{},URL,require(name){
     if(name==="next/server")return {NextResponse:response};
     if(name==="@/lib/team-auth")return {getAuthenticatedTeamProfile:async()=>current,listTeamProfiles:async()=>[],listSupabaseAuthUsers:async()=>[]};
     throw Error("unexpected import "+name);
