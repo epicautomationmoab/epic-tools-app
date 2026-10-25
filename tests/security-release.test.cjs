@@ -103,7 +103,7 @@ function mockedRoute(path, identity) {
   const response={json(body,options={}){return {body,status:options.status||200};}};
   const sandbox={exports:{},require(name){
     if(name==="next/server")return {NextResponse:response};
-    if(name==="@/lib/team-auth")return {getAuthenticatedTeamProfile:async()=>current};
+    if(name==="@/lib/team-auth")return {getAuthenticatedTeamProfile:async()=>current,listTeamProfiles:async()=>[],listSupabaseAuthUsers:async()=>[]};
     throw Error("unexpected import "+name);
   },process:{env:{NEXT_PUBLIC_SUPABASE_URL:"https://mock.invalid",SUPABASE_SECRET_KEY:"mock-key"}},fetch:async(url,init)=>{calls.push({url,init});return {ok:true,status:200,json:async()=>({}),text:async()=>("{}")};}};
   const js=ts.transpileModule(read(path),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -145,4 +145,16 @@ test("team invites endpoint restricts access to managers and administrators",asy
   assert.equal(t.calls.length,0);
   const code=read("app/api/admin/team-invites/route.ts");
   assert.match(code,/profile\?\.role === "admin" \|\| profile\?\.role === "manager"/);
+});
+
+test("manager and admin may list team profiles without changing records",async()=>{
+  const t=mockedRoute("app/api/admin/team-invites/route.ts",{role:"manager",display_name:"Test Manager"});
+  const managerResult=await t.route.GET(t.request({}));
+  assert.equal(managerResult.status,200);
+  assert.equal(Array.from(managerResult.body.profiles).length,0);
+  t.setIdentity({role:"admin",display_name:"Test Administrator"});
+  const adminResult=await t.route.GET(t.request({}));
+  assert.equal(adminResult.status,200);
+  assert.equal(Array.from(adminResult.body.profiles).length,0);
+  assert.equal(t.calls.length,0);
 });
