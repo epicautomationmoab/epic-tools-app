@@ -36,3 +36,10 @@ No application preview may point to this incomplete database. Production securit
 ## Current execution boundary
 
 The available connected Supabase tools can run read-only schema inspection but **do not expose pg_dump or database credentials**. A trustworthy 205-table/478-migration baseline cannot be safely synthesized from one-table guesses. No second paid branch was created, and no production schema or migration history was altered.
+
+
+## Vercel preview isolation evidence (2026-10-25)
+
+Read-only metadata inspection across all four linked Vercel projects (`epic-tools-app`, `epic-tools-preview`, `epic-guest-portal`, and `epic-4x4-ambassador`) shows `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY` variables assigned to the **preview target without a branch-specific override**. Most are also assigned to production target; sensitive values were not decrypted or copied. This **does not prove a particular preview deployment connects to production**, but it demonstrates that the existing previews cannot be treated as database-isolated staging without further verification. No write-enabled preview integration tests are authorized under these settings.
+
+Before connecting an isolated database, create explicit branch-scoped staging values and verify all external side effects (agents, messaging, payment, reservation processing) are disabled or sandboxed. Do not mutate shared production+preview environment-variable entries or redeploy the live application to accomplish staging.
