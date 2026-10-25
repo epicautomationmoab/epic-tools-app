@@ -16,3 +16,23 @@ Create a versioned, vetted **baseline schema migration** derived from production
 
 ## Release status
 No application preview may point to this incomplete database. Production security release remains **NO-GO** until isolated integration testing and staged grant revocations can be performed successfully.
+
+
+## Verified baseline inventory (read-only production checks, 2026-10-25)
+
+- Production currently has **205 public base tables and 70 public views**.
+- Supabase migration ledger contains **478 recorded migrations**.
+- Later repository migration `supabase/migrations/20260821_post_visit_thank_you.sql` directly references pre-existing `public.guest_readiness_operational` and `public.epic_waiver_signatures`, independently confirming baseline dependencies.
+- This is a **historical-schema/bootstrap mismatch**, not a single missing waiver table. Creating just one table to bypass the first error would produce a misleading, incomplete staging system.
+
+## Safe implementation specification
+
+1. Export a **schema-only snapshot** from production with a controlled PostgreSQL dump workflow, preserving objects, functions, triggers, policies, grants, and dependencies but **no table or auth rows**. Do not put production credentials, guest data, or other private records into Git.
+2. Build a sanitized baseline in a disposable isolated database. Avoid replaying today's schema on top of 478 already-represented migrations. Either use a separately maintained migration-baseline strategy with a documented version checkpoint, or resolve existing migrations against an earlier verified foundational schema.
+3. Validate object parity on an intentionally narrow critical set before use: `epic_waiver_signatures`, `guest_readiness_operational`, `epic_unified_notes`, finance RPCs, auth dependencies, and row-level security.
+4. Prove that the app and agents target only nonproduction resources before any state-changing integration checks.
+5. Record creation, teardown, cost, test outcomes, and rollback. Do not declare the app staged merely because the database responds to SQL.
+
+## Current execution boundary
+
+The available connected Supabase tools can run read-only schema inspection but **do not expose pg_dump or database credentials**. A trustworthy 205-table/478-migration baseline cannot be safely synthesized from one-table guesses. No second paid branch was created, and no production schema or migration history was altered.
