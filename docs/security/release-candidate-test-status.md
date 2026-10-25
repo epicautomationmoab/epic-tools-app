@@ -1,21 +1,28 @@
-# Security release candidate — verified test status
+# Security release candidate — evidence and release decision (2026-10-25)
 
-## Passing checks
+## Verified
 
-- Commit `e4734386`: Vercel build logs show **11/11** automated checks passed, zero failures.
-- All four preview deployments for this commit report **READY**.
-- Tests include route guard inspections, mocked middleware behavior, mocked handoff, finance, and no-show API behavior, and negative checks for unauthorized users, workstation role, invalid data, and actor spoofing.
-- Manager-only team invitation GET denies unauthenticated, agent, and workstation identities. Manager/admin allowed response has **not** been exercised with full dependency mocks.
+- Commit `05ceb65f`: 22/22 automated regressions passed in Vercel logs.
+- All four Vercel preview builds for the commit are READY.
+- Mocked route execution covers employee authentication, workstation denial, manager access, finance, no-show, contact, coverage, guest counts, courtesy calls, MPWR, notes and unified-note ownership.
+- Read-only production schema inspection confirms `epic_unified_notes` has the author and note identifier fields used in the new access control.
+- No production SQL grants, app deployments, or reservation records changed.
 
-## Not yet proven — release remains blocked
+## Release blockers — still open
 
-- These are unit/source and mocked behavioral tests; no end-to-end authenticated employee or transactional workflows were run.
-- Privileged database view and RPC revocations are staged, not applied; effective production anonymous grants remain unchanged.
-- Preview isolation from operational data writes is not proven.
-- Full functional regression of C360, rentals, waivers, checkout/check-in, deposits, and agents is outstanding.
-- Durable audit provenance is not completely verified.
-- Owner approval, production deployment, and postdeployment verification have not happened.
+1. No functioning isolated integration database with production-equivalent policies has been established for the security release. Do not test financial or operational mutations against live reservations.
+2. Preview-to-production write isolation remains unproven across the app and its other connected services.
+3. Targeted sensitive view and RPC grants remain unchanged in production. Caller compatibility and policy regressions have not been verified after staging revocations.
+4. End-to-end guest readiness, rental checkout/return, deposit/release and agent workflows have not been tested against an isolated environment.
+5. Durable mutation audit coverage and release rollback/post-deploy smoke plan still require verification.
 
-## Release decision
+## Decision
 
-**NO-GO** for production merge today. Preserve the frozen scope and only resolve these existing release-blocking gates. Do not mistake green preview builds for production readiness.
+**NO-GO for production merge.** The 22 passing tests prove mocked code behavior, not operational integration safety. Do not expand the unit-test count instead of resolving the infrastructure and integration gates. No new branch or production mutation without owner authorization.
+
+## Next bounded work
+
+- Inventory preview environment targets without revealing credentials and block unsafe write paths before allowing integration requests.
+- Establish a safe disposable integration database using an explicit, non-production configuration and representative synthetic data.
+- Apply only staged targeted REVOKE changes in that disposable environment, verify effective grants, and execute essential operational tests.
+- Prepare exact rollback steps and request the owner's approval before any production rollout.
