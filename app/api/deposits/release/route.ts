@@ -47,6 +47,26 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Manager or Admin required to release a Do Not Release deposit." }, { status: 403 });
       }
 
+      // The hold-clearing RPC changes status to 'held' when no rental_returned
+      // handoff exists. Launching Victor then fails, leaving the hold removed.
+      // Preflight that eligibility before mutating the protective hold.
+      const { url, key } = getSupabaseAdminConfig();
+      const handoffUrl = new URL(`${url}/rest/v1/epic_operational_handoffs`);
+      handoffUrl.searchParams.set("select", "business_line,handoff_status");
+      handoffUrl.searchParams.set("readiness_id", `eq.${readinessId}`);
+      handoffUrl.searchParams.set("limit", "1");
+      const handoffResponse = await fetch(handoffUrl, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        cache: "no-store",
+      });
+      if (!handoffResponse.ok) throw new Error("Unable to verify rental return before removing the deposit hold.");
+      const handoffs = await handoffResponse.json();
+      if (!Array.isArray(handoffs) || handoffs[0]?.business_line !== "rental" || handoffs[0]?.handoff_status !== "rental_returned") {
+        return NextResponse.json({
+          error: "Rental return is not recorded. Hold preserved; verify any external MPWR release separately.",
+        }, { status: 409 });
+      }
+
       await callRpc("set_rental_damage_deposit_hold", {
         p_readiness_id: readinessId,
         p_do_not_release: false,
