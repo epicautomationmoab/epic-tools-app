@@ -41,3 +41,29 @@ test("server action identity does not permit caller supplied actor name", () => 
   assert.match(code, /actorName: profile\.display_name/);
   assert.match(code, /sharedSession: false/);
 });
+
+test("middleware behavior: unauthenticated staff redirected; lobby and kiosk remain public", async () => {
+  const ts = require("typescript");
+  const vm = require("node:vm");
+  const source = read("middleware.ts");
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const redirects = [];
+  const NextResponse = {
+    redirect(url) { redirects.push(String(url)); return { kind: "redirect", url: String(url) }; },
+    next() { return { kind: "next" }; },
+  };
+  const sandbox = { exports: {}, require(name) { if (name === "next/server") return { NextResponse }; throw new Error(name); }, URL };
+  vm.runInNewContext(js, sandbox, { filename: "middleware.js" });
+  const request = (path, token) => ({
+    cookies: { get() { return token ? { value: token } : undefined; } },
+    nextUrl: { pathname: path, clone() { return { pathname: path }; } },
+    url: "https://preview.example" + path,
+    headers: { get() { return "preview.example"; } },
+  });
+  const middleware = sandbox.exports.middleware;
+  assert.equal((await middleware(request("/team/readiness"))).kind, "redirect");
+  assert.match(redirects[0], /\/employee-login$/);
+  assert.equal((await middleware(request("/team/readiness", "mock-token"))).kind, "next");
+  assert.equal((await middleware(request("/team/arrival-board"))).kind, "next");
+  assert.equal((await middleware(request("/kiosk"))).kind, "next");
+});
