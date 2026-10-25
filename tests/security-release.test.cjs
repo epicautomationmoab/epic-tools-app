@@ -258,3 +258,25 @@ test("unified note author guard requires author match and exempts managers",()=>
  assert.match(code,/Not authorized to modify this note/);
  assert.match(code,/Not authorized to archive this note/);
 });
+
+test("unified note ownership checks deny other staff and allow author or manager",async()=>{
+ const ts=require("typescript"),vm=require("node:vm");
+ let identity={role:"agent",display_name:"Employee B"},calls=[];
+ const response={json(body,options={}){return {body,status:options.status||200}}};
+ const sandbox={exports:{},URL,Date,console,process:{env:{NEXT_PUBLIC_SUPABASE_URL:"https://stub.invalid",SUPABASE_SECRET_KEY:"fake"}},require(name){
+  if(name==="next/server")return {NextResponse:response};
+  if(name==="@/lib/team-auth")return {getAuthenticatedTeamProfile:async()=>identity};
+  throw Error(name);
+ },fetch:async(url,options)=>{calls.push({url,options});return {ok:true,status:200,text:async()=>url.includes("select=author_name")?'[{"author_name":"Employee A"}]':'[{"note_id":"123e4567-e89b-42d3-a456-426614174000"}]'};}};
+ const js=ts.transpileModule(read("app/api/team/readiness/notes/route.ts"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ vm.runInNewContext(js,sandbox);
+ const req=()=>({cookies:{get(){return undefined;}},json:async()=>({note_id:"123e4567-e89b-42d3-a456-426614174000",note_text:"Corrected"})});
+ assert.equal((await sandbox.exports.PATCH(req())).status,403);
+ assert.equal(calls.filter(x=>x.options?.method==="PATCH").length,0);
+ identity={role:"agent",display_name:"Employee A"};
+ assert.equal((await sandbox.exports.PATCH(req())).status,200);
+ assert.equal(calls.filter(x=>x.options?.method==="PATCH").length,1);
+ identity={role:"manager",display_name:"Manager"};
+ assert.equal((await sandbox.exports.DELETE(req())).status,200);
+ assert.equal(calls.filter(x=>x.options?.method==="PATCH").length,2);
+});
