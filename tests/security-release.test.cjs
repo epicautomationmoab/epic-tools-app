@@ -241,3 +241,20 @@ test("unified notes GET POST PATCH DELETE deny unauthenticated and workstation a
  }
  assert.equal(t.calls.length,0);
 });
+
+test("regular employees cannot edit or archive legacy notes",async()=>{
+ const t=mockedRoute("app/api/team/readiness/notes/route.ts",{role:"agent",display_name:"Staff"});
+ for(const method of ["PATCH","DELETE"]){
+  const req=t.request({note_id:"legacy",note_text:"Changed"});
+  assert.equal((await t.route[method](req)).status,403);
+ }
+ assert.equal(t.calls.length,0);
+});
+test("unified note author guard requires author match and exempts managers",()=>{
+ const code=read("app/api/team/readiness/notes/route.ts");
+ assert.match(code,/async function canModifyNote/);
+ assert.match(code,/profile.role === "admin" \|\| profile.role === "manager"/);
+ assert.match(code,/author_name.trim\(\).toLowerCase\(\) === profile.display_name.trim\(\).toLowerCase\(\)/);
+ assert.match(code,/Not authorized to modify this note/);
+ assert.match(code,/Not authorized to archive this note/);
+});
