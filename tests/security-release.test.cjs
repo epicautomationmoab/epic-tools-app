@@ -52,7 +52,7 @@ test("middleware behavior: unauthenticated staff redirected; lobby and kiosk rem
     redirect(url) { redirects.push(String(url)); return { kind: "redirect", url: String(url) }; },
     next() { return { kind: "next" }; },
   };
-  const sandbox = { exports: {}, require(name) { if (name === "next/server") return { NextResponse }; throw new Error(name); }, URL };
+  const sandbox = { exports: {}, process: { env: { VERCEL_ENV: "production" } }, require(name) { if (name === "next/server") return { NextResponse }; throw new Error(name); }, URL };
   vm.runInNewContext(js, sandbox, { filename: "middleware.js" });
   const request = (path, token) => ({
     cookies: { get() { return token ? { value: token } : undefined; } },
@@ -279,4 +279,15 @@ test("unified note ownership checks deny other staff and allow author or manager
  identity={role:"manager",display_name:"Manager"};
  assert.equal((await sandbox.exports.DELETE(req())).status,200);
  assert.equal(calls.filter(x=>x.options?.method==="PATCH").length,2);
+});
+
+test("preview middleware denies API writes but permits safe reads",async()=>{
+ const ts=require("typescript"),vm=require("node:vm");
+ const js=ts.transpileModule(read("middleware.ts"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const sandbox={exports:{},process:{env:{VERCEL_ENV:"preview"}},URL,require(name){if(name==="next/server")return {NextResponse:{json(body,opts){return {status:opts.status,body}},next(){return {status:200}}}};throw Error(name)}};
+ vm.runInNewContext(js,sandbox);
+ const req=(method,path)=>({method,nextUrl:{pathname:path},cookies:{get(){return undefined}},headers:{get(){return "preview.example"}}});
+ for(const method of ["POST","PATCH","PUT","DELETE"])assert.equal((await sandbox.exports.middleware(req(method,"/api/team/readiness/finance"))).status,403);
+ assert.equal((await sandbox.exports.middleware(req("GET","/api/test"))).status,200);
+ assert.match(read("middleware.ts"),/"/api\/:path\*"/);
 });
