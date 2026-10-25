@@ -291,3 +291,10 @@ test("preview middleware denies API writes but permits safe reads",async()=>{
  assert.equal((await sandbox.exports.middleware(req("GET","/api/test"))).status,200);
  assert.ok(read("middleware.ts").includes('"/api/:path*"'));
 });
+
+
+test("notes route cannot bypass the environment-scoped Supabase target", () => {
+ const source = read("app/api/team/readiness/notes/route.ts");
+ assert.doesNotMatch(source, /EPIC_NOTES_PREVIEW_(URL|KEY)/);
+ assert.match(source, /const \{ url, key \} = config\(\)/);
+});
