@@ -192,3 +192,38 @@ test("coverage update rejects unsupported level before database mutation",async(
  assert.equal((await t.route.POST(t.request(input))).status,200);
  assert.equal(JSON.parse(t.calls[0].init.body).p_updated_by,"Coverage Employee");
 });
+
+test("courtesy call validates all input and uses authenticated employee",async()=>{
+ const t=mockedRoute("app/api/team/readiness/courtesy-call/route.ts",null);
+ const input={readiness_id:"123e4567-e89b-42d3-a456-426614174000",arrival_confirmed:true,location_discussed:false,call_outcome:"Reached guest",notes:"Confirmed"};
+ assert.equal((await t.route.POST(t.request(input))).status,401);
+ t.setIdentity({role:"workstation",display_name:"Shared"});
+ assert.equal((await t.route.POST(t.request(input))).status,401);
+ t.setIdentity({role:"agent",display_name:"Verified Employee"});
+ assert.equal((await t.route.POST(t.request({...input,arrival_confirmed:"true"}))).status,400);
+ assert.equal(t.calls.length,0);
+ assert.equal((await t.route.POST(t.request(input))).status,200);
+ assert.equal(JSON.parse(t.calls[0].init.body).p_completed_by,"Verified Employee");
+});
+test("MPWR waiver override rejects unsafe URL and shared workstation",async()=>{
+ const t=mockedRoute("app/api/team/readiness/mpwr-override/route.ts",null);
+ const input={readiness_id:"123e4567-e89b-42d3-a456-426614174000",confirmation_number:"EXAMPLE",waiver_url:"https://example.invalid/waiver"};
+ assert.equal((await t.route.POST(t.request(input))).status,401);
+ t.setIdentity({role:"workstation",display_name:"Shared"});
+ assert.equal((await t.route.POST(t.request(input))).status,401);
+ t.setIdentity({role:"agent",display_name:"Verified"});
+ assert.equal((await t.route.POST(t.request({...input,waiver_url:"http://example.invalid"}))).status,400);
+ assert.equal(t.calls.length,0);
+ assert.equal((await t.route.POST(t.request(input))).status,200);
+ assert.equal(t.calls.length,1);
+});
+test("legacy readiness notes reject oversize data and unauthenticated requests",async()=>{
+ const t=mockedRoute("app/api/team/readiness/legacy-note/route.ts",null);
+ const input={readiness_id:"123e4567-e89b-42d3-a456-426614174000",notes:"Test note"};
+ assert.equal((await t.route.POST(t.request(input))).status,401);
+ t.setIdentity({role:"agent",display_name:"Verified"});
+ assert.equal((await t.route.POST(t.request({...input,notes:"x".repeat(10001)}))).status,400);
+ assert.equal(t.calls.length,0);
+ assert.equal((await t.route.POST(t.request(input))).status,200);
+ assert.equal(t.calls.length,1);
+});
