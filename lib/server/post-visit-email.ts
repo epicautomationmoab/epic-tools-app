@@ -41,10 +41,10 @@ function reviewBlock(brandAssetBase: string) {
       </p>
       <div style="font-size:0">
         <a href="${GOOGLE_REVIEW_URL}" style="display:inline-block;vertical-align:top;margin:0 10px 10px 0;padding:10px 16px;border:1px solid #d8dde6;border-radius:9px;background:#ffffff;color:#202124;font-size:14px;font-weight:800;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.04)">
-          <img src="${brandAssetBase}/google" alt="Google" width="20" height="20" style="display:inline-block;width:20px;height:20px;margin:0 9px 0 0;border:0;vertical-align:-5px" />Review on Google
+          Review on Google
         </a>
         <a href="${TRIPADVISOR_REVIEW_URL}" style="display:inline-block;vertical-align:top;margin:0 0 10px;padding:10px 16px;border:1px solid #b9dfd2;border-radius:9px;background:#ffffff;color:#111111;font-size:14px;font-weight:800;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.04)">
-          <img src="${brandAssetBase}/tripadvisor" alt="TripAdvisor" width="31" height="20" style="display:inline-block;width:31px;height:20px;margin:0 9px 0 0;border:0;vertical-align:-5px;object-fit:contain" />Review on TripAdvisor
+          Review on TripAdvisor
         </a>
       </div>
     </div>`;
@@ -54,9 +54,9 @@ function socialBlock(brandAssetBase: string) {
   return `
     <p style="margin:22px 0 18px;font-size:16px;line-height:1.65;color:#3a3a3a">
       We’d also love to stay connected. Follow us on
-      <a href="${FACEBOOK_URL}" style="color:#b10707;font-weight:700;text-decoration:none;white-space:nowrap"><img src="${brandAssetBase}/facebook-fixed" alt="" width="18" height="18" style="display:inline-block;width:18px;height:18px;margin:0 5px 0 4px;border:0;vertical-align:-4px" />Facebook</a>
+      <a href="${FACEBOOK_URL}" style="color:#b10707;font-weight:700;text-decoration:none;white-space:nowrap">Facebook</a>
       and
-      <a href="${INSTAGRAM_URL}" style="color:#b10707;font-weight:700;text-decoration:none;white-space:nowrap"><img src="${brandAssetBase}/instagram" alt="" width="18" height="18" style="display:inline-block;width:18px;height:18px;margin:0 5px 0 4px;border:0;vertical-align:-4px" />Instagram</a>
+      <a href="${INSTAGRAM_URL}" style="color:#b10707;font-weight:700;text-decoration:none;white-space:nowrap">Instagram</a>
       for trail photos, Moab adventures, and the latest from Epic.
     </p>`;
 }
