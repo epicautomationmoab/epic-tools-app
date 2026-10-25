@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // Preview deployments share some database settings with production. Until
+  // isolated staging credentials are verified, disallow all API mutations.
+  if (process.env.VERCEL_ENV === "preview" &&
+      request.nextUrl.pathname.startsWith("/api/") &&
+      !["GET", "HEAD", "OPTIONS"].includes(request.method.toUpperCase())) {
+    return NextResponse.json({ error: "Preview API writes are disabled until staging is isolated." }, { status: 403 });
+  }
+
   const hasEmployeeSession = Boolean(request.cookies.get("epic_access_token")?.value);
   const pathname = request.nextUrl.pathname;
 
@@ -34,5 +42,6 @@ export const config = {
     "/team/:path*",
     "/kiosk/:path*",
     "/visit/:path*",
+    "/api/:path*",
   ],
 };
