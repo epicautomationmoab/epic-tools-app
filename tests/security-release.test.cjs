@@ -105,7 +105,7 @@ function mockedRoute(path, identity) {
     if(name==="next/server")return {NextResponse:response};
     if(name==="@/lib/team-auth")return {getAuthenticatedTeamProfile:async()=>current};
     throw Error("unexpected import "+name);
-  },process:{env:{NEXT_PUBLIC_SUPABASE_URL:"https://mock.invalid",SUPABASE_SECRET_KEY:"mock-key"}},fetch:async(url,init)=>{calls.push({url,init});return {ok:true,status:200};}};
+  },process:{env:{NEXT_PUBLIC_SUPABASE_URL:"https://mock.invalid",SUPABASE_SECRET_KEY:"mock-key"}},fetch:async(url,init)=>{calls.push({url,init});return {ok:true,status:200,json:async()=>({}),text:async()=>("{}")};}};
   const js=ts.transpileModule(read(path),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
   vm.runInNewContext(js,sandbox);
   return {route:sandbox.exports,setIdentity(x){current=x},calls,request(body){return {cookies:{get(){return undefined}},json:async()=>body}}};
