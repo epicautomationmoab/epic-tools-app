@@ -158,3 +158,37 @@ test("manager and admin may list team profiles without changing records",async()
   assert.equal(Array.from(adminResult.body.profiles).length,0);
   assert.equal(t.calls.length,0);
 });
+
+test("people override enforces employee identity, bounds and server actor",async()=>{
+ const t=mockedRoute("app/api/team/readiness/people-override/route.ts",null);
+ const input={operation:"set_readiness_people_override",readiness_id:"123e4567-e89b-42d3-a456-426614174000",people_count:4,reason:"Guest count correction"};
+ assert.equal((await t.route.POST(t.request(input))).status,401);
+ t.setIdentity({role:"workstation",display_name:"Shared"});
+ assert.equal((await t.route.POST(t.request(input))).status,401);
+ t.setIdentity({role:"agent",display_name:"Employee Verified"});
+ assert.equal((await t.route.POST(t.request({...input,people_count:101}))).status,400);
+ assert.equal((await t.route.POST(t.request({...input,reason:""}))).status,400);
+ assert.equal(t.calls.length,0);
+ assert.equal((await t.route.POST(t.request({...input,actorDisplayName:"Forged"}))).status,200);
+ assert.equal(JSON.parse(t.calls[0].init.body).p_updated_by,"Employee Verified");
+});
+test("guest contact update rejects invalid data and uses authenticated actor",async()=>{
+ const t=mockedRoute("app/api/team/readiness/contact-override/route.ts",null);
+ const input={confirmation_code:"EPIC-TEST",field:"email",value:"guest@example.invalid"};
+ assert.equal((await t.route.POST(t.request(input))).status,401);
+ t.setIdentity({role:"agent",display_name:"Contact Employee"});
+ assert.equal((await t.route.POST(t.request({...input,value:"not-email"}))).status,400);
+ assert.equal(t.calls.length,0);
+ assert.equal((await t.route.POST(t.request(input))).status,200);
+ assert.equal(JSON.parse(t.calls[0].init.body).p_updated_by,"Contact Employee");
+});
+test("coverage update rejects unsupported level before database mutation",async()=>{
+ const t=mockedRoute("app/api/team/readiness/adventure-assure/route.ts",null);
+ const input={readiness_id:"123e4567-e89b-42d3-a456-426614174000",level:"Premier"};
+ assert.equal((await t.route.POST(t.request(input))).status,401);
+ t.setIdentity({role:"agent",display_name:"Coverage Employee"});
+ assert.equal((await t.route.POST(t.request({...input,level:"Unauthorized"}))).status,400);
+ assert.equal(t.calls.length,0);
+ assert.equal((await t.route.POST(t.request(input))).status,200);
+ assert.equal(JSON.parse(t.calls[0].init.body).p_updated_by,"Coverage Employee");
+});
