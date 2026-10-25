@@ -289,5 +289,5 @@ test("preview middleware denies API writes but permits safe reads",async()=>{
  const req=(method,path)=>({method,nextUrl:{pathname:path},cookies:{get(){return undefined}},headers:{get(){return "preview.example"}}});
  for(const method of ["POST","PATCH","PUT","DELETE"])assert.equal((await sandbox.exports.middleware(req(method,"/api/team/readiness/finance"))).status,403);
  assert.equal((await sandbox.exports.middleware(req("GET","/api/test"))).status,200);
- assert.match(read("middleware.ts"),/"/api\/:path\*"/);
+ assert.ok(read("middleware.ts").includes('"/api/:path*"'));
 });
