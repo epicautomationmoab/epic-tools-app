@@ -66,7 +66,6 @@ function quoteList(values: string[]) {
 
 export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
   const today = mountainDateKey();
-  const yesterday = mountainDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
   // IMPORTANT: held-over detection must read the operational table directly.
   // The app-facing readiness view is intentionally optimized for live/current readiness
@@ -76,13 +75,19 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
     business_line: "eq.rental",
     archived_at: "is.null",
     live_dashboard_visible: "eq.true",
-    visit_start_time: `gte.${yesterday}T00:00:00`,
     order: "visit_start_time.asc",
     limit: "500",
   });
   readinessParams.append("visit_start_time", `lt.${today}T00:00:00`);
 
-  const readinessRows = await fetchJson<ReadinessSourceRow>("guest_readiness_operational", readinessParams);
+  const readinessRows: ReadinessSourceRow[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const params = new URLSearchParams(readinessParams);
+    params.set("offset", String(offset));
+    const page = await fetchJson<ReadinessSourceRow>("guest_readiness_operational", params);
+    readinessRows.push(...page);
+    if (page.length < 500) break;
+  }
   if (readinessRows.length === 0) return [];
 
   const readinessIds = readinessRows.map((row) => row.readiness_id).filter((id): id is string => Boolean(id));
