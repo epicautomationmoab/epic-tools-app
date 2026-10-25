@@ -124,6 +124,20 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
     portalRows.push(...ps);
   }
 
+  const reconciledReadinessIds = new Set<string>();
+  for (let i = 0; i < readinessIds.length; i += 100) {
+    const ids = readinessIds.slice(i, i + 100);
+    const reconciled = await fetchJson<{ readiness_id: string }>(
+      "held_over_queue_reconciliations",
+      new URLSearchParams({
+        select: "readiness_id",
+        readiness_id: "in.(" + ids.map((id) => '"' + id + '"').join(",") + ")",
+        limit: "1000",
+      }),
+    );
+    for (const row of reconciled) reconciledReadinessIds.add(row.readiness_id);
+  }
+
   const noShowReadinessIds = new Set(noShows.map((row) => row.readiness_id));
   const latestHandoffByReadinessId = new Map<string, HandoffRow>();
   for (const handoff of handoffs) {
@@ -140,7 +154,7 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
   return readinessRows
     .filter((row) => {
       if (!row.readiness_id) return true;
-      if (noShowReadinessIds.has(row.readiness_id)) return false;
+      if (noShowReadinessIds.has(row.readiness_id) || reconciledReadinessIds.has(row.readiness_id)) return false;
       return latestHandoffByReadinessId.get(row.readiness_id)?.handoff_status !== "rental_returned";
     })
     .map((row) => ({
