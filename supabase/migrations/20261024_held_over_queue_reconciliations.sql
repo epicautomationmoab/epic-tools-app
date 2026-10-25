@@ -9,3 +9,6 @@ create table if not exists public.held_over_queue_reconciliations (
 alter table public.held_over_queue_reconciliations enable row level security;
 -- Private server-side use only; no anon or authenticated table grants.
 revoke all on table public.held_over_queue_reconciliations from anon, authenticated;
+
+-- The team app queries this through its server-side service-role client.
+grant select on table public.held_over_queue_reconciliations to service_role;
