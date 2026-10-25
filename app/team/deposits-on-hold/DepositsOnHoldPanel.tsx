@@ -43,6 +43,8 @@ export default function DepositsOnHoldPanel({
   const [rows, setRows] = useState(initialRows);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [manualRow, setManualRow] = useState<DepositRow | null>(null);
+  const [manualReason, setManualReason] = useState("");
 
   async function holdDeposit(row: DepositRow) {
     setBusy(row.readiness_id);
@@ -100,6 +102,29 @@ export default function DepositsOnHoldPanel({
     }
   }
 
+
+  async function manuallyReleased(row: DepositRow) {
+    setBusy(row.readiness_id);
+    setMessage("");
+    try {
+      const response = await fetch("/api/deposits/manually-released", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ readiness_id: row.readiness_id, reason: manualReason.trim() }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to reconcile deposit.");
+      setRows((current) => current.filter((item) => item.readiness_id !== row.readiness_id));
+      setManualRow(null);
+      setManualReason("");
+      setMessage(row.confirmation_code + ": Manually Released. No MPWR action requested.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to reconcile deposit.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   if (!rows.length) {
     return (
       <div style={{ border: "1px solid #dfe5eb", borderRadius: 12, padding: 20, background: "#fff", fontWeight: 800 }}>
@@ -116,6 +141,19 @@ export default function DepositsOnHoldPanel({
         </div>
       ) : null}
 
+
+      {manualRow && (
+        <div role="dialog" aria-label="Manually Released confirmation" style={{ border: "1px solid #667085", background: "#fff", borderRadius: 10, padding: 16, marginBottom: 12 }}>
+          <strong>Manually Released — {manualRow.customer_name || manualRow.confirmation_code}</strong>
+          <p>Only Epic's record will change. This does not contact Victor or MPWR. Confirm the deposit was already released.</p>
+          <label htmlFor="manual-release-reason" style={{ display: "block", marginBottom: 6 }}>Reason (required)</label>
+          <textarea id="manual-release-reason" value={manualReason} onChange={(event) => setManualReason(event.target.value)} maxLength={500} rows={2} style={{ width: "100%", padding: 8, borderRadius: 6 }} />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button type="button" disabled={busy !== "" || manualReason.trim().length < 5} onClick={() => manuallyReleased(manualRow)}>Confirm Manually Released</button>
+            <button type="button" disabled={busy !== ""} onClick={() => { setManualRow(null); setManualReason(""); }}>Cancel</button>
+          </div>
+        </div>
+      )}
       <div style={{ border: "1px solid #dfe5eb", borderRadius: 12, background: "#fff", overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -173,6 +211,7 @@ export default function DepositsOnHoldPanel({
                       )}
                     </td>
                     <td style={{ padding: 12 }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {canHold ? (
                         <button
                           type="button"
@@ -216,6 +255,13 @@ export default function DepositsOnHoldPanel({
                       ) : (
                         <span style={{ color: "#98a2b3", fontWeight: 700 }}>—</span>
                       )}
+                      {canOverrideHold && !releasing && row.status !== "released" && (
+                        <button type="button" disabled={busy !== ""} onClick={() => { setManualRow(row); setManualReason(""); }}
+                          style={{ border: "1px solid #667085", borderRadius: 8, background: "#fff", color: "#344054", padding: "8px 13px", fontWeight: 800 }}>
+                          Manually Released
+                        </button>
+                      )}
+                      </div>
                     </td>
                   </tr>
                 );
