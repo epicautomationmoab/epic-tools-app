@@ -227,3 +227,17 @@ test("legacy readiness notes reject oversize data and unauthenticated requests",
  assert.equal((await t.route.POST(t.request(input))).status,200);
  assert.equal(t.calls.length,1);
 });
+
+test("unified notes GET POST PATCH DELETE deny unauthenticated and workstation access",async()=>{
+ const t=mockedRoute("app/api/team/readiness/notes/route.ts",null);
+ const req=t.request({note_id:"test",note_text:"test"});
+ req.nextUrl={searchParams:new URLSearchParams("readiness_id=test")};
+ for(const method of ["GET","POST","PATCH","DELETE"]){
+   assert.equal((await t.route[method](req)).status,401,method+" anonymous");
+ }
+ t.setIdentity({role:"workstation",display_name:"Shared"});
+ for(const method of ["GET","POST","PATCH","DELETE"]){
+   assert.equal((await t.route[method](req)).status,401,method+" workstation");
+ }
+ assert.equal(t.calls.length,0);
+});
