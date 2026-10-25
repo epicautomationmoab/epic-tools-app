@@ -38,3 +38,7 @@
 ## Preview isolation — all four Vercel projects
 
 Security-branch-scoped overrides installed in `epic-tools-app`, `epic-tools-preview`, `epic-guest-portal`, and `epic-4x4-ambassador` for staging Supabase URL and anon key. Branch overrides set deliberately invalid server secret and email API key while operational mutation tests remain prohibited. Shared production and other-branch variables left untouched. Four-preview deployment verification to follow this commit.
+
+## External integration isolation
+
+For security branch only, `epic-tools-app` preview overrides now disable CallRail, Podium, Resend webhook, push, cron and VAPID private credentials; guest emails disabled in Epic Tools App and Guest Portal previews. These are intentionally inert credentials, not substitutes for controlled integration test credentials. Shared production settings are unchanged. Run authorized end-to-end tests only after synthetic identity and explicit staging-only service role are configured.
