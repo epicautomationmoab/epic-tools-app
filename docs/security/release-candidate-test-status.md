@@ -34,3 +34,7 @@
 - Vercel projects `epic-tools-app` and `epic-tools-preview` received **security-branch-only** preview overrides for `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` targeting staging, plus disabled placeholders for `SUPABASE_SECRET_KEY` and `RESEND_API_KEY`.
 - Staging-safe build does **not** imply authenticated end-to-end workflows work; server-side staging service credentials and synthetic employee fixtures still required.
 - Other external side-effect integrations must remain disabled or separately isolated before running write tests. Production unchanged.
+
+## Preview isolation — all four Vercel projects
+
+Security-branch-scoped overrides installed in `epic-tools-app`, `epic-tools-preview`, `epic-guest-portal`, and `epic-4x4-ambassador` for staging Supabase URL and anon key. Branch overrides set deliberately invalid server secret and email API key while operational mutation tests remain prohibited. Shared production and other-branch variables left untouched. Four-preview deployment verification to follow this commit.
