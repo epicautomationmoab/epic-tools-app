@@ -13,10 +13,14 @@ if grep -Eq '^(COPY .* FROM stdin;|INSERT INTO )' "$SOURCE"; then
   echo "REFUSED: file contains table-data statements" >&2; exit 4
 fi
 command -v psql >/dev/null || { echo "PostgreSQL client required" >&2; exit 2; }
-ACTUAL_REF="$(psql "$STAGING_DB_URI" -XAtqc "select current_setting('app.settings.project_ref', true)" 2>/dev/null || true)"
-# URL ref check above is necessary, but we additionally require an empty target.
+# Confirm the session is not accidentally connected to Epic Tools production.
+# The ref checked above is a safeguard, not proof of database identity.
+# Additionally require an empty staging target before proceeding.
 TABLES="$(psql "$STAGING_DB_URI" -XAtqc "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'")"
 if [[ "$TABLES" != "0" ]]; then echo "REFUSED: staging already contains $TABLES tables" >&2; exit 5; fi
+# Fresh Supabase projects already create the public schema. Drop it only on the
+# confirmed empty staging database within the same transaction as restoration.
+# The schema export contains CREATE SCHEMA public, so otherwise restore fails.
 echo "Restoring schema only to dedicated staging database."
-psql "$STAGING_DB_URI" -X -v ON_ERROR_STOP=1 -1 -f "$SOURCE"
+{ printf "DROP SCHEMA IF EXISTS public CASCADE;\\n"; cat "$SOURCE"; } | psql "$STAGING_DB_URI" -X -v ON_ERROR_STOP=1 -1
 echo "Schema restore completed; verify object counts and policies before enabling applications."
