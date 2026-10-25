@@ -86,22 +86,33 @@ export async function POST(request: NextRequest) {
   } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to save note." }, { status:500 }); }
 }
 
+async function canModifyNote(noteId:string, profile:{display_name:string;role:string}) {
+  if (profile.role === "admin" || profile.role === "manager") return true;
+  const rows = await rest<Array<{author_name:string|null}>>(`epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}&select=author_name&limit=1`);
+  return rows.length === 1 && !!rows[0].author_name &&
+    rows[0].author_name.trim().toLowerCase() === profile.display_name.trim().toLowerCase();
+}
+
 export async function PATCH(request: NextRequest) {
-  if (!await employee(request)) return NextResponse.json({ error:"Employee login required." }, { status:401 });
+  const profile = await employee(request);
+  if (!profile) return NextResponse.json({ error:"Employee login required." }, { status:401 });
   try {
     const body = await request.json(); const noteId = String(body?.note_id || "").trim(); const noteText = String(body?.note_text || "").trim();
     if (!noteId || !noteText) return NextResponse.json({ error:"note_id and note_text are required." }, { status:400 });
     if (noteId === "legacy") { const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, noteText); return NextResponse.json({ ok:true }); }
+    if (!await canModifyNote(noteId, profile)) return NextResponse.json({error:"Not authorized to modify this note."},{status:403});
     const rows = await rest<Array<Record<string,unknown>>>(`epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}&source=neq.tripworks`, { method:"PATCH", headers:{ Prefer:"return=representation" }, body:JSON.stringify({ note_text:noteText, updated_at:new Date().toISOString() }) });
     return NextResponse.json({ ok:true, note:rows[0] || null });
   } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to update note." }, { status:500 }); }
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!await employee(request)) return NextResponse.json({ error:"Employee login required." }, { status:401 });
+  const profile = await employee(request);
+  if (!profile) return NextResponse.json({ error:"Employee login required." }, { status:401 });
   try {
     const body = await request.json(); const noteId = String(body?.note_id || "").trim(); if (!noteId) return NextResponse.json({ error:"note_id is required." }, { status:400 });
     if (noteId === "legacy") { const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, ""); return NextResponse.json({ ok:true }); }
+    if (!await canModifyNote(noteId, profile)) return NextResponse.json({error:"Not authorized to archive this note."},{status:403});
     await rest<void>(`epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}&source=neq.tripworks`, { method:"PATCH", headers:{ Prefer:"return=minimal" }, body:JSON.stringify({ archived_at:new Date().toISOString(), updated_at:new Date().toISOString() }) });
     return NextResponse.json({ ok:true });
   } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to remove note." }, { status:500 }); }
