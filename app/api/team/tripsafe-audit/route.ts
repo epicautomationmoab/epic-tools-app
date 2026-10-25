@@ -11,15 +11,9 @@ type FutureReadinessRow = {
   visit_start_time: string;
 };
 
-function hasPreviewAccess(request: NextRequest) {
-  const previewToken = process.env.EPIC_PREVIEW_TOKEN;
-  return Boolean(previewToken && request.cookies.get("epic_preview_access")?.value === previewToken);
-}
-
 async function authorized(request: NextRequest) {
-  const accessToken = request.cookies.get("epic_access_token")?.value;
-  const profile = await getAuthenticatedTeamProfile(accessToken);
-  return Boolean(profile || hasPreviewAccess(request));
+  const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+  return Boolean(profile && profile.role !== "workstation");
 }
 
 export async function GET(request: NextRequest) {

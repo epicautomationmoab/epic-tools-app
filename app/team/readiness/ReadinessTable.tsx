@@ -265,25 +265,15 @@ function KioskSelect({ row }: { row: ReadinessRow }) {
 }
 
 async function persistNote(readinessId: string, notes: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase configuration is missing.");
-
-  const response = await fetch(`${url}/rest/v1/rpc/save_guest_readiness_note`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ p_readiness_id: readinessId, p_notes: notes }),
+  const response = await fetch("/api/team/readiness/legacy-note", {
+    method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ readiness_id: readinessId, notes }),
   });
-
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to save note.");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to save note.");
   }
-
   return notes.trim() || null;
 }
 
@@ -291,46 +281,31 @@ async function persistHandoff(
   readinessId: string,
   handoffStatus: "checked_in" | "rental_out" | "rental_returned",
 ) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase configuration is missing.");
-  }
-
-  const response = await fetch(
-    `${url}/rest/v1/rpc/set_epic_operational_handoff`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        p_readiness_id: readinessId,
-        p_handoff_status: handoffStatus,
-        p_recorded_by: "EpicTools",
-      }),
-    },
-  );
-
+  const response = await fetch("/api/team/readiness/handoff", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ readiness_id: readinessId, handoff_status: handoffStatus }),
+  });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to update reservation status.");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to update reservation status.");
   }
-
   return handoffStatus;
 }
 
 async function clearHandoff(readinessId: string) {
-  return callReadinessRpc<boolean>(
-    "clear_epic_operational_handoff",
-    {
-      p_readiness_id: readinessId,
-      p_recorded_by: "EpicTools",
-    },
-  );
+  const response = await fetch("/api/team/readiness/handoff", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ readiness_id: readinessId, handoff_status: "clear" }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to clear reservation handoff.");
+  }
+  return true;
 }
 
 function getSupabaseBrowserConfig() {
@@ -367,34 +342,33 @@ async function callReadinessRpc<T>(
   return response.json() as Promise<T>;
 }
 
-function getPeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus | null>(
-    "get_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+async function peopleOverrideRpc<T>(operation: string, readinessId: string, extra: Record<string, unknown> = {}): Promise<T> {
+  const response = await fetch("/api/team/readiness/people-override", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ operation, readiness_id: readinessId, ...extra }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to update people override.");
+  }
+  return response.json() as Promise<T>;
 }
 
-function savePeopleOverride(
-  readinessId: string,
-  peopleCount: number,
-  reason: string,
-) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "set_readiness_people_override",
-    {
-      p_readiness_id: readinessId,
-      p_people_count: peopleCount,
-      p_reason: reason,
-      p_updated_by: "EpicTools",
-    },
-  );
+function getPeopleOverride(readinessId: string) {
+  return peopleOverrideRpc<PeopleOverrideStatus | null>("get_readiness_people_override", readinessId);
+}
+
+function savePeopleOverride(readinessId: string, peopleCount: number, reason: string) {
+  return peopleOverrideRpc<PeopleOverrideStatus>("set_readiness_people_override", readinessId, {
+    people_count: peopleCount,
+    reason,
+  });
 }
 
 function removePeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "clear_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+  return peopleOverrideRpc<PeopleOverrideStatus>("clear_readiness_people_override", readinessId);
 }
 
 // Merge lightweight snapshots without losing already fetched drawer-only data.
@@ -880,11 +854,20 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
   throw new Error("This Store Visit is missing its readiness ID.");
 }
 
-await callReadinessRpc("manual_override_mpwr_information", {
-  p_readiness_id: selected.readiness_id,
-  p_mpwr_confirmation_number: confirmationNumber,
-  p_mpwr_waiver_url: waiverUrl,
+const overrideResponse = await fetch("/api/team/readiness/mpwr-override", {
+  method: "POST",
+  credentials: "same-origin",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    readiness_id: selected.readiness_id,
+    confirmation_number: confirmationNumber,
+    waiver_url: waiverUrl,
+  }),
 });
+if (!overrideResponse.ok) {
+  const payload = await overrideResponse.json().catch(() => null);
+  throw new Error(payload?.error || "Unable to save MPWR override.");
+}
 
       const updateRow = (row: ReadinessRow): ReadinessRow => ({
         ...row,
@@ -1069,38 +1052,27 @@ await callReadinessRpc("manual_override_mpwr_information", {
   }
   async function completeCourtesyCall(
     readinessId: string,
-    completedBy: string,
+    _completedBy: string,
     notes: string,
     arrival: boolean,
     location: boolean,
     callOutcome: string,
   ) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!url || !key) {
-      throw new Error("Supabase configuration is missing.");
-    }
-
-    const response = await fetch(`${url}/rest/v1/rpc/complete_courtesy_call`, {
+    const response = await fetch("/api/team/readiness/courtesy-call", {
       method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        p_readiness_id: readinessId,
-        p_completed_by: completedBy,
-        p_notes: notes,
-        p_arrival_confirmed: arrival,
-        p_location_discussed: location,
-        p_call_outcome: callOutcome,
+        readiness_id: readinessId,
+        notes,
+        arrival_confirmed: arrival,
+        location_discussed: location,
+        call_outcome: callOutcome,
       }),
     });
-
     if (!response.ok) {
-      throw new Error(await response.text());
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.error || "Unable to complete courtesy call.");
     }
   }
 

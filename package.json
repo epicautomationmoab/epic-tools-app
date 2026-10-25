@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run test:security && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:security": "node --test tests/security-release.test.cjs"
   },
   "dependencies": {
     "next": "^15.5.9",

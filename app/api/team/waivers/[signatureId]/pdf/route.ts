@@ -2,17 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getGuestFormsActor } from "@/lib/workstation-auth";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
 
-function hasPreviewAccess(request: NextRequest) {
-  const previewToken = process.env.EPIC_PREVIEW_TOKEN;
-  return Boolean(
-    previewToken &&
-      request.cookies.get("epic_preview_access")?.value === previewToken,
-  );
-}
-
 async function authorized(request: NextRequest) {
-  const actor = await getGuestFormsActor(request);
-  return Boolean(actor || hasPreviewAccess(request));
+  return Boolean(await getGuestFormsActor(request));
 }
 
 function supabaseConfig() {

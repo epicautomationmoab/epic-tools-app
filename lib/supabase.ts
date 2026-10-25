@@ -1,4 +1,7 @@
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
+import "server-only";
+import { cookies } from "next/headers";
+import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 export type VehicleBreakdownItem = {
   model: string;
   quantity: number;
@@ -244,9 +247,11 @@ function rentalActivityCustomerTotalCents(order: OperationalTripOrderAccountingR
 }
 
 export async function getReadinessRows(options: { fast?: boolean; enrich?: boolean } = {}) {
+  const profile = await getAuthenticatedTeamProfile((await cookies()).get("epic_access_token")?.value);
+  if (!profile || profile.role === "workstation") throw new Error("Employee login required for Readiness.");
   const params = new URLSearchParams({ select: "*", limit: "500" });
   const readinessView = options.fast ? "guest_readiness_fast_v" : "guest_readiness_with_handoff_v";
-  const rows = await fetchView<ReadinessRow>(readinessView, params);
+  const rows = await fetchView<ReadinessRow>(readinessView, params, true);
   if (options.enrich === false) {
     // The fast readiness view may lag certificate uploads. Read the authoritative
     // upload records so the main OHV indicator agrees with the document drawer.
@@ -531,7 +536,7 @@ export async function getArrivalBoardRows() {
       "mpwr_document_expected_count" |
       "ohv_required" |
       "ohv_certificate_uploaded"
-    >>("guest_readiness_with_handoff_v", readinessParams),
+    >>("guest_readiness_with_handoff_v", readinessParams, true),
   ]);
 
   const readinessIds = readinessRows

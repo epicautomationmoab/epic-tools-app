@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { supabaseRpc } from "@/lib/server/supabase-rest";
-import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 export async function POST(request: NextRequest) {
   const accessToken = request.cookies.get("epic_access_token")?.value;
   const profile = await getAuthenticatedTeamProfile(accessToken);
-  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
-  if (!profile && !workstation) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!profile || profile.role === "workstation") return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   try {
     const body = await request.json();
@@ -35,7 +33,7 @@ export async function POST(request: NextRequest) {
       p_mpwr_driver_observation: driverObservation,
       p_mpwr_driver_unexpected_names: unexpectedNames,
       p_mpwr_checkout_notes: notes,
-      p_confirmed_by: profile?.display_name ?? "Epic Workstation",
+      p_confirmed_by: profile.display_name,
     });
 
     return NextResponse.json({ ok: true });

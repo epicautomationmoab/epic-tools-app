@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
-import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -30,7 +29,6 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
 async function access(request: NextRequest) {
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
   if (profile && profile.role !== "workstation") return { kind: "employee" as const, profile };
-  if (verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value)) return { kind: "workstation" as const, profile: null };
   return null;
 }
 

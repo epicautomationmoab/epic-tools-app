@@ -2,40 +2,20 @@
 
 import { useEffect } from "react";
 
-function supabaseConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase configuration is missing.");
-  return { url, key };
-}
-
 async function saveContactOverride(
   confirmationCode: string,
   field: "email" | "phone",
   value: string,
 ) {
-  const { url, key } = supabaseConfig();
-  const body = {
-    p_confirmation_code: confirmationCode,
-    p_effective_email: field === "email" ? value : null,
-    p_effective_phone: field === "phone" ? value : null,
-    p_updated_by: "EpicTools",
-    p_change_reason: "Updated by team from Guest Readiness drawer",
-  };
-
-  const response = await fetch(`${url}/rest/v1/rpc/update_guest_contact_override`, {
+  const response = await fetch("/api/team/readiness/contact-override", {
     method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmation_code: confirmationCode, field, value }),
   });
-
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to save guest contact information.");
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Unable to save guest contact information.");
   }
 }
 

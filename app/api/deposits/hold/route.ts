@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get("epic_access_token")?.value;
     const profile = await getAuthenticatedTeamProfile(accessToken);
-    if (!profile) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!profile || profile.role === "workstation") return NextResponse.json({ error: "Employee login required" }, { status: 401 });
 
     const payload = await request.json().catch(() => ({}));
     const readinessId = typeof payload?.readiness_id === "string" ? payload.readiness_id : "";

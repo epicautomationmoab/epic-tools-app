@@ -1,3 +1,8 @@
 .next/
 node_modules/
 .env.local
+
+# Local-only production schema exports and staging diagnostics
+.local-staging/
+staging-schema-export/
+*.pgdump

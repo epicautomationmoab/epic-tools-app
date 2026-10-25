@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 
-function hasPreviewAccess(request: NextRequest) {
-  const expected = process.env.EPIC_PREVIEW_TOKEN;
-  const supplied = request.cookies.get("epic_preview_access")?.value;
-  return Boolean(expected && supplied === expected);
-}
-
 async function canManageUsers(request: NextRequest) {
-  const accessToken = request.cookies.get("epic_access_token")?.value;
-  const profile = await getAuthenticatedTeamProfile(accessToken);
-  if (profile?.role === "admin" || profile?.role === "manager") return true;
-  return hasPreviewAccess(request);
+  const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+  return profile?.role === "admin" || profile?.role === "manager";
 }
 
 function getSupabaseConfig() {
@@ -24,10 +16,7 @@ function getSupabaseConfig() {
 
 type WebhookRow = {
   payload: {
-    owner?: {
-      id?: number | string | null;
-      full_name?: string | null;
-    } | null;
+    owner?: { id?: number | string | null; full_name?: string | null } | null;
   } | null;
 };
 

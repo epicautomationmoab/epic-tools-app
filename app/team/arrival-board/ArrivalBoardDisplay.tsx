@@ -4,6 +4,20 @@ import { useMemo, useState } from "react";
 import type { ArrivalBoardRow } from "@/lib/supabase";
 import styles from "./ArrivalBoard.module.css";
 
+export type LobbyArrivalRow = Pick<ArrivalBoardRow,
+  | "visit_start_time"
+  | "customer_name"
+  | "customer_phone_last_four"
+  | "business_line"
+  | "board_activity_label"
+  | "product_display_name"
+  | "rental_duration"
+  | "total_vehicle_count"
+  | "vehicle_breakdown"
+  | "board_action_label"
+  | "board_action_type"
+>;
+
 type Filter = "all" | "tour" | "rental";
 
 function formatWallTime(value: string) {
@@ -37,7 +51,7 @@ function shortVehicleModel(model: string) {
     .trim();
 }
 
-function reservationLabel(row: ArrivalBoardRow) {
+function reservationLabel(row: LobbyArrivalRow) {
   if (row.business_line !== "rental") {
     return row.product_display_name || row.board_activity_label;
   }
@@ -61,7 +75,7 @@ function reservationLabel(row: ArrivalBoardRow) {
 export default function ArrivalBoardDisplay({
   rows,
 }: {
-  rows: ArrivalBoardRow[];
+  rows: LobbyArrivalRow[];
 }) {
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -103,7 +117,7 @@ export default function ArrivalBoardDisplay({
       </section>
 
       <section className={styles.rows}>
-        {visibleRows.map((row) => {
+        {visibleRows.map((row, index) => {
           const isKiosk = row.board_action_type === "kiosk";
 
           const details = [
@@ -118,7 +132,7 @@ export default function ArrivalBoardDisplay({
                   ? styles.rentalRow
                   : styles.tourRow
               }`}
-              key={`${row.confirmation_code}-${row.visit_start_time}-${row.business_line}`}
+              key={`${row.visit_start_time}-${row.business_line}-${row.customer_name}-${index}`}
             >
               <div className={styles.time}>
                 {formatWallTime(row.visit_start_time)}

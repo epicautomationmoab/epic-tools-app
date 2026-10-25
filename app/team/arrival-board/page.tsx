@@ -1,7 +1,14 @@
-import { getArrivalBoardRows, type ArrivalBoardRow } from "@/lib/supabase";
+import { getArrivalBoardRows } from "@/lib/supabase";
+import type { LobbyArrivalRow } from "./ArrivalBoardDisplay";
 import ArrivalBoardRefresh from "./ArrivalBoardRefresh";
 import ArrivalBoardDisplay from "./ArrivalBoardDisplay";
 import styles from "./ArrivalBoard.module.css";
+
+function displayGuestName(fullName: string) {
+  const words = fullName.trim().split(" ").filter(Boolean);
+  if (words.length < 2) return words[0] || "Guest";
+  return words[0] + " " + words[words.length - 1].slice(0, 1).toUpperCase() + ".";
+}
 
 function formatToday() {
   return new Intl.DateTimeFormat("en-US", {
@@ -14,11 +21,26 @@ function formatToday() {
 }
 
 export default async function ArrivalBoardPage() {
-  let rows: ArrivalBoardRow[] = [];
+  let rows: LobbyArrivalRow[] = [];
   let error = "";
 
   try {
-    rows = await getArrivalBoardRows();
+    const rawRows = await getArrivalBoardRows();
+    // Public lobby display: allowlist fields before serializing data to the client.
+    // Never pass through the entire internal Arrival Board database record.
+    rows = rawRows.map((row) => ({
+      visit_start_time: row.visit_start_time,
+      customer_name: displayGuestName(row.customer_name),
+      customer_phone_last_four: row.customer_phone_last_four,
+      business_line: row.business_line,
+      board_activity_label: row.board_activity_label,
+      product_display_name: row.product_display_name,
+      rental_duration: row.rental_duration,
+      total_vehicle_count: row.total_vehicle_count,
+      vehicle_breakdown: row.vehicle_breakdown,
+      board_action_label: row.board_action_label,
+      board_action_type: row.board_action_type,
+    }));
   } catch (err) {
     error = err instanceof Error ? err.message : "Unable to load arrival board rows.";
   }

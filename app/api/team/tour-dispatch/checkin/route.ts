@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { supabaseRpc } from "@/lib/server/supabase-rest";
-import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
 type ReleaseResult = {
   dispatch_id: string;
@@ -34,14 +33,13 @@ async function triggerAxelIn(jobId: string) {
 export async function POST(request: NextRequest) {
   const accessToken = request.cookies.get("epic_access_token")?.value;
   const profile = await getAuthenticatedTeamProfile(accessToken);
-  const workstation = verifyWorkstationCookie(request.cookies.get(WORKSTATION_COOKIE)?.value);
-  if (!profile && !workstation) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!profile || profile.role === "workstation") return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   try {
     const body = await request.json();
     const storeVisitId = String(body?.store_visit_id ?? "").trim();
     const vehicleSlot = Number(body?.vehicle_slot);
-    const actorName = profile?.display_name ?? "Epic Workstation";
+    const actorName = profile.display_name;
 
     if (!storeVisitId || !Number.isInteger(vehicleSlot) || vehicleSlot < 1) {
       return NextResponse.json({ error: "Invalid tour vehicle slot." }, { status: 400 });

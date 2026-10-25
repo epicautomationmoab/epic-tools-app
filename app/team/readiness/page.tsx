@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import TeamSidebar from "../TeamSidebar";
 import CallAttentionRowEnhancer from "../CallAttentionRowEnhancer";
 import ReadinessTable from "./ReadinessTable";
@@ -37,12 +40,20 @@ import {
 import styles from "./ReadinessShell.module.css";
 import "./journey-preview/preview.css";
 
+async function requireReadinessAccess() {
+  const store = await cookies();
+  const profile = await getAuthenticatedTeamProfile(store.get("epic_access_token")?.value);
+  if (!profile || profile.role === "workstation") redirect("/employee-login");
+}
+
+
 type OperationalReadinessRow = ReadinessRow & {
   pickup_prior_evening?: boolean | null;
   original_visit_start_time?: string | null;
 };
 
 export default async function TeamReadinessPage() {
+  await requireReadinessAccess();
   let rows: OperationalReadinessRow[] = [];
   let error = "";
   const startedAt = Date.now();

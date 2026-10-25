@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createTeamProfile, getAuthenticatedTeamProfile } from "@/lib/team-auth";
 
-function hasPreviewAccess(request: NextRequest) {
-  const expected = process.env.EPIC_PREVIEW_TOKEN;
-  const supplied = request.cookies.get("epic_preview_access")?.value;
-  return Boolean(expected && supplied === expected);
-}
-
 async function isAuthorizedManager(request: NextRequest) {
-  const accessToken = request.cookies.get("epic_access_token")?.value;
-  const profile = await getAuthenticatedTeamProfile(accessToken);
-  if (profile?.role === "admin" || profile?.role === "manager") return true;
-  return hasPreviewAccess(request);
+  const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
+  return profile?.role === "admin" || profile?.role === "manager";
 }
 
 export async function POST(request: NextRequest) {
