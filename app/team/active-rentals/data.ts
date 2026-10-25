@@ -92,30 +92,37 @@ export async function getHeldOverRentals(): Promise<ReadinessRow[]> {
 
   const readinessIds = readinessRows.map((row) => row.readiness_id).filter((id): id is string => Boolean(id));
   const confirmationCodes = [...new Set(readinessRows.map((row) => row.confirmation_code).filter(Boolean))];
-  const quotedIds = readinessIds.map((id) => `"${id}"`).join(",");
-
-  const handoffParams = new URLSearchParams({
-    select: "readiness_id,handoff_status,updated_at",
-    readiness_id: `in.(${quotedIds})`,
-    order: "updated_at.desc",
-    limit: "1000",
-  });
-  const noShowParams = new URLSearchParams({
-    select: "readiness_id",
-    readiness_id: `in.(${quotedIds})`,
-    limit: "1000",
-  });
-  const portalParams = new URLSearchParams({
-    select: "confirmation_code,guest_portal_token",
-    confirmation_code: `in.(${quoteList(confirmationCodes)})`,
-    limit: "1000",
-  });
-
-  const [handoffs, noShows, portalRows] = await Promise.all([
-    fetchJson<HandoffRow>("epic_operational_handoffs", handoffParams),
-    fetchJson<NoShowRow>("epic_no_show_status", noShowParams),
-    fetchJson<PortalRow>("guest_portal_v", portalParams),
-  ]);
+  const handoffs: HandoffRow[] = [];
+  const noShows: NoShowRow[] = [];
+  const portalRows: PortalRow[] = [];
+  // Batch the joins so multi-month rentals do not exceed URL or API row limits.
+  for (let i = 0; i < readinessIds.length; i += 100) {
+    const ids = readinessIds.slice(i, i + 100);
+    const quotedIds = ids.map((id) => '"' + id + '"').join(",");
+    const [hs, ns] = await Promise.all([
+      fetchJson<HandoffRow>("epic_operational_handoffs", new URLSearchParams({
+        select: "readiness_id,handoff_status,updated_at",
+        readiness_id: "in.(" + quotedIds + ")",
+        order: "updated_at.desc",
+        limit: "1000",
+      })),
+      fetchJson<NoShowRow>("epic_no_show_status", new URLSearchParams({
+        select: "readiness_id",
+        readiness_id: "in.(" + quotedIds + ")",
+        limit: "1000",
+      })),
+    ]);
+    handoffs.push(...hs);
+    noShows.push(...ns);
+  }
+  for (let i = 0; i < confirmationCodes.length; i += 100) {
+    const ps = await fetchJson<PortalRow>("guest_portal_v", new URLSearchParams({
+      select: "confirmation_code,guest_portal_token",
+      confirmation_code: "in.(" + quoteList(confirmationCodes.slice(i, i + 100)) + ")",
+      limit: "1000",
+    }));
+    portalRows.push(...ps);
+  }
 
   const noShowReadinessIds = new Set(noShows.map((row) => row.readiness_id));
   const latestHandoffByReadinessId = new Map<string, HandoffRow>();
