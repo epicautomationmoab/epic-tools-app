@@ -96,3 +96,53 @@ test("handoff API rejects missing and workstation identities, permits valid empl
   assert.equal((await sandbox.exports.POST(request({...valid,handoff_status:"unexpected"}))).status,400);
   assert.equal(calls.length,1);
 });
+
+function mockedRoute(path, identity) {
+  const ts=require("typescript"),vm=require("node:vm");
+  let current=identity,calls=[];
+  const response={json(body,options={}){return {body,status:options.status||200};}};
+  const sandbox={exports:{},require(name){
+    if(name==="next/server")return {NextResponse:response};
+    if(name==="@/lib/team-auth")return {getAuthenticatedTeamProfile:async()=>current};
+    throw Error("unexpected import "+name);
+  },process:{env:{NEXT_PUBLIC_SUPABASE_URL:"https://mock.invalid",SUPABASE_SECRET_KEY:"mock-key"}},fetch:async(url,init)=>{calls.push({url,init});return {ok:true,status:200};}};
+  const js=ts.transpileModule(read(path),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+  vm.runInNewContext(js,sandbox);
+  return {route:sandbox.exports,setIdentity(x){current=x},calls,request(body){return {cookies:{get(){return undefined}},json:async()=>body}}};
+}
+test("finance API blocks workstation and invalid deposit changes without database calls",async()=>{
+  const t=mockedRoute("app/api/team/readiness/finance/route.ts",null);
+  const id="123e4567-e89b-42d3-a456-426614174000";
+  const input={operation:"set_rental_damage_deposit_basis",readiness_id:id,basis:"standard"};
+  assert.equal((await t.route.POST(t.request(input))).status,401);
+  t.setIdentity({role:"workstation",display_name:"Shared"});
+  assert.equal((await t.route.POST(t.request(input))).status,401);
+  t.setIdentity({role:"agent",display_name:"Employee One"});
+  assert.equal((await t.route.POST(t.request({...input,basis:"invalid"}))).status,400);
+  assert.equal(t.calls.length,0);
+  assert.equal((await t.route.POST(t.request(input))).status,200);
+  assert.equal(JSON.parse(t.calls[0].init.body).p_updated_by,"Employee One");
+});
+test("no-show API checks identity and boolean before any database update",async()=>{
+  const t=mockedRoute("app/api/team/readiness/no-show/route.ts",null);
+  const input={readiness_id:"123e4567-e89b-42d3-a456-426614174000",is_no_show:true};
+  assert.equal((await t.route.POST(t.request(input))).status,401);
+  t.setIdentity({role:"workstation",display_name:"Shared"});
+  assert.equal((await t.route.POST(t.request(input))).status,401);
+  t.setIdentity({role:"agent",display_name:"Employee Two"});
+  assert.equal((await t.route.POST(t.request({...input,is_no_show:"yes"}))).status,400);
+  assert.equal(t.calls.length,0);
+  assert.equal((await t.route.POST(t.request(input))).status,200);
+  assert.equal(JSON.parse(t.calls[0].init.body).p_marked_by,"Employee Two");
+});
+test("team invites endpoint restricts access to managers and administrators",async()=>{
+  const t=mockedRoute("app/api/admin/team-invites/route.ts",null);
+  assert.equal((await t.route.GET(t.request({}))).status,401);
+  t.setIdentity({role:"agent",display_name:"Employee"});
+  assert.equal((await t.route.GET(t.request({}))).status,401);
+  t.setIdentity({role:"workstation",display_name:"Shared"});
+  assert.equal((await t.route.GET(t.request({}))).status,401);
+  assert.equal(t.calls.length,0);
+  const code=read("app/api/admin/team-invites/route.ts");
+  assert.match(code,/profile\?\.role === "admin" \|\| profile\?\.role === "manager"/);
+});
