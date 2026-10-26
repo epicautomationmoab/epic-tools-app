@@ -889,6 +889,7 @@ export default function GuestPortalPage() {
             activities={reservation.activities}
             waiverDrivers={expRentalDrivers}
             reviewerMode
+            confirmationCode={reservation.confirmationCode}
           />
         ) : null}
 
