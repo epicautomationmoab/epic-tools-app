@@ -16,6 +16,7 @@ export default function ExpParticipants({
   const [manual, setManual] = useState<string[]>([]);
   const [signed, setSigned] = useState<Record<string,string>>({});
   const [confirmed, setConfirmed] = useState(false);
+  const [signing, setSigning] = useState<string | null>(null);
   const distinctWaivers = Array.from(new Set(waiverDrivers.map(n=>n.trim()).filter(Boolean)));
   const all = [...selected.map(n=>({name:n,matched:true})),...manual.map(n=>({name:n.trim(),matched:false}))].filter(x=>x.name);
   const valid = confirmed && all.length>0 && all.every(x=>x.name.length>=3 && x.name.includes(" ") && Boolean(signed[x.name])) && new Set(all.map(x=>x.name.toLowerCase())).size===all.length;
@@ -26,8 +27,11 @@ export default function ExpParticipants({
       <strong>Select drivers with signed waivers</strong>
       <p className={styles.note}>Choose everyone participating. More than one selection is welcome.</p>
       {distinctWaivers.map(name=><label key={name} className={styles.confirm} style={{marginBottom:8}}>
-        <input type="checkbox" checked={selected.includes(name)} onChange={e=>setSelected(prev=>e.target.checked?[...prev,name]:prev.filter(n=>n!==name))}/>
-        <span>{name}</span>
+        <input type="checkbox" checked={selected.includes(name)} onChange={e=>{setSelected(prev=>e.target.checked?[...prev,name]:prev.filter(n=>n!==name));if(e.target.checked&&!signed[name])setSigning(name);}}/>
+        <span style={{flex:1}}>{name}</span>
+        {selected.includes(name) ? <button type="button" className={styles.signatureThumb} onClick={e=>{e.preventDefault();setSigning(name);}} aria-label={`Draw or update initials for ${name}`}>
+          {signed[name] ? <img src={signed[name]} alt={`Initials captured for ${name}`} /> : "Add initials"}
+        </button> : null}
       </label>)}
     </> : <p className={styles.note}>Driver waivers have not been loaded yet. You can enter names now; they will need to be matched to signed waivers before EXP status is verified.</p>}
     {manual.map((name,i)=><div key={i} className={styles.driver}>
@@ -37,10 +41,23 @@ export default function ExpParticipants({
       <button type="button" className={styles.remove} onClick={()=>setManual(prev=>prev.filter((_,j)=>j!==i))}>Remove</button>
     </div>)}
     <button className={styles.add} type="button" disabled={selected.length+manual.length>=20} onClick={()=>setManual(prev=>[...prev,""])}>+ Add driver not listed</button>
-    {all.map(({name,matched})=><div key={name} style={{padding:"12px 0",borderBottom:"1px solid #dde3e8"}}>
-      <strong>{name}</strong> <span className={styles.note}>{matched?"Signed waiver listed":"Waiver matching required"}</span>
-      <ExpDrawnInitials name={name} onChange={value=>setSigned(prev=>({...prev,[name]:value}))}/>
+    {all.filter(x=>!x.matched).map(({name})=><div className={styles.manualSignature} key={name}>
+      <strong>{name}</strong>
+      <button className={styles.signatureThumb} type="button" onClick={()=>setSigning(name)}>
+        {signed[name] ? <img src={signed[name]} alt={`Initials captured for ${name}`}/> : "Add initials"}
+      </button>
     </div>)}
+    {signing ? <div className={styles.signatureOverlay} onMouseDown={e=>{if(e.target===e.currentTarget)setSigning(null);}}>
+      <section className={styles.signatureDialog} role="dialog" aria-modal="true" aria-labelledby="exp-initials-title">
+        <h3 id="exp-initials-title">Your initials, {signing}</h3>
+        <p>Draw your initials with a finger, mouse, or stylus. They'll appear beside your name.</p>
+        <ExpDrawnInitials key={signing} name={signing} onChange={value=>setSigned(prev=>({...prev,[signing]:value}))}/>
+        <div className={styles.actions}>
+          <button type="button" disabled={!signed[signing]} onClick={()=>setSigning(null)}>Save Initials</button>
+          <button className={styles.back} type="button" onClick={()=>setSigning(null)}>Cancel</button>
+        </div>
+      </section>
+    </div> : null}
     <label className={styles.confirm}><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>
       <span>All participating drivers watched the Epic Xpress Ready safety orientation.</span>
     </label>
