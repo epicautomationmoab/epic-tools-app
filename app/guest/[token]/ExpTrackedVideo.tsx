@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
 
 const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&loop=0&title=0&byline=0&portrait=0";
-const REQUIRED_COVERAGE = 0.9;
+const REQUIRED_COVERAGE = 0.995;
 
 type PlaybackEvent = { seconds: number; duration: number };
 type Player = {
@@ -42,11 +42,18 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
     const watched = new Set<number>();
     let previous: number | null = null;
     let seeking = false;
+    let reachedEnd = false;
+    const checkComplete = (duration: number) => {
+      if (reachedEnd && watched.size >= Math.ceil(duration) * REQUIRED_COVERAGE) callback.current(true);
+    };
+    const onEnded = () => { reachedEnd = true; if (knownDuration > 0) checkComplete(knownDuration); };
+    let knownDuration = 0;
     const onSeeking = () => { seeking = true; previous = null; };
     const onSeeked = () => { seeking = false; previous = null; };
     const onTimeUpdate = (data: PlaybackEvent) => {
       if (!Number.isFinite(data.seconds) || !Number.isFinite(data.duration) || data.duration <= 0) return;
       const current = Math.max(0, Math.min(data.seconds, data.duration));
+      knownDuration = data.duration;
       if (!seeking && previous !== null) {
         const elapsed = current - previous;
         if (elapsed > 0 && elapsed <= 2) {
@@ -58,7 +65,7 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
       previous = current;
       const percent = Math.min(1, watched.size / Math.ceil(data.duration));
       setCoverage(Math.round(percent * 100));
-      if (percent >= REQUIRED_COVERAGE) callback.current(true);
+      checkComplete(data.duration);
     };
     void loadVimeoSdk().then(async () => {
       if (disposed || !frame.current) return;
@@ -68,6 +75,7 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
       player.on("seeking", onSeeking);
       player.on("seeked", onSeeked);
       player.on("timeupdate", onTimeUpdate);
+      player.on("ended", onEnded);
       await player.ready();
       if (!disposed) setTrackingError(false);
     }).catch(() => { if (!disposed) setTrackingError(true); });
@@ -77,6 +85,7 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
         player.off("seeking", onSeeking);
         player.off("seeked", onSeeked);
         player.off("timeupdate", onTimeUpdate);
+        player.off("ended", onEnded);
         // Keep the iframe instance under React ownership; do not destroy it.
       }
     };
@@ -89,7 +98,7 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
         referrerPolicy="strict-origin-when-cross-origin" />
     </div>
     <p className={styles.videoProgress} role="status">
-      {coverage >= 90 ? "Video requirement met — 90% watched." :
+      {coverage >= 100 ? "Video viewing complete." :
         `Video watched: ${coverage}% · Complete the video to continue.`}
     </p>
     {trackingError ? <p role="alert">Video tracking could not connect. Please let our team know; you won't be marked complete by watching alone.</p> : null}
