@@ -19,9 +19,9 @@ export default function ExpParticipants({
     setDrivers(prev => prev.map((d, i) => i === index ? { ...d, [key]: value } : d));
   }
   return <section className={styles.wrap} aria-label="EXP participating drivers">
-    <h3>Who is participating?</h3>
-    <p>One person or a group can take this assessment together. Every driver participating must be listed.</p>
-    <p className={styles.note}>If a driver's waiver isn't available yet, enter the name they'll use on their waiver. Readiness will reconcile any differences.</p>
+    <h3>Almost trail-ready!</h3>
+    <p>Tell us who is getting Epic Xpress Ready. One driver or your whole group can complete the knowledge check together — so everyone can spend less time checking out and more time exploring.</p>
+    <p className={styles.note}>Please use the same full name as each driver's rental waiver.</p>
     {drivers.map((driver, index) => <div className={styles.driver} key={index}>
       <label>Driver {index + 1} — full name
         <input autoComplete="off" value={driver.fullName} maxLength={120} onChange={e => edit(index, "fullName", e.target.value)} placeholder="First and last name" />
@@ -36,7 +36,7 @@ export default function ExpParticipants({
       <span>All drivers listed watched the entire Epic Xpress Ready orientation and are participating in this knowledge check.</span>
     </label>
     <div className={styles.actions}>
-      <button type="button" disabled={!ready} onClick={() => onContinue(drivers.map(d => ({fullName:d.fullName.trim().replace(/\s+/g, " "), initials:d.initials.trim().toUpperCase()})))}>Continue to Knowledge Check</button>
+      <button type="button" disabled={!ready} onClick={() => onContinue(drivers.map(d => ({fullName:d.fullName.trim().replace(/\s+/g, " "), initials:d.initials.trim().toUpperCase()})))}>Let's Do the Knowledge Check</button>
       <button type="button" className={styles.back} onClick={onBack}>Back to orientation</button>
     </div>
     <p className={styles.note}>Preview only: driver names and initials are not saved or matched to waivers yet.</p>
