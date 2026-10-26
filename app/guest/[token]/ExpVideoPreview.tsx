@@ -15,10 +15,12 @@ export default function ExpVideoPreview({
   token,
   activities,
   waiverDrivers = [],
+  reviewerMode = false,
 }: {
   token: string;
   activities: Rental[];
   waiverDrivers?: string[];
+  reviewerMode?: boolean;
 }) {
   // Enabled only for the EXP feature branch preview through Vercel branch-scoped config.
   // PREVIEW ONLY. Scoring happens in the browser and does not persist any completion.
@@ -38,9 +40,9 @@ export default function ExpVideoPreview({
     return activities.some((activity) => {
       if (activity.businessLine.toLowerCase() !== "rental") return false;
       const start = new Date(activity.visitStartTime).getTime();
-      return Number.isFinite(start) && start >= now && start - now <= DAY_MS;
+      return Number.isFinite(start) && start >= now && (reviewerMode || start - now <= DAY_MS);
     });
-  }, [activities, now]);
+  }, [activities, now, reviewerMode]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -68,7 +70,7 @@ export default function ExpVideoPreview({
   }, [eligible, token]);
 
   useEffect(() => {
-    if (!eligible || !token || !formsLoaded || outstandingRequiredForms) return;
+    if (reviewerMode || !eligible || !token || !formsLoaded || outstandingRequiredForms) return;
     const key = `epic-exp-prompted-v1:${token}`;
     try {
       if (window.localStorage.getItem(key)) return;
@@ -77,7 +79,7 @@ export default function ExpVideoPreview({
       // Storage may be blocked; still permit manual opening via the portal card.
     }
     setOpen(true);
-  }, [eligible, token, formsLoaded, outstandingRequiredForms]);
+  }, [eligible, token, formsLoaded, outstandingRequiredForms, reviewerMode]);
 
   useEffect(() => {
     if (!open) return;
@@ -96,6 +98,7 @@ export default function ExpVideoPreview({
         <div>
           <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
           <h2>Epic Xpress Ready</h2>
+          {reviewerMode ? <p><strong>Employee preview only.</strong> This demonstration does not record EXP completion or change guest readiness.</p> : null}
           <p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>
         </div>
         <button className={styles.action} type="button" onClick={() => { setStarted(false); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setOpen(true); }}>
