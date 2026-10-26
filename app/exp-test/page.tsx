@@ -38,15 +38,18 @@ export default function ExpTestPage() {
       </label>
       <button style={primary} disabled={!watched || !confirmed} onClick={()=>setStage("participants")}>Continue to Knowledge Check</button>
       <p style={{fontSize:12}}>At least 90% actual playback and acknowledgment are required in the full flow.</p>
-    </> : stage === "participants" ? <ExpParticipants
+    </> : stage === "participants" ? <ExpParticipants waiverDrivers={["Alex Morgan (sample driver)","Jordan Taylor (sample driver)"]}
       onBack={()=>setStage("welcome")}
       onContinue={entries=>{setDrivers(entries.map(e=>e.fullName));setStage("assessment");}}
     /> : stage === "assessment" ? <>
       <p style={{fontSize:12,color:"#667583"}}>Practice participants: {drivers.join(", ")}</p>
       <ExpAssessment key={run} questions={EXP_QUESTION_BANK_DRAFT} onExit={()=>setStage("done")}/>
     </> : <>
-      <h2>Thanks for testing Epic Xpress Ready!</h2>
-      <p>Nothing was submitted to a guest reservation or recorded as a completion.</p>
+      <p style={{fontWeight:800,fontSize:12,color:"#b54a1c"}}>GUEST PORTAL — TEST VIEW</p>
+      <h2>Epic Xpress Ready</h2>
+      <p>Here is how the driver readiness list can appear alongside signed waivers in the Guest Portal.</p>
+      {drivers.map(name=><div key={name} style={{padding:12,borderBottom:"1px solid #dce2e7"}}><strong>{name}</strong> <span style={{float:"right",color:"#7c5921"}}>Knowledge check reviewed · Awaiting forms and waiver verification</span></div>)}
+      <p style={{fontSize:13,color:"#65727f"}}>Demo only. These participants are not marked EXP Ready; all required forms and waiver reconciliation must also be complete.</p>
       <button style={primary} onClick={reset}>Start Another Test</button>
     </>}
   </main>;
