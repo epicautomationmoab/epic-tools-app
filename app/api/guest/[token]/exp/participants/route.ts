@@ -9,7 +9,11 @@ function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
 }
 function cleanName(value: string) { return value.trim().replace(/\s+/g, " "); }
-function validInitials(value: string) { return /^[a-z]{1,6}$/i.test(value.trim()); }
+function validInitials(value: string) {
+  // Drawn initials are transmitted as a bounded PNG data URL from the canvas.
+  // Never trust a typed initial or arbitrary remote image URL as an acknowledgment.
+  return /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(value) && value.length >= 150 && value.length <= 120_000;
+}
 
 /**
  * Records participation, NOT verified EXP completion.
@@ -31,10 +35,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return bad("Enter between 1 and 20 participating drivers.");
     }
     const normalized = body.participants.map(p => ({
-      display_name: cleanName(String(p.fullName ?? "")), initials: String(p.initials ?? "").trim().toUpperCase(),
+      display_name: cleanName(String(p.fullName ?? "")), initials: String(p.initials ?? "").trim(),
     }));
     if (normalized.some(p => p.display_name.length < 3 || p.display_name.length > 120 || !validInitials(p.initials))) {
-      return bad("Each driver needs a full name and initials.");
+      return bad("Each driver needs a full name and drawn initials.");
     }
     if (new Set(normalized.map(p => p.display_name.toLowerCase())).size !== normalized.length) {
       return bad("Each participating driver must be listed once.");
