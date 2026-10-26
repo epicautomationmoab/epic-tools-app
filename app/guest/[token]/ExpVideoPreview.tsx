@@ -53,8 +53,7 @@ export default function ExpVideoPreview({
       }
     }
     void checkForms();
-    const interval = window.setInterval(checkForms, 8000);
-    return () => { cancelled = true; window.clearInterval(interval); };
+    return () => { cancelled = true; };
   }, [eligible, token]);
 
   useEffect(() => {
