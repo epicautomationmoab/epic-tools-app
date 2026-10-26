@@ -96,6 +96,10 @@ export default function ExpAssessment({
         <button type="button" onClick={onExit}>Done</button>
       </> : <>
         <h4>Let's get you adventure ready!</h4>
+        <p>{result.reason === "critical"
+          ? "One or more essential safety answers still need review after the second attempt."
+          : "Three or more noncritical answers need another look."}</p>
+        <p className={styles.note}>Initial knowledge check: {result.correct} of 10 correct. This practice check does not save your answers.</p>
         <p>You can give the knowledge check another try here, or finish getting ready with an Adventure Technician when you arrive.</p>
         <div className={styles.actions}><button type="button" onClick={restart}>Try Again</button>
           <button type="button" onClick={() => setStage("technician")}>Finish with an Adventure Technician</button></div>
