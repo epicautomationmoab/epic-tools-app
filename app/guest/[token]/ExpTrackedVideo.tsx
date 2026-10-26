@@ -5,67 +5,81 @@ import styles from "./ExpVideoPreview.module.css";
 
 const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&loop=0&title=0&byline=0&portrait=0";
 const REQUIRED_COVERAGE = 0.9;
-const SEGMENT_SECONDS = 1;
 
-/** Each timeupdate represents observed playback, not a playhead position.
- * Advancing by a large amount (seeking/skipping) earns no coverage. */
+type PlaybackEvent = { seconds: number; duration: number };
+type Player = {
+  on: (event: string, handler: (data: PlaybackEvent) => void) => void;
+  off: (event: string, handler: (data: PlaybackEvent) => void) => void;
+  ready: () => Promise<void>;
+  destroy: () => Promise<void>;
+};
+type VimeoWindow = Window & { Vimeo?: { Player: new (iframe: HTMLIFrameElement) => Player } };
+let sdkLoading: Promise<void> | null = null;
+function loadVimeoSdk(): Promise<void> {
+  if ((window as VimeoWindow).Vimeo?.Player) return Promise.resolve();
+  if (sdkLoading) return sdkLoading;
+  sdkLoading = new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://player.vimeo.com/api/player.js";
+    script.async = true;
+    script.onload = () => (window as VimeoWindow).Vimeo?.Player ? resolve() : reject(new Error("Vimeo SDK unavailable"));
+    script.onerror = () => reject(new Error("Vimeo SDK could not load"));
+    document.head.appendChild(script);
+  }).catch(error => { sdkLoading = null; throw error; });
+  return sdkLoading;
+}
+
+/** Track watched seconds, not the video seek position. */
 export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange: (complete: boolean) => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const callback = useRef(onCoverageChange);
-  const visited = useRef(new Set<number>());
-  const previous = useRef<number | null>(null);
-  const [connected, setConnected] = useState(false);
   const [coverage, setCoverage] = useState(0);
+  const [trackingError, setTrackingError] = useState(false);
   useEffect(() => { callback.current = onCoverageChange; }, [onCoverageChange]);
-
   useEffect(() => {
-    const frameWindow = frame.current?.contentWindow;
-    if (!frameWindow) return;
-    const subscribe = () => {
-      frameWindow.postMessage(JSON.stringify({ method: "addEventListener", value: "timeupdate" }), "https://player.vimeo.com");
-      frameWindow.postMessage(JSON.stringify({ method: "addEventListener", value: "seeked" }), "https://player.vimeo.com");
-    };
-    function onMessage(event: MessageEvent) {
-      if (event.origin !== "https://player.vimeo.com" || event.source !== frameWindow) return;
-      let message: { event?: string; method?: string; data?: { seconds?: number; duration?: number } };
-      try { message = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch { return; }
-      if (!message || typeof message !== "object") return;
-      if (message.event === "ready" || message.method === "ping") { subscribe(); return; }
-      if (message.event === "seeked") { previous.current = null; return; }
-      if (message.event !== "timeupdate") return;
-      setConnected(true);
-      const data = message.data;
-      if (!data || !Number.isFinite(data.seconds) || !Number.isFinite(data.duration) || !data.duration || data.duration < 1) return;
-      const seconds = Math.max(0, data.seconds!);
-      const duration = data.duration!;
-      const last = previous.current;
-      previous.current = seconds;
-      if (last !== null) {
-        const delta = seconds - last;
-        if (delta > 0 && delta <= 1.5) {
-          const first = Math.floor(last / SEGMENT_SECONDS);
-          const final = Math.floor(Math.min(seconds, duration - 0.001) / SEGMENT_SECONDS);
-          for (let i = first; i <= final; i++) visited.current.add(i);
+    let disposed = false;
+    let player: Player | null = null;
+    const watched = new Set<number>();
+    let previous: number | null = null;
+    let seeking = false;
+    const onSeeking = () => { seeking = true; previous = null; };
+    const onSeeked = () => { seeking = false; previous = null; };
+    const onTimeUpdate = (data: PlaybackEvent) => {
+      if (!Number.isFinite(data.seconds) || !Number.isFinite(data.duration) || data.duration <= 0) return;
+      const current = Math.max(0, Math.min(data.seconds, data.duration));
+      if (!seeking && previous !== null) {
+        const elapsed = current - previous;
+        if (elapsed > 0 && elapsed <= 2) {
+          const from = Math.floor(previous);
+          const to = Math.floor(Math.min(current, data.duration - 0.001));
+          for (let second = from; second <= to; second++) watched.add(second);
         }
       }
-      const count = Math.ceil(duration / SEGMENT_SECONDS);
-      const value = Math.min(1, visited.current.size / count);
-      setCoverage(Math.round(value * 100));
-      if (value >= REQUIRED_COVERAGE) callback.current(true);
-    }
-    window.addEventListener("message", onMessage);
-    // Vimeo uses a postMessage handshake. The initial iframe exists before it is ready;
-    // subscribing only at mount loses events in some browsers. Subscribe after load too.
-    const iframe = frame.current;
-    const onLoad = () => {
-      previous.current = null;
-      frameWindow.postMessage(JSON.stringify({ method: "ping" }), "https://player.vimeo.com");
-      subscribe();
+      previous = current;
+      const percent = Math.min(1, watched.size / Math.ceil(data.duration));
+      setCoverage(Math.round(percent * 100));
+      if (percent >= REQUIRED_COVERAGE) callback.current(true);
     };
-    iframe?.addEventListener("load", onLoad);
-    frameWindow.postMessage(JSON.stringify({ method: "ping" }), "https://player.vimeo.com");
-    subscribe();
-    return () => { window.removeEventListener("message", onMessage); iframe?.removeEventListener("load", onLoad); };
+    void loadVimeoSdk().then(async () => {
+      if (disposed || !frame.current) return;
+      const Vimeo = (window as VimeoWindow).Vimeo;
+      if (!Vimeo?.Player) throw new Error("Player SDK unavailable");
+      player = new Vimeo.Player(frame.current);
+      player.on("seeking", onSeeking);
+      player.on("seeked", onSeeked);
+      player.on("timeupdate", onTimeUpdate);
+      await player.ready();
+      if (!disposed) setTrackingError(false);
+    }).catch(() => { if (!disposed) setTrackingError(true); });
+    return () => {
+      disposed = true;
+      if (player) {
+        player.off("seeking", onSeeking);
+        player.off("seeked", onSeeked);
+        player.off("timeupdate", onTimeUpdate);
+        // Keep the iframe instance under React ownership; do not destroy it.
+      }
+    };
   }, []);
 
   return <>
@@ -78,5 +92,6 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
       {coverage >= 90 ? "Video requirement met — 90% watched." :
         `Video watched: ${coverage}% · Watch at least 90% to continue.`}
     </p>
+    {trackingError ? <p role="alert">Video tracking could not connect. Please let our team know; you won't be marked complete by watching alone.</p> : null}
   </>;
 }
