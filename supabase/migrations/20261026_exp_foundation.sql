@@ -36,6 +36,9 @@ create table if not exists public.exp_participants (
   )
 );
 create index if not exists exp_participants_readiness_idx on public.exp_participants(readiness_id);
+create unique index if not exists exp_participants_session_name_unique
+  on public.exp_participants(session_id, lower(trim(display_name)));
+
 create unique index if not exists exp_verified_waiver_unique
   on public.exp_participants(readiness_id,waiver_signer_reference)
   where reconciliation_status = 'verified' and waiver_signer_reference is not null;
