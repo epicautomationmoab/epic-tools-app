@@ -135,7 +135,7 @@ export default function ArrivalBoardDisplay({
               <div className={styles.activity}>
                 <strong>{reservationLabel(row)}</strong>
                 {details.length ? <span>{details.join(" • ")}</span> : null}
-                {exp?.allReady && row.business_line === "rental" ? <span style={{color:"#176534",fontWeight:800}}>✓ EXP Ready</span> : null}
+                
               </div>
 
               <div
@@ -143,6 +143,7 @@ export default function ArrivalBoardDisplay({
                   isKiosk ? styles.kiosk : styles.agentReady
                 }`}
               >
+                {exp?.allReady && row.business_line === "rental" ? <span style={{background:"#def2e4",color:"#087238",fontSize:12,fontWeight:800,borderRadius:20,padding:"4px 10px",letterSpacing:".03em",whiteSpace:"nowrap"}}>XPRESS CHECKOUT</span> : null}
                 <span className={styles.directionIcon} aria-hidden="true">
                   {isKiosk ? "→" : "🎉"}
                 </span>
