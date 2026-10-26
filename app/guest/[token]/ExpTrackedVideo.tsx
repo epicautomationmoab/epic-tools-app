@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
 
 const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&loop=0&title=0&byline=0&portrait=0";
-const REQUIRED_COVERAGE = 0.995;
+const REQUIRED_COVERAGE = 0.98;
 
 type PlaybackEvent = { seconds: number; duration: number };
 type Player = {
@@ -46,7 +46,14 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
     const checkComplete = (duration: number) => {
       if (reachedEnd && watched.size >= Math.ceil(duration) * REQUIRED_COVERAGE) callback.current(true);
     };
-    const onEnded = () => { reachedEnd = true; if (knownDuration > 0) checkComplete(knownDuration); };
+    const onEnded = () => {
+      reachedEnd = true;
+      if (knownDuration > 0 && previous !== null) {
+        const lastSecond = Math.ceil(knownDuration) - 1;
+        if (knownDuration - previous <= 2) watched.add(lastSecond);
+        checkComplete(knownDuration);
+      }
+    };
     let knownDuration = 0;
     const onSeeking = () => { seeking = true; previous = null; };
     const onSeeked = () => { seeking = false; previous = null; };
