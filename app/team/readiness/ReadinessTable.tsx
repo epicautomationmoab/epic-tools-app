@@ -1198,7 +1198,6 @@ await callReadinessRpc("manual_override_mpwr_information", {
               <th className={styles.colVehicles}>Vehicles</th>
               <th className={styles.colDocs}>Epic</th>
               <th className={styles.colMpwr}>MPWR</th>
-              <th>EXP</th>
               <th className={styles.colAssure}>Adventure Assure</th>
               <th className={styles.colBalance}>Balance</th>
               <th className={styles.colOhv}>OHV</th>
@@ -1241,7 +1240,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     </div>
                   </td>
                   <td>
-                    <div className={styles.mainLine}>{row.customer_name}</div>
+                    <div className={styles.mainLine} style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>{row.customer_name}{row.business_line==="rental" && expStatuses[row.readiness_id || ""]?.allReady ? <span title="All rental drivers qualified for Epic Xpress Ready" style={{fontSize:11,padding:"2px 6px",borderRadius:5,background:"#dff2e5",color:"#176534",fontWeight:800,letterSpacing:".04em"}}>EXP</span> : null}</div>
                     <div className={styles.subLine}>
                       {phone || row.confirmation_code}
                     </div>
@@ -1318,15 +1317,6 @@ await callReadinessRpc("manual_override_mpwr_information", {
                           ? "N/A"
                           : "Missing"}
                     </div>
-                  </td>
-                  <td>
-                    {row.business_line === "rental" ? (() => {
-                      const exp = expStatuses[row.readiness_id || ""];
-                      if (!exp) return <span className={styles.subLine}>Not recorded</span>;
-                      return <span title="EXP completion is reservation-wide; every driver must qualify">
-                        {exp.allReady ? "✓ EXP Ready" : exp.status === "partial" ? `${exp.ready}/${exp.total} complete` : "Not started"}
-                      </span>;
-                    })() : <span className={styles.subLine}>N/A</span>}
                   </td>
                   <td>
                     <span
