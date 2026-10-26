@@ -1654,30 +1654,6 @@ await callReadinessRpc("manual_override_mpwr_information", {
 
             </section>
 
-            {selected.business_line === "rental" ? (
-              <section className={styles.drawerSection} aria-label="Epic Xpress Ready">
-                <h3>Epic Xpress Ready</h3>
-                {process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && expDemo[selected.confirmation_code] ? <p style={{color:"#176534",fontWeight:800}}>PREVIEW SIMULATION — Assessment passed · {expDemo[selected.confirmation_code].drivers.length} participating driver(s) · {new Date(expDemo[selected.confirmation_code].completedAt).toLocaleString()} · Not saved to the reservation</p> : null}
-                <p className={styles.subLine}>Orientation and knowledge check by driver. This does not replace Epic agreements, Polaris waivers, or OHV certification.</p>
-                {(() => {
-                  const exp = expStatuses[selected.readiness_id || ""];
-                  if (!exp) return <p className={styles.subLine}>No verified EXP completion records available yet.</p>;
-                  return <p className={styles.subLine}>{exp.allReady ? "All drivers EXP qualified" : exp.ready > 0 ? `${exp.ready} of ${exp.total} drivers complete` : "Not started"}</p>;
-                })()}
-                {(() => {
-                  const names = Array.from(new Map((selected.rental_v2_signers ?? [])
-                    .filter(signer => signer.role === "driver")
-                    .map(signer => [signer.name.trim().toLowerCase(),signer.name.trim()])).values());
-                  return names.length ? <div style={{border:"1px solid #dce3e8",borderRadius:9,overflow:"hidden",marginTop:12}}>
-                    {names.map(name => <div key={name} style={{padding:"10px 12px",display:"flex",justifyContent:"space-between",gap:12,borderBottom:"1px solid #e4e9ec"}}>
-                      <strong>{name}</strong><span style={{color:"#65727f"}}>{process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && expDemo[selected.confirmation_code]?.drivers.some(driver=>normalizeExpName(driver)===normalizeExpName(name)) ? "Preview: assessment passed" : "EXP not recorded"}</span>
-                    </div>)}
-                  </div> : <p className={styles.subLine}>Driver list will appear once signed driver records are available.</p>;
-                })()}
-                <p className={styles.subLine}>Individual video acknowledgment, knowledge check, completion time, and drawn initials will appear after secure EXP recording is connected.</p>
-              </section>
-            ) : null}
-
             <CancellationAgreementPanel row={selected} />
 
             {selected.business_line === "rental" &&
@@ -2263,6 +2239,30 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 </p>
               )}
             </section>
+
+            {selected.business_line === "rental" ? (
+              <section className={styles.drawerSection} aria-label="Epic Xpress Ready">
+                <h3>Epic Xpress Ready</h3>
+                {process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && expDemo[selected.confirmation_code] ? <p style={{color:"#176534",fontWeight:800}}>PREVIEW SIMULATION — Assessment passed · {expDemo[selected.confirmation_code].drivers.length} participating driver(s) · {new Date(expDemo[selected.confirmation_code].completedAt).toLocaleString()} · Not saved to the reservation</p> : null}
+                <p className={styles.subLine}>Orientation and knowledge check by driver. This does not replace Epic agreements, Polaris waivers, or OHV certification.</p>
+                {(() => {
+                  const exp = expStatuses[selected.readiness_id || ""];
+                  if (!exp) return <p className={styles.subLine}>No verified EXP completion records available yet.</p>;
+                  return <p className={styles.subLine}>{exp.allReady ? "All drivers EXP qualified" : exp.ready > 0 ? `${exp.ready} of ${exp.total} drivers complete` : "Not started"}</p>;
+                })()}
+                {(() => {
+                  const names = Array.from(new Map((selected.rental_v2_signers ?? [])
+                    .filter(signer => signer.role === "driver")
+                    .map(signer => [signer.name.trim().toLowerCase(),signer.name.trim()])).values());
+                  return names.length ? <div style={{border:"1px solid #dce3e8",borderRadius:9,overflow:"hidden",marginTop:12}}>
+                    {names.map(name => <div key={name} style={{padding:"10px 12px",display:"flex",justifyContent:"space-between",gap:12,borderBottom:"1px solid #e4e9ec"}}>
+                      <strong>{name}</strong><span style={{color:"#65727f"}}>{process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && expDemo[selected.confirmation_code]?.drivers.some(driver=>normalizeExpName(driver)===normalizeExpName(name)) ? "Preview: assessment passed" : "EXP not recorded"}</span>
+                    </div>)}
+                  </div> : <p className={styles.subLine}>Driver list will appear once signed driver records are available.</p>;
+                })()}
+                <p className={styles.subLine}>Individual video acknowledgment, knowledge check, completion time, and drawn initials will appear after secure EXP recording is connected.</p>
+              </section>
+            ) : null}
 
             <section
               className={`${styles.drawerSection} ${styles.peopleCountSection}`}
