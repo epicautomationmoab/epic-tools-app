@@ -14,6 +14,7 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
   const callback = useRef(onCoverageChange);
   const visited = useRef(new Set<number>());
   const previous = useRef<number | null>(null);
+  const [connected, setConnected] = useState(false);
   const [coverage, setCoverage] = useState(0);
   useEffect(() => { callback.current = onCoverageChange; }, [onCoverageChange]);
 
@@ -26,12 +27,13 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
     };
     function onMessage(event: MessageEvent) {
       if (event.origin !== "https://player.vimeo.com" || event.source !== frameWindow) return;
-      let message: { event?: string; data?: { seconds?: number; duration?: number } };
+      let message: { event?: string; method?: string; data?: { seconds?: number; duration?: number } };
       try { message = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch { return; }
       if (!message || typeof message !== "object") return;
-      if (message.event === "ready") { subscribe(); return; }
+      if (message.event === "ready" || message.method === "ping") { subscribe(); return; }
       if (message.event === "seeked") { previous.current = null; return; }
       if (message.event !== "timeupdate") return;
+      setConnected(true);
       const data = message.data;
       if (!data || !Number.isFinite(data.seconds) || !Number.isFinite(data.duration) || !data.duration || data.duration < 1) return;
       const seconds = Math.max(0, data.seconds!);
@@ -52,8 +54,18 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
       if (value >= REQUIRED_COVERAGE) callback.current(true);
     }
     window.addEventListener("message", onMessage);
+    // Vimeo uses a postMessage handshake. The initial iframe exists before it is ready;
+    // subscribing only at mount loses events in some browsers. Subscribe after load too.
+    const iframe = frame.current;
+    const onLoad = () => {
+      previous.current = null;
+      frameWindow.postMessage(JSON.stringify({ method: "ping" }), "https://player.vimeo.com");
+      subscribe();
+    };
+    iframe?.addEventListener("load", onLoad);
+    frameWindow.postMessage(JSON.stringify({ method: "ping" }), "https://player.vimeo.com");
     subscribe();
-    return () => window.removeEventListener("message", onMessage);
+    return () => { window.removeEventListener("message", onMessage); iframe?.removeEventListener("load", onLoad); };
   }, []);
 
   return <>
