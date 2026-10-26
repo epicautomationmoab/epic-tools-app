@@ -6,7 +6,7 @@ import ExpAssessment from "./ExpAssessment";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 
-const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&loop=0";
+const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&loop=0&title=0&byline=0&portrait=0";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Rental = { readinessId: string; businessLine: string; visitStartTime: string };
