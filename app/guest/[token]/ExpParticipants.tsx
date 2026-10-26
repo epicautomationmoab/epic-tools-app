@@ -2,43 +2,52 @@
 
 import { useState } from "react";
 import styles from "./ExpParticipants.module.css";
+import ExpDrawnInitials from "./ExpDrawnInitials";
 
-export type ExpParticipantDraft = { fullName: string; initials: string };
+export type ExpParticipantDraft = { fullName: string; initials: string; waiverMatched?: boolean };
 export default function ExpParticipants({
-  onContinue,
-  onBack,
+  onContinue, onBack, waiverDrivers = [],
 }: {
   onContinue: (participants: ExpParticipantDraft[]) => void;
   onBack: () => void;
+  waiverDrivers?: string[];
 }) {
-  const [drivers, setDrivers] = useState<ExpParticipantDraft[]>([{ fullName: "", initials: "" }]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [manual, setManual] = useState<string[]>([]);
+  const [signed, setSigned] = useState<Record<string,string>>({});
   const [confirmed, setConfirmed] = useState(false);
-  const names = drivers.map(d => d.fullName.trim().replace(/\s+/g, " "));
-  const ready = confirmed && drivers.length > 0 && drivers.every(d => d.fullName.trim().length >= 3 && /^[a-z]{1,6}$/i.test(d.initials.trim())) && new Set(names.map(n => n.toLowerCase())).size === drivers.length;
-  function edit(index: number, key: keyof ExpParticipantDraft, value: string) {
-    setDrivers(prev => prev.map((d, i) => i === index ? { ...d, [key]: value } : d));
-  }
+  const distinctWaivers = Array.from(new Set(waiverDrivers.map(n=>n.trim()).filter(Boolean)));
+  const all = [...selected.map(n=>({name:n,matched:true})),...manual.map(n=>({name:n.trim(),matched:false}))].filter(x=>x.name);
+  const valid = confirmed && all.length>0 && all.every(x=>x.name.length>=3 && x.name.includes(" ") && Boolean(signed[x.name])) && new Set(all.map(x=>x.name.toLowerCase())).size===all.length;
   return <section className={styles.wrap} aria-label="EXP participating drivers">
     <h3>Almost trail-ready!</h3>
-    <p>Tell us who is getting Epic Xpress Ready. One driver or your whole group can complete the knowledge check together — so everyone can spend less time checking out and more time exploring.</p>
-    <p className={styles.note}>Please use the same full name as each driver's rental waiver.</p>
-    {drivers.map((driver, index) => <div className={styles.driver} key={index}>
-      <label>Driver {index + 1} — full name
-        <input autoComplete="off" value={driver.fullName} maxLength={120} onChange={e => edit(index, "fullName", e.target.value)} placeholder="First and last name" />
+    <p>Everyone watching together can complete one knowledge check. Select each participating driver, then have each person draw their initials to confirm they watched the video.</p>
+    {distinctWaivers.length ? <>
+      <strong>Select drivers with signed waivers</strong>
+      <p className={styles.note}>Choose everyone participating. More than one selection is welcome.</p>
+      {distinctWaivers.map(name=><label key={name} className={styles.confirm} style={{marginBottom:8}}>
+        <input type="checkbox" checked={selected.includes(name)} onChange={e=>setSelected(prev=>e.target.checked?[...prev,name]:prev.filter(n=>n!==name))}/>
+        <span>{name}</span>
+      </label>)}
+    </> : <p className={styles.note}>Driver waivers have not been loaded yet. You can enter names now; they will need to be matched to signed waivers before EXP status is verified.</p>}
+    {manual.map((name,i)=><div key={i} className={styles.driver}>
+      <label>Driver without a listed waiver — full name
+        <input value={name} onChange={e=>setManual(prev=>prev.map((n,j)=>j===i?e.target.value:n))} placeholder="First and last name" maxLength={120}/>
       </label>
-      <label>Initials
-        <input autoComplete="off" value={driver.initials} maxLength={6} onChange={e => edit(index, "initials", e.target.value)} placeholder="Initials" />
-      </label>
-      {drivers.length > 1 ? <button type="button" className={styles.remove} onClick={() => setDrivers(prev => prev.filter((_, i) => i !== index))} aria-label={`Remove driver ${index + 1}`}>Remove</button> : null}
+      <button type="button" className={styles.remove} onClick={()=>setManual(prev=>prev.filter((_,j)=>j!==i))}>Remove</button>
     </div>)}
-    <button type="button" className={styles.add} disabled={drivers.length >= 20} onClick={() => setDrivers(prev => [...prev, { fullName: "", initials: "" }])}>+ Add another driver</button>
-    <label className={styles.confirm}><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />
-      <span>All drivers listed watched the entire Epic Xpress Ready orientation and are participating in this knowledge check.</span>
+    <button className={styles.add} type="button" disabled={selected.length+manual.length>=20} onClick={()=>setManual(prev=>[...prev,""])}>+ Add driver not listed</button>
+    {all.map(({name,matched})=><div key={name} style={{padding:"12px 0",borderBottom:"1px solid #dde3e8"}}>
+      <strong>{name}</strong> <span className={styles.note}>{matched?"Signed waiver listed":"Waiver matching required"}</span>
+      <ExpDrawnInitials name={name} onChange={value=>setSigned(prev=>({...prev,[name]:value}))}/>
+    </div>)}
+    <label className={styles.confirm}><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>
+      <span>All participating drivers watched the Epic Xpress Ready safety orientation.</span>
     </label>
     <div className={styles.actions}>
-      <button type="button" disabled={!ready} onClick={() => onContinue(drivers.map(d => ({fullName:d.fullName.trim().replace(/\s+/g, " "), initials:d.initials.trim().toUpperCase()})))}>Let's Do the Knowledge Check</button>
-      <button type="button" className={styles.back} onClick={onBack}>Back to orientation</button>
+      <button type="button" disabled={!valid} onClick={()=>onContinue(all.map(x=>({fullName:x.name,initials:signed[x.name],waiverMatched:x.matched})))}>Let's Do the Knowledge Check</button>
+      <button type="button" className={styles.back} onClick={onBack}>Back</button>
     </div>
-    <p className={styles.note}>Preview only: driver names and initials are not saved or matched to waivers yet.</p>
+    <p className={styles.note}>Testing preview: drawn initials and names are not saved. Actual waiver verification and completion recording will be enabled only in production after validation.</p>
   </section>;
 }
