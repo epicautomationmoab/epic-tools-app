@@ -8,7 +8,25 @@ import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 import { saveExpDemo, useExpDemo, normalizeExpName } from "@/lib/exp/demo-browser";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+// EXP opens at 8:00 AM Moab time on the calendar day before the rental.
+// Use local calendar dates rather than a 24-hour difference (DST-safe).
+const MOAB_ZONE = "America/Denver";
+function moabParts(timestamp: number) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: MOAB_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(timestamp));
+  const part = (type: string) => Number(parts.find(item => item.type === type)?.value);
+  return { year: part("year"), month: part("month"), day: part("day"), hour: part("hour") };
+}
+function withinExpWindow(start: number, now: number) {
+  if (!Number.isFinite(start) || start < now) return false;
+  const visit = moabParts(start);
+  const today = moabParts(now);
+  const dayDifference = Math.round((Date.UTC(visit.year, visit.month - 1, visit.day) -
+    Date.UTC(today.year, today.month - 1, today.day)) / 86_400_000);
+  return dayDifference === 0 || (dayDifference === 1 && today.hour >= 8);
+}
 
 type Rental = { readinessId: string; businessLine: string; visitStartTime: string };
 
@@ -45,7 +63,7 @@ export default function ExpVideoPreview({
     return activities.some((activity) => {
       if (activity.businessLine.toLowerCase() !== "rental") return false;
       const start = new Date(activity.visitStartTime).getTime();
-      return Number.isFinite(start) && start >= now && (reviewerMode || start - now <= DAY_MS);
+      return Number.isFinite(start) && start >= now && (reviewerMode || withinExpWindow(start, now));
     });
   }, [activities, now, reviewerMode]);
 
