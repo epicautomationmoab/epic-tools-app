@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import styles from "./GuestPortal.module.css";
 import PetAgreementOption from "./PetAgreementOption";
+import { getExpWaiverDriverNames } from "@/lib/exp/portal-waiver-drivers";
 
 
 const UTAH_ADULT_OHV_COURSE_URL =
@@ -336,6 +337,12 @@ export default function GuestPortalPage() {
   const hasRentalActivity = reservation.activities.some(
     (activity) => activity.businessLine.toLowerCase() === "rental",
   );
+  // Built for future guarded EXP rollout. No EXP UI is mounted in real Guest Portal yet.
+  const expRentalDrivers = reservation.activities
+    .filter(activity => activity.businessLine.toLowerCase() === "rental")
+    .flatMap(activity => getExpWaiverDriverNames(activity.readinessId,
+      reservation.epicDocuments, reservation.mpwrWaivers));
+  void expRentalDrivers;
 
   return (
     <main className={styles.page}>
