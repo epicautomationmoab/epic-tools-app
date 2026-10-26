@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseInsert, supabaseSelect } from "@/lib/server/supabase-rest";
+import { supabaseSelect, getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
 
 type PortalActivity = { readiness_id: string; business_line: string };
 type Session = { id: string; readiness_id: string; outcome: string; mode: string };
@@ -53,17 +53,25 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       select: "id", session_id: `eq.${session.id}`, limit: "1",
     }));
     if (existing.length) return bad("Participants already recorded for this session.", 409);
-    // Individual inserts are intentionally only foundation work. A transactional
-    // Supabase RPC must replace this loop before the flag is enabled.
-    for (const participant of normalized) {
-      await supabaseInsert("exp_participants", {
+    // One bulk insert is atomic: a failure cannot leave a partial group recorded.
+    // A unique (session_id, normalized-name) index provides duplicate protection.
+    const { url } = getServerSupabaseConfig();
+    const response = await fetch(`${url}/rest/v1/exp_participants`, {
+      method: "POST",
+      headers: serverSupabaseHeaders("return=representation"),
+      body: JSON.stringify(normalized.map(participant => ({
         session_id: session.id,
         readiness_id: reservation.readiness_id,
         ...participant,
         acknowledgement_at: new Date().toISOString(),
         reconciliation_status: "unmatched",
-      });
-    }
+      }))),
+      cache: "no-store",
+    });
+    if (response.status === 409) return bad("These drivers have already been recorded for this assessment.", 409);
+    if (!response.ok) throw new Error(`Unable to record participants (${response.status})`);
+    const rows = await response.json() as Array<{ id: string }>;
+    if (rows.length !== normalized.length) throw new Error("Unexpected number of saved participants.");
     return NextResponse.json({ ok: true, recorded: normalized.length, verifiedDrivers: 0, completionRecorded: false },
       { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
