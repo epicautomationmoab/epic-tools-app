@@ -19,14 +19,14 @@ export default function ExpAssessment({
   questions,
   onExit,
 }: { questions: ExpQuestion[]; onExit: () => void }) {
-  const randomized = useMemo(() => shuffled(questions).map(q => ({ ...q, options: shuffled(q.options) })), [questions]);
+  const [attempt, setAttempt] = useState(1);
+  const randomized = useMemo(() => shuffled(questions).map(q => ({ ...q, options: q.options.length === 2 && q.options.every(o => ["true", "false"].includes(o.id)) ? [...q.options] : shuffled(q.options) })), [questions, attempt]);
   const [stage, setStage] = useState<Stage>("questions");
   const [answers, setAnswers] = useState<Record<string,string>>({});
   const [originalAnswers, setOriginalAnswers] = useState<ExpAnswer[]>([]);
   const [criticalAnswers, setCriticalAnswers] = useState<Record<string,string>>({});
   const [missedCritical, setMissedCritical] = useState<string[]>([]);
   const [result, setResult] = useState<ExpOutcome | null>(null);
-  const [attempt, setAttempt] = useState(1);
 
   const displayQuestions = stage === "critical_retry"
     ? randomized.filter(q => missedCritical.includes(q.id))
