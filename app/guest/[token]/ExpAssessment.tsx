@@ -69,14 +69,14 @@ export default function ExpAssessment({
 
   if (questions.length !== 10) return <p role="status">The EXP assessment question bank is not configured. Please complete your orientation with an Adventure Technician.</p>;
   return <section className={styles.assessment} aria-label="Epic Xpress Ready knowledge assessment">
-    <h3>Epic Xpress Ready — Knowledge Check</h3>
+    <h3>One Last Step to More Trail Time</h3>
     {stage === "technician" ? <>
       <p>Our Adventure Technician will complete your safety orientation at checkout.</p>
       <p>This choice does not mark online EXP complete.</p>
       <button type="button" onClick={onExit}>Return to Guest Portal</button>
     </> : stage === "result" && result ? <>
       {result.status === "complete" ? <>
-        <h4>Great work! Let's review what you missed.</h4>
+        <h4>Nice work! You're one step closer to the trails.</h4>
         {result.corrections.length === 0 ? <p>All ten answers were correct.</p> :
           result.corrections.map(item => {
             const question = questions.find(q => q.id === item.questionId);
@@ -90,13 +90,13 @@ export default function ExpAssessment({
         <button type="button" onClick={onExit}>Done</button>
       </> : <>
         <h4>Let's get you adventure ready!</h4>
-        <p>You can try the knowledge check again or complete your orientation in person with an Adventure Technician.</p>
+        <p>You can give the knowledge check another try here, or finish getting ready with an Adventure Technician when you arrive.</p>
         <div className={styles.actions}><button type="button" onClick={restart}>Try Again</button>
-          <button type="button" onClick={() => setStage("technician")}>Adventure Technician Checkout</button></div>
+          <button type="button" onClick={() => setStage("technician")}>Finish with an Adventure Technician</button></div>
       </>}
     </> : <>
-      {stage === "critical_retry" ? <p>Please answer these important safety questions once more.</p> :
-        <p>Answer the ten safety questions. You can review answers together when participating as a group.</p>}
+      {stage === "critical_retry" ? <p>Almost there! Please give these important safety questions another try.</p> :
+        <p>A quick check to help you feel confident behind the wheel. Taking it as a group? Work through the answers together.</p>}
       <p className={styles.note}>Attempt {attempt}</p>
       {displayQuestions.map((q, index) => <fieldset className={styles.question} key={q.id}>
         <legend>{index + 1}. {q.prompt}</legend>
