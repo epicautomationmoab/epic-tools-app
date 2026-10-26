@@ -20,6 +20,8 @@ export default function ExpVideoPreview({
   const [now, setNow] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const [started, setStarted] = useState(false);
+  const [formsLoaded, setFormsLoaded] = useState(false);
+  const [outstandingRequiredForms, setOutstandingRequiredForms] = useState(false);
   const eligible = useMemo(() => {
     if (now === null) return false;
     return activities.some((activity) => {
@@ -37,6 +39,26 @@ export default function ExpVideoPreview({
 
   useEffect(() => {
     if (!eligible || !token) return;
+    let cancelled = false;
+    async function checkForms() {
+      try {
+        const response = await fetch(`/api/guest/${encodeURIComponent(token)}/guest-forms`, { cache: "no-store" });
+        if (!response.ok) throw new Error("Forms unavailable");
+        const data = await response.json() as { tasks?: Array<{ status: string; required: boolean; templateKey: string | null }> };
+        if (cancelled) return;
+        setOutstandingRequiredForms((data.tasks ?? []).some((task) => task.required && task.status !== "completed" && task.templateKey !== "damage_acknowledgment"));
+        setFormsLoaded(true);
+      } catch {
+        if (!cancelled) { setOutstandingRequiredForms(true); setFormsLoaded(false); }
+      }
+    }
+    void checkForms();
+    const interval = window.setInterval(checkForms, 8000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [eligible, token]);
+
+  useEffect(() => {
+    if (!eligible || !token || !formsLoaded || outstandingRequiredForms) return;
     const key = `epic-exp-prompted-v1:${token}`;
     try {
       if (window.localStorage.getItem(key)) return;
@@ -45,7 +67,7 @@ export default function ExpVideoPreview({
       // Storage may be blocked; still permit manual opening via the portal card.
     }
     setOpen(true);
-  }, [eligible, token]);
+  }, [eligible, token, formsLoaded, outstandingRequiredForms]);
 
   useEffect(() => {
     if (!open) return;
