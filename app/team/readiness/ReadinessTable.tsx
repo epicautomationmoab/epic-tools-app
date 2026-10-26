@@ -1661,7 +1661,17 @@ await callReadinessRpc("manual_override_mpwr_information", {
                   if (!exp) return <p className={styles.subLine}>No verified EXP completion records available yet.</p>;
                   return <p className={styles.subLine}>{exp.allReady ? "All drivers EXP qualified" : exp.ready > 0 ? `${exp.ready} of ${exp.total} drivers complete` : "Not started"}</p>;
                 })()}
-                <p className={styles.subLine}>Individual driver acknowledgments, completion times, and assessment results will appear here after secure server-side recording and waiver identity reconciliation are connected.</p>
+                {(() => {
+                  const names = Array.from(new Map((selected.rental_v2_signers ?? [])
+                    .filter(signer => signer.role === "driver")
+                    .map(signer => [signer.name.trim().toLowerCase(),signer.name.trim()])).values());
+                  return names.length ? <div style={{border:"1px solid #dce3e8",borderRadius:9,overflow:"hidden",marginTop:12}}>
+                    {names.map(name => <div key={name} style={{padding:"10px 12px",display:"flex",justifyContent:"space-between",gap:12,borderBottom:"1px solid #e4e9ec"}}>
+                      <strong>{name}</strong><span style={{color:"#65727f"}}>EXP not recorded</span>
+                    </div>)}
+                  </div> : <p className={styles.subLine}>Driver list will appear once signed driver records are available.</p>;
+                })()}
+                <p className={styles.subLine}>Individual video acknowledgment, knowledge check, completion time, and drawn initials will appear after secure EXP recording is connected.</p>
               </section>
             ) : null}
 
