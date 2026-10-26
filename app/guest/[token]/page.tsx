@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import styles from "./GuestPortal.module.css";
 import ExpVideoPreview from "./ExpVideoPreview";
+import PetAgreementOption from "./PetAgreementOption";
 
 
 const UTAH_ADULT_OHV_COURSE_URL =
@@ -877,6 +878,10 @@ export default function GuestPortalPage() {
 
         {process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && hasRentalActivity ? (
           <ExpVideoPreview token={reservation.guestPortalToken} activities={reservation.activities} />
+        ) : null}
+
+        {process.env.NEXT_PUBLIC_PET_SELF_SERVICE_PREVIEW === "true" && hasRentalActivity ? (
+          <PetAgreementOption token={reservation.guestPortalToken} />
         ) : null}
 
         <section className={styles.helpCard}>
