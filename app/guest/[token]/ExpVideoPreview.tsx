@@ -92,9 +92,9 @@ export default function ExpVideoPreview({
     <>
       <section className={styles.panel} aria-label="Epic Xpress Ready orientation">
         <div>
-          <span className={styles.eyebrow}>GET READY FOR YOUR ADVENTURE</span>
+          <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
           <h2>Epic Xpress Ready</h2>
-          <p>Get a head start on your adventure! Complete our rental safety orientation and a quick knowledge check before you arrive for a faster, easier checkout.</p>
+          <p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>
         </div>
         <button className={styles.action} type="button" onClick={() => { setStarted(false); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setOpen(true); }}>
           Get Started
@@ -104,9 +104,9 @@ export default function ExpVideoPreview({
         <div className={styles.backdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="exp-title" aria-describedby="exp-desc">
             <button className={styles.close} type="button" aria-label="Close orientation" onClick={() => setOpen(false)}>×</button>
-            <span className={styles.eyebrow}>EPIC XPRESS READY · STEP 1 OF 3</span>
+            <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
             <h2 id="exp-title">Epic Xpress Ready</h2>
-            <p id="exp-desc">Take a few minutes to learn how to operate your RZR safely and confidently. After the video, you'll complete a quick knowledge check for our fastest check-out!</p>
+            <p id="exp-desc">Get a head start on your adventure. Watch a short video to get comfortable with your RZR, then take a quick knowledge check. You'll arrive ready to roll — with more time for the trails.</p>
             {showAssessment ? (
               <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onExit={() => { setShowAssessment(false); setOpen(false); }} />
             ) : selectDrivers ? (
@@ -115,8 +115,8 @@ export default function ExpVideoPreview({
               <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} />
             ) : (
               <div className={styles.intro}>
-                <button className={styles.action} type="button" onClick={() => setStarted(true)}>Watch orientation</button>
-                <button className={styles.later} type="button" onClick={() => setOpen(false)}>Maybe later</button>
+                <button className={styles.action} type="button" onClick={() => setStarted(true)}>Get Started</button>
+                <button className={styles.later} type="button" onClick={() => setOpen(false)}>Maybe Later</button>
               </div>
             )}
             {started && !showAssessment && !selectDrivers ? (
