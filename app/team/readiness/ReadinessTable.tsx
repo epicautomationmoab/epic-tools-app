@@ -1242,7 +1242,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     </div>
                   </td>
                   <td>
-                    <div className={styles.mainLine} style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>{row.customer_name}{row.business_line==="rental" && (expStatuses[row.readiness_id || ""]?.allReady || (process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && !!expDemo[row.confirmation_code])) ? <span title="All rental drivers qualified for Epic Xpress Ready" style={{fontSize:11,padding:"2px 6px",borderRadius:5,background:"#dff2e5",color:"#176534",fontWeight:800,letterSpacing:".04em"}}>EXP</span> : null}</div>
+                    <div className={styles.mainLine} style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>{row.customer_name}{row.business_line==="rental" && (expStatuses[row.readiness_id || ""]?.allReady || (process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && !!expDemo[row.confirmation_code])) ? <span title="All rental drivers qualified for Epic Xpress Ready" style={{fontSize:11,padding:"2px 6px",borderRadius:5,background:"#dff2e5",color:"#176534",fontWeight:800,letterSpacing:".04em"}}>{expDemo[row.confirmation_code] ? "EXP DEMO" : "EXP"}</span> : null}</div>
                     <div className={styles.subLine}>
                       {phone || row.confirmation_code}
                     </div>
