@@ -6,6 +6,7 @@ import styles from "./ReadinessShell.module.css";
 import CancellationAgreementPanel from "./CancellationAgreementPanel";
 import { guestFacingBalanceCents } from "@/lib/guest-confirmation-accounting";
 import type { ExpTeamStatus } from "@/lib/exp/team-status";
+import { useExpDemo, normalizeExpName } from "@/lib/exp/demo-browser";
 
 type TimeFilter = "all" | "today" | "tomorrow";
 type Filter = "all" | "rental" | "tour";
@@ -414,6 +415,7 @@ function mergeReadinessDetail(previous: ReadinessRow, incoming: ReadinessRow): R
 }
 
 export default function ReadinessTable({ rows, expStatuses = {} }: { rows: ReadinessRow[]; expStatuses?: Record<string, ExpTeamStatus> }) {
+  const expDemo = useExpDemo();
   const [filter, setFilter] = useState<Filter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
   const [query, setQuery] = useState("");
@@ -1240,7 +1242,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     </div>
                   </td>
                   <td>
-                    <div className={styles.mainLine} style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>{row.customer_name}{row.business_line==="rental" && expStatuses[row.readiness_id || ""]?.allReady ? <span title="All rental drivers qualified for Epic Xpress Ready" style={{fontSize:11,padding:"2px 6px",borderRadius:5,background:"#dff2e5",color:"#176534",fontWeight:800,letterSpacing:".04em"}}>EXP</span> : null}</div>
+                    <div className={styles.mainLine} style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>{row.customer_name}{row.business_line==="rental" && (expStatuses[row.readiness_id || ""]?.allReady || (process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && !!expDemo[row.confirmation_code])) ? <span title="All rental drivers qualified for Epic Xpress Ready" style={{fontSize:11,padding:"2px 6px",borderRadius:5,background:"#dff2e5",color:"#176534",fontWeight:800,letterSpacing:".04em"}}>EXP</span> : null}</div>
                     <div className={styles.subLine}>
                       {phone || row.confirmation_code}
                     </div>
@@ -1655,6 +1657,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
             {selected.business_line === "rental" ? (
               <section className={styles.drawerSection} aria-label="Epic Xpress Ready">
                 <h3>Epic Xpress Ready</h3>
+                {process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && expDemo[selected.confirmation_code] ? <p style={{color:"#176534",fontWeight:800}}>PREVIEW SIMULATION — Assessment passed · {expDemo[selected.confirmation_code].drivers.length} participating driver(s) · {new Date(expDemo[selected.confirmation_code].completedAt).toLocaleString()} · Not saved to the reservation</p> : null}
                 <p className={styles.subLine}>Orientation and knowledge check by driver. This does not replace Epic agreements, Polaris waivers, or OHV certification.</p>
                 {(() => {
                   const exp = expStatuses[selected.readiness_id || ""];
@@ -1667,7 +1670,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     .map(signer => [signer.name.trim().toLowerCase(),signer.name.trim()])).values());
                   return names.length ? <div style={{border:"1px solid #dce3e8",borderRadius:9,overflow:"hidden",marginTop:12}}>
                     {names.map(name => <div key={name} style={{padding:"10px 12px",display:"flex",justifyContent:"space-between",gap:12,borderBottom:"1px solid #e4e9ec"}}>
-                      <strong>{name}</strong><span style={{color:"#65727f"}}>EXP not recorded</span>
+                      <strong>{name}</strong><span style={{color:"#65727f"}}>{process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && expDemo[selected.confirmation_code]?.drivers.some(driver=>normalizeExpName(driver)===normalizeExpName(name)) ? "Preview: assessment passed" : "EXP not recorded"}</span>
                     </div>)}
                   </div> : <p className={styles.subLine}>Driver list will appear once signed driver records are available.</p>;
                 })()}
