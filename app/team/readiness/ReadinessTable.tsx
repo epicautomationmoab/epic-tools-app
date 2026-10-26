@@ -5,6 +5,7 @@ import type { ReadinessRow, VehicleBreakdownItem } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 import CancellationAgreementPanel from "./CancellationAgreementPanel";
 import { guestFacingBalanceCents } from "@/lib/guest-confirmation-accounting";
+import type { ExpTeamStatus } from "@/lib/exp/team-status";
 
 type TimeFilter = "all" | "today" | "tomorrow";
 type Filter = "all" | "rental" | "tour";
@@ -412,7 +413,7 @@ function mergeReadinessDetail(previous: ReadinessRow, incoming: ReadinessRow): R
   };
 }
 
-export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
+export default function ReadinessTable({ rows, expStatuses = {} }: { rows: ReadinessRow[]; expStatuses?: Record<string, ExpTeamStatus> }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
   const [query, setQuery] = useState("");
@@ -1197,6 +1198,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
               <th className={styles.colVehicles}>Vehicles</th>
               <th className={styles.colDocs}>Epic</th>
               <th className={styles.colMpwr}>MPWR</th>
+              <th>EXP</th>
               <th className={styles.colAssure}>Adventure Assure</th>
               <th className={styles.colBalance}>Balance</th>
               <th className={styles.colOhv}>OHV</th>
@@ -1316,6 +1318,15 @@ await callReadinessRpc("manual_override_mpwr_information", {
                           ? "N/A"
                           : "Missing"}
                     </div>
+                  </td>
+                  <td>
+                    {row.business_line === "rental" ? (() => {
+                      const exp = expStatuses[row.readiness_id || ""];
+                      if (!exp) return <span className={styles.subLine}>Not recorded</span>;
+                      return <span title="EXP completion is reservation-wide; every driver must qualify">
+                        {exp.allReady ? "✓ EXP Ready" : exp.status === "partial" ? `${exp.ready}/${exp.total} complete` : "Not started"}
+                      </span>;
+                    })() : <span className={styles.subLine}>N/A</span>}
                   </td>
                   <td>
                     <span
