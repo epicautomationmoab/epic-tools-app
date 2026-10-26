@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ArrivalBoardRow } from "@/lib/supabase";
 import styles from "./ArrivalBoard.module.css";
+import { expBoardDirection, type ExpTeamStatus } from "@/lib/exp/team-status";
 
 type Filter = "all" | "tour" | "rental";
 
@@ -60,8 +61,10 @@ function reservationLabel(row: ArrivalBoardRow) {
 
 export default function ArrivalBoardDisplay({
   rows,
+  expStatuses = {},
 }: {
   rows: ArrivalBoardRow[];
+  expStatuses?: Record<string, ExpTeamStatus>;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -104,7 +107,8 @@ export default function ArrivalBoardDisplay({
 
       <section className={styles.rows}>
         {visibleRows.map((row) => {
-          const isKiosk = row.board_action_type === "kiosk";
+          const exp = expStatuses[row.confirmation_code] ?? null;
+          const isKiosk = expBoardDirection(row.board_action_type === "kiosk", row.business_line, exp) === "kiosk";
 
           const details = [
             row.business_line === "rental" ? row.rental_duration : null,
@@ -131,6 +135,7 @@ export default function ArrivalBoardDisplay({
               <div className={styles.activity}>
                 <strong>{reservationLabel(row)}</strong>
                 {details.length ? <span>{details.join(" • ")}</span> : null}
+                {exp?.allReady && row.business_line === "rental" ? <span style={{color:"#176534",fontWeight:800}}>✓ EXP Ready</span> : null}
               </div>
 
               <div
