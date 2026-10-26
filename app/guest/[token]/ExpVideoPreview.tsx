@@ -129,6 +129,7 @@ export default function ExpVideoPreview({
                 <button className={styles.action} type="button" disabled={!watchedAcknowledged || !videoCoverageMet} onClick={() => setSelectDrivers(true)}>
                   Continue to Knowledge Check
                 </button>
+                {reviewerMode ? <button className={styles.later} type="button" onClick={() => setSelectDrivers(true)}>Reviewer shortcut: Continue to driver selection</button> : null}
                 <p className={styles.disclaimer}>Testing preview — EXP completion is not currently recorded.</p>
               </div>
             ) : null}
