@@ -18,7 +18,8 @@ function shuffled<T>(items: T[]): T[] {
 export default function ExpAssessment({
   questions,
   onExit,
-}: { questions: ExpQuestion[]; onExit: () => void }) {
+  onCompleted,
+}: { questions: ExpQuestion[]; onExit: () => void; onCompleted?: () => void }) {
   const [attempt, setAttempt] = useState(1);
   const [questionIndex, setQuestionIndex] = useState(0);
   const randomized = useMemo(() => shuffled(questions).map(q => ({ ...q, options: q.options.length === 2 && q.options.every(o => ["true", "false"].includes(o.id)) ? [...q.options] : shuffled(q.options) })), [questions, attempt]);
@@ -93,7 +94,7 @@ export default function ExpAssessment({
             </article>;
           })}
         <p className={styles.note}>Practice result only. Individual driver completion is not yet recorded.</p>
-        <button type="button" onClick={onExit}>Done</button>
+        <button type="button" onClick={() => { onCompleted?.(); onExit(); }}>Done</button>
       </> : <>
         <h4>Let's get you adventure ready!</h4>
         <p>{result.status === "retry_or_technician" && result.reason === "critical"
