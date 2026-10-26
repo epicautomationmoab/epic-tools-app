@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGuestFormsActor } from "@/lib/workstation-auth";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
+import { expTeamStatus } from "@/lib/exp/team-status";
 
 type ExpSession = { id: string; readiness_id: string; mode: string; outcome: string; completed_at: string | null; video_version: string };
 type ExpParticipant = { id: string; session_id: string; display_name: string; initials: string; reconciliation_status: string; waiver_signer_reference: string | null; acknowledgement_at: string | null };
@@ -16,21 +17,39 @@ export async function GET(request: NextRequest) {
       select: "id,readiness_id,mode,outcome,completed_at,video_version",
       readiness_id: `eq.${readinessId}`, order: "created_at.desc", limit: "50",
     }));
-    if (!sessions.length) return NextResponse.json({ sessions: [], participants: [], needsReconciliation: 0 }, { headers: { "Cache-Control": "no-store" } });
+    if (!sessions.length) return NextResponse.json({ sessions: [], participants: [], needsReconciliation: 0, assessmentStatus: expTeamStatus(0, 0), checkoutReady: false }, { headers: { "Cache-Control": "no-store" } });
     const participants = await supabaseSelect<ExpParticipant>("exp_participants", new URLSearchParams({
       select: "id,session_id,display_name,initials,reconciliation_status,waiver_signer_reference,acknowledgement_at",
       session_id: `in.(${sessions.map(s => s.id).join(",")})`,
     }));
+    // One participant is counted at most once, and only after a complete quiz,
+    // recorded video acknowledgment and confirmed waiver identity.
+    // This is NOT a checkout clearance: required forms, Epic/Polaris waivers,
+    // and OHV certificates still need their authoritative source checks.
+    const completedSessionIds = new Set(sessions
+      .filter(s => s.outcome === "complete" && Boolean(s.completed_at))
+      .map(s => s.id));
+    const verifiedParticipants = participants.filter(p =>
+      completedSessionIds.has(p.session_id) &&
+      p.reconciliation_status === "verified" &&
+      Boolean(p.waiver_signer_reference?.trim()) &&
+      Boolean(p.acknowledgement_at));
+    const distinctQualifiedReferences = new Set(verifiedParticipants.map(p => p.waiver_signer_reference));
+    const assessmentStatus = expTeamStatus(distinctQualifiedReferences.size, participants.length);
     return NextResponse.json({
       sessions,
       participants: participants.map(p => ({
-        ...p,
-        assessmentAndIdentityVerified: p.reconciliation_status === "verified" && sessions.some(s => s.id === p.session_id && s.outcome === "complete"),
-        // Never report EXP Ready without verifying all required forms and waivers.
-        // Form/waiver gate integration is not yet enabled in this API.
+        id: p.id, session_id: p.session_id, display_name: p.display_name,
+        reconciliation_status: p.reconciliation_status,
+        waiver_signer_reference: p.waiver_signer_reference,
+        acknowledgement_at: p.acknowledgement_at,
+        assessmentAndIdentityVerified: verifiedParticipants.some(verified => verified.id === p.id),
         expReady: false,
         outstanding: ["Required forms and waiver readiness verification pending"],
       })),
+      assessmentStatus,
+      checkoutReady: false,
+      readinessVerification: "pending_authoritative_document_checks",
       needsReconciliation: participants.filter(p => p.reconciliation_status !== "verified").length,
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
