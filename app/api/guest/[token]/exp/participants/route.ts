@@ -1,0 +1,73 @@
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseInsert, supabaseSelect } from "@/lib/server/supabase-rest";
+
+type PortalActivity = { readiness_id: string; business_line: string };
+type Session = { id: string; readiness_id: string; outcome: string; mode: string };
+type ParticipantInput = { fullName: string; initials: string };
+
+function bad(message: string, status = 400) {
+  return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
+}
+function cleanName(value: string) { return value.trim().replace(/\s+/g, " "); }
+function validInitials(value: string) { return /^[a-z]{1,6}$/i.test(value.trim()); }
+
+/**
+ * Records participation, NOT verified EXP completion.
+ * Guest-supplied names can only be reconciled with actual signed waiver
+ * identities later, using an authenticated staff or deterministic exact match.
+ */
+export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
+  if (process.env.EXP_ASSESSMENT_SERVER_ENABLED !== "true") return bad("EXP participant recording is not enabled.", 503);
+  try {
+    const { token } = await context.params;
+    const body = await request.json() as {
+      readinessId?: string; sessionId?: string;
+      participants?: ParticipantInput[];
+      allDriversWatched?: boolean;
+    };
+    if (!token || !body.readinessId || !body.sessionId) return bad("Reservation and session are required.");
+    if (body.allDriversWatched !== true) return bad("All participating drivers must confirm watching the orientation.");
+    if (!Array.isArray(body.participants) || body.participants.length < 1 || body.participants.length > 20) {
+      return bad("Enter between 1 and 20 participating drivers.");
+    }
+    const normalized = body.participants.map(p => ({
+      display_name: cleanName(String(p.fullName ?? "")), initials: String(p.initials ?? "").trim().toUpperCase(),
+    }));
+    if (normalized.some(p => p.display_name.length < 3 || p.display_name.length > 120 || !validInitials(p.initials))) {
+      return bad("Each driver needs a full name and initials.");
+    }
+    if (new Set(normalized.map(p => p.display_name.toLowerCase())).size !== normalized.length) {
+      return bad("Each participating driver must be listed once.");
+    }
+    const [reservation] = await supabaseSelect<PortalActivity>("guest_portal_v", new URLSearchParams({
+      select: "readiness_id,business_line",
+      guest_portal_token: `eq.${token}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
+    }));
+    if (!reservation || reservation.business_line?.toLowerCase() !== "rental") return bad("Rental reservation not found.", 404);
+    const [session] = await supabaseSelect<Session>("exp_sessions", new URLSearchParams({
+      select: "id,readiness_id,outcome,mode", id: `eq.${body.sessionId}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
+    }));
+    if (!session) return bad("Assessment session not found.", 404);
+    if (session.outcome !== "in_progress") return bad("Participants must be confirmed before submitting the assessment.", 409);
+    const existing = await supabaseSelect<{ id: string }>("exp_participants", new URLSearchParams({
+      select: "id", session_id: `eq.${session.id}`, limit: "1",
+    }));
+    if (existing.length) return bad("Participants already recorded for this session.", 409);
+    // Individual inserts are intentionally only foundation work. A transactional
+    // Supabase RPC must replace this loop before the flag is enabled.
+    for (const participant of normalized) {
+      await supabaseInsert("exp_participants", {
+        session_id: session.id,
+        readiness_id: reservation.readiness_id,
+        ...participant,
+        acknowledgement_at: new Date().toISOString(),
+        reconciliation_status: "unmatched",
+      });
+    }
+    return NextResponse.json({ ok: true, recorded: normalized.length, verifiedDrivers: 0, completionRecorded: false },
+      { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("EXP participant recording failed", error);
+    return bad("Unable to record EXP participants.", 500);
+  }
+}
