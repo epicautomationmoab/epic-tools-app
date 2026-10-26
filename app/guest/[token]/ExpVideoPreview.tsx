@@ -91,21 +91,21 @@ export default function ExpVideoPreview({
     <>
       <section className={styles.panel} aria-label="Epic Xpress Ready orientation">
         <div>
-          <span className={styles.eyebrow}>Available before rental pickup</span>
-          <h2>Get Epic Xpress Ready!</h2>
-          <p>Watch our rental safety orientation, then try the knowledge check. This preview does not record completion.</p>
+          <span className={styles.eyebrow}>GET READY FOR YOUR ADVENTURE</span>
+          <h2>Epic Xpress Ready</h2>
+          <p>Get a head start on your adventure! Complete our rental safety orientation and a quick knowledge check before you arrive for a faster, easier checkout.</p>
         </div>
         <button className={styles.action} type="button" onClick={() => { setStarted(false); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setOpen(true); }}>
-          Watch orientation
+          Get Started
         </button>
       </section>
       {open ? (
         <div className={styles.backdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="exp-title" aria-describedby="exp-desc">
             <button className={styles.close} type="button" aria-label="Close orientation" onClick={() => setOpen(false)}>×</button>
-            <span className={styles.eyebrow}>Rental safety orientation · Preview</span>
-            <h2 id="exp-title">Get Epic Xpress Ready!</h2>
-            <p id="exp-desc">Watch our rental operations and safety video before arriving for faster checkout. This preview does not record training completion.</p>
+            <span className={styles.eyebrow}>EPIC XPRESS READY · STEP 1 OF 3</span>
+            <h2 id="exp-title">Epic Xpress Ready</h2>
+            <p id="exp-desc">Take a few minutes to learn how to operate your RZR safely and confidently. After the video, you'll complete a quick knowledge check for our fastest check-out!</p>
             {showAssessment ? (
               <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onExit={() => { setShowAssessment(false); setOpen(false); }} />
             ) : selectDrivers ? (
@@ -130,12 +130,12 @@ export default function ExpVideoPreview({
               <div className={styles.previewNext}>
                 <label className={styles.acknowledge}>
                   <input type="checkbox" checked={watchedAcknowledged} onChange={(event) => setWatchedAcknowledged(event.target.checked)} />
-                  <span>All drivers participating confirm they watched the entire orientation video.</span>
+                  <span>I/we have watched the entire safety orientation video.</span>
                 </label>
                 <button className={styles.action} type="button" disabled={!watchedAcknowledged} onClick={() => setSelectDrivers(true)}>
-                  Continue to knowledge check
+                  Continue to Knowledge Check
                 </button>
-                <p className={styles.disclaimer}>Preview only: quiz scores do not establish completion or replace Adventure Technician checkout. This acknowledgment is not independently verified.</p>
+                <p className={styles.disclaimer}>Testing preview — EXP completion is not currently recorded.</p>
               </div>
             ) : null}
           </section>
