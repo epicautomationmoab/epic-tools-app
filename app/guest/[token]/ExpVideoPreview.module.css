@@ -14,3 +14,21 @@
 @media(max-width:600px) { .panel { align-items:stretch; flex-direction:column; padding:18px; } .modal { padding:24px 18px; } .panel h2,.modal h2 { font-size:21px; } }
 
 .previewNext{display:grid;gap:13px;margin-top:18px}.acknowledge{display:flex;align-items:flex-start;gap:12px;font-weight:650;color:#34404b}.acknowledge input{margin-top:5px}.previewNext .action{justify-self:start}.action:disabled{opacity:.5;cursor:not-allowed}
+
+/* Mobile: keep video at natural 16:9 and allow every step to scroll comfortably. */
+.panel > div { min-width:0; }
+.modal { overscroll-behavior:contain; }
+.close { width:44px; height:44px; display:grid; place-items:center; }
+.video { min-height:0; }
+.acknowledge { cursor:pointer; }
+.acknowledge input { width:20px; height:20px; flex-shrink:0; accent-color:#db602a; }
+@media(max-width:600px) {
+ .backdrop { padding:0; align-items:stretch; }
+ .modal { width:100%; max-height:100dvh; min-height:100dvh; border-radius:0; padding:64px 16px 26px; }
+ .close { top:10px; right:12px; }
+ .panel { margin:16px 0; gap:16px; }
+ .panel .action,.previewNext .action,.intro .action { width:100%; justify-self:stretch; min-height:48px; }
+ .video { margin-top:16px; border-radius:8px; }
+ .intro { flex-direction:column; align-items:stretch; }
+ .intro .later { min-height:44px; }
+}
