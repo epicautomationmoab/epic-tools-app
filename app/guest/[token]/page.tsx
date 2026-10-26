@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import styles from "./GuestPortal.module.css";
 import PetAgreementOption from "./PetAgreementOption";
+import ExpVideoPreview from "./ExpVideoPreview";
 import { getExpWaiverDriverNames } from "@/lib/exp/portal-waiver-drivers";
 
 
@@ -342,7 +343,7 @@ export default function GuestPortalPage() {
     .filter(activity => activity.businessLine.toLowerCase() === "rental")
     .flatMap(activity => getExpWaiverDriverNames(activity.readinessId,
       reservation.epicDocuments, reservation.mpwrWaivers));
-  void expRentalDrivers;
+
 
   return (
     <main className={styles.page}>
@@ -881,6 +882,15 @@ export default function GuestPortalPage() {
             </article>
           </div>
         </section>
+
+        {process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && hasRentalActivity ? (
+          <ExpVideoPreview
+            token={reservation.guestPortalToken}
+            activities={reservation.activities}
+            waiverDrivers={expRentalDrivers}
+            reviewerMode
+          />
+        ) : null}
 
         {process.env.NEXT_PUBLIC_PET_SELF_SERVICE_PREVIEW === "true" && hasRentalActivity ? (
           <PetAgreementOption token={reservation.guestPortalToken} />
