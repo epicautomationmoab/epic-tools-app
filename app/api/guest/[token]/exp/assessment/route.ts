@@ -69,7 +69,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }));
     const session = sessions[0];
     if (!session || session.assessment_version !== VERSION) return fail("Assessment session not found.", 404);
-    // A submitted assessment must belong to a recorded group of participating drivers.\n    // This prevents orphaned assessment completions and preserves the all-driver model.\n    const participants = await supabaseSelect<{ id: string; acknowledgement_at: string | null; reconciliation_status: string }>("exp_participants", new URLSearchParams({\n      select: "id,acknowledgement_at,reconciliation_status", session_id: `eq.${session.id}`, limit: "21",\n    }));\n    if (!participants.length || participants.some(p => !p.acknowledgement_at)) {\n      return fail("Confirm all participating drivers and their video acknowledgments before submitting.", 409);\n    }\n    if (body.action === "submit") {
+    // A submitted assessment must belong to a recorded group of participating drivers.
+    // This prevents orphaned assessment completions and preserves the all-driver model.
+    const participants = await supabaseSelect<{ id: string; acknowledgement_at: string | null; reconciliation_status: string }>("exp_participants", new URLSearchParams({
+      select: "id,acknowledgement_at,reconciliation_status", session_id: `eq.${session.id}`, limit: "21",
+    }));
+    if (!participants.length || participants.some(p => !p.acknowledgement_at)) {
+      return fail("Confirm all participating drivers and their video acknowledgments before submitting.", 409);
+    }
+    if (body.action === "submit") {
       if (session.outcome !== "in_progress") return fail("Assessment was already submitted.", 409);
       const result = gradeExpAssessment(EXP_QUESTION_BANK_DRAFT, body.answers);
       const updated = await supabasePatchRows<{ id: string }>("exp_sessions", new URLSearchParams({ id: `eq.${session.id}`, outcome: "eq.in_progress", select: "id" }), {
