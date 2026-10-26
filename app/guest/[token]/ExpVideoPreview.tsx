@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
+import ExpAssessment from "./ExpAssessment";
+import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 
 const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&loop=0";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -16,10 +18,13 @@ export default function ExpVideoPreview({
   activities: Rental[];
 }) {
   // This whole component is behind NEXT_PUBLIC_EXP_VIDEO_PREVIEW=true in the portal.
-  // The production EXP quiz, driver identity, and completion tracking do not exist yet.
+  // PREVIEW ONLY. Scoring happens in the browser and does not persist any completion.
+  // Production requires server-owned answer keys, secure sessions, and per-driver records.
   const [now, setNow] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const [started, setStarted] = useState(false);
+  const [showAssessment, setShowAssessment] = useState(false);
+  const [watchedAcknowledged, setWatchedAcknowledged] = useState(false);
   const [formsLoaded, setFormsLoaded] = useState(false);
   const [outstandingRequiredForms, setOutstandingRequiredForms] = useState(false);
   const eligible = useMemo(() => {
@@ -85,9 +90,9 @@ export default function ExpVideoPreview({
         <div>
           <span className={styles.eyebrow}>Available before rental pickup</span>
           <h2>Get Epic Xpress Ready!</h2>
-          <p>Watch our rental orientation before your adventure. The knowledge check is being finalized and is not available yet.</p>
+          <p>Watch our rental safety orientation, then try the knowledge check. This preview does not record completion.</p>
         </div>
-        <button className={styles.action} type="button" onClick={() => { setStarted(false); setOpen(true); }}>
+        <button className={styles.action} type="button" onClick={() => { setStarted(false); setShowAssessment(false); setWatchedAcknowledged(false); setOpen(true); }}>
           Watch orientation
         </button>
       </section>
@@ -98,7 +103,9 @@ export default function ExpVideoPreview({
             <span className={styles.eyebrow}>Rental safety orientation · Preview</span>
             <h2 id="exp-title">Get Epic Xpress Ready!</h2>
             <p id="exp-desc">Watch our rental operations and safety video before arriving for faster checkout. This preview does not record training completion.</p>
-            {started ? (
+            {showAssessment ? (
+              <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onExit={() => { setShowAssessment(false); setOpen(false); }} />
+            ) : started ? (
               <div className={styles.video}>
                 <iframe
                   src={VIDEO_URL}
@@ -114,7 +121,18 @@ export default function ExpVideoPreview({
                 <button className={styles.later} type="button" onClick={() => setOpen(false)}>Maybe later</button>
               </div>
             )}
-            {started ? <p className={styles.disclaimer}>Your training quiz and individual completion tracking will be added before EXP launches. Watching this preview does not replace the required in-person orientation.</p> : null}
+            {started && !showAssessment ? (
+              <div className={styles.previewNext}>
+                <label className={styles.acknowledge}>
+                  <input type="checkbox" checked={watchedAcknowledged} onChange={(event) => setWatchedAcknowledged(event.target.checked)} />
+                  <span>All drivers participating confirm they watched the entire orientation video.</span>
+                </label>
+                <button className={styles.action} type="button" disabled={!watchedAcknowledged} onClick={() => setShowAssessment(true)}>
+                  Continue to knowledge check
+                </button>
+                <p className={styles.disclaimer}>Preview only: quiz scores do not establish completion or replace Adventure Technician checkout. This acknowledgment is not independently verified.</p>
+              </div>
+            ) : null}
           </section>
         </div>
       ) : null}
