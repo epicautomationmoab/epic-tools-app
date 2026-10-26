@@ -90,7 +90,7 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
     </div>
     <p className={styles.videoProgress} role="status">
       {coverage >= 90 ? "Video requirement met — 90% watched." :
-        `Video watched: ${coverage}% · Watch at least 90% to continue.`}
+        `Video watched: ${coverage}% · Complete the video to continue.`}
     </p>
     {trackingError ? <p role="alert">Video tracking could not connect. Please let our team know; you won't be marked complete by watching alone.</p> : null}
   </>;
