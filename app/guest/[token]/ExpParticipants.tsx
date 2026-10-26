@@ -15,14 +15,13 @@ export default function ExpParticipants({
   const [selected, setSelected] = useState<string[]>([]);
   const [manual, setManual] = useState<string[]>([]);
   const [signed, setSigned] = useState<Record<string,string>>({});
-  const [confirmed, setConfirmed] = useState(false);
   const [signing, setSigning] = useState<string | null>(null);
   const distinctWaivers = Array.from(new Set(waiverDrivers.map(n=>n.trim()).filter(Boolean)));
   const all = [...selected.map(n=>({name:n,matched:true})),...manual.map(n=>({name:n.trim(),matched:false}))].filter(x=>x.name);
-  const valid = confirmed && all.length>0 && all.every(x=>x.name.length>=3 && x.name.includes(" ") && Boolean(signed[x.name])) && new Set(all.map(x=>x.name.toLowerCase())).size===all.length;
+  const valid = all.length>0 && all.every(x=>x.name.length>=3 && x.name.includes(" ") && Boolean(signed[x.name])) && new Set(all.map(x=>x.name.toLowerCase())).size===all.length;
   return <section className={styles.wrap} aria-label="EXP participating drivers">
     <h3>Almost trail-ready!</h3>
-    <p>Everyone watching together can complete one knowledge check. Select each participating driver, then have each person draw their initials to confirm they watched the video.</p>
+    <p>Everyone watching together can complete one knowledge check. Select each participating driver, then have each person draw their initials.</p>
     {distinctWaivers.length ? <>
       <strong>Select drivers with signed waivers</strong>
       <p className={styles.note}>Choose everyone participating. More than one selection is welcome.</p>
@@ -58,9 +57,6 @@ export default function ExpParticipants({
         </div>
       </section>
     </div> : null}
-    <label className={styles.confirm}><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>
-      <span>All participating drivers watched the Epic Xpress Ready safety orientation.</span>
-    </label>
     <div className={styles.actions}>
       <button type="button" disabled={!valid} onClick={()=>onContinue(all.map(x=>({fullName:x.name,initials:signed[x.name],waiverMatched:x.matched})))}>Let's Do the Knowledge Check</button>
       <button type="button" className={styles.back} onClick={onBack}>Back</button>
