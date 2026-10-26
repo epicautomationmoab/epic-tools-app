@@ -25,7 +25,11 @@ export async function GET(request: NextRequest) {
       sessions,
       participants: participants.map(p => ({
         ...p,
-        expComplete: p.reconciliation_status === "verified" && sessions.some(s => s.id === p.session_id && s.outcome === "complete"),
+        assessmentAndIdentityVerified: p.reconciliation_status === "verified" && sessions.some(s => s.id === p.session_id && s.outcome === "complete"),
+        // Never report EXP Ready without verifying all required forms and waivers.
+        // Form/waiver gate integration is not yet enabled in this API.
+        expReady: false,
+        outstanding: ["Required forms and waiver readiness verification pending"],
       })),
       needsReconciliation: participants.filter(p => p.reconciliation_status !== "verified").length,
     }, { headers: { "Cache-Control": "no-store" } });
