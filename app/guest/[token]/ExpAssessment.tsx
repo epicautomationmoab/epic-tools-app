@@ -20,6 +20,7 @@ export default function ExpAssessment({
   onExit,
 }: { questions: ExpQuestion[]; onExit: () => void }) {
   const [attempt, setAttempt] = useState(1);
+  const [questionIndex, setQuestionIndex] = useState(0);
   const randomized = useMemo(() => shuffled(questions).map(q => ({ ...q, options: q.options.length === 2 && q.options.every(o => ["true", "false"].includes(o.id)) ? [...q.options] : shuffled(q.options) })), [questions, attempt]);
   const [stage, setStage] = useState<Stage>("questions");
   const [answers, setAnswers] = useState<Record<string,string>>({});
@@ -34,6 +35,9 @@ export default function ExpAssessment({
 
   const currentAnswers = stage === "critical_retry" ? criticalAnswers : answers;
   const answeredAll = displayQuestions.length > 0 && displayQuestions.every(q => Boolean(currentAnswers[q.id]));
+  const currentQuestion = displayQuestions[questionIndex];
+  const completedCount = displayQuestions.filter(q => Boolean(currentAnswers[q.id])).length;
+  const completionPercent = displayQuestions.length ? Math.round(100 * completedCount / displayQuestions.length) : 0;
 
   function submit() {
     if (!answeredAll) return;
@@ -45,6 +49,7 @@ export default function ExpAssessment({
       if (next.status === "critical_retry") {
         setMissedCritical(next.questionIds);
         setCriticalAnswers({});
+        setQuestionIndex(0);
         setStage("critical_retry");
       } else {
         setStage("result");
@@ -59,6 +64,7 @@ export default function ExpAssessment({
 
   function restart() {
     setAttempt(n => n + 1);
+    setQuestionIndex(0);
     setAnswers({});
     setCriticalAnswers({});
     setResult(null);
@@ -97,22 +103,36 @@ export default function ExpAssessment({
     </> : <>
       {stage === "critical_retry" ? <p>Almost there! Please give these important safety questions another try.</p> :
         <p>A quick check to help you feel confident behind the wheel. Taking it as a group? Work through the answers together.</p>}
-      <p className={styles.note}>Attempt {attempt}</p>
-      {displayQuestions.map((q, index) => <fieldset className={styles.question} key={q.id}>
-        <legend>{index + 1}. {q.prompt}</legend>
-        {q.options.map(o => <label className={styles.answer} key={o.id}>
-          <input type="radio" name={`exp-${stage}-${q.id}`} value={o.id}
-            checked={currentAnswers[q.id] === o.id}
+      <div className={styles.progressHeading}>
+        <strong>{stage === "critical_retry" ? "Safety question" : "Question"} {questionIndex + 1} of {displayQuestions.length}</strong>
+        <span>{completionPercent}% complete</span>
+      </div>
+      <div className={styles.progressTrack} role="progressbar" aria-label="Knowledge check progress"
+        aria-valuenow={completionPercent} aria-valuemin={0} aria-valuemax={100}>
+        <div className={styles.progressFill} style={{ width: `${completionPercent}%` }} />
+      </div>
+      <p className={styles.note}>{stage === "critical_retry" ? "Just a few safety essentials to double-check." : "Quick, straightforward questions about what you just watched. No trick questions."}</p>
+      {currentQuestion ? <fieldset className={styles.question} key={currentQuestion.id}>
+        <legend>{currentQuestion.prompt}</legend>
+        {currentQuestion.options.map(o => <label className={styles.answer} key={o.id}>
+          <input type="radio" name={`exp-${stage}-${currentQuestion.id}`} value={o.id}
+            checked={currentAnswers[currentQuestion.id] === o.id}
             onChange={() => stage === "critical_retry"
-              ? setCriticalAnswers(prev => ({...prev, [q.id]: o.id}))
-              : setAnswers(prev => ({...prev, [q.id]: o.id}))} />
+              ? setCriticalAnswers(prev => ({...prev, [currentQuestion.id]: o.id}))
+              : setAnswers(prev => ({...prev, [currentQuestion.id]: o.id}))} />
           <span>{o.text}</span>
         </label>)}
-      </fieldset>)}
+      </fieldset> : null}
       <div className={styles.actions}>
-        <button type="button" disabled={!answeredAll} onClick={submit}>Submit Answers</button>
-        <button type="button" onClick={() => setStage("technician")}>Adventure Technician Checkout</button>
+        {questionIndex > 0 ? <button type="button" className={styles.secondary} onClick={() => setQuestionIndex(n => n - 1)}>Back</button> : null}
+        {questionIndex < displayQuestions.length - 1 ?
+          <button type="button" disabled={!currentQuestion || !currentAnswers[currentQuestion.id]}
+            onClick={() => setQuestionIndex(n => n + 1)}>Next Question</button> :
+          <button type="button" disabled={!answeredAll} onClick={submit}>Finish Knowledge Check</button>}
       </div>
+      <button className={styles.technician} type="button" onClick={() => setStage("technician")}>
+        Prefer to finish in person? Our Adventure Technicians are happy to help.
+      </button>
     </>}
   </section>;
 }
