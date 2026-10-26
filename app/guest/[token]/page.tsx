@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import styles from "./GuestPortal.module.css";
+import ExpVideoPreview from "./ExpVideoPreview";
+
 
 const UTAH_ADULT_OHV_COURSE_URL =
   "https://recreation.utah.gov/off-highway-vehicles/education/ohv-education-course/";
@@ -872,6 +874,10 @@ export default function GuestPortalPage() {
             </article>
           </div>
         </section>
+
+        {process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && hasRentalActivity ? (
+          <ExpVideoPreview />
+        ) : null}
 
         <section className={styles.helpCard}>
           <div>
