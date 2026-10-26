@@ -3,7 +3,7 @@
 -- reconciliation paths are tested together.
 create table if not exists public.exp_sessions (
   id uuid primary key default gen_random_uuid(),
-  readiness_id uuid not null,
+  readiness_id text not null,
   video_version text not null,
   mode text not null check (mode in ('individual','group','kiosk_group')),
   assessment_version text not null,
@@ -18,7 +18,7 @@ create index if not exists exp_sessions_readiness_idx on public.exp_sessions(rea
 create table if not exists public.exp_participants (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references public.exp_sessions(id) on delete cascade,
-  readiness_id uuid not null,
+  readiness_id text not null,
   display_name text not null,
   initials text not null,
   acknowledgement_at timestamptz,
@@ -52,3 +52,11 @@ create table if not exists public.exp_reconciliation_events (
 );
 -- NOTE: Secure RLS/service-role authorization, signer-reference mapping, and
 -- transactional writes are required before exposing any guest-facing POST.
+
+-- EXP records are never directly available to browser Supabase roles.
+alter table public.exp_sessions enable row level security;
+alter table public.exp_participants enable row level security;
+alter table public.exp_reconciliation_events enable row level security;
+revoke all on public.exp_sessions, public.exp_participants, public.exp_reconciliation_events from anon, authenticated;
+-- Server endpoints use the backend secret role and must validate the portal
+-- reservation on every request. Never expose the secret key to the browser.
