@@ -6,6 +6,7 @@ import ExpAssessment from "./ExpAssessment";
 import ExpTrackedVideo from "./ExpTrackedVideo";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
+import { saveExpDemo, useExpDemo, normalizeExpName } from "@/lib/exp/demo-browser";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -16,15 +17,19 @@ export default function ExpVideoPreview({
   activities,
   waiverDrivers = [],
   reviewerMode = false,
+  confirmationCode = "",
 }: {
   token: string;
   activities: Rental[];
   waiverDrivers?: string[];
   reviewerMode?: boolean;
+  confirmationCode?: string;
 }) {
   // Enabled only for the EXP feature branch preview through Vercel branch-scoped config.
   // PREVIEW ONLY. Scoring happens in the browser and does not persist any completion.
   // Production requires server-owned answer keys, secure sessions, and per-driver records.
+  const previewResults = useExpDemo();
+  const previewRecord = confirmationCode ? previewResults[confirmationCode] : null;
   const [now, setNow] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const [started, setStarted] = useState(false);
@@ -101,6 +106,7 @@ export default function ExpVideoPreview({
           <h2>Epic Xpress Ready</h2>
           {reviewerMode ? <p><strong>Employee preview only.</strong> This demonstration does not record EXP completion or change guest readiness.</p> : null}
           <p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>
+          {reviewerMode && previewRecord ? <p style={{color:"#176534",fontWeight:750}}>Preview assessment complete: {previewRecord.drivers.join(", ")}. <a href="/team/readiness">View in Readiness</a> (same browser only).</p> : null}
         </div>
         <button className={styles.action} type="button" onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setOpen(true); }}>
           Get Started
@@ -114,7 +120,7 @@ export default function ExpVideoPreview({
             <h2 id="exp-title">Epic Xpress Ready</h2>
             {!showAssessment && !selectDrivers ? <p id="exp-desc">Get a head start on your adventure. Watch a short video to get comfortable with your RZR, then take a quick knowledge check. You'll arrive ready to roll — with more time for the trails.</p> : null}
             {showAssessment ? (
-              <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onExit={() => { setShowAssessment(false); setOpen(false); }} />
+              <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onCompleted={() => { if(reviewerMode && confirmationCode) saveExpDemo({confirmationCode,drivers:driverNames.map(d=>d.fullName),completedAt:new Date().toISOString(),videoSkipped:true}); }} onExit={() => { setShowAssessment(false); setOpen(false); }} />
             ) : selectDrivers ? (
               <ExpParticipants waiverDrivers={waiverDrivers} onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
             ) : (
