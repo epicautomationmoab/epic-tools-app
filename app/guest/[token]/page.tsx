@@ -876,7 +876,7 @@ export default function GuestPortalPage() {
         </section>
 
         {process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && hasRentalActivity ? (
-          <ExpVideoPreview />
+          <ExpVideoPreview token={reservation.guestPortalToken} activities={reservation.activities} />
         ) : null}
 
         <section className={styles.helpCard}>
