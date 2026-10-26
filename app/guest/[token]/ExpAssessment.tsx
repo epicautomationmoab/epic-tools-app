@@ -111,7 +111,7 @@ export default function ExpAssessment({
         aria-valuenow={completionPercent} aria-valuemin={0} aria-valuemax={100}>
         <div className={styles.progressFill} style={{ width: `${completionPercent}%` }} />
       </div>
-      <p className={styles.note}>{stage === "critical_retry" ? "Just a few safety essentials to double-check." : "Quick, straightforward questions about what you just watched. No trick questions."}</p>
+      <p className={styles.note}>{stage === "critical_retry" ? "Just a few safety essentials to double-check." : "Quick, straightforward questions about safely operating your RZR in Moab."}</p>
       {currentQuestion ? <fieldset className={styles.question} key={currentQuestion.id}>
         <legend>{currentQuestion.prompt}</legend>
         {currentQuestion.options.map(o => <label className={styles.answer} key={o.id}>
