@@ -140,7 +140,7 @@ export default function ExpVideoPreview({
             {showAssessment ? (
               <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onCompleted={() => { if(reviewerMode && confirmationCode) saveExpDemo({confirmationCode,drivers:driverNames.map(d=>d.fullName),completedAt:new Date().toISOString(),videoSkipped:true}); }} onExit={() => { setShowAssessment(false); setOpen(false); }} />
             ) : selectDrivers ? (
-              <ExpParticipants waiverDrivers={waiverDrivers} onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
+              <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={waiverDrivers} onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
             ) : (
               <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} />
             )}
