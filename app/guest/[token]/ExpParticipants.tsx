@@ -6,11 +6,12 @@ import ExpDrawnInitials from "./ExpDrawnInitials";
 
 export type ExpParticipantDraft = { fullName: string; initials: string; waiverMatched?: boolean };
 export default function ExpParticipants({
-  onContinue, onBack, waiverDrivers = [],
+  onContinue, onBack, waiverDrivers = [], reviewerMode = false,
 }: {
   onContinue: (participants: ExpParticipantDraft[]) => void;
   onBack: () => void;
   waiverDrivers?: string[];
+  reviewerMode?: boolean;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [manual, setManual] = useState<string[]>([]);
@@ -57,8 +58,10 @@ export default function ExpParticipants({
         </div>
       </section>
     </div> : null}
+    {!valid && all.length > 0 ? <p role="status" className={styles.note} style={{color:"#93431d",fontWeight:700}}>{all.some(x=>x.name.length<3||!x.name.includes(" ")) ? "Enter each driver's first and last name." : all.some(x=>!signed[x.name]) ? "Draw and save initials for each selected driver." : "Remove duplicate driver entries."}</p> : null}
     <div className={styles.actions}>
       <button type="button" disabled={!valid} onClick={()=>onContinue(all.map(x=>({fullName:x.name,initials:signed[x.name],waiverMatched:x.matched})))}>Let's Do the Knowledge Check</button>
+      {reviewerMode ? <button type="button" className={styles.back} onClick={()=>onContinue(all.length ? all.map(x=>({fullName:x.name,initials:signed[x.name]||"",waiverMatched:x.matched})) : [{fullName:"Preview Reviewer",initials:"",waiverMatched:false}])}>Reviewer shortcut: Open knowledge check</button> : null}
       <button type="button" className={styles.back} onClick={onBack}>Back</button>
     </div>
     <p className={styles.note}>Testing preview: drawn initials and names are not saved. Actual waiver verification and completion recording will be enabled only in production after validation.</p>
