@@ -14,9 +14,11 @@ type Rental = { readinessId: string; businessLine: string; visitStartTime: strin
 export default function ExpVideoPreview({
   token,
   activities,
+  waiverDrivers = [],
 }: {
   token: string;
   activities: Rental[];
+  waiverDrivers?: string[];
 }) {
   // Enabled only for the EXP feature branch preview through Vercel branch-scoped config.
   // PREVIEW ONLY. Scoring happens in the browser and does not persist any completion.
@@ -55,7 +57,7 @@ export default function ExpVideoPreview({
         if (!response.ok) throw new Error("Forms unavailable");
         const data = await response.json() as { tasks?: Array<{ status: string; required: boolean; templateKey: string | null }> };
         if (cancelled) return;
-        setOutstandingRequiredForms((data.tasks ?? []).some((task) => task.status !== "completed" && task.templateKey !== "damage_acknowledgment"));
+        setOutstandingRequiredForms((data.tasks ?? []).some((task) => task.required && task.status !== "completed" && task.templateKey !== "damage_acknowledgment"));
         setFormsLoaded(true);
       } catch {
         if (!cancelled) { setOutstandingRequiredForms(true); setFormsLoaded(false); }
@@ -110,7 +112,7 @@ export default function ExpVideoPreview({
             {showAssessment ? (
               <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onExit={() => { setShowAssessment(false); setOpen(false); }} />
             ) : selectDrivers ? (
-              <ExpParticipants onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
+              <ExpParticipants waiverDrivers={waiverDrivers} onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
             ) : started ? (
               <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} />
             ) : (
