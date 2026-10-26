@@ -30,7 +30,18 @@ export function suggestExpWaiverMatch(participantName: string, waiverDrivers: Dr
   // Multiple exact matches (including duplicate names) are ambiguous.
   if (exact.length === 1) return { status: "verified_candidate", waiverReference: exact[0].reference, method: "exact_unique" };
   if (exact.length > 1) return { status: "review", suggestedReferences: exact.map(driver => driver.reference) };
-  const possible = valid.filter(driver => possibleNickname(participantName, driver.fullName));
+  // A middle initial on one source and no middle name on another (for example,
+  // "Michael D Flores" vs "MICHAEL FLORES") is a review suggestion ONLY.
+  // Never auto-verify based on first and last name; names can collide.
+  const firstLast = (name: string) => {
+    const parts = normal(name).split(" ").filter(Boolean);
+    return parts.length >= 2 ? [parts[0], parts[parts.length - 1]].join(" ") : "";
+  };
+  const participantFirstLast = firstLast(participantName);
+  const possible = valid.filter(driver =>
+    possibleNickname(participantName, driver.fullName) ||
+    (participantFirstLast !== "" && firstLast(driver.fullName) === participantFirstLast)
+  );
   if (possible.length) return { status: "review", suggestedReferences: possible.map(driver => driver.reference) };
   return { status: "unmatched", suggestedReferences: [] };
 }
