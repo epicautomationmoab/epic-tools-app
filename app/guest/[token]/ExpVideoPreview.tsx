@@ -46,7 +46,7 @@ export default function ExpVideoPreview({
         if (!response.ok) throw new Error("Forms unavailable");
         const data = await response.json() as { tasks?: Array<{ status: string; required: boolean; templateKey: string | null }> };
         if (cancelled) return;
-        setOutstandingRequiredForms((data.tasks ?? []).some((task) => task.required && task.status !== "completed" && task.templateKey !== "damage_acknowledgment"));
+        setOutstandingRequiredForms((data.tasks ?? []).some((task) => task.status !== "completed" && task.templateKey !== "damage_acknowledgment"));
         setFormsLoaded(true);
       } catch {
         if (!cancelled) { setOutstandingRequiredForms(true); setFormsLoaded(false); }
