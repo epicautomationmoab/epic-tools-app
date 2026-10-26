@@ -1652,6 +1652,19 @@ await callReadinessRpc("manual_override_mpwr_information", {
 
             </section>
 
+            {selected.business_line === "rental" ? (
+              <section className={styles.drawerSection} aria-label="Epic Xpress Ready">
+                <h3>Epic Xpress Ready</h3>
+                <p className={styles.subLine}>Orientation and knowledge check by driver. This does not replace Epic agreements, Polaris waivers, or OHV certification.</p>
+                {(() => {
+                  const exp = expStatuses[selected.readiness_id || ""];
+                  if (!exp) return <p className={styles.subLine}>No verified EXP completion records available yet.</p>;
+                  return <p className={styles.subLine}>{exp.allReady ? "All drivers EXP qualified" : exp.ready > 0 ? `${exp.ready} of ${exp.total} drivers complete` : "Not started"}</p>;
+                })()}
+                <p className={styles.subLine}>Individual driver acknowledgments, completion times, and assessment results will appear here after secure server-side recording and waiver identity reconciliation are connected.</p>
+              </section>
+            ) : null}
+
             <CancellationAgreementPanel row={selected} />
 
             {selected.business_line === "rental" &&
