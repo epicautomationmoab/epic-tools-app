@@ -4,9 +4,10 @@ export default function ExpDrawnInitials({ name, onChange }: {name:string;onChan
  const canvas=useRef<HTMLCanvasElement>(null);const drawing=useRef(false);const [hasInk,setHasInk]=useState(false);
  useEffect(()=>{const c=canvas.current;if(!c)return;const ctx=c.getContext("2d");if(!ctx)return;ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=3;ctx.strokeStyle="#24303b";},[]);
  function point(e:React.PointerEvent<HTMLCanvasElement>){const r=e.currentTarget.getBoundingClientRect();return{x:(e.clientX-r.left)*e.currentTarget.width/r.width,y:(e.clientY-r.top)*e.currentTarget.height/r.height};}
- function start(e:React.PointerEvent<HTMLCanvasElement>){const c=canvas.current,ctx=c?.getContext("2d");if(!c||!ctx)return;c.setPointerCapture(e.pointerId);drawing.current=true;const p=point(e);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+.1,p.y+.1);ctx.stroke();setHasInk(true);}
- function move(e:React.PointerEvent<HTMLCanvasElement>){if(!drawing.current)return;const ctx=canvas.current?.getContext("2d");if(!ctx)return;const p=point(e);ctx.lineTo(p.x,p.y);ctx.stroke();}
- function end(){if(!drawing.current)return;drawing.current=false;const c=canvas.current;if(c)onChange(c.toDataURL("image/png"));}
+ function save(){const c=canvas.current;if(c)onChange(c.toDataURL("image/png"));}
+ function start(e:React.PointerEvent<HTMLCanvasElement>){const c=canvas.current,ctx=c?.getContext("2d");if(!c||!ctx)return;try{c.setPointerCapture(e.pointerId);}catch{/* Some browsers do not support capture here. */}drawing.current=true;const p=point(e);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+.1,p.y+.1);ctx.stroke();setHasInk(true);save();}
+ function move(e:React.PointerEvent<HTMLCanvasElement>){if(!drawing.current)return;const ctx=canvas.current?.getContext("2d");if(!ctx)return;const p=point(e);ctx.lineTo(p.x,p.y);ctx.stroke();save();}
+ function end(){if(!drawing.current)return;drawing.current=false;save();}
  function clear(){const c=canvas.current;c?.getContext("2d")?.clearRect(0,0,c.width,c.height);setHasInk(false);onChange("");}
  return <div style={{marginTop:12}}>
   <label style={{display:"block",fontWeight:700,marginBottom:5}}>Draw initials — {name}</label>
