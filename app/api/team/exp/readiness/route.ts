@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       Boolean(p.waiver_signer_reference?.trim()) &&
       Boolean(p.acknowledgement_at));
     const distinctQualifiedReferences = new Set(verifiedParticipants.map(p => p.waiver_signer_reference));
-    const assessmentStatus = expTeamStatus(distinctQualifiedReferences.size, participants.length);
+    // Driver roster completeness is not yet established. Never emit an allReady\n    // status merely because every recorded participant qualified.\n    const assessmentStatus = expTeamStatus(0, 0);
     return NextResponse.json({
       sessions,
       participants: participants.map(p => ({
@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
         outstanding: ["Required forms and waiver readiness verification pending"],
       })),
       assessmentStatus,
+      verifiedUniqueWaiverReferences: distinctQualifiedReferences.size,
+      recordedParticipantCount: participants.length,
       checkoutReady: false,
       readinessVerification: "pending_authoritative_document_checks",
       needsReconciliation: participants.filter(p => p.reconciliation_status !== "verified").length,
