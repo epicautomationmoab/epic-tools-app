@@ -12,3 +12,5 @@
 .video iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
 .disclaimer { font-size:12px; }
 @media(max-width:600px) { .panel { align-items:stretch; flex-direction:column; padding:18px; } .modal { padding:24px 18px; } .panel h2,.modal h2 { font-size:21px; } }
+
+.previewNext{display:grid;gap:13px;margin-top:18px}.acknowledge{display:flex;align-items:flex-start;gap:12px;font-weight:650;color:#34404b}.acknowledge input{margin-top:5px}.previewNext .action{justify-self:start}.action:disabled{opacity:.5;cursor:not-allowed}
