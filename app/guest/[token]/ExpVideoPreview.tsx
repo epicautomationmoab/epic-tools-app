@@ -78,6 +78,7 @@ export default function ExpVideoPreview({
     } catch {
       // Storage may be blocked; still permit manual opening via the portal card.
     }
+    setStarted(true);
     setOpen(true);
   }, [eligible, token, formsLoaded, outstandingRequiredForms, reviewerMode]);
 
@@ -101,7 +102,7 @@ export default function ExpVideoPreview({
           {reviewerMode ? <p><strong>Employee preview only.</strong> This demonstration does not record EXP completion or change guest readiness.</p> : null}
           <p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>
         </div>
-        <button className={styles.action} type="button" onClick={() => { setStarted(false); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setOpen(true); }}>
+        <button className={styles.action} type="button" onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setOpen(true); }}>
           Get Started
         </button>
       </section>
@@ -116,13 +117,8 @@ export default function ExpVideoPreview({
               <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onExit={() => { setShowAssessment(false); setOpen(false); }} />
             ) : selectDrivers ? (
               <ExpParticipants waiverDrivers={waiverDrivers} onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
-            ) : started ? (
-              <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} />
             ) : (
-              <div className={styles.intro}>
-                <button className={styles.action} type="button" onClick={() => setStarted(true)}>Get Started</button>
-                <button className={styles.later} type="button" onClick={() => setOpen(false)}>Maybe Later</button>
-              </div>
+              <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} />
             )}
             {started && !showAssessment && !selectDrivers ? (
               <div className={styles.previewNext}>
