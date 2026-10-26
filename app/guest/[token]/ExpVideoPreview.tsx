@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
 import ExpAssessment from "./ExpAssessment";
+import ExpTrackedVideo from "./ExpTrackedVideo";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 
-const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&loop=0&title=0&byline=0&portrait=0";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Rental = { readinessId: string; businessLine: string; visitStartTime: string };
@@ -28,6 +28,7 @@ export default function ExpVideoPreview({
   const [selectDrivers, setSelectDrivers] = useState(false);
   const [driverNames, setDriverNames] = useState<ExpParticipantDraft[]>([]);
   const [watchedAcknowledged, setWatchedAcknowledged] = useState(false);
+  const [videoCoverageMet, setVideoCoverageMet] = useState(false);
   const [formsLoaded, setFormsLoaded] = useState(false);
   const [outstandingRequiredForms, setOutstandingRequiredForms] = useState(false);
   const eligible = useMemo(() => {
@@ -95,7 +96,7 @@ export default function ExpVideoPreview({
           <h2>Epic Xpress Ready</h2>
           <p>Get a head start on your adventure! Complete our rental safety orientation and a quick knowledge check before you arrive for a faster, easier checkout.</p>
         </div>
-        <button className={styles.action} type="button" onClick={() => { setStarted(false); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setOpen(true); }}>
+        <button className={styles.action} type="button" onClick={() => { setStarted(false); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setOpen(true); }}>
           Get Started
         </button>
       </section>
@@ -111,15 +112,7 @@ export default function ExpVideoPreview({
             ) : selectDrivers ? (
               <ExpParticipants onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
             ) : started ? (
-              <div className={styles.video}>
-                <iframe
-                  src={VIDEO_URL}
-                  title="Epic 4X4 Rental Operations Video 3.2"
-                  allow="fullscreen; picture-in-picture; encrypted-media"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
-              </div>
+              <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} />
             ) : (
               <div className={styles.intro}>
                 <button className={styles.action} type="button" onClick={() => setStarted(true)}>Watch orientation</button>
@@ -132,7 +125,7 @@ export default function ExpVideoPreview({
                   <input type="checkbox" checked={watchedAcknowledged} onChange={(event) => setWatchedAcknowledged(event.target.checked)} />
                   <span>I/we have watched the entire safety orientation video.</span>
                 </label>
-                <button className={styles.action} type="button" disabled={!watchedAcknowledged} onClick={() => setSelectDrivers(true)}>
+                <button className={styles.action} type="button" disabled={!watchedAcknowledged || !videoCoverageMet} onClick={() => setSelectDrivers(true)}>
                   Continue to Knowledge Check
                 </button>
                 <p className={styles.disclaimer}>Testing preview — EXP completion is not currently recorded.</p>
