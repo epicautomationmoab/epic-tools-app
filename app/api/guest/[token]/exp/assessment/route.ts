@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 import { gradeExpAssessment, resolveCriticalRetry, type ExpAnswer, type ExpOutcome } from "@/lib/exp/assessment-policy";
-import { supabaseInsert, supabasePatch, supabaseSelect } from "@/lib/server/supabase-rest";
+import { supabaseInsert, supabasePatchRows, supabaseSelect } from "@/lib/server/supabase-rest";
 
 type Portal = { readiness_id: string; business_line: string; visit_start_time: string };
 type Session = {
@@ -72,21 +72,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (body.action === "submit") {
       if (session.outcome !== "in_progress") return fail("Assessment was already submitted.", 409);
       const result = gradeExpAssessment(EXP_QUESTION_BANK_DRAFT, body.answers);
-      await supabasePatch("exp_sessions", new URLSearchParams({ id: `eq.${session.id}`, outcome: "eq.in_progress" }), {
+      const updated = await supabasePatchRows<{ id: string }>("exp_sessions", new URLSearchParams({ id: `eq.${session.id}`, outcome: "eq.in_progress", select: "id" }), {
         outcome: result.status,
         result_summary: { originalAnswers: body.answers, initialOutcome: result.status },
         ...(result.status === "complete" ? { completed_at: new Date().toISOString() } : {}),
       });
+      if (updated.length !== 1) return fail("This assessment has already been submitted.", 409);
       return NextResponse.json(resultForGuest(result), { headers: { "Cache-Control": "no-store" } });
     }
     if (body.action === "critical_retry") {
       if (session.outcome !== "critical_retry" || !isAnswerArray(session.result_summary?.originalAnswers)) return fail("Critical retry not available.", 409);
       const result = resolveCriticalRetry(EXP_QUESTION_BANK_DRAFT, session.result_summary.originalAnswers, body.answers);
-      await supabasePatch("exp_sessions", new URLSearchParams({ id: `eq.${session.id}`, outcome: "eq.critical_retry" }), {
+      const updated = await supabasePatchRows<{ id: string }>("exp_sessions", new URLSearchParams({ id: `eq.${session.id}`, outcome: "eq.critical_retry", select: "id" }), {
         outcome: result.status,
         result_summary: { initialOutcome: "critical_retry", retryOutcome: result.status },
         ...(result.status === "complete" ? { completed_at: new Date().toISOString() } : {}),
       });
+      if (updated.length !== 1) return fail("This critical retry has already been submitted.", 409);
       return NextResponse.json(resultForGuest(result), { headers: { "Cache-Control": "no-store" } });
     }
     return fail("Unsupported assessment action.");
