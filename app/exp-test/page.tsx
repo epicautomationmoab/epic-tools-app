@@ -37,7 +37,7 @@ export default function ExpTestPage() {
         I/we have watched the entire safety orientation video.
       </label>
       <button style={primary} disabled={!watched || !confirmed} onClick={()=>setStage("participants")}>Continue to Knowledge Check</button>
-      <p style={{fontSize:12}}>At least 90% actual playback and acknowledgment are required in the full flow.</p>
+      <p style={{fontSize:12}}>The full video must play to the end; seeking ahead does not satisfy the requirement.</p>
     </> : stage === "participants" ? <ExpParticipants waiverDrivers={["Alex Morgan (sample driver)","Jordan Taylor (sample driver)"]}
       onBack={()=>setStage("welcome")}
       onContinue={entries=>{setDrivers(entries.map(e=>e.fullName));setStage("assessment");}}
