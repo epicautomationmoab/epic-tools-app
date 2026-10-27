@@ -1,5 +1,5 @@
-import ExpReadinessDetail from "./ExpReadinessDetail";
 "use client";
+import ExpReadinessDetail from "./ExpReadinessDetail";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReadinessRow, VehicleBreakdownItem } from "@/lib/supabase";
