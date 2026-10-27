@@ -73,3 +73,12 @@ trigger bodies, cron and outbound integrations before applying changes.
 An EXP video successfully completed once should retain its credit across
 ordinary resume. Only the approved quiz-failure replay rule or mandatory new
 safety-video version should invalidate credit.
+
+## Staging hardening verified October 26, 2026
+
+- The dedicated Vercel EXP staging deployment is READY. Its assessment server flag remains off and its server credential is not configured.
+- On staging project `cchsrkhpvvrvcuepkqdu` only, migration `isolate_staging_outbound_dispatch_triggers` disabled four trigger hooks: `mpwr_agent_queue.trg_notify_slack_when_mpwr_completed`, `mpwr_agent_queue.trg_notify_slack_when_mpwr_failed`, `operational_reservations.epic_cancellation_booking_push`, and `tripworks_webhook_inbox.trg_dispatch_tripworks_webhook_inbox`.
+- Verified all four have PostgreSQL trigger state `D` (disabled). Regular webhook data-processing triggers were NOT disabled.
+- These changes are staging-only intentionally; production trigger states must not be overwritten in parity checks.
+- Staging requires additional review of direct function calls, other webhook providers, external agents and secret storage before claiming globally guaranteed outbound isolation.
+- The connector can retrieve staging publishable keys, but cannot provision or retrieve a server secret key. Do not substitute a production key or enable assessment writes until a staging-only server credential is configured securely.
