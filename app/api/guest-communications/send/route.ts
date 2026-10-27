@@ -1,3 +1,4 @@
+import { requireCorrectSupabaseEnvironment, denyOutboundInStaging } from "@/lib/server/staging-boundary";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
@@ -56,6 +57,7 @@ function requiredEnv(name: string) {
 
 function getSupabaseConfig() {
   const rawUrl = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
+  requireCorrectSupabaseEnvironment(rawUrl);
   const key = requiredEnv("SUPABASE_SECRET_KEY");
   const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
   return { url: normalizedUrl.replace(/\/+$/, ""), key };
@@ -241,6 +243,7 @@ function templateIdFor(communicationType: string) {
 }
 
 export async function POST(request: Request) {
+  if (process.env.EPIC_STAGING_NO_OUTBOUND === "true") return NextResponse.json({ error: "Outbound sends disabled in staging." }, { status: 403 });
   if (!isGuestCommunicationsOwner()) {
     return NextResponse.json({ ok: true, sent: false, skipped: true, reason: guestCommunicationsOwnerReason() });
   }
