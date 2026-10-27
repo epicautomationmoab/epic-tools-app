@@ -7,7 +7,7 @@ type Portal = { readiness_id: string; business_line: string; visit_start_time: s
 type Session = {
   id: string; readiness_id: string; outcome: string;
   result_summary: Record<string, unknown>; assessment_version: string;
-  video_ended: boolean; video_duration_seconds: number | null; video_watched_seconds: number[] | null;
+  video_ended: boolean; video_duration_seconds: number | null; video_watched_seconds: number[] | null; created_at: string;
 };
 const VERSION = "exp-2026-10-26-v1";
 
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
 
     if (!body.sessionId || !isAnswerArray(body.answers)) return fail("Valid session and responses required.");
     const sessions = await supabaseSelect<Session>("exp_sessions", new URLSearchParams({
-      select: "id,readiness_id,outcome,result_summary,assessment_version,video_ended,video_duration_seconds,video_watched_seconds",
+      select: "id,readiness_id,outcome,result_summary,assessment_version,video_ended,video_duration_seconds,video_watched_seconds,created_at",
       id: `eq.${body.sessionId}`, readiness_id: `eq.${activity.readiness_id}`, limit: "1",
     }));
     const session = sessions[0];
@@ -84,8 +84,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // They are not independently authenticated evidence and never grant checkout.
     const recordedDuration = session.video_duration_seconds ?? 0;
     const observedSeconds = new Set(session.video_watched_seconds ?? []);
+    const wallElapsedSeconds = (Date.now()-new Date(session.created_at).getTime())/1000;
     if (!session.video_ended || recordedDuration < 60 ||
-        observedSeconds.size < Math.ceil(recordedDuration * 0.98)) {
+        observedSeconds.size < Math.ceil(recordedDuration * 0.98) ||
+        !Number.isFinite(wallElapsedSeconds) || wallElapsedSeconds < recordedDuration*0.98) {
       return fail("Finish the entire safety orientation video before submitting the assessment.",409);
     }
     // A submitted assessment must belong to a recorded group of participating drivers.
