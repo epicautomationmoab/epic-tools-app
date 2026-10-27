@@ -35,7 +35,9 @@ export async function GET(request: NextRequest) {
       Boolean(p.waiver_signer_reference?.trim()) &&
       Boolean(p.acknowledgement_at));
     const distinctQualifiedReferences = new Set(verifiedParticipants.map(p => p.waiver_signer_reference));
-    // Driver roster completeness is not yet established. Never emit an allReady\n    // status merely because every recorded participant qualified.\n    const assessmentStatus = expTeamStatus(0, 0);
+    // Driver roster completeness is not yet established. Never emit an allReady
+    // status merely because every recorded participant qualified.
+    const assessmentStatus = expTeamStatus(0, 0);
     return NextResponse.json({
       sessions,
       participants: participants.map(p => ({
