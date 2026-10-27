@@ -73,10 +73,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }));
     if (!session) return bad("Assessment session not found.", 404);
     if (session.outcome !== "in_progress") return bad("Participants must be confirmed before submitting the assessment.", 409);
-    const existing = await supabaseSelect<{ id: string }>("exp_participants", new URLSearchParams({
-      select: "id", session_id: `eq.${session.id}`, limit: "1",
+    const existing = await supabaseSelect<{ id: string; display_name: string }>("exp_participants", new URLSearchParams({
+      select: "id,display_name", session_id: `eq.${session.id}`, limit: "21",
     }));
-    if (existing.length) return bad("Participants already recorded for this session.", 409);
+    if (existing.length) {
+      const known = new Set(existing.map(p => cleanName(p.display_name).toLowerCase()));
+      const exactSameRoster = known.size === normalized.length && normalized.every(p => known.has(p.display_name.toLowerCase()));
+      if (!exactSameRoster) return bad("An EXP session already exists for a different set of participating drivers.", 409);
+      return NextResponse.json({ok:true,recorded:existing.length,resumed:true,verifiedDrivers:0,completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
+    }
     // One bulk insert is atomic: a failure cannot leave a partial group recorded.
     // A unique (session_id, normalized-name) index provides duplicate protection.
     const { url } = getServerSupabaseConfig();
