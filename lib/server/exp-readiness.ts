@@ -75,8 +75,19 @@ export async function loadExpReadiness(readinessId:string){
     new Set(s.video_watched_seconds??[]).size>=Math.ceil((s.video_duration_seconds??0)*0.98)&&
     (new Date(s.completed_at??"").getTime()-new Date(s.created_at).getTime())/1000 >= (s.video_duration_seconds??0)*0.98
   ).map(s=>s.id));
+  // A newer participation supersedes older credit for that driver. A failed
+  // recheck or required rewatch must never inherit an old successful attempt.
+  const currentSessions=new Map(sessions.filter(s=>s.video_version===EXP_VIDEO_VERSION&&s.assessment_version===EXP_ASSESSMENT_VERSION).map(s=>[s.id,s]));
+  const latestByDriver=new Map<string,string>();
+  for(const p of participants){
+    const session=currentSessions.get(p.session_id);
+    if(!session)continue;
+    const name=normalize(p.display_name);
+    const prior=currentSessions.get(latestByDriver.get(name)??"");
+    if(!prior||new Date(session.created_at).getTime()>new Date(prior.created_at).getTime())latestByDriver.set(name,session.id);
+  }
   const qualified=participants.filter(p=>
-    completedSessions.has(p.session_id)&&!!p.acknowledgement_at&&
+    completedSessions.has(p.session_id)&&latestByDriver.get(normalize(p.display_name))===p.session_id&&!!p.acknowledgement_at&&
     signedDrivers.has(normalize(p.display_name))&&mpwrDrivers.has(normalize(p.display_name))
   );
   const qualifiedNames=new Set(qualified.map(p=>normalize(p.display_name)));
