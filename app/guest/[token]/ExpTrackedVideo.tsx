@@ -98,6 +98,7 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
       if (!disposed) setTrackingError(false);
     }).catch(() => { if (!disposed) setTrackingError(true); });
     return () => {
+      publishCheckpoint(knownDuration,true);
       disposed = true;
       if (player) {
         player.off("seeking", onSeeking);

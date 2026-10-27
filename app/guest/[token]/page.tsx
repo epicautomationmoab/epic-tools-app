@@ -174,9 +174,9 @@ export default function GuestPortalPage() {
 
     let cancelled = false;
 
-    async function loadPortal() {
+    async function loadPortal(silent=false) {
       try {
-        setLoading(true);
+        if(!silent)setLoading(true);
         setError("");
 
         const response = await fetch(
@@ -200,7 +200,7 @@ export default function GuestPortalPage() {
           setReservation(data.reservation);
         }
       } catch (loadError) {
-        if (!cancelled) {
+        if (!cancelled && !silent) {
           setError(
             loadError instanceof Error
               ? loadError.message
@@ -215,9 +215,11 @@ export default function GuestPortalPage() {
     }
 
     void loadPortal();
+    const refresh=window.setInterval(()=>void loadPortal(true),30000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(refresh);
     };
   }, [token]);
 

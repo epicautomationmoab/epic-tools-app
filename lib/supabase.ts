@@ -270,7 +270,7 @@ export async function getReadinessRows(options: { fast?: boolean; enrich?: boole
       certificates.forEach(c => uploaded.add(c.readiness_id));
     }
     for (const row of rows) {
-      if (row.business_line === "rental" && row.readiness_id && uploaded.has(row.readiness_id)) row.ohv_certificate_uploaded = true;
+      if (process.env.EXP_ASSESSMENT_SERVER_ENABLED !== "true" && row.business_line === "rental" && row.readiness_id && uploaded.has(row.readiness_id)) row.ohv_certificate_uploaded = true;
     }
     return rows.sort(
       (a, b) =>

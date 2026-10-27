@@ -77,7 +77,7 @@ export async function GET(
         method: "POST",
         headers: {
           apikey: c.key,
-          Authorization: `Bearer ${c.key}`,
+          ...(c.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${c.key}` }),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ expiresIn: 600 }),

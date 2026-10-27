@@ -11,20 +11,20 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
  const [criticalIds,setCriticalIds]=useState<string[]>([]);
  const [index,setIndex]=useState(0);
  const [status,setStatus]=useState("");
- const [busy,setBusy]=useState(false);
+ const [busy,setBusy]=useState(true);
  const [result,setResult]=useState<Result|null>(null);
  const [mode,setMode]=useState<"initial"|"critical">("initial");
  const activeQuestions=mode==="critical"?questionOrder.filter(q=>criticalIds.includes(q.id)):questionOrder;
  const currentAnswers=mode==="critical"?criticalAnswers:answers;
  useEffect(()=>{let active=true;fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress?readinessId=${encodeURIComponent(readinessId)}&sessionId=${encodeURIComponent(sessionId)}`,{cache:"no-store"})
-   .then(r=>r.ok?r.json():null).then(d=>{if(active&&d?.draftAnswers)setAnswers(d.draftAnswers);}).catch(()=>{});
+   .then(r=>r.ok?r.json():null).then(d=>{if(active&&d?.draftAnswers)setAnswers(d.draftAnswers);}).catch(()=>{}).finally(()=>{if(active)setBusy(false)});
    return()=>{active=false}},[token,readinessId,sessionId]);
  const save=async(next:Record<string,string>)=>{
    const response=await fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({readinessId,sessionId,draftAnswers:next})});
    if(!response.ok)throw new Error("Unable to save your answers. Please try again.");
  };
- const choose=async(qid:string,oid:string)=>{if(mode==="critical"){setCriticalAnswers(a=>({...a,[qid]:oid}));return}
-   const next={...answers,[qid]:oid};setAnswers(next);setStatus("Saving…");try{await save(next);setStatus("Progress saved")}catch(e){setStatus(e instanceof Error?e.message:"Save failed")}};
+ const choose=async(qid:string,oid:string)=>{if(busy)return;setBusy(true);if(mode==="critical"){setCriticalAnswers(a=>({...a,[qid]:oid}));return}
+   const next={...answers,[qid]:oid};setAnswers(next);setStatus("Saving…");try{await save(next);setStatus("Progress saved")}catch(e){setStatus(e instanceof Error?e.message:"Save failed")}finally{setBusy(false)}};
  const submit=async()=>{
    if(activeQuestions.some(q=>!currentAnswers[q.id]))return;
    setBusy(true);setStatus("Checking answers…");
@@ -50,7 +50,7 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
    {result.corrections?.map(c=><p key={c.questionId}>{c.correctAnswer} — {c.explanation}</p>)}
    <button type="button" onClick={onExit}>Return to Guest Portal</button></>:
    <><p>{mode==="critical"?"Critical safety question retry":`Question ${index+1} of ${questionOrder.length}`}. {mode==="initial"?"You can close this page and resume your saved answers later.":"Each missed critical question must be answered correctly."}</p>
-   {q?<fieldset><legend>{q.prompt}</legend>{q.options.map(o=><label key={o.id} style={{display:"block",margin:"12px 0"}}><input type="radio" name={q.id} checked={currentAnswers[q.id]===o.id} onChange={()=>void choose(q.id,o.id)}/> {o.text}</label>)}</fieldset>:<p>Questions unavailable.</p>}
+   {q?<fieldset><legend>{q.prompt}</legend>{q.options.map(o=><label key={o.id} style={{display:"block",margin:"12px 0"}}><input type="radio" disabled={busy} name={q.id} checked={currentAnswers[q.id]===o.id} onChange={()=>void choose(q.id,o.id)}/> {o.text}</label>)}</fieldset>:<p>Questions unavailable.</p>}
    <p role="status">{status}</p>
    <div style={{display:"flex",gap:12}}><button type="button" disabled={index===0||busy} onClick={()=>setIndex(i=>i-1)}>Back</button>
    {index<activeQuestions.length-1?<button type="button" disabled={!q||!currentAnswers[q.id]||busy} onClick={()=>setIndex(i=>i+1)}>Next</button>:<button type="button" disabled={activeQuestions.some(x=>!currentAnswers[x.id])||busy} onClick={()=>void submit()}>Submit Knowledge Check</button>}</div>

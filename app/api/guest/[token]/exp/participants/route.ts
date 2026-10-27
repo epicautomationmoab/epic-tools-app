@@ -13,6 +13,9 @@ function cleanName(value: string) { return value.trim().replace(/\s+/g, " "); }
 function validInitials(value: string) {
   // Drawn initials are transmitted as a bounded PNG data URL from the canvas.
   // Never trust a typed initial or arbitrary remote image URL as an acknowledgment.
+  if(!value.startsWith("data:image/png;base64,"))return false;
+  const bytes=Buffer.from(value.slice(22),"base64");
+  if(bytes.length<24||bytes.subarray(0,8).toString("hex")!=="89504e470d0a1a0a")return false;
   return /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(value) && value.length >= 150 && value.length <= 120_000;
 }
 

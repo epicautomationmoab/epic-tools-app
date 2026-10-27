@@ -1,7 +1,8 @@
+import {expVideoDuration,EXP_VIDEO_VERSION,EXP_ASSESSMENT_VERSION} from "@/lib/server/exp-video";
 import {supabaseSelect} from "@/lib/server/supabase-rest";
 import {expTeamStatus} from "@/lib/exp/team-status";
 import {loadRentalV2Readiness} from "@/lib/server/rental-v2-readiness";
-type Session={id:string;created_at:string;readiness_id:string;mode:string;outcome:string;completed_at:string|null;video_version:string;video_ended:boolean;video_duration_seconds:number|null;video_watched_seconds:number[]|null};
+type Session={id:string;created_at:string;readiness_id:string;mode:string;outcome:string;completed_at:string|null;video_version:string;assessment_version:string;video_ended:boolean;video_duration_seconds:number|null;video_watched_seconds:number[]|null};
 type Participant={id:string;session_id:string;display_name:string;initials:string;reconciliation_status:string;waiver_signer_reference:string|null;acknowledgement_at:string|null};
 type Portal={readiness_id:string;confirmation_code:string;business_line:string;expected_guest_count:number|null;total_vehicle_count:number|null;epic_document_received_count:number|null;epic_document_expected_count:number|null;mpwr_document_received_count:number|null;mpwr_document_expected_count:number|null;mpwr_waivers:Array<{name:string;is_minor?:boolean;is_passenger?:boolean}>|null;ohv_required:boolean|null;ohv_certificate_uploaded:boolean|null};
 type Task={id:string;template_id:string;task_status:string;required:boolean};
@@ -15,7 +16,7 @@ export async function loadExpReadiness(readinessId:string){
   }));
   if(!portal||portal.business_line!=="rental")return null;
   const sessions=await supabaseSelect<Session>("exp_sessions",new URLSearchParams({
-    select:"id,created_at,readiness_id,mode,outcome,completed_at,video_version,video_ended,video_duration_seconds,video_watched_seconds",
+    select:"id,created_at,readiness_id,mode,outcome,completed_at,video_version,assessment_version,video_ended,video_duration_seconds,video_watched_seconds",
     readiness_id:`eq.${readinessId}`,order:"created_at.desc",limit:"50"
   }));
   const participants=sessions.length?await supabaseSelect<Participant>("exp_participants",new URLSearchParams({
@@ -56,16 +57,20 @@ export async function loadExpReadiness(readinessId:string){
     })
   );
   const allForms=tasks.filter(t=>t.required&&templates.some(k=>k.id===t.template_id&&k.template_key!=="damage_acknowledgment"));
-  const formReady=(signedTasks.length>0&&allForms.length>0&&allForms.every(t=>t.task_status==="completed"))||v2Record?.ready===true;
+  const formReady=(signedTasks.length>0||v2Record?.ready===true)&&allForms.every(t=>t.task_status==="completed");
   const epicReady=((portal.epic_document_expected_count??0)>0&&(portal.epic_document_received_count??0)>=(portal.epic_document_expected_count??0))||v2Record?.agreementsComplete===true;
   const verifiedWaiverNames=new Set(verifiedWaivers.map(w=>normalize(w.rider_name)));
   const mpwrReady=(portal.mpwr_document_expected_count??0)>0&&verifiedWaiverNames.size>=(portal.mpwr_document_expected_count??0);
   const ohvNames=new Set(ohvUploads.filter(u=>u.storage_path).map(u=>normalize(u.driver_name)));
   const ohvReady=portal.ohv_required===false||(portal.ohv_required===true&&signedDrivers.size>0&&[...signedDrivers.keys()].every(n=>ohvNames.has(n)));
   const vehicleCount=Math.max(1,portal.total_vehicle_count??1);
-  const driverRosterReady=signedDrivers.size>=vehicleCount;
+  const driverNames=(v2Record?.signers??[]).filter(p=>p.role==="driver").map(p=>normalize(p.name));
+  const ambiguousDriverNames=new Set(driverNames.filter((n,i)=>driverNames.indexOf(n)!==i));
+  const driverRosterReady=signedDrivers.size>=vehicleCount&&ambiguousDriverNames.size===0;
+  const expectedVideoDuration=await expVideoDuration();
   const completedSessions=new Set(sessions.filter(s=>
-    s.outcome==="complete"&&!!s.completed_at&&s.video_ended&&
+    s.outcome==="complete"&&s.video_version===EXP_VIDEO_VERSION&&s.assessment_version===EXP_ASSESSMENT_VERSION&&!!s.completed_at&&s.video_ended&&
+    expectedVideoDuration!==null&&s.video_duration_seconds===expectedVideoDuration&&
     (s.video_duration_seconds??0)>=60&&
     new Set(s.video_watched_seconds??[]).size>=Math.ceil((s.video_duration_seconds??0)*0.98)&&
     (new Date(s.completed_at??"").getTime()-new Date(s.created_at).getTime())/1000 >= (s.video_duration_seconds??0)*0.98
@@ -86,18 +91,20 @@ export async function loadExpReadiness(readinessId:string){
   };
   const outstanding=Object.entries(documentChecks).filter(([,v])=>!v).map(([k])=>k);
   const expReady=outstanding.length===0;
-  const assessmentStatus=expTeamStatus(expReady?qualifiedNames.size:0,signedDrivers.size);
+  const assessmentStatus=expTeamStatus(qualifiedNames.size,signedDrivers.size);
+  const qualifiedIds=new Set(qualified.map(p=>p.id));
   return {
     sessions:sessions.map(({video_watched_seconds,...s})=>({...s,videoSecondsObserved:video_watched_seconds?.length??0})),
     participants:participants.map(p=>({
       id:p.id,session_id:p.session_id,display_name:p.display_name,
-      reconciliation_status:qualifiedNames.has(normalize(p.display_name))?"verified":"unmatched",
+      reconciliation_status:qualifiedIds.has(p.id)?"verified":"unmatched",
       waiver_signer_reference:p.waiver_signer_reference,acknowledgement_at:p.acknowledgement_at,
-      assessmentAndIdentityVerified:qualifiedNames.has(normalize(p.display_name)),
-      expReady:expReady&&qualifiedNames.has(normalize(p.display_name)),
+      assessmentAndIdentityVerified:qualifiedIds.has(p.id),
+      expReady:expReady&&qualifiedIds.has(p.id),
       outstanding
     })),
     assessmentStatus,
+    videoVerificationAvailable:expectedVideoDuration!==null,
     verifiedPolarisWaivers:verifiedWaivers.map(w=>({name:w.rider_name,is_minor:w.is_minor,is_passenger:w.is_passenger})),
     signedDrivers:[...signedDrivers.values()],
     expectedDriverCount:signedDrivers.size,
@@ -105,6 +112,6 @@ export async function loadExpReadiness(readinessId:string){
     documentChecks,outstanding,expReady,
     checkoutReady:false,
     readinessVerification:expReady?"exp_verified_checkout_separate":"pending_authoritative_document_checks",
-    needsReconciliation:participants.filter(p=>!qualifiedNames.has(normalize(p.display_name))).length
+    needsReconciliation:participants.filter(p=>!qualifiedIds.has(p.id)).length
   };
 }

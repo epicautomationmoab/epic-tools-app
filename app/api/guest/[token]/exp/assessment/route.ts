@@ -1,3 +1,4 @@
+import {expVideoDuration} from "@/lib/server/exp-video";
 import { NextRequest, NextResponse } from "next/server";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 import { gradeExpAssessment, resolveCriticalRetry, type ExpAnswer, type ExpOutcome } from "@/lib/exp/assessment-policy";
@@ -96,10 +97,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!session || session.assessment_version !== VERSION) return fail("Assessment session not found.", 404);
     // Video checkpoints originate with the Vimeo player and are recorded for resume.
     // They are not independently authenticated evidence and never grant checkout.
+    const expectedDuration=await expVideoDuration();
+    if(!expectedDuration)return fail("Safety video verification is unavailable. Please complete orientation with an Adventure Technician.",503);
     const recordedDuration = session.video_duration_seconds ?? 0;
     const observedSeconds = new Set(session.video_watched_seconds ?? []);
     const wallElapsedSeconds = (Date.now()-new Date(session.created_at).getTime())/1000;
-    if (!session.video_ended || recordedDuration < 60 ||
+    if (!session.video_ended || recordedDuration !== expectedDuration ||
         observedSeconds.size < Math.ceil(recordedDuration * 0.98) ||
         !Number.isFinite(wallElapsedSeconds) || wallElapsedSeconds < recordedDuration*0.98) {
       return fail("Finish the entire safety orientation video before submitting the assessment.",409);

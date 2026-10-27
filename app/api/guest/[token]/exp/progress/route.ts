@@ -55,10 +55,11 @@ export async function PATCH(request:NextRequest,context:{params:Promise<{token:s
       videoWatchedSeconds?:unknown;videoDurationSeconds?:unknown;videoEnded?:unknown;
       draftAnswers?:unknown;pauseReason?:unknown};
     if(!body.readinessId||!body.sessionId)return reply({error:"Reservation and session required."},400);
+    for(let attempt=0;attempt<3;attempt++){
     const session=await authorized(token,body.readinessId,body.sessionId);
     if(!session)return reply({error:"Session not found."},404);
     if(session.outcome!=="in_progress")return reply({error:"Completed sessions cannot be edited."},409);
-    const patch:Record<string,unknown>={last_activity_at:new Date().toISOString()};
+    const patch:Record<string,unknown>={last_activity_at:new Date(Math.max(Date.now(),new Date(session.last_activity_at).getTime()+1)).toISOString()};
     if(body.videoWatchedSeconds!==undefined){
       const seconds=body.videoWatchedSeconds;
       if(!Array.isArray(seconds)||seconds.length>1800||!seconds.every(v=>Number.isInteger(v)&&v>=0&&v<1800))
@@ -69,8 +70,11 @@ export async function PATCH(request:NextRequest,context:{params:Promise<{token:s
     if(body.videoDurationSeconds!==undefined){
       const d=body.videoDurationSeconds;
       if(!Number.isInteger(d)||Number(d)<60||Number(d)>1800)return reply({error:"Invalid video duration."},400);
+      if(session.video_duration_seconds && d!==session.video_duration_seconds)return reply({error:"Video duration cannot change within an orientation session."},409);
       patch.video_duration_seconds=d;
     }
+    const duration=Number(patch.video_duration_seconds??session.video_duration_seconds??0);
+    if(patch.video_watched_seconds && (patch.video_watched_seconds as number[]).some(s=>s>=duration))return reply({error:"Video checkpoints exceed the orientation duration."},400);
     if(body.videoEnded===true)patch.video_ended=true;
     if(body.draftAnswers!==undefined){
       if(!body.draftAnswers||typeof body.draftAnswers!=="object"||Array.isArray(body.draftAnswers))return reply({error:"Invalid draft."},400);
@@ -85,8 +89,10 @@ export async function PATCH(request:NextRequest,context:{params:Promise<{token:s
       patch.pause_reason=body.pauseReason;
     }
     const updated=await supabasePatchRows<Session>("exp_sessions",new URLSearchParams({
-      id:`eq.${session.id}`,readiness_id:`eq.${session.readiness_id}`,outcome:"eq.in_progress",select:"id,readiness_id,outcome,video_watched_seconds,video_ended,video_duration_seconds,draft_answers,last_activity_at,pause_reason"
+      id:`eq.${session.id}`,last_activity_at:`eq.${session.last_activity_at}`,readiness_id:`eq.${session.readiness_id}`,outcome:"eq.in_progress",select:"id,readiness_id,outcome,video_watched_seconds,video_ended,video_duration_seconds,draft_answers,last_activity_at,pause_reason"
     }),patch);
-    return updated.length===1?reply(summary(updated[0])):reply({error:"Session state changed. Reload progress."},409);
+    if(updated.length===1)return reply(summary(updated[0]));
+    }
+    return reply({error:"Session state changed. Reload progress."},409);
   }catch{return reply({error:"Unable to save EXP progress."},500);}
 }

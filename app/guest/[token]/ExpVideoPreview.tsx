@@ -111,7 +111,8 @@ export default function ExpVideoPreview({
       }
     }
     void checkForms();
-    return () => { cancelled = true; };
+    const refresh=window.setInterval(()=>void checkForms(),30000);
+    return () => { cancelled = true; window.clearInterval(refresh); };
   }, [eligible, token]);
 
   useEffect(() => {
@@ -220,7 +221,7 @@ export default function ExpVideoPreview({
     lastPlayback.current = cp;
     if (!sessionId || !readinessId) return;
     try { await fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress`,{
-      method:"PATCH",headers:{"Content-Type":"application/json"},
+      method:"PATCH",keepalive:true,headers:{"Content-Type":"application/json"},
       body:JSON.stringify({readinessId,sessionId,videoWatchedSeconds:cp.watchedSeconds,videoDurationSeconds:cp.durationSeconds,videoEnded:cp.ended})
     }); }catch{ /* Preserve client progress until the final required save. */ }
   }
