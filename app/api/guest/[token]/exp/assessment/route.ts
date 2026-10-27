@@ -7,6 +7,7 @@ type Portal = { readiness_id: string; business_line: string; visit_start_time: s
 type Session = {
   id: string; readiness_id: string; outcome: string;
   result_summary: Record<string, unknown>; assessment_version: string;
+  video_ended: boolean; video_duration_seconds: number | null; video_watched_seconds: number[] | null;
 };
 const VERSION = "exp-2026-10-26-v1";
 
@@ -74,11 +75,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
 
     if (!body.sessionId || !isAnswerArray(body.answers)) return fail("Valid session and responses required.");
     const sessions = await supabaseSelect<Session>("exp_sessions", new URLSearchParams({
-      select: "id,readiness_id,outcome,result_summary,assessment_version",
+      select: "id,readiness_id,outcome,result_summary,assessment_version,video_ended,video_duration_seconds,video_watched_seconds",
       id: `eq.${body.sessionId}`, readiness_id: `eq.${activity.readiness_id}`, limit: "1",
     }));
     const session = sessions[0];
     if (!session || session.assessment_version !== VERSION) return fail("Assessment session not found.", 404);
+    // Video checkpoints originate with the Vimeo player and are recorded for resume.
+    // They are not independently authenticated evidence and never grant checkout.
+    const recordedDuration = session.video_duration_seconds ?? 0;
+    const observedSeconds = new Set(session.video_watched_seconds ?? []);
+    if (!session.video_ended || recordedDuration < 60 ||
+        observedSeconds.size < Math.ceil(recordedDuration * 0.98)) {
+      return fail("Finish the entire safety orientation video before submitting the assessment.",409);
+    }
     // A submitted assessment must belong to a recorded group of participating drivers.
     // This prevents orphaned assessment completions and preserves the all-driver model.
     const participants = await supabaseSelect<{ id: string; acknowledgement_at: string | null; reconciliation_status: string }>("exp_participants", new URLSearchParams({
