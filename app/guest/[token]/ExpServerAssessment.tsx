@@ -46,7 +46,7 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
  const q=activeQuestions[index];
  return <section aria-label="EXP saved knowledge check">
   <h3>One Last Step to More Trail Time</h3>
-  {result?<><p>{result.status==="practice_complete"?"Knowledge check saved. Final EXP readiness remains pending paperwork and driver verification.":"Your answers have been recorded. The safety orientation video must be watched again before another assessment, or you can finish with an Adventure Technician."}</p>
+  {result?<><p>{result.status==="assessment_complete"?"Knowledge check saved. Final EXP readiness remains pending paperwork and driver verification.":"Your answers have been recorded. The safety orientation video must be watched again before another assessment, or you can finish with an Adventure Technician."}</p>
    {result.corrections?.map(c=><p key={c.questionId}>{c.correctAnswer} — {c.explanation}</p>)}
    <button type="button" onClick={onExit}>Return to Guest Portal</button></>:
    <><p>{mode==="critical"?"Critical safety question retry":`Question ${index+1} of ${questionOrder.length}`}. {mode==="initial"?"You can close this page and resume your saved answers later.":"Each missed critical question must be answered correctly."}</p>

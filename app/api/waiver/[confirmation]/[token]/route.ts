@@ -9,7 +9,7 @@ function config() {
 
 async function getJson(url: string, key: string) {
   const response = await fetch(url, {
-    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }) },
     cache: "no-store",
   });
   if (!response.ok) return null;
@@ -66,7 +66,7 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     const c = config();
     const response = await fetch(`${c.url}/rest/v1/rpc/resolve_epic_waiver_session_v2`, {
       method: "POST",
-      headers: { apikey: c.key, Authorization: `Bearer ${c.key}`, "Content-Type": "application/json" },
+      headers: { apikey: c.key, ...(c.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${c.key}` }), "Content-Type": "application/json" },
       body: JSON.stringify({ p_confirmation_code: confirmation, p_public_token: token }),
       cache: "no-store",
     });
@@ -157,7 +157,7 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
         guest_portal_token: guestPortalToken,
         rental_v2_enabled:
           businessLine === "rental" &&
-          process.env.ENABLE_RENTAL_V2_LIVE === "true",
+          (process.env.ENABLE_RENTAL_V2_LIVE === "true" || process.env.EPIC_STAGING_NO_OUTBOUND === "true"),
       },
     });
   } catch (error) {

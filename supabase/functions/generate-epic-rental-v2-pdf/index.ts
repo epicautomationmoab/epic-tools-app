@@ -116,6 +116,8 @@ Deno.serve(async (request: Request) => {
       .eq("id", sig.waiver_session_id)
       .eq("confirmation_code", confirmation_code)
       .eq("public_token", public_token)
+      .eq("session_status", "active")
+      .gte("expires_at", new Date().toISOString())
       .single();
     if (!session) return Response.json({ error: "Agreement session authorization failed" }, { status: 403 });
 

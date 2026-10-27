@@ -1,3 +1,4 @@
+import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
 
@@ -128,6 +129,15 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
           vehicleCount: row.total_vehicle_count,
         })),
     );
+    if(process.env.EXP_ASSESSMENT_SERVER_ENABLED === "true") {
+      await Promise.all(rows.filter(row=>row.business_line.toLowerCase()==="rental").map(async row=>{
+        const exp=await loadExpReadiness(row.readiness_id);
+        if(!exp)return;
+        row.ohv_certificate_uploaded=exp.documentChecks.ohvCertificates;
+        row.mpwr_waivers=exp.verifiedPolarisWaivers;
+        row.mpwr_document_received_count=new Set(exp.verifiedPolarisWaivers.map(w=>w.name.trim().toLowerCase())).size;
+      }));
+    }
     const confirmationCode = rows[0].confirmation_code;
     const paymentState = await loadPaymentState(config, confirmationCode);
     const paymentVisible = paymentState.balanceDueCents > 0 && !paymentState.hidden;

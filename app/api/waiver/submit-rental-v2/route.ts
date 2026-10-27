@@ -1,3 +1,4 @@
+import {requireCorrectSupabaseEnvironment} from "@/lib/server/staging-boundary";
 import { NextResponse } from "next/server";
 import { sendWaiverCopyEmail, waiverEmailConfigured } from "@/lib/server/waiver-email";
 import {
@@ -11,6 +12,7 @@ function config() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SECRET_KEY?.trim();
   if (!rawUrl || !key) throw new Error("Supabase environment variables are missing.");
+  requireCorrectSupabaseEnvironment(rawUrl);
   return {
     url: (/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`).replace(/\/+$/, ""),
     key,
@@ -28,7 +30,7 @@ function signerIp(request: Request) {
 async function resolveSession(url: string, key: string, confirmationCode: string, publicToken: string) {
   const response = await fetch(`${url}/rest/v1/rpc/resolve_epic_waiver_session_v2`, {
     method: "POST",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json" },
     body: JSON.stringify({ p_confirmation_code: confirmationCode, p_public_token: publicToken }),
     cache: "no-store",
   });
@@ -51,14 +53,14 @@ function decodePngDataUrl(value: unknown) {
 async function deleteStoredSignature(url: string, key: string, storagePath: string) {
   await fetch(`${url}/storage/v1/object/epic-signatures/${storagePath}`, {
     method: "DELETE",
-    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }) },
   }).catch(() => undefined);
 }
 
 async function generateSignedPdf(url: string, key: string, signatureId: string, confirmationCode: string, publicToken: string) {
   const response = await fetch(`${url}/functions/v1/generate-epic-rental-v2-pdf`, {
     method: "POST",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json" },
     body: JSON.stringify({ signature_id: signatureId, confirmation_code: confirmationCode, public_token: publicToken }),
     cache: "no-store",
   });
@@ -70,7 +72,7 @@ async function generateSignedPdf(url: string, key: string, signatureId: string, 
 async function downloadSignedPdf(url: string, key: string, storagePath: string) {
   const encodedPath = storagePath.split("/").map(encodeURIComponent).join("/");
   const response = await fetch(`${url}/storage/v1/object/authenticated/epic-legal-documents/${encodedPath}`, {
-    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }) },
     cache: "no-store",
   });
   if (!response.ok) throw new Error(`Unable to retrieve signed agreement PDF: ${(await response.text()).slice(0, 300)}`);
@@ -80,7 +82,7 @@ async function downloadSignedPdf(url: string, key: string, storagePath: string) 
 async function updateCopyStatus(url: string, key: string, signatureId: string, patch: Record<string, unknown>) {
   const response = await fetch(`${url}/rest/v1/epic_waiver_signatures?id=eq.${encodeURIComponent(signatureId)}`, {
     method: "PATCH",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+    headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", Prefer: "return=minimal" },
     body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }),
     cache: "no-store",
   });
@@ -106,6 +108,7 @@ export async function POST(request: Request) {
     if (
       process.env.ENABLE_RENTAL_V2_PREVIEW_WRITES !== "true" &&
       !controlledPreviewWrite &&
+      process.env.EPIC_STAGING_NO_OUTBOUND !== "true" &&
       !liveWrite
     ) {
       return NextResponse.json(
@@ -141,7 +144,7 @@ export async function POST(request: Request) {
     const duplicateResponse = await fetch(
       `${c.url}/rest/v1/epic_waiver_signatures?${duplicateParams.toString()}`,
       {
-        headers: { apikey: c.key, Authorization: `Bearer ${c.key}` },
+        headers: { apikey: c.key, ...(c.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${c.key}` }) },
         cache: "no-store",
       },
     );
@@ -179,7 +182,7 @@ export async function POST(request: Request) {
         method: "POST",
         headers: {
           apikey: c.key,
-          Authorization: `Bearer ${c.key}`,
+          ...(c.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${c.key}` }),
           "Content-Type": "image/png",
           "x-upsert": "false",
         },
@@ -218,7 +221,7 @@ export async function POST(request: Request) {
 
     const response = await fetch(`${c.url}/rest/v1/rpc/submit_epic_rental_terms_v2`, {
       method: "POST",
-      headers: { apikey: c.key, Authorization: `Bearer ${c.key}`, "Content-Type": "application/json" },
+      headers: { apikey: c.key, ...(c.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${c.key}` }), "Content-Type": "application/json" },
       body: JSON.stringify(rpcPayload),
       cache: "no-store",
     });
@@ -247,7 +250,7 @@ export async function POST(request: Request) {
       if (pdf.ok) {
         pdfGenerated = true;
         pdfResult = pdf.result;
-        try {
+        if(process.env.EPIC_STAGING_NO_OUTBOUND !== "true") try {
           await updateCopyStatus(c.url, c.key, signatureId, { copy_email_status: "pending", copy_email_error: null });
           if (!waiverEmailConfigured()) throw new Error("Agreement email delivery is not configured.");
           const email = String(payload.p_signer_email ?? "").trim();

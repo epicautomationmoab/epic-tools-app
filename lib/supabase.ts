@@ -1,3 +1,4 @@
+import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 export type VehicleBreakdownItem = {
   model: string;
@@ -147,7 +148,7 @@ async function fetchView<T>(viewName: string, searchParams: URLSearchParams, use
 
   try {
     response = await fetch(endpoint, {
-      headers: { apikey: config.key, Authorization: `Bearer ${config.key}` },
+      headers: { apikey: config.key, ...(config.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${config.key}` }) },
       cache: "no-store",
     });
   } catch (error) {
@@ -248,6 +249,15 @@ export async function getReadinessRows(options: { fast?: boolean; enrich?: boole
   const params = new URLSearchParams({ select: "*", limit: "500" });
   const readinessView = options.fast ? "guest_readiness_fast_v" : "guest_readiness_with_handoff_v";
   const rows = await fetchView<ReadinessRow>(readinessView, params);
+  if(process.env.EXP_ASSESSMENT_SERVER_ENABLED === "true") {
+    await Promise.all(rows.filter(row=>row.business_line==="rental"&&row.readiness_id).map(async row=>{
+      const exp=await loadExpReadiness(row.readiness_id!);
+      if(!exp)return;
+      row.ohv_certificate_uploaded=exp.documentChecks.ohvCertificates;
+      row.mpwr_waivers=exp.verifiedPolarisWaivers;
+      row.mpwr_document_received_count=new Set(exp.verifiedPolarisWaivers.map(w=>w.name.trim().toLowerCase())).size;
+    }));
+  }
   if (options.enrich === false) {
     // The fast readiness view may lag certificate uploads. Read the authoritative
     // upload records so the main OHV indicator agrees with the document drawer.

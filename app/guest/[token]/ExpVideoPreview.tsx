@@ -42,8 +42,7 @@ export default function ExpVideoPreview({
   confirmationCode?: string;
 }) {
   // Enabled only for the EXP feature branch preview through Vercel branch-scoped config.
-  // PREVIEW ONLY. Scoring happens in the browser and does not persist any completion.
-  // Production requires server-owned answer keys, secure sessions, and per-driver records.
+  // Assessment scoring and progress persistence are owned by the server.
   const [now, setNow] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const [started, setStarted] = useState(false);

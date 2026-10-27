@@ -41,13 +41,13 @@ function isAnswerArray(value: unknown): value is ExpAnswer[] {
 function resultForGuest(result: ExpOutcome) {
   if (result.status === "critical_retry") return { status: result.status, questionIds: result.questionIds };
   if (result.status === "complete") return {
-    status: "practice_complete", correct: result.correct,
+    status: "assessment_complete", correct: result.correct,
     corrections: result.corrections.map(c => ({
       questionId: c.questionId,
       correctAnswer: EXP_QUESTION_BANK_DRAFT.find(q => q.id === c.questionId)?.options.find(o => o.id === c.correctOptionId)?.text ?? "",
       explanation: c.explanation,
     })),
-    completionRecorded: false,
+    completionRecorded: true,
   };
   return { status: result.status, reason: result.reason, completionRecorded: false };
 }

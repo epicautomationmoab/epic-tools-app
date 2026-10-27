@@ -98,6 +98,7 @@ export async function loadExpReadiness(readinessId:string){
       outstanding
     })),
     assessmentStatus,
+    verifiedPolarisWaivers:verifiedWaivers.map(w=>({name:w.rider_name,is_minor:w.is_minor,is_passenger:w.is_passenger})),
     signedDrivers:[...signedDrivers.values()],
     expectedDriverCount:signedDrivers.size,
     assessmentQualifiedDriverCount:qualifiedNames.size,
