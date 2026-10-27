@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import {supabaseSelect} from "@/lib/server/supabase-rest";
+import {loadRentalV2Readiness} from "@/lib/server/rental-v2-readiness";
 
 const BUCKET = "ohv-certificates";
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -192,6 +194,29 @@ export async function POST(
       );
     }
 
+    // Do not accept arbitrary certificate-holder identities supplied by the browser.
+    const signedForms = await supabaseSelect<{id:string;template_id:string;task_status:string}>("guest_form_tasks",new URLSearchParams({
+      select:"id,template_id,task_status",readiness_id:`eq.${readinessId}`,task_status:"eq.completed"
+    }));
+    const templates = signedForms.length ? await supabaseSelect<{id:string;template_key:string}>("guest_form_templates",new URLSearchParams({
+      select:"id,template_key",id:`in.(${[...new Set(signedForms.map(t=>t.template_id))].join(",")})`
+    })) : [];
+    const agreementIds = new Set(templates.filter(t=>t.template_key==="rental_v2_driver_terms_targeted").map(t=>t.id));
+    const agreementTasks = signedForms.filter(t=>agreementIds.has(t.template_id));
+    const signatures = agreementTasks.length ? await supabaseSelect<{signer_name:string|null}>("guest_form_submissions",new URLSearchParams({
+      select:"signer_name",task_id:`in.(${agreementTasks.map(t=>t.id).join(",")})`
+    })) : [];
+    const v2 = await loadRentalV2Readiness([{
+      readinessId,confirmationCode:activity.confirmation_code,
+      expectedGuestCount:null,vehicleCount:activity.total_vehicle_count
+    }]);
+    const verifiedNames = new Set([
+      ...signatures.map(p=>p.signer_name??""),
+      ...(v2.get(readinessId)?.signers??[]).filter(p=>p.role==="driver").map(p=>p.name)
+    ].map(n=>n.trim().toLowerCase().replace(/\\s+/g," ")).filter(Boolean));
+    if(!verifiedNames.has(driverName.toLowerCase().replace(/\\s+/g," "))){
+      return NextResponse.json({error:"This driver must sign the Epic rental driver agreement before uploading a certificate."},{status:409});
+    }
     const config = getSupabaseConfig();
     const existingParams = new URLSearchParams({
       select: "id",
