@@ -11,10 +11,10 @@ export async function GET() {
     .some(key => Boolean(process.env[key]?.trim()));
   const serverKeyConfigured = Boolean(process.env.SUPABASE_SECRET_KEY?.trim());
   const assessmentEnabled = process.env.EXP_ASSESSMENT_SERVER_ENABLED === "true";
-  const safeToTest = staging && correctDatabase && noLiveSendingKeys && serverKeyConfigured;
+  const basicPrerequisitesMet = staging && correctDatabase && noLiveSendingKeys && serverKeyConfigured;
   return NextResponse.json({
     environment: staging ? "isolated_staging" : "not_staging",
     checks: { correctDatabase, noLiveSendingKeys, serverKeyConfigured,
-      assessmentEnabled, safeToTest },
-  }, { status: safeToTest ? 200 : 503, headers: { "Cache-Control": "no-store" } });
+      assessmentEnabled, basicPrerequisitesMet },
+  }, { status: basicPrerequisitesMet ? 200 : 503, headers: { "Cache-Control": "no-store" } });
 }
