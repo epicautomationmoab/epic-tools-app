@@ -30,12 +30,15 @@ function loadVimeoSdk(): Promise<void> {
 }
 
 /** Track watched seconds, not the video seek position. */
-export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange: (complete: boolean) => void }) {
+export type ExpPlaybackCheckpoint = { watchedSeconds: number[]; durationSeconds: number; ended: boolean };
+export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint }: { onCoverageChange: (complete: boolean) => void; onCheckpoint?: (data: ExpPlaybackCheckpoint) => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const callback = useRef(onCoverageChange);
+  const checkpointCallback = useRef(onCheckpoint);
   const [coverage, setCoverage] = useState(0);
   const [trackingError, setTrackingError] = useState(false);
   useEffect(() => { callback.current = onCoverageChange; }, [onCoverageChange]);
+  useEffect(() => { checkpointCallback.current = onCheckpoint; }, [onCheckpoint]);
   useEffect(() => {
     let disposed = false;
     let player: Player | null = null;
@@ -43,6 +46,12 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
     let previous: number | null = null;
     let seeking = false;
     let reachedEnd = false;
+    let lastCheckpointSize = 0;
+    const publishCheckpoint = (duration: number, force = false) => {
+      if (duration <= 0 || (!force && watched.size - lastCheckpointSize < 15)) return;
+      lastCheckpointSize = watched.size;
+      checkpointCallback.current?.({watchedSeconds: Array.from(watched), durationSeconds: Math.ceil(duration), ended: reachedEnd});
+    };
     const checkComplete = (duration: number) => {
       if (reachedEnd && watched.size >= Math.ceil(duration) * REQUIRED_COVERAGE) callback.current(true);
     };
@@ -52,6 +61,7 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
         const lastSecond = Math.ceil(knownDuration) - 1;
         if (knownDuration - previous <= 2) watched.add(lastSecond);
         checkComplete(knownDuration);
+        publishCheckpoint(knownDuration, true);
       }
     };
     let knownDuration = 0;
@@ -73,6 +83,7 @@ export default function ExpTrackedVideo({ onCoverageChange }: { onCoverageChange
       const percent = Math.min(1, watched.size / Math.ceil(data.duration));
       setCoverage(Math.round(percent * 100));
       checkComplete(data.duration);
+      publishCheckpoint(data.duration);
     };
     void loadVimeoSdk().then(async () => {
       if (disposed || !frame.current) return;
