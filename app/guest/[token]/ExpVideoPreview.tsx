@@ -189,7 +189,7 @@ export default function ExpVideoPreview({
           participants:drivers.map(d=>({fullName:d.fullName,initials:d.initials}))}),
       });
       const saved = await participantResponse.json();
-      if (!participantResponse.ok && !(participantResponse.status === 409 && saved.error === "Participants already recorded for this session."))
+      if (!participantResponse.ok)
         throw new Error(saved.error || "Unable to save driver acknowledgments.");
       setSessionId(savedId);
       setDriverNames(drivers);
