@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
 import ExpAssessment from "./ExpAssessment";
 import ExpServerAssessment from "./ExpServerAssessment";
-import ExpTrackedVideo from "./ExpTrackedVideo";
+import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 import { saveExpDemo, useExpDemo, normalizeExpName } from "@/lib/exp/demo-browser";
@@ -58,6 +58,8 @@ export default function ExpVideoPreview({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [serverError, setServerError] = useState("");
   const [savingParticipants, setSavingParticipants] = useState(false);
+  const lastPlayback = useRef<ExpPlaybackCheckpoint | null>(null);
+  const [startingSession,setStartingSession] = useState(false);
   const readinessId = activities.find(a => a.businessLine.toLowerCase() === "rental")?.readinessId ?? "";
   const [watchedAcknowledged, setWatchedAcknowledged] = useState(false);
   const [videoCoverageMet, setVideoCoverageMet] = useState(false);
@@ -134,6 +136,14 @@ export default function ExpVideoPreview({
       const start = await startResponse.json();
       if (!startResponse.ok) throw new Error(start.error || "Unable to start EXP session.");
       const savedId = String(start.sessionId);
+      if (lastPlayback.current) {
+        const cp = lastPlayback.current;
+        const checkpointResponse = await fetch(`${base}/progress`,{
+          method:"PATCH",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({readinessId,sessionId:savedId,videoWatchedSeconds:cp.watchedSeconds,videoDurationSeconds:cp.durationSeconds,videoEnded:cp.ended})
+        });
+        if (!checkpointResponse.ok) throw new Error("Unable to save video progress. Please try again.");
+      }
       const participantResponse = await fetch(`${base}/participants`, {
         method: "POST", headers: {"Content-Type":"application/json"},
         body: JSON.stringify({readinessId,sessionId:savedId,allDriversWatched:true,
@@ -148,6 +158,14 @@ export default function ExpVideoPreview({
     } catch(error) {
       setServerError(error instanceof Error ? error.message : "Unable to record EXP.");
     } finally { setSavingParticipants(false); }
+  }
+  async function checkpointPlayback(cp:ExpPlaybackCheckpoint){
+    lastPlayback.current = cp;
+    if (!sessionId || !readinessId) return;
+    try { await fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress`,{
+      method:"PATCH",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({readinessId,sessionId,videoWatchedSeconds:cp.watchedSeconds,videoDurationSeconds:cp.durationSeconds,videoEnded:cp.ended})
+    }); }catch{ /* Preserve client progress until the final required save. */ }
   }
   if (!eligible) return null;
 
@@ -177,7 +195,7 @@ export default function ExpVideoPreview({
             ) : selectDrivers ? (
               <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={[...new Set([...waiverDrivers, ...signedRentalDrivers])]} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
             ) : (
-              <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} />
+              <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} />
             )}
             {serverError ? <p role="alert" style={{color:"#a83232"}}>{serverError}</p> : null}
             {savingParticipants ? <p role="status">Saving driver acknowledgments…</p> : null}
@@ -191,7 +209,7 @@ export default function ExpVideoPreview({
                   Continue to Knowledge Check
                 </button>
                 {reviewerMode ? <button className={styles.later} type="button" onClick={() => setSelectDrivers(true)}>Reviewer shortcut: Continue to driver selection</button> : null}
-                <p className={styles.disclaimer}>Testing preview — EXP completion is not currently recorded.</p>
+                <p className={styles.disclaimer}>EXP progress is saved to staging. Checkout readiness remains pending verification of all required paperwork and driver records.</p>
               </div>
             ) : null}
           </section>
