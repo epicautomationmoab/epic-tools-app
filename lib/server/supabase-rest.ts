@@ -1,3 +1,4 @@
+import { requireCorrectSupabaseEnvironment } from "@/lib/server/staging-boundary";
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -6,6 +7,7 @@ function requiredEnv(name: string) {
 
 export function getServerSupabaseConfig() {
   const rawUrl = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
+  requireCorrectSupabaseEnvironment(rawUrl);
   const key = requiredEnv("SUPABASE_SECRET_KEY");
   const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
   return { url: normalizedUrl.replace(/\/+$/, ""), key };
