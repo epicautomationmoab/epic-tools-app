@@ -24,7 +24,10 @@ export async function middleware(request: NextRequest) {
   if (process.env.EPIC_STAGING_NO_OUTBOUND === "true" && pathname.startsWith("/api/")) {
     const expGuestPath = /^\/api\/guest\/[^/]+\/exp\/(assessment|progress|participants)$/.test(pathname);
     const allowedExpWrite = expGuestPath && ["POST", "PATCH"].includes(request.method);
-    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite) {
+    // Employee authentication is isolated to staging Supabase Auth and does not
+    // trigger operational guest communications or booking agents.
+    const allowedLogin = pathname === "/api/auth/login" && request.method === "POST";
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite && !allowedLogin) {
       return NextResponse.json(
         { error: "Operational API mutations are disabled in isolated EXP staging." },
         { status: 403, headers: { "Cache-Control": "no-store" } },
