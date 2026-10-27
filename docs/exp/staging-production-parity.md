@@ -82,3 +82,12 @@ safety-video version should invalidate credit.
 - These changes are staging-only intentionally; production trigger states must not be overwritten in parity checks.
 - Staging requires additional review of direct function calls, other webhook providers, external agents and secret storage before claiming globally guaranteed outbound isolation.
 - The connector can retrieve staging publishable keys, but cannot provision or retrieve a server secret key. Do not substitute a production key or enable assessment writes until a staging-only server credential is configured securely.
+
+## October 26 staging credential connection diagnosis
+
+- Separate staging Vercel project deployment reached READY with `SUPABASE_SECRET_KEY` in both environments.
+- Configuration health check confirmed `EPIC_STAGING_NO_OUTBOUND=true`, correct staging URL, no live messaging credentials, and `SUPABASE_SECRET_KEY` starting with `sb_secret_`.
+- The actual read-only EXP REST table probe returned **HTTP 401**, after changing the backend helper to send new opaque Supabase secret API keys in the `apikey` header, not as JWT Bearer credentials.
+- The three EXP tables exist and the database role `service_role` has SELECT grants on each. The failure is an API authentication/key-validation issue, not missing EXP tables.
+- The encrypted Vercel secret value cannot be read or repaired through the available connector. Verify the secret belongs specifically to staging Supabase project `cchsrkhpvvrvcuepkqdu`, with no extra whitespace or quotes, or rotate it via Supabase dashboard and replace the Vercel secret directly. Do not paste secrets into chat, GitHub or diagnostic output.
+- Keep `EXP_ASSESSMENT_SERVER_ENABLED=false` until a live server probe returns 200 and outbound integration isolation has been validated.
