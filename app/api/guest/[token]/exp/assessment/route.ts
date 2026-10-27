@@ -71,20 +71,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
 
     if (body.action === "start") {
       // Resume an unfinished assessment instead of silently creating a second session.
-      const existing = await supabaseSelect<{ id: string }>("exp_sessions", new URLSearchParams({
-        select: "id", readiness_id: `eq.${activity.readiness_id}`,
+      const existing = await supabaseSelect<{ id: string; result_summary: Record<string,unknown> }>("exp_sessions", new URLSearchParams({
+        select: "id,result_summary", readiness_id: `eq.${activity.readiness_id}`,
         assessment_version: `eq.${VERSION}`, outcome: "eq.in_progress",
         order: "created_at.desc", limit: "1",
       }));
       if (existing.length) {
-        return NextResponse.json({ sessionId: existing[0].id, questions: publicQuestions(existing[0].id),
+        return NextResponse.json({ sessionId: existing[0].id, questions: publicQuestions(existing[0].id + "-attempt-" + (Number(existing[0].result_summary?.attemptCount || 0) + 1)),
           resumed: true, completionRecorded: false }, { headers: { "Cache-Control": "no-store" } });
       }
       const session = await supabaseInsert<{ id: string }>("exp_sessions", {
         readiness_id: activity.readiness_id, video_version: "3.2",
         assessment_version: VERSION, mode: "individual", outcome: "in_progress",
       });
-      return NextResponse.json({ sessionId: session.id, questions: publicQuestions(session.id), completionRecorded: false });
+      return NextResponse.json({ sessionId: session.id, questions: publicQuestions(session.id+"-attempt-1"), completionRecorded: false });
     }
 
     if (!body.sessionId || !isAnswerArray(body.answers)) return fail("Valid session and responses required.");
@@ -115,13 +115,33 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (body.action === "submit") {
       if (session.outcome !== "in_progress") return fail("Assessment was already submitted.", 409);
       const result = gradeExpAssessment(EXP_QUESTION_BANK_DRAFT, body.answers);
-      const updated = await supabasePatchRows<{ id: string }>("exp_sessions", new URLSearchParams({ id: `eq.${session.id}`, outcome: "eq.in_progress", select: "id" }), {
-        outcome: result.status,
-        result_summary: { originalAnswers: body.answers, initialOutcome: result.status, participantCount: participants.length, verifiedForCheckout: false },
-        ...(result.status === "complete" ? { completed_at: new Date().toISOString() } : {}),
+      const priorAttempts = Math.max(0,Number(session.result_summary?.attemptCount || 0));
+      const attemptCount = priorAttempts + 1;
+      // One or two ordinary missed answers: retry the quiz; do not grant completion.
+      if (result.status === "complete" && result.correct < 10) {
+        await supabasePatchRows("exp_sessions",new URLSearchParams({id:`eq.${session.id}`,outcome:"eq.in_progress"}),{
+          draft_answers:{},
+          result_summary:{attemptCount,initialOutcome:"retry_quiz",verifiedForCheckout:false}
+        });
+        return NextResponse.json({status:"retry_quiz",correct:result.correct,
+          questions:publicQuestions(session.id+"-attempt-"+(attemptCount+1)),
+          completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
+      }
+      // Any missed critical safety question requires a full video rewatch.
+      // An immediate critical-only retry would defeat that policy.
+      const requiresRewatch = result.status === "critical_retry";
+      const finalStatus = requiresRewatch ? "retry_or_technician" : result.status;
+      const updated = await supabasePatchRows<{id:string}>("exp_sessions",new URLSearchParams({
+        id:`eq.${session.id}`,outcome:"eq.in_progress",select:"id"
+      }),{
+        outcome:finalStatus,
+        result_summary:{attemptCount,initialOutcome:result.status,participantCount:participants.length,verifiedForCheckout:false,
+          requiresVideoRewatch:requiresRewatch||finalStatus==="retry_or_technician"},
+        ...(finalStatus==="complete"?{completed_at:new Date().toISOString()}:{})
       });
-      if (updated.length !== 1) return fail("This assessment has already been submitted.", 409);
-      return NextResponse.json(resultForGuest(result), { headers: { "Cache-Control": "no-store" } });
+      if(updated.length!==1)return fail("This assessment has already been submitted.",409);
+      if(requiresRewatch)return NextResponse.json({status:"retry_or_technician",reason:"critical",completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
+      return NextResponse.json(resultForGuest(result),{headers:{"Cache-Control":"no-store"}});
     }
     if (body.action === "critical_retry") {
       if (session.outcome !== "critical_retry" || !isAnswerArray(session.result_summary?.originalAnswers)) return fail("Critical retry not available.", 409);
