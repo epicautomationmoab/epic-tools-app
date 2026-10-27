@@ -18,6 +18,20 @@ export async function middleware(request: NextRequest) {
   );
   const pathname = request.nextUrl.pathname;
 
+  // EXP staging is deliberately read-only for every operational API.
+  // The only allowed API writes are the dedicated, staged EXP endpoints.
+  // This boundary does not replace DB-level/credential-level outbound isolation.
+  if (process.env.EPIC_STAGING_NO_OUTBOUND === "true" && pathname.startsWith("/api/")) {
+    const expGuestPath = /^\/api\/guest\/[^/]+\/exp\/(assessment|progress|participants)$/.test(pathname);
+    const allowedExpWrite = expGuestPath && ["POST", "PATCH"].includes(request.method);
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite) {
+      return NextResponse.json(
+        { error: "Operational API mutations are disabled in isolated EXP staging." },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  }
+
   if (pathname.startsWith("/team") && !hasPreviewAccess && !hasEmployeeSession && !hasWorkstationAccess) {
     const loginUrl = new URL("/employee-login", request.url);
     return NextResponse.redirect(loginUrl);
@@ -46,5 +60,6 @@ export const config = {
     "/team/:path*",
     "/kiosk/:path*",
     "/visit/:path*",
+    "/api/:path*",
   ],
 };
