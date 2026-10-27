@@ -55,6 +55,7 @@ export default function ExpVideoPreview({
   const [serverError, setServerError] = useState("");
   const [savingParticipants, setSavingParticipants] = useState(false);
   const lastPlayback = useRef<ExpPlaybackCheckpoint | null>(null);
+  const startingRef = useRef(false);
   const [startingSession,setStartingSession] = useState(false);
   const readinessId = activities.find(a => a.businessLine.toLowerCase() === "rental")?.readinessId ?? "";
   const [watchedAcknowledged, setWatchedAcknowledged] = useState(false);
@@ -118,6 +119,46 @@ export default function ExpVideoPreview({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
+
+  // Create/resume a session when the guest opens the orientation, not after
+  // finishing the video. This lets periodic playback checkpoints survive exit.
+  useEffect(() => {
+    if (!open || !readinessId || !token || sessionId || startingRef.current) return;
+    startingRef.current = true;
+    setStartingSession(true);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const base = `/api/guest/${encodeURIComponent(token)}/exp`;
+        const response = await fetch(`${base}/assessment`,{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({action:"start",readinessId})
+        });
+        const started = await response.json();
+        if (!response.ok || !started.sessionId || !Array.isArray(started.questions))
+          throw new Error(started.error || "Unable to resume EXP.");
+        if (cancelled) return;
+        setSessionId(started.sessionId);
+        setServerQuestions(started.questions);
+        const progressResponse = await fetch(`${base}/progress?readinessId=${encodeURIComponent(readinessId)}&sessionId=${encodeURIComponent(started.sessionId)}`,{cache:"no-store"});
+        if (progressResponse.ok){
+          const progress = await progressResponse.json();
+          const duration = Number(progress.videoDurationSeconds ?? 0);
+          if (!cancelled && progress.videoEndedReported && duration>0 &&
+            Number(progress.videoSecondsObserved ?? 0)>=Math.ceil(duration*0.98)) {
+            setVideoCoverageMet(true);
+            setWatchedAcknowledged(true);
+          }
+        }
+      }catch(error){
+        if(!cancelled)setServerError(error instanceof Error?error.message:"EXP session unavailable.");
+      }finally{
+        startingRef.current=false;
+        if(!cancelled)setStartingSession(false);
+      }
+    })();
+    return()=>{cancelled=true};
+  },[open,readinessId,token,sessionId]);
 
   async function prepareSession(drivers: ExpParticipantDraft[]) {
     if (!readinessId) return;
@@ -195,6 +236,7 @@ export default function ExpVideoPreview({
             ) : (
               <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} />
             )}
+            {startingSession ? <p role="status">Preparing saved EXP session…</p> : null}
             {serverError ? <p role="alert" style={{color:"#a83232"}}>{serverError}</p> : null}
             {savingParticipants ? <p role="status">Saving driver acknowledgments…</p> : null}
             {started && !showAssessment && !selectDrivers ? (
