@@ -10,11 +10,12 @@ export async function GET() {
   const noLiveSendingKeys = !["RESEND_API_KEY", "TELNYX_API_KEY", "PODIUM_CLIENT_SECRET"]
     .some(key => Boolean(process.env[key]?.trim()));
   const serverKeyConfigured = Boolean(process.env.SUPABASE_SECRET_KEY?.trim());
+  const serverKeyFormatValid = process.env.SUPABASE_SECRET_KEY?.trim().startsWith("sb_secret_") === true;
   const assessmentEnabled = process.env.EXP_ASSESSMENT_SERVER_ENABLED === "true";
-  const basicPrerequisitesMet = staging && correctDatabase && noLiveSendingKeys && serverKeyConfigured;
+  const basicPrerequisitesMet = staging && correctDatabase && noLiveSendingKeys && serverKeyConfigured && serverKeyFormatValid;
   return NextResponse.json({
     environment: staging ? "isolated_staging" : "not_staging",
     checks: { correctDatabase, noLiveSendingKeys, serverKeyConfigured,
-      assessmentEnabled, basicPrerequisitesMet },
+      serverKeyFormatValid, assessmentEnabled, basicPrerequisitesMet },
   }, { status: basicPrerequisitesMet ? 200 : 503, headers: { "Cache-Control": "no-store" } });
 }
