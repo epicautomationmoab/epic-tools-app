@@ -80,7 +80,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     const submissionByTask = new Map(submissions.map((submission) => [submission.task_id, submission]));
 
     return NextResponse.json({
-      signedRentalDrivers: Array.from(new Set([...v2Drivers,...tasks.filter(task => task.task_status === "completed" && templateById.get(task.template_id)?.template_key === "rental_v2_driver_terms_targeted").map(task => submissionByTask.get(task.id)?.signer_name?.trim()).filter((name): name is string => Boolean(name && name.includes(" "))))]),
+      signedRentalDrivers: [...new Set([...v2Drivers, ...tasks.filter(task => task.task_status === "completed" && templateById.get(task.template_id)?.template_key === "rental_v2_driver_terms_targeted").map(task => submissionByTask.get(task.id)?.signer_name?.trim()).filter((name): name is string => Boolean(name && name.includes(" ")))])],
       tasks: tasks.map((task) => {
         const template = templateById.get(task.template_id);
         const submission = submissionByTask.get(task.id);
