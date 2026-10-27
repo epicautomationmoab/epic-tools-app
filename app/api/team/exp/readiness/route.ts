@@ -4,7 +4,7 @@ import {supabaseSelect} from "@/lib/server/supabase-rest";
 import {expTeamStatus} from "@/lib/exp/team-status";
 import {loadRentalV2Readiness} from "@/lib/server/rental-v2-readiness";
 
-type Session={id:string;readiness_id:string;mode:string;outcome:string;completed_at:string|null;video_version:string;video_ended:boolean;video_duration_seconds:number|null;video_watched_seconds:number[]|null};
+type Session={id:string;created_at:string;readiness_id:string;mode:string;outcome:string;completed_at:string|null;video_version:string;video_ended:boolean;video_duration_seconds:number|null;video_watched_seconds:number[]|null};
 type Participant={id:string;session_id:string;display_name:string;initials:string;reconciliation_status:string;waiver_signer_reference:string|null;acknowledgement_at:string|null};
 type Portal={readiness_id:string;confirmation_code:string;business_line:string;expected_guest_count:number|null;total_vehicle_count:number|null;epic_document_received_count:number|null;epic_document_expected_count:number|null;mpwr_document_received_count:number|null;mpwr_document_expected_count:number|null;mpwr_waivers:Array<{name:string;is_minor?:boolean;is_passenger?:boolean}>|null;ohv_required:boolean|null;ohv_certificate_uploaded:boolean|null};
 type Task={id:string;template_id:string;task_status:string;required:boolean};
@@ -25,7 +25,7 @@ export async function GET(request:NextRequest){
   }));
   if(!portal||portal.business_line!=="rental")return response({error:"Rental reservation not found."},404);
   const sessions=await supabaseSelect<Session>("exp_sessions",new URLSearchParams({
-    select:"id,readiness_id,mode,outcome,completed_at,video_version,video_ended,video_duration_seconds,video_watched_seconds",
+    select:"id,created_at,readiness_id,mode,outcome,completed_at,video_version,video_ended,video_duration_seconds,video_watched_seconds",
     readiness_id:`eq.${readinessId}`,order:"created_at.desc",limit:"50"
   }));
   const participants=sessions.length?await supabaseSelect<Participant>("exp_participants",new URLSearchParams({
@@ -34,7 +34,7 @@ export async function GET(request:NextRequest){
   })):[];
   const tasks=await supabaseSelect<Task>("guest_form_tasks",new URLSearchParams({
     select:"id,template_id,task_status,required",readiness_id:`eq.${readinessId}`,
-    task_status:"not.in.(cancelled,expired)"
+    task_status:"neq.cancelled"
   }));
   const templateIds=[...new Set(tasks.map(t=>t.template_id))];
   const templates=templateIds.length?await supabaseSelect<Template>("guest_form_templates",new URLSearchParams({
@@ -62,7 +62,8 @@ export async function GET(request:NextRequest){
   const completedSessions=new Set(sessions.filter(s=>
     s.outcome==="complete"&&!!s.completed_at&&s.video_ended&&
     (s.video_duration_seconds??0)>=60&&
-    new Set(s.video_watched_seconds??[]).size>=Math.ceil((s.video_duration_seconds??0)*0.98)
+    new Set(s.video_watched_seconds??[]).size>=Math.ceil((s.video_duration_seconds??0)*0.98)&&
+    (new Date(s.completed_at??"").getTime()-new Date(s.created_at).getTime())/1000 >= (s.video_duration_seconds??0)*0.98
   ).map(s=>s.id));
   const qualified=participants.filter(p=>
     completedSessions.has(p.session_id)&&!!p.acknowledgement_at&&
