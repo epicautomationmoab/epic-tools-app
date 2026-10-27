@@ -1,5 +1,6 @@
+import type {ExpTeamStatus} from "@/lib/exp/team-status";
 import {requireCorrectSupabaseEnvironment} from "@/lib/server/staging-boundary";
-import {loadExpReadiness} from "@/lib/server/exp-readiness";
+import {loadExpReadinessMany} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 export type VehicleBreakdownItem = {
   model: string;
@@ -14,6 +15,7 @@ export type TripWorksReadinessNote = {
 
 export type ReadinessRow = {
   readiness_id?: string;
+  exp_status?: ExpTeamStatus | null;
   visit_start_time: string;
   confirmation_code: string;
   guest_portal_token?: string | null;
@@ -88,6 +90,7 @@ export type ReadinessRow = {
 
 export type ArrivalBoardRow = {
   readiness_id?: string | null;
+  exp_status?: ExpTeamStatus | null;
   visit_start_time: string;
   confirmation_code: string;
   customer_name: string;
@@ -252,13 +255,15 @@ export async function getReadinessRows(options: { fast?: boolean; enrich?: boole
   const readinessView = options.fast ? "guest_readiness_fast_v" : "guest_readiness_with_handoff_v";
   const rows = await fetchView<ReadinessRow>(readinessView, params, true);
   if(process.env.EXP_ASSESSMENT_SERVER_ENABLED === "true") {
-    await Promise.all(rows.filter(row=>row.business_line==="rental"&&row.readiness_id).map(async row=>{
-      const exp=await loadExpReadiness(row.readiness_id!);
-      if(!exp)return;
+    const statuses=await loadExpReadinessMany(rows.filter(row=>row.business_line==="rental"&&row.readiness_id).map(row=>row.readiness_id!));
+    for(const row of rows){
+      const exp=row.readiness_id?statuses.get(row.readiness_id):undefined;
+      if(!exp)continue;
+      row.exp_status=exp.expReady?exp.assessmentStatus:null;
       row.ohv_certificate_uploaded=exp.documentChecks.ohvCertificates;
       row.mpwr_waivers=exp.verifiedPolarisWaivers;
       row.mpwr_document_received_count=new Set(exp.verifiedPolarisWaivers.map(w=>w.name.trim().toLowerCase())).size;
-    }));
+    }
   }
   if (options.enrich === false) {
     // The fast readiness view may lag certificate uploads. Read the authoritative
@@ -517,8 +522,15 @@ function normalizeTimestamp(value: string) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
 }
 
-export async function getArrivalBoardRows() {
-  const today = getMountainDateParts(new Date());
+export async function getArrivalBoardRows(options: { date?: string } = {}) {
+  let today = getMountainDateParts(new Date());
+  // Date travel is a read-only fixture viewer, available only in isolated staging.
+  if(process.env.EPIC_STAGING_NO_OUTBOUND==="true" && process.env.NEXT_PUBLIC_SUPABASE_URL==="https://cchsrkhpvvrvcuepkqdu.supabase.co" && options.date && /^\d{4}-\d{2}-\d{2}$/.test(options.date)){
+    const parsed=new Date(options.date+"T12:00:00Z");
+    if(Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0,10)===options.date){
+      const [year,month,day]=options.date.split("-").map(Number);today={year,month,day};
+    }
+  }
   const start = mountainMidnightUtc(today.year, today.month, today.day);
   const end = mountainMidnightUtc(today.year, today.month, today.day + 1);
   const dateFilters = [
@@ -605,6 +617,7 @@ export async function getArrivalBoardRows() {
         vehicleCount: row.total_vehicle_count,
       })),
   );
+  const expReadiness=process.env.EXP_ASSESSMENT_SERVER_ENABLED==="true"?await loadExpReadinessMany(readinessIds):new Map();
   const terminalStatuses = new Set(["checked_in", "tour_returned", "rental_out", "rental_returned"]);
 
   return rows
@@ -645,6 +658,7 @@ export async function getArrivalBoardRows() {
 
       return {
         ...row,
+        exp_status:readiness?.readiness_id && expReadiness.get(readiness.readiness_id)?.expReady?expReadiness.get(readiness.readiness_id)!.assessmentStatus:null,
         readiness_id: readiness?.readiness_id ?? null,
         customer_phone_last_four: readiness?.customer_phone_last_four ?? row.customer_phone_last_four ?? null,
         handoff_status: readiness?.handoff_status ?? row.handoff_status ?? null,

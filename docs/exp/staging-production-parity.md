@@ -1,4 +1,10 @@
-# Epic Tools: Staging / Production parity gate (2026-10-26)
+# Epic Tools: Staging / Production parity gate
+
+## Current status — October 27, 2026
+
+The October 26 credential and implementation blockers below are historical. The isolated staging credential works, EXP tables and checkpoint APIs are enabled, and the real guest workflow passed. Use [release-candidate.md](release-candidate.md) for current checks and remaining release gates. Production remains unchanged and requires separate user authorization.
+
+## Historical comparison — October 26, 2026
 
 Production: `kbuxcvqzicnydqllyong` (Epic Tools Operations).
 Staging: `cchsrkhpvvrvcuepkqdu` (Epic Tools Security Staging).

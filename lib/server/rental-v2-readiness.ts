@@ -1,5 +1,17 @@
 import { supabaseSelect } from "@/lib/server/supabase-rest";
 
+/** Avoid truncating multi-party evidence at the REST response row cap. */
+async function selectAll<T>(resource:string,params:URLSearchParams){
+ const rows:T[]=[];
+ const order=params.get("order");
+ params.set("order",order?`${order},id.asc`:resource==="guest_readiness_operational"?"readiness_id.asc":"id.asc");
+ for(let offset=0;;offset+=500){
+  const pageParams=new URLSearchParams(params);pageParams.set("limit","500");pageParams.set("offset",String(offset));
+  const page=await supabaseSelect<T>(resource,pageParams);rows.push(...page);
+  if(page.length<500)return rows;
+ }
+}
+
 export type RentalV2ReadinessSource = {
   readinessId: string;
   confirmationCode: string;
@@ -121,7 +133,7 @@ export async function loadRentalV2Readiness(
   if (!rentalSources.length) return result;
 
   const readinessIds = [...new Set(rentalSources.map((source) => source.readinessId))];
-  const operationalRows = await supabaseSelect<OperationalReadinessRow>(
+  const operationalRows = await selectAll<OperationalReadinessRow>(
     "guest_readiness_operational",
     new URLSearchParams({
       select: "readiness_id,source_store_visit_id,confirmation_code,epic_document_received_count,epic_document_expected_count",
@@ -134,7 +146,7 @@ export async function loadRentalV2Readiness(
   const confirmationCodes = [...new Set(operationalRows.map((row) => row.confirmation_code).filter(Boolean))];
   if (!confirmationCodes.length) return result;
 
-  const sessions = await supabaseSelect<SessionRow>(
+  const sessions = await selectAll<SessionRow>(
     "epic_waiver_sessions",
     new URLSearchParams({
       select: "id,confirmation_code,store_visit_id,business_line,session_status",
@@ -166,7 +178,7 @@ export async function loadRentalV2Readiness(
 
   // select=* is intentional during staged rollout: production does not have
   // rental_role until the V2 migration is applied. Old rows simply omit it.
-  const signatures = await supabaseSelect<SignatureRow>(
+  const signatures = await selectAll<SignatureRow>(
     "epic_waiver_signatures",
     new URLSearchParams({
       select: "*",
@@ -183,7 +195,7 @@ export async function loadRentalV2Readiness(
   );
   const signatureIds = v2Signatures.map((signature) => signature.id);
   const minors = signatureIds.length
-    ? await supabaseSelect<MinorRow>(
+    ? await selectAll<MinorRow>(
         "epic_waiver_minors",
         new URLSearchParams({
           select: "adult_signature_id,minor_first_name,minor_last_name,minor_full_name,minor_dob",
