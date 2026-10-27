@@ -18,7 +18,7 @@ export default function ExpParticipants({
   const [signed, setSigned] = useState<Record<string,string>>({});
   const [signing, setSigning] = useState<string | null>(null);
   const distinctWaivers = Array.from(new Set(waiverDrivers.map(n=>n.trim()).filter(Boolean)));
-  const all = [...selected.map(n=>({name:n,matched:true})),...manual.map(n=>({name:n.trim(),matched:false}))].filter(x=>x.name);
+  const all = selected.map(n=>({name:n,matched:true})).filter(x=>x.name);
   const valid = all.length>0 && all.every(x=>x.name.length>=3 && x.name.includes(" ") && Boolean(signed[x.name])) && new Set(all.map(x=>x.name.toLowerCase())).size===all.length;
   return <section className={styles.wrap} aria-label="EXP participating drivers">
     <h3>Almost trail-ready!</h3>
@@ -33,20 +33,7 @@ export default function ExpParticipants({
           {signed[name] ? <img src={signed[name]} alt={`Initials captured for ${name}`} /> : "Add initials"}
         </button> : null}
       </label>)}
-    </> : <p className={styles.note}>Driver waivers have not been loaded yet. You can enter names now; they will need to be matched to signed waivers before EXP status is verified.</p>}
-    {manual.map((name,i)=><div key={i} className={styles.driver}>
-      <label>Driver without a listed waiver — full name
-        <input value={name} onChange={e=>setManual(prev=>prev.map((n,j)=>j===i?e.target.value:n))} placeholder="First and last name" maxLength={120}/>
-      </label>
-      <button type="button" className={styles.remove} onClick={()=>setManual(prev=>prev.filter((_,j)=>j!==i))}>Remove</button>
-    </div>)}
-    <button className={styles.add} type="button" disabled={selected.length+manual.length>=20} onClick={()=>setManual(prev=>[...prev,""])}>+ Add driver not listed</button>
-    {all.filter(x=>!x.matched).map(({name})=><div className={styles.manualSignature} key={name}>
-      <strong>{name}</strong>
-      <button className={styles.signatureThumb} type="button" onClick={()=>setSigning(name)}>
-        {signed[name] ? <img src={signed[name]} alt={`Initials captured for ${name}`}/> : "Add initials"}
-      </button>
-    </div>)}
+    </> : <p className={styles.note}>No signed driver agreements have been found. Complete the required rental paperwork before starting EXP.</p>}
     {signing ? <div className={styles.signatureOverlay} onMouseDown={e=>{if(e.target===e.currentTarget)setSigning(null);}}>
       <section className={styles.signatureDialog} role="dialog" aria-modal="true" aria-labelledby="exp-initials-title">
         <h3 id="exp-initials-title">Your initials, {signing}</h3>
@@ -64,6 +51,6 @@ export default function ExpParticipants({
       {reviewerMode ? <button type="button" className={styles.back} onClick={()=>onContinue(all.length ? all.map(x=>({fullName:x.name,initials:signed[x.name]||"",waiverMatched:x.matched})) : [{fullName:"Preview Reviewer",initials:"",waiverMatched:false}])}>Reviewer shortcut: Open knowledge check</button> : null}
       <button type="button" className={styles.back} onClick={onBack}>Back</button>
     </div>
-    <p className={styles.note}>Testing preview: drawn initials and names are not saved. Actual waiver verification and completion recording will be enabled only in production after validation.</p>
+    <p className={styles.note}>Only drivers listed by the reservation paperwork can participate. Additional Polaris and OHV checks remain required for checkout.</p>
   </section>;
 }
