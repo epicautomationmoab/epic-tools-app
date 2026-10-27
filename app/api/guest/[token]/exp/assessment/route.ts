@@ -14,9 +14,23 @@ const VERSION = "exp-2026-10-26-v1";
 function fail(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
 }
-function publicQuestions() {
-  return EXP_QUESTION_BANK_DRAFT.map(q => ({
-    id: q.id, prompt: q.prompt, options: q.options.map(o => ({ id: o.id, text: o.text })),
+function stableShuffle<T>(items:T[],seed:string):T[]{
+  let state=2166136261;
+  for(let i=0;i<seed.length;i++)state=Math.imul(state^seed.charCodeAt(i),16777619);
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){
+    state^=state<<13;state^=state>>>17;state^=state<<5;
+    const j=(state>>>0)%(i+1);
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+}
+function publicQuestions(sessionId:string) {
+  return stableShuffle(EXP_QUESTION_BANK_DRAFT,sessionId).map(q=>({
+    id:q.id,prompt:q.prompt,
+    options:q.options.length===2&&q.options.every(o=>["true","false"].includes(o.id))
+      ? q.options.map(o=>({id:o.id,text:o.text}))
+      : stableShuffle(q.options,sessionId+q.id).map(o=>({id:o.id,text:o.text}))
   }));
 }
 function isAnswerArray(value: unknown): value is ExpAnswer[] {
@@ -63,14 +77,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         order: "created_at.desc", limit: "1",
       }));
       if (existing.length) {
-        return NextResponse.json({ sessionId: existing[0].id, questions: publicQuestions(),
+        return NextResponse.json({ sessionId: existing[0].id, questions: publicQuestions(existing[0].id),
           resumed: true, completionRecorded: false }, { headers: { "Cache-Control": "no-store" } });
       }
       const session = await supabaseInsert<{ id: string }>("exp_sessions", {
         readiness_id: activity.readiness_id, video_version: "3.2",
         assessment_version: VERSION, mode: "individual", outcome: "in_progress",
       });
-      return NextResponse.json({ sessionId: session.id, questions: publicQuestions(), completionRecorded: false });
+      return NextResponse.json({ sessionId: session.id, questions: publicQuestions(session.id), completionRecorded: false });
     }
 
     if (!body.sessionId || !isAnswerArray(body.answers)) return fail("Valid session and responses required.");
