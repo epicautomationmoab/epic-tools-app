@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ArrivalBoardRow } from "@/lib/supabase";
 import styles from "./ArrivalBoard.module.css";
 import { expBoardDirection, type ExpTeamStatus } from "@/lib/exp/team-status";
@@ -67,6 +67,27 @@ export default function ArrivalBoardDisplay({
   expStatuses?: Record<string, ExpTeamStatus>;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [verifiedStatuses,setVerifiedStatuses] = useState<Record<string,ExpTeamStatus>>({});
+  useEffect(()=>{
+    if(process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW!=="true")return;
+    let active=true;
+    const rentals=rows.filter(r=>r.business_line==="rental"&&r.readiness_id).slice(0,60);
+    async function refresh(){
+      const next:Record<string,ExpTeamStatus>={};
+      for(const row of rentals){
+        if(!active)break;
+        try{
+          const response=await fetch(`/api/team/exp/readiness?readinessId=${encodeURIComponent(row.readiness_id!)}`,{cache:"no-store"});
+          if(!response.ok)continue;
+          const data=await response.json();
+          if(data.expReady===true&&data.assessmentStatus?.allReady===true)next[row.readiness_id!]=data.assessmentStatus;
+        }catch{/* retain original safe routing on lookup failure */}
+      }
+      if(active)setVerifiedStatuses(next);
+    }
+    void refresh();const interval=window.setInterval(()=>void refresh(),30000);
+    return()=>{active=false;window.clearInterval(interval)};
+  },[rows]);
 
   const visibleRows = useMemo(
     () =>
@@ -107,7 +128,7 @@ export default function ArrivalBoardDisplay({
 
       <section className={styles.rows}>
         {visibleRows.map((row) => {
-          const exp = expStatuses[row.confirmation_code] ?? null;
+          const exp = (row.readiness_id ? verifiedStatuses[row.readiness_id] : undefined) ?? expStatuses[row.confirmation_code] ?? null;
           const isKiosk = expBoardDirection(row.board_action_type === "kiosk", row.business_line, exp) === "kiosk";
 
           const details = [
