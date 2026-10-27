@@ -7,7 +7,7 @@ export async function expVideoDuration(): Promise<number | null> {
   const configured=Number(process.env.EXP_VIDEO_DURATION_SECONDS);
   if(Number.isInteger(configured)&&configured>=60&&configured<=1800)return configured;
   try {
-    const origin=process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined;
+    const origin=process.env.EXP_PUBLIC_ORIGIN?.replace(/\/+$/, "") || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
     const response=await fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(`https://vimeo.com/${EXP_VIDEO_ID}`)}`,{
       ...(origin?{headers:{Referer:origin}}:{}),next:{revalidate:60}
     });

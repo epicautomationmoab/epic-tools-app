@@ -3,7 +3,7 @@
  * This intentionally never fabricates video completion or contacts guests. */
 import assert from 'node:assert/strict';
 const base=process.env.EXP_STAGING_URL;
-if(!base || !/^https:\/\/epic-tools-exp-staging-[a-z0-9-]+\.vercel\.app$/.test(base))throw Error('An isolated EXP staging deployment URL is required');
+if(!base || !(base==="https://epic-tools-exp-staging.vercel.app" || /^https:\/\/epic-tools-exp-staging-[a-z0-9-]+\.vercel\.app$/.test(base)))throw Error('An isolated EXP staging deployment URL is required');
 const cookie=process.env.EXP_STAGING_COOKIE;
 if(!cookie)throw Error('Synthetic staging session cookie required');
 const token='ee100000-0000-4000-8000-000000000002';
