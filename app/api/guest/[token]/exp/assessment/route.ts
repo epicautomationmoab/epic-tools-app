@@ -55,6 +55,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!activity || activity.business_line?.toLowerCase() !== "rental") return fail("Rental reservation not found.", 404);
 
     if (body.action === "start") {
+      // Resume an unfinished assessment instead of silently creating a second session.
+      const existing = await supabaseSelect<{ id: string }>("exp_sessions", new URLSearchParams({
+        select: "id", readiness_id: `eq.${activity.readiness_id}`,
+        assessment_version: `eq.${VERSION}`, outcome: "eq.in_progress",
+        order: "created_at.desc", limit: "1",
+      }));
+      if (existing.length) {
+        return NextResponse.json({ sessionId: existing[0].id, questions: publicQuestions(),
+          resumed: true, completionRecorded: false }, { headers: { "Cache-Control": "no-store" } });
+      }
       const session = await supabaseInsert<{ id: string }>("exp_sessions", {
         readiness_id: activity.readiness_id, video_version: "3.2",
         assessment_version: VERSION, mode: "individual", outcome: "in_progress",
