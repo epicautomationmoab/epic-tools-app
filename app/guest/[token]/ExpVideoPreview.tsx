@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
 import ExpAssessment from "./ExpAssessment";
+import ExpServerAssessment from "./ExpServerAssessment";
 import ExpTrackedVideo from "./ExpTrackedVideo";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
@@ -54,6 +55,10 @@ export default function ExpVideoPreview({
   const [showAssessment, setShowAssessment] = useState(false);
   const [selectDrivers, setSelectDrivers] = useState(false);
   const [driverNames, setDriverNames] = useState<ExpParticipantDraft[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [serverError, setServerError] = useState("");
+  const [savingParticipants, setSavingParticipants] = useState(false);
+  const readinessId = activities.find(a => a.businessLine.toLowerCase() === "rental")?.readinessId ?? "";
   const [watchedAcknowledged, setWatchedAcknowledged] = useState(false);
   const [videoCoverageMet, setVideoCoverageMet] = useState(false);
   const [formsLoaded, setFormsLoaded] = useState(false);
@@ -116,6 +121,34 @@ export default function ExpVideoPreview({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
+  async function prepareSession(drivers: ExpParticipantDraft[]) {
+    if (!readinessId) return;
+    setSavingParticipants(true);
+    setServerError("");
+    try {
+      const base = `/api/guest/${encodeURIComponent(token)}/exp`;
+      const startResponse = await fetch(`${base}/assessment`, {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({action:"start",readinessId}),
+      });
+      const start = await startResponse.json();
+      if (!startResponse.ok) throw new Error(start.error || "Unable to start EXP session.");
+      const savedId = String(start.sessionId);
+      const participantResponse = await fetch(`${base}/participants`, {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({readinessId,sessionId:savedId,allDriversWatched:true,
+          participants:drivers.map(d=>({fullName:d.fullName,initials:d.initials}))}),
+      });
+      const saved = await participantResponse.json();
+      if (!participantResponse.ok && participantResponse.status !== 409)
+        throw new Error(saved.error || "Unable to save driver acknowledgments.");
+      setSessionId(savedId);
+      setDriverNames(drivers);
+      setShowAssessment(true);
+    } catch(error) {
+      setServerError(error instanceof Error ? error.message : "Unable to record EXP.");
+    } finally { setSavingParticipants(false); }
+  }
   if (!eligible) return null;
 
   return (
@@ -140,12 +173,14 @@ export default function ExpVideoPreview({
             <h2 id="exp-title">Epic Xpress Ready</h2>
             {!showAssessment && !selectDrivers ? <p id="exp-desc">Get a head start on your adventure. Watch a short video to get comfortable with your RZR, then take a quick knowledge check. You'll arrive ready to roll — with more time for the trails.</p> : null}
             {showAssessment ? (
-              <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onCompleted={() => { if(reviewerMode && confirmationCode) saveExpDemo({confirmationCode,drivers:driverNames.map(d=>d.fullName),completedAt:new Date().toISOString(),videoSkipped:true}); }} onExit={() => { setShowAssessment(false); setOpen(false); }} />
+              sessionId && readinessId ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} onExit={() => { setShowAssessment(false); setOpen(false); }} /> : <p role="alert">EXP session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (
-              <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={[...new Set([...waiverDrivers, ...signedRentalDrivers])]} onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
+              <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={[...new Set([...waiverDrivers, ...signedRentalDrivers])]} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
             ) : (
               <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} />
             )}
+            {serverError ? <p role="alert" style={{color:"#a83232"}}>{serverError}</p> : null}
+            {savingParticipants ? <p role="status">Saving driver acknowledgments…</p> : null}
             {started && !showAssessment && !selectDrivers ? (
               <div className={styles.previewNext}>
                 <label className={styles.acknowledge}>
