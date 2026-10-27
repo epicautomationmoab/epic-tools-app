@@ -1,3 +1,4 @@
+import {selectRentalReminderTemplate} from "@/lib/exp/reminder-template";
 import { requireCorrectSupabaseEnvironment } from "@/lib/server/staging-boundary";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
@@ -236,9 +237,9 @@ async function updateCommunication(id: string, values: Record<string, unknown>) 
   if (rows.length !== 1) throw new Error(`Communication update matched ${rows.length} rows for id ${id}.`);
 }
 
-function templateIdFor(communicationType: string) {
+function templateIdFor(communicationType: string, rows: Array<{business_line:string|null}>) {
   if (communicationType === "arrival_readiness_two_hour") return requiredEnv("RESEND_TWO_HOUR_TEMPLATE_ID");
-  if (communicationType === "arrival_reminder_day_before") return requiredEnv("RESEND_REMINDER_TEMPLATE_ID");
+  if (communicationType === "arrival_reminder_day_before") return selectRentalReminderTemplate(requiredEnv("RESEND_REMINDER_TEMPLATE_ID"), process.env.RESEND_RENTAL_REMINDER_TEMPLATE_ID, rows);
   return requiredEnv("RESEND_CONFIRMATION_TEMPLATE_ID");
 }
 
@@ -312,7 +313,7 @@ export async function POST(request: Request) {
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
       from: requiredEnv("GUEST_EMAIL_FROM"), to: recipient, replyTo: requiredEnv("GUEST_EMAIL_REPLY_TO"),
-      template: { id: templateIdFor(communication.communication_type), variables },
+      template: { id: templateIdFor(communication.communication_type, portalRows), variables },
     }, { idempotencyKey: `guest-communication-${communication.id}` });
 
     if (error) throw new Error(error.message);
