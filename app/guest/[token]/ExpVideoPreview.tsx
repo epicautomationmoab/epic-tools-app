@@ -57,6 +57,7 @@ export default function ExpVideoPreview({
   const [watchedAcknowledged, setWatchedAcknowledged] = useState(false);
   const [videoCoverageMet, setVideoCoverageMet] = useState(false);
   const [formsLoaded, setFormsLoaded] = useState(false);
+  const [signedRentalDrivers, setSignedRentalDrivers] = useState<string[]>([]);
   const [outstandingRequiredForms, setOutstandingRequiredForms] = useState(false);
   const eligible = useMemo(() => {
     if (now === null) return false;
@@ -80,8 +81,9 @@ export default function ExpVideoPreview({
       try {
         const response = await fetch(`/api/guest/${encodeURIComponent(token)}/guest-forms`, { cache: "no-store" });
         if (!response.ok) throw new Error("Forms unavailable");
-        const data = await response.json() as { tasks?: Array<{ status: string; required: boolean; templateKey: string | null }> };
+        const data = await response.json() as { signedRentalDrivers?: string[]; tasks?: Array<{ status: string; required: boolean; templateKey: string | null }> };
         if (cancelled) return;
+        setSignedRentalDrivers(data.signedRentalDrivers ?? []);
         setOutstandingRequiredForms((data.tasks ?? []).some((task) => task.required && task.status !== "completed" && task.templateKey !== "damage_acknowledgment"));
         setFormsLoaded(true);
       } catch {
@@ -140,7 +142,7 @@ export default function ExpVideoPreview({
             {showAssessment ? (
               <ExpAssessment questions={EXP_QUESTION_BANK_DRAFT} onCompleted={() => { if(reviewerMode && confirmationCode) saveExpDemo({confirmationCode,drivers:driverNames.map(d=>d.fullName),completedAt:new Date().toISOString(),videoSkipped:true}); }} onExit={() => { setShowAssessment(false); setOpen(false); }} />
             ) : selectDrivers ? (
-              <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={waiverDrivers} onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
+              <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={[...new Set([...waiverDrivers, ...signedRentalDrivers])]} onContinue={drivers => { setDriverNames(drivers); setShowAssessment(true); }} onBack={() => setSelectDrivers(false)} />
             ) : (
               <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} />
             )}
