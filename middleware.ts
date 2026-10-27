@@ -29,11 +29,11 @@ export async function middleware(request: NextRequest) {
     // trigger operational guest communications or booking agents.
     const allowedRentalV2 = pathname === "/api/waiver/submit-rental-v2" && request.method === "POST";
     const allowedKioskLookup = pathname === "/api/kiosk/lookup" && request.method === "POST";
-    const allowedLogin = pathname === "/api/auth/login" && request.method === "POST";
+    const allowedStagingAuth = ["/api/auth/login", "/api/auth/logout", "/api/team/action-pin"].includes(pathname) && request.method === "POST";
     // Only the isolated rental agreement form submission may write in EXP staging.
     // All other operational mutations and forms with outbound side effects remain denied.
     const allowedRentalFormSubmission = /^\/api\/guest-forms\/[^/]+$/.test(pathname) && request.method === "POST";
-    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite && !allowedRentalV2 && !allowedKioskLookup && !allowedLogin && !allowedRentalFormSubmission && !allowedStagingOhvUpload) {
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite && !allowedRentalV2 && !allowedKioskLookup && !allowedStagingAuth && !allowedRentalFormSubmission && !allowedStagingOhvUpload) {
       return NextResponse.json(
         { error: "Operational API mutations are disabled in isolated EXP staging." },
         { status: 403, headers: { "Cache-Control": "no-store" } },
