@@ -46,7 +46,8 @@ function getSupabaseConfig() {
 function serviceHeaders(key: string, extra?: HeadersInit): HeadersInit {
   return {
     apikey: key,
-    Authorization: `Bearer ${key}`,
+    // Modern sb_secret keys are API keys, not JWT bearer tokens.
+    ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
     ...extra,
   };
 }
