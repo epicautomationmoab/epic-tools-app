@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseSelect, getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
+import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 
-type PortalActivity = { readiness_id: string; business_line: string };
+type PortalActivity = { readiness_id: string; business_line: string; confirmation_code: string; expected_guest_count: number|null; total_vehicle_count: number|null };
 type Session = { id: string; readiness_id: string; outcome: string; mode: string };
 type ParticipantInput = { fullName: string; initials: string };
 
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return bad("Each participating driver must be listed once.");
     }
     const [reservation] = await supabaseSelect<PortalActivity>("guest_portal_v", new URLSearchParams({
-      select: "readiness_id,business_line",
+      select: "readiness_id,business_line,confirmation_code,expected_guest_count,total_vehicle_count",
       guest_portal_token: `eq.${token}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
     }));
     if (!reservation || reservation.business_line?.toLowerCase() !== "rental") return bad("Rental reservation not found.", 404);
@@ -54,17 +55,24 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       select: "id,template_id,task_status", readiness_id: `eq.${reservation.readiness_id}`, task_status: "eq.completed",
     }));
     const templateIds = [...new Set(tasks.map(t => t.template_id))];
-    if (!templateIds.length) return bad("Complete the required rental driver agreement before EXP.", 409);
-    const templates = await supabaseSelect<{ id: string; template_key: string }>("guest_form_templates", new URLSearchParams({
+    const templates = templateIds.length ? await supabaseSelect<{ id: string; template_key: string }>("guest_form_templates", new URLSearchParams({
       select: "id,template_key", id: `in.(${templateIds.join(",")})`,
-    }));
+    })) : [];
     const allowedTemplateIds = new Set(templates.filter(t => t.template_key === "rental_v2_driver_terms_targeted").map(t => t.id));
     const allowedTasks = tasks.filter(t => allowedTemplateIds.has(t.template_id));
-    if (!allowedTasks.length) return bad("Signed rental driver agreement is required.", 409);
-    const submissions = await supabaseSelect<{ task_id: string; signer_name: string | null }>("guest_form_submissions", new URLSearchParams({
+    const submissions = allowedTasks.length ? await supabaseSelect<{ task_id: string; signer_name: string | null }>("guest_form_submissions", new URLSearchParams({
       select: "task_id,signer_name", task_id: `in.(${allowedTasks.map(t => t.id).join(",")})`,
-    }));
-    const eligible = new Set(submissions.map(s => cleanName(s.signer_name ?? "").toLowerCase()).filter(Boolean));
+    })) : [];
+    const v2 = await loadRentalV2Readiness([{
+      readinessId:reservation.readiness_id,confirmationCode:reservation.confirmation_code,
+      expectedGuestCount:reservation.expected_guest_count,vehicleCount:reservation.total_vehicle_count,
+    }]);
+    const eligible = new Set([
+      ...submissions.map(s => cleanName(s.signer_name ?? "").toLowerCase()).filter(Boolean),
+      ...(v2.get(reservation.readiness_id)?.signers ?? []).filter(s => s.role === "driver")
+        .map(s => cleanName(s.name).toLowerCase()),
+    ]);
+    if (!eligible.size) return bad("Complete a signed Epic rental driver agreement before starting EXP.", 409);
     if (normalized.some(p => !eligible.has(p.display_name.toLowerCase()))) {
       return bad("Every driver must first sign the required rental agreement under their own name.", 409);
     }
