@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import styles from "./GuestPortal.module.css";
 import PetAgreementOption from "./PetAgreementOption";
 import ExpVideoPreview from "./ExpVideoPreview";
+import GuestOhvUpload from "./GuestOhvUpload";
 import { getExpWaiverDriverNames } from "@/lib/exp/portal-waiver-drivers";
 
 
@@ -839,14 +840,9 @@ export default function GuestPortalPage() {
                           ) : null}
                         </div>
 
-                        <button
-                          type="button"
-                          className={styles.primaryButton}
-                          disabled
-                          title="Certificate upload is the next feature being connected."
-                        >
-                          Upload Coming Next
-                        </button>
+                        <GuestOhvUpload token={token} readinessId={activity.readinessId}
+                          driverNames={getExpWaiverDriverNames(activity.readinessId,reservation.epicDocuments,reservation.mpwrWaivers)}
+                        />
                       </article>
                     </>
                   ) : null}
