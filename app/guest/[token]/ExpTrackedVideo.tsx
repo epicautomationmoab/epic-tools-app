@@ -31,21 +31,21 @@ function loadVimeoSdk(): Promise<void> {
 
 /** Track watched seconds, not the video seek position. */
 export type ExpPlaybackCheckpoint = { watchedSeconds: number[]; durationSeconds: number; ended: boolean };
-export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint }: { onCoverageChange: (complete: boolean) => void; onCheckpoint?: (data: ExpPlaybackCheckpoint) => void }) {
+export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initialCheckpoint }: { initialCheckpoint?: ExpPlaybackCheckpoint; onCoverageChange: (complete: boolean) => void; onCheckpoint?: (data: ExpPlaybackCheckpoint) => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const callback = useRef(onCoverageChange);
   const checkpointCallback = useRef(onCheckpoint);
-  const [coverage, setCoverage] = useState(0);
+  const [coverage, setCoverage] = useState(initialCheckpoint ? Math.min(100,Math.round(initialCheckpoint.watchedSeconds.length/initialCheckpoint.durationSeconds*100)) : 0);
   const [trackingError, setTrackingError] = useState(false);
   useEffect(() => { callback.current = onCoverageChange; }, [onCoverageChange]);
   useEffect(() => { checkpointCallback.current = onCheckpoint; }, [onCheckpoint]);
   useEffect(() => {
     let disposed = false;
     let player: Player | null = null;
-    const watched = new Set<number>();
+    const watched = new Set<number>(initialCheckpoint?.watchedSeconds??[]);
     let previous: number | null = null;
     let seeking = false;
-    let reachedEnd = false;
+    let reachedEnd = initialCheckpoint?.ended??false;
     let lastCheckpointSize = 0;
     const publishCheckpoint = (duration: number, force = false) => {
       if (duration <= 0 || (!force && watched.size - lastCheckpointSize < 15)) return;
@@ -64,7 +64,7 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint }: { on
         publishCheckpoint(knownDuration, true);
       }
     };
-    let knownDuration = 0;
+    let knownDuration = initialCheckpoint?.durationSeconds??0;
     const onSeeking = () => { seeking = true; previous = null; };
     const onSeeked = () => { seeking = false; previous = null; };
     const onTimeUpdate = (data: PlaybackEvent) => {

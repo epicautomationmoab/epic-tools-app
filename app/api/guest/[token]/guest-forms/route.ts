@@ -31,7 +31,7 @@ function getConfig() {
 async function select<T>(resource: string, params: URLSearchParams) {
   const { url, key } = getConfig();
   const response = await fetch(`${url}/rest/v1/${resource}?${params.toString()}`, {
-    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }) },
     cache: "no-store",
   });
   if (!response.ok) throw new Error(`Unable to load ${resource}: ${(await response.text()).slice(0, 300)}`);

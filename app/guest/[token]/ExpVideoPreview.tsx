@@ -52,6 +52,7 @@ export default function ExpVideoPreview({
   const [driverNames, setDriverNames] = useState<ExpParticipantDraft[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [serverQuestions,setServerQuestions] = useState<Array<{id:string;prompt:string;options:Array<{id:string;text:string}>}>>([]);
+  const [savedPlayback,setSavedPlayback]=useState<ExpPlaybackCheckpoint|undefined>();
   const [serverError, setServerError] = useState("");
   const [savingParticipants, setSavingParticipants] = useState(false);
   const lastPlayback = useRef<ExpPlaybackCheckpoint | null>(null);
@@ -154,18 +155,20 @@ export default function ExpVideoPreview({
         if (!response.ok || !started.sessionId || !Array.isArray(started.questions))
           throw new Error(started.error || "Unable to resume EXP.");
         if (cancelled) return;
-        setSessionId(started.sessionId);
         setServerQuestions(started.questions);
         const progressResponse = await fetch(`${base}/progress?readinessId=${encodeURIComponent(readinessId)}&sessionId=${encodeURIComponent(started.sessionId)}`,{cache:"no-store"});
         if (progressResponse.ok){
           const progress = await progressResponse.json();
           const duration = Number(progress.videoDurationSeconds ?? 0);
+          if(!cancelled && duration>0)setSavedPlayback({watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true});
           if (!cancelled && progress.videoEndedReported && duration>0 &&
             Number(progress.videoSecondsObserved ?? 0)>=Math.ceil(duration*0.98)) {
             setVideoCoverageMet(true);
             setWatchedAcknowledged(true);
+            if(progress.participants?.length)setShowAssessment(true);
           }
         }
+        if(!cancelled)setSessionId(started.sessionId);
       }catch(error){
         if(!cancelled)setServerError(error instanceof Error?error.message:"EXP session unavailable.");
       }finally{
@@ -235,7 +238,7 @@ export default function ExpVideoPreview({
           <p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>
           
         </div>
-        <button className={styles.action} type="button" onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
+        <button className={styles.action} type="button" onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
           Get Started
         </button>
       </section>
@@ -249,9 +252,9 @@ export default function ExpVideoPreview({
             {showAssessment ? (
               sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); setOpen(false); }} /> : <p role="alert">EXP session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (
-              <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={[...new Set([...waiverDrivers, ...signedRentalDrivers])]} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
+              <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={signedRentalDrivers} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
             ) : (
-              <ExpTrackedVideo onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} />
+              sessionId ? <ExpTrackedVideo key={sessionId} initialCheckpoint={savedPlayback} onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} /> : <p>Loading saved orientation…</p>
             )}
             {startingSession ? <p role="status">Preparing saved EXP session…</p> : null}
             {serverError ? <p role="alert" style={{color:"#a83232"}}>{serverError}</p> : null}

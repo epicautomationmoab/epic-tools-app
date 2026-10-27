@@ -1,3 +1,4 @@
+import { requireCorrectSupabaseEnvironment } from "@/lib/server/staging-boundary";
 import { NextResponse } from "next/server";
 import {supabaseSelect} from "@/lib/server/supabase-rest";
 import {loadRentalV2Readiness} from "@/lib/server/rental-v2-readiness";
@@ -35,6 +36,7 @@ function getSupabaseConfig() {
     throw new Error("Supabase environment variables are missing.");
   }
 
+  requireCorrectSupabaseEnvironment(rawUrl);
   const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 
   return {
@@ -222,7 +224,7 @@ export async function POST(
     const existingParams = new URLSearchParams({
       select: "id",
       readiness_id: `eq.${readinessId}`,
-      driver_name: `ilike.${driverName}`,
+      driver_name: `eq.${driverName}`,
       limit: "1",
     });
     const existingResponse = await fetch(
@@ -297,7 +299,7 @@ export async function POST(
         upload: rows[0],
         uploads,
         requiredCount: Math.max(activity.total_vehicle_count ?? 0, 0),
-        complete: uploads.length >= Math.max(activity.total_vehicle_count ?? 0, 0),
+        complete: [...verifiedNames].every(name => uploads.some(upload => upload.driver_name.trim().toLowerCase().replace(/\s+/g," ") === name)),
       },
       { status: 201 },
     );

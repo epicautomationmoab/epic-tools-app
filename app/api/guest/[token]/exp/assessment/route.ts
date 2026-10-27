@@ -114,7 +114,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }
     if (body.action === "submit") {
       if (session.outcome !== "in_progress") return fail("Assessment was already submitted.", 409);
-      const result = gradeExpAssessment(EXP_QUESTION_BANK_DRAFT, body.answers);
+      let result: ExpOutcome;
+      try { result = gradeExpAssessment(EXP_QUESTION_BANK_DRAFT, body.answers); }
+      catch { return fail("All ten questions require one valid answer."); }
       const priorAttempts = Math.max(0,Number(session.result_summary?.attemptCount || 0));
       const attemptCount = priorAttempts + 1;
       // One or two ordinary missed answers: retry the quiz; do not grant completion.

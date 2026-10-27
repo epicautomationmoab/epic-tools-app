@@ -27,6 +27,7 @@ function summary(session:Session) {
   const answers=session.draft_answers||{};
   return {sessionId:session.id,outcome:session.outcome,
     videoSecondsObserved:(session.video_watched_seconds||[]).length,
+    videoWatchedSeconds:session.video_watched_seconds||[],
     videoDurationSeconds:session.video_duration_seconds,videoEndedReported:session.video_ended,
     answeredQuestions:Object.keys(answers).length,
     draftAnswers:answers,lastActivityAt:session.last_activity_at,pauseReason:session.pause_reason,
@@ -41,7 +42,9 @@ export async function GET(request:NextRequest,context:{params:Promise<{token:str
     const sessionId=request.nextUrl.searchParams.get("sessionId")||"";
     if(!readinessId||!sessionId)return reply({error:"Reservation and session required."},400);
     const session=await authorized(token,readinessId,sessionId);
-    return session?reply(summary(session)):reply({error:"Session not found."},404);
+    if(!session)return reply({error:"Session not found."},404);
+    const participants=await supabaseSelect<{display_name:string}>("exp_participants",new URLSearchParams({select:"display_name",session_id:`eq.${session.id}`}));
+    return reply({...summary(session),participants});
   }catch{return reply({error:"Unable to retrieve EXP progress."},500);}
 }
 export async function PATCH(request:NextRequest,context:{params:Promise<{token:string}>}) {

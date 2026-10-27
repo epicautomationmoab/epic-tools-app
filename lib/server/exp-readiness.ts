@@ -58,8 +58,10 @@ export async function loadExpReadiness(readinessId:string){
   const allForms=tasks.filter(t=>t.required&&templates.some(k=>k.id===t.template_id&&k.template_key!=="damage_acknowledgment"));
   const formReady=(signedTasks.length>0&&allForms.length>0&&allForms.every(t=>t.task_status==="completed"))||v2Record?.ready===true;
   const epicReady=((portal.epic_document_expected_count??0)>0&&(portal.epic_document_received_count??0)>=(portal.epic_document_expected_count??0))||v2Record?.agreementsComplete===true;
-  const mpwrReady=(portal.mpwr_document_expected_count??0)>0&&verifiedWaivers.length>=(portal.mpwr_document_expected_count??0);
-  const ohvReady=portal.ohv_required===false||(portal.ohv_required===true&&ohvUploads.filter(u=>u.storage_path).length>=Math.max(1,portal.total_vehicle_count??1));
+  const verifiedWaiverNames=new Set(verifiedWaivers.map(w=>normalize(w.rider_name)));
+  const mpwrReady=(portal.mpwr_document_expected_count??0)>0&&verifiedWaiverNames.size>=(portal.mpwr_document_expected_count??0);
+  const ohvNames=new Set(ohvUploads.filter(u=>u.storage_path).map(u=>normalize(u.driver_name)));
+  const ohvReady=portal.ohv_required===false||(portal.ohv_required===true&&signedDrivers.size>0&&[...signedDrivers.keys()].every(n=>ohvNames.has(n)));
   const vehicleCount=Math.max(1,portal.total_vehicle_count??1);
   const driverRosterReady=signedDrivers.size>=vehicleCount;
   const completedSessions=new Set(sessions.filter(s=>
@@ -96,6 +98,7 @@ export async function loadExpReadiness(readinessId:string){
       outstanding
     })),
     assessmentStatus,
+    signedDrivers:[...signedDrivers.values()],
     expectedDriverCount:signedDrivers.size,
     assessmentQualifiedDriverCount:qualifiedNames.size,
     documentChecks,outstanding,expReady,
