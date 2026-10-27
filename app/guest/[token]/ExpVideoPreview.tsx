@@ -62,6 +62,7 @@ export default function ExpVideoPreview({
   const [videoCoverageMet, setVideoCoverageMet] = useState(false);
   const [formsLoaded, setFormsLoaded] = useState(false);
   const [signedRentalDrivers, setSignedRentalDrivers] = useState<string[]>([]);
+  const [verifiedExpStatus,setVerifiedExpStatus]=useState<boolean|null>(null);
   const [outstandingRequiredForms, setOutstandingRequiredForms] = useState(false);
   const eligible = useMemo(() => {
     if (now === null) return false;
@@ -77,6 +78,21 @@ export default function ExpVideoPreview({
     const interval = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(()=>{
+    if(!eligible||!token)return;
+    let active=true;
+    async function refresh(){
+      try{
+       const response=await fetch(`/api/guest/${encodeURIComponent(token)}/exp/status`,{cache:"no-store"});
+       if(!response.ok)return;
+       const payload=await response.json() as {rentals?:Array<{readinessId:string;expReady:boolean}>};
+       if(active)setVerifiedExpStatus(payload.rentals?.find(r=>r.readinessId===readinessId)?.expReady===true);
+      }catch{/* A status lookup failure must never award readiness. */}
+    }
+    void refresh();const timer=window.setInterval(()=>void refresh(),30000);
+    return()=>{active=false;window.clearInterval(timer)};
+  },[eligible,readinessId,token]);
 
   useEffect(() => {
     if (!eligible || !token) return;
@@ -214,6 +230,7 @@ export default function ExpVideoPreview({
         <div>
           <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
           <h2>Epic Xpress Ready</h2>
+          {verifiedExpStatus!==null ? <p role="status" style={{fontWeight:750,color:verifiedExpStatus?"#176534":"#865621"}}>{verifiedExpStatus?"EXP Ready — all required paperwork and orientation verified.":"EXP pending — paperwork and driver orientation requirements are still being verified."}</p> : null}
           {reviewerMode ? <p><strong>Employee preview only.</strong> This demonstration does not record EXP completion or change guest readiness.</p> : null}
           <p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>
           
