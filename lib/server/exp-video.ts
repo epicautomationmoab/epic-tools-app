@@ -18,3 +18,9 @@ export async function expVideoDuration(): Promise<number | null> {
     return Number.isInteger(seconds)&&seconds>=60&&seconds<=1800?seconds:null;
   }catch{return null;}
 }
+
+/** oEmbed reports whole seconds; the player reports fractional seconds and the
+ * browser rounds up. Permit that one-second representation difference only. */
+export function matchesExpVideoDuration(reported:number|null,expected:number|null){
+  return expected!==null&&reported!==null&&Math.abs(reported-expected)<=1;
+}
