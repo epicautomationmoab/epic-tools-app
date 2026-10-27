@@ -17,7 +17,7 @@ type TemplateRow = {
   form_title: string;
   form_description: string | null;
 };
-type SubmissionRow = { id: string; task_id: string; signed_pdf_storage_path: string | null };
+type SubmissionRow = { id: string; task_id: string; signed_pdf_storage_path: string | null; signer_name: string | null };
 
 function getConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -66,13 +66,14 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       is_active: "eq.true",
     }));
     const submissions = await select<SubmissionRow>("guest_form_submissions", new URLSearchParams({
-      select: "id,task_id,signed_pdf_storage_path",
+      select: "id,task_id,signed_pdf_storage_path,signer_name",
       task_id: `in.(${tasks.map((task) => task.id).join(",")})`,
     }));
     const templateById = new Map(templates.map((template) => [template.id, template]));
     const submissionByTask = new Map(submissions.map((submission) => [submission.task_id, submission]));
 
     return NextResponse.json({
+      signedRentalDrivers: Array.from(new Set(tasks.filter(task => task.task_status === "completed" && templateById.get(task.template_id)?.template_key === "rental_v2_driver_terms_targeted").map(task => submissionByTask.get(task.id)?.signer_name?.trim()).filter((name): name is string => Boolean(name && name.includes(" "))))),
       tasks: tasks.map((task) => {
         const template = templateById.get(task.template_id);
         const submission = submissionByTask.get(task.id);
