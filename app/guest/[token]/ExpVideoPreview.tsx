@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
+import portalStyles from "./GuestPortal.module.css";
 import ExpServerAssessment from "./ExpServerAssessment";
 import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
@@ -26,6 +27,7 @@ function withinExpWindow(start: number, now: number) {
   return dayDifference === 0 || (dayDifference === 1 && today.hour >= 8);
 }
 
+type DriverStatus={name:string;expReady:boolean;orientationComplete:boolean;outstanding:string[]};
 type Rental = { readinessId: string; businessLine: string; visitStartTime: string };
 
 export default function ExpVideoPreview({
@@ -63,6 +65,11 @@ export default function ExpVideoPreview({
   const [formsLoaded, setFormsLoaded] = useState(false);
   const [signedRentalDrivers, setSignedRentalDrivers] = useState<string[]>([]);
   const [verifiedExpStatus,setVerifiedExpStatus]=useState<boolean|null>(null);
+  const [driverStatuses,setDriverStatuses]=useState<DriverStatus[]>([]);
+  const [statusError,setStatusError]=useState(false);
+  const [assessmentStarted,setAssessmentStarted]=useState(false);
+  const [statusRefresh,setStatusRefresh]=useState(0);
+  function closeOrientation(){setOpen(false);setStatusRefresh(value=>value+1)}
   const [outstandingRequiredForms, setOutstandingRequiredForms] = useState(false);
   const eligible = useMemo(() => {
     if (now === null) return false;
@@ -85,14 +92,15 @@ export default function ExpVideoPreview({
     async function refresh(){
       try{
        const response=await fetch(`/api/guest/${encodeURIComponent(token)}/exp/status`,{cache:"no-store"});
-       if(!response.ok)return;
-       const payload=await response.json() as {rentals?:Array<{readinessId:string;expReady:boolean}>};
-       if(active)setVerifiedExpStatus(payload.rentals?.find(r=>r.readinessId===readinessId)?.expReady===true);
-      }catch{/* A status lookup failure must never award readiness. */}
+       if(!response.ok)throw new Error("Status unavailable");
+       const payload=await response.json() as {rentals?:Array<{readinessId:string;expReady:boolean;drivers:DriverStatus[];assessmentSessions:number}>};
+       const rental=payload.rentals?.find(r=>r.readinessId===readinessId);
+       if(active){setStatusError(false);setVerifiedExpStatus(rental?.expReady===true);setDriverStatuses(rental?.drivers??[]);setAssessmentStarted((rental?.assessmentSessions??0)>0)}
+      }catch{if(active){setStatusError(true);setVerifiedExpStatus(null);setDriverStatuses([])}}
     }
     void refresh();const timer=window.setInterval(()=>void refresh(),30000);
     return()=>{active=false;window.clearInterval(timer)};
-  },[eligible,readinessId,token]);
+  },[eligible,readinessId,token,statusRefresh]);
 
   useEffect(() => {
     if (!eligible || !token) return;
@@ -116,7 +124,7 @@ export default function ExpVideoPreview({
   }, [eligible, token]);
 
   useEffect(() => {
-    if (reviewerMode || !eligible || !token || !formsLoaded || outstandingRequiredForms) return;
+    if (reviewerMode || !eligible || !token || !formsLoaded || outstandingRequiredForms || verifiedExpStatus!==false || (driverStatuses.length>0 && driverStatuses.every(d=>d.orientationComplete))) return;
     const key = `epic-exp-prompted-v1:${token}`;
     try {
       if (window.localStorage.getItem(key)) return;
@@ -126,7 +134,7 @@ export default function ExpVideoPreview({
     }
     setStarted(true);
     setOpen(true);
-  }, [eligible, token, formsLoaded, outstandingRequiredForms, reviewerMode]);
+  }, [eligible, token, formsLoaded, outstandingRequiredForms, reviewerMode,verifiedExpStatus,driverStatuses]);
 
   useEffect(() => {
     if (!open) return;
@@ -233,24 +241,26 @@ export default function ExpVideoPreview({
         <div>
           <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
           <h2>Epic Xpress Ready</h2>
-          {verifiedExpStatus!==null ? <p role="status" style={{fontWeight:750,color:verifiedExpStatus?"#176534":"#865621"}}>{verifiedExpStatus?"EXP Ready — all required paperwork and orientation verified.":"EXP pending — paperwork and driver orientation requirements are still being verified."}</p> : null}
+          <p role="status" className={verifiedExpStatus?styles.readyStatus:styles.pendingStatus}>{verifiedExpStatus?"Your party is EXP Ready.":verifiedExpStatus===null?(statusError?"EXP status is unavailable. Please refresh this page.":"Checking saved EXP progress…"):driverStatuses.length?`${driverStatuses.filter(driver=>driver.expReady).length} of ${driverStatuses.length} signed drivers EXP Ready`:"EXP not started"}</p>
           {reviewerMode ? <p><strong>Employee preview only.</strong> This demonstration does not record EXP completion or change guest readiness.</p> : null}
-          <p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>
+          {verifiedExpStatus!==true?<p>Complete the safety orientation and knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>:<p>Your drivers have completed their paperwork and orientation. Our team will finish your check-out at arrival.</p>}
+          {driverStatuses.length>0?<div className={portalStyles.signerList} aria-label="Driver EXP readiness">{driverStatuses.map(driver=><div className={portalStyles.signerRow} key={driver.name}><div className={`${portalStyles.signerCheck} ${driver.expReady?"":styles.pendingCheck}`} aria-hidden="true">{driver.expReady?"✓":"○"}</div><div><strong>{driver.name}</strong><span className={driver.expReady?styles.driverReady:undefined}>Driver · {driver.expReady?"EXP Ready":"Not complete"}</span>{!driver.expReady?<span>{driver.outstanding.map(check=>({driverIdentity:"Driver identity needs review",polarisWaiver:"Polaris waiver needed",ohvCertificate:"OHV certificate needed",videoAndAssessment:"Orientation and knowledge check needed"}[check]??"Verification needed")).join(" · ")}</span>:null}</div></div>)}</div>:verifiedExpStatus===false?<p className={styles.rosterNote}>Driver names will appear here after they sign the Epic Rental Agreement.</p>:null}
+          {verifiedExpStatus===false&&driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)?<p className={styles.rosterNote}>Orientation is complete. Finish the remaining paperwork above.</p>:null}
           
         </div>
-        <button className={styles.action} type="button" onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
-          Get Started
-        </button>
+        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
+          {assessmentStarted?"Continue EXP":"Get Started"}
+        </button>:null}
       </section>
       {open ? (
-        <div className={styles.backdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+        <div className={styles.backdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) closeOrientation(); }}>
           <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="exp-title" aria-describedby="exp-desc">
-            <button className={styles.close} type="button" aria-label="Close orientation" onClick={() => setOpen(false)}>×</button>
+            <button className={styles.close} type="button" aria-label="Close orientation" onClick={closeOrientation}>×</button>
             <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
             <h2 id="exp-title">Epic Xpress Ready</h2>
             {!showAssessment && !selectDrivers ? <p id="exp-desc">Get a head start on your adventure. Watch a short video to get comfortable with your RZR, then take a quick knowledge check. You'll arrive ready to roll — with more time for the trails.</p> : null}
             {showAssessment ? (
-              sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); setOpen(false); }} /> : <p role="alert">EXP session unavailable. Please reopen your guest portal.</p>
+              sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); closeOrientation(); }} /> : <p role="alert">EXP session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (
               <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={signedRentalDrivers} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
             ) : (
@@ -269,7 +279,7 @@ export default function ExpVideoPreview({
                   Continue to Knowledge Check
                 </button>
                 {reviewerMode ? <button className={styles.later} type="button" onClick={() => setSelectDrivers(true)}>Reviewer shortcut: Continue to driver selection</button> : null}
-                <p className={styles.disclaimer}>EXP progress is saved to staging. Checkout readiness remains pending verification of all required paperwork and driver records.</p>
+                <p className={styles.disclaimer}>Your progress saves automatically. EXP Ready requires all driver paperwork and orientation steps; our team completes final check-out at arrival.</p>
               </div>
             ) : null}
           </section>

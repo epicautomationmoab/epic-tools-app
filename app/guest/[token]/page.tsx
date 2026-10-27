@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import styles from "./GuestPortal.module.css";
 import PetAgreementOption from "./PetAgreementOption";
 import ExpVideoPreview from "./ExpVideoPreview";
+import PortalGuestForms from "./PortalGuestForms";
 import GuestOhvUpload from "./GuestOhvUpload";
 import { getExpWaiverDriverNames } from "@/lib/exp/portal-waiver-drivers";
 
@@ -880,6 +881,8 @@ export default function GuestPortalPage() {
             </article>
           </div>
         </section>
+
+        {hasRentalActivity ? <PortalGuestForms placement="inline"/> : null}
 
         {process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && hasRentalActivity ? (
           <ExpVideoPreview

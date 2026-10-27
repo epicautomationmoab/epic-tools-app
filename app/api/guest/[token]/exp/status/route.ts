@@ -16,6 +16,7 @@ export async function GET(_request:NextRequest,context:{params:Promise<{token:st
   for(const row of rows.filter(r=>r.business_line.toLowerCase()==="rental")){
    const status=await loadExpReadiness(row.readiness_id);
    results.push({readinessId:row.readiness_id,expReady:status?.expReady===true,
+    drivers:status?.drivers??[],
     outstanding:status?.outstanding??["reservationVerification"],
     documentChecks:status?.documentChecks??null,
     recordedParticipants:status?.participants.length??0,

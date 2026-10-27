@@ -86,6 +86,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
         const submission = submissionByTask.get(task.id);
         return {
           taskId: task.id,
+          businessLine: portalRows.find(row=>row.readiness_id===task.readiness_id)?.business_line??null,
           readinessId: task.readiness_id,
           status: task.task_status,
           required: task.required,

@@ -50,10 +50,11 @@ export function determineExpReadiness({portal,sessions,participants,tasks,templa
     const prior=currentSessions.get(latestByDriver.get(name)??"");
     if(!prior||new Date(session.created_at).getTime()>new Date(prior.created_at).getTime())latestByDriver.set(name,session.id);
   }
-  const qualified=participants.filter(p=>
-    completedSessions.has(p.session_id)&&latestByDriver.get(normalize(p.display_name))===p.session_id&&!!p.acknowledgement_at&&
-    signedDrivers.has(normalize(p.display_name))&&mpwrDrivers.has(normalize(p.display_name))
+  const oriented=participants.filter(p=>
+    completedSessions.has(p.session_id)&&latestByDriver.get(normalize(p.display_name))===p.session_id&&!!p.acknowledgement_at&&signedDrivers.has(normalize(p.display_name))
   );
+  const orientationNames=new Set(oriented.map(p=>normalize(p.display_name)));
+  const qualified=oriented.filter(p=>mpwrDrivers.has(normalize(p.display_name)));
   const qualifiedNames=new Set(qualified.map(p=>normalize(p.display_name)));
   const allDriversQualified=driverRosterReady&&[...signedDrivers.keys()].every(n=>qualifiedNames.has(n));
   const documentChecks={
@@ -67,6 +68,10 @@ export function determineExpReadiness({portal,sessions,participants,tasks,templa
   const outstanding=Object.entries(documentChecks).filter(([,v])=>!v).map(([k])=>k);
   const expReady=outstanding.length===0;
   const assessmentStatus=expTeamStatus(qualifiedNames.size,signedDrivers.size);
+  const drivers=[...signedDrivers.entries()].map(([key,name])=>{
+    const checks={driverIdentity:!ambiguousDriverNames.has(key),polarisWaiver:mpwrDrivers.has(key),ohvCertificate:portal.ohv_required===false||ohvNames.has(key),videoAndAssessment:orientationNames.has(key)};
+    return {name,expReady:Object.values(checks).every(Boolean),orientationComplete:checks.videoAndAssessment,outstanding:Object.entries(checks).filter(([,met])=>!met).map(([check])=>check)};
+  });
   const qualifiedIds=new Set(qualified.map(p=>p.id));
   return {
     sessions:sessions.map(({video_watched_seconds,...s})=>({...s,videoSecondsObserved:video_watched_seconds?.length??0})),
@@ -78,7 +83,7 @@ export function determineExpReadiness({portal,sessions,participants,tasks,templa
       expReady:expReady&&qualifiedIds.has(p.id),
       outstanding
     })),
-    assessmentStatus,
+    assessmentStatus,drivers,
     videoVerificationAvailable:expectedVideoDuration!==null,
     verifiedPolarisWaivers:verifiedWaivers.map(w=>({name:w.rider_name,is_minor:w.is_minor,is_passenger:w.is_passenger})),
     signedDrivers:[...signedDrivers.values()],

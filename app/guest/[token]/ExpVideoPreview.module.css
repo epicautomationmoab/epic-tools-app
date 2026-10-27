@@ -34,3 +34,5 @@
 }
 
 .videoProgress{margin:10px 0 0!important;font-size:13px;color:#425364!important;font-weight:700}
+
+.readyStatus{font-weight:750;color:#176534!important}.pendingStatus{font-weight:750;color:#865621!important}.panel .pendingCheck{background:#f0e9dc;color:#865621}.driverReady{color:#176534!important}.rosterNote{font-size:13px;line-height:1.6}.panel>div{min-width:0;flex:1}.close{min-width:44px;min-height:44px}
