@@ -2,12 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
-import ExpAssessment from "./ExpAssessment";
 import ExpServerAssessment from "./ExpServerAssessment";
 import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
-import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
-import { saveExpDemo, useExpDemo, normalizeExpName } from "@/lib/exp/demo-browser";
 
 // EXP opens at 8:00 AM Moab time on the calendar day before the rental.
 // Use local calendar dates rather than a 24-hour difference (DST-safe).
@@ -47,8 +44,6 @@ export default function ExpVideoPreview({
   // Enabled only for the EXP feature branch preview through Vercel branch-scoped config.
   // PREVIEW ONLY. Scoring happens in the browser and does not persist any completion.
   // Production requires server-owned answer keys, secure sessions, and per-driver records.
-  const previewResults = useExpDemo();
-  const previewRecord = confirmationCode ? previewResults[confirmationCode] : null;
   const [now, setNow] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const [started, setStarted] = useState(false);
@@ -56,6 +51,7 @@ export default function ExpVideoPreview({
   const [selectDrivers, setSelectDrivers] = useState(false);
   const [driverNames, setDriverNames] = useState<ExpParticipantDraft[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [serverQuestions,setServerQuestions] = useState<Array<{id:string;prompt:string;options:Array<{id:string;text:string}>}>>([]);
   const [serverError, setServerError] = useState("");
   const [savingParticipants, setSavingParticipants] = useState(false);
   const lastPlayback = useRef<ExpPlaybackCheckpoint | null>(null);
@@ -136,6 +132,8 @@ export default function ExpVideoPreview({
       const start = await startResponse.json();
       if (!startResponse.ok) throw new Error(start.error || "Unable to start EXP session.");
       const savedId = String(start.sessionId);
+      if (!Array.isArray(start.questions) || start.questions.length !== 10) throw new Error("Assessment questions unavailable.");
+      setServerQuestions(start.questions);
       if (lastPlayback.current) {
         const cp = lastPlayback.current;
         const checkpointResponse = await fetch(`${base}/progress`,{
@@ -177,7 +175,7 @@ export default function ExpVideoPreview({
           <h2>Epic Xpress Ready</h2>
           {reviewerMode ? <p><strong>Employee preview only.</strong> This demonstration does not record EXP completion or change guest readiness.</p> : null}
           <p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>
-          {reviewerMode && previewRecord ? <p style={{color:"#176534",fontWeight:750}}>Preview assessment complete: {previewRecord.drivers.join(", ")}. <a href="/team/readiness">View in Readiness</a> (same browser only).</p> : null}
+          
         </div>
         <button className={styles.action} type="button" onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setOpen(true); }}>
           Get Started
@@ -191,7 +189,7 @@ export default function ExpVideoPreview({
             <h2 id="exp-title">Epic Xpress Ready</h2>
             {!showAssessment && !selectDrivers ? <p id="exp-desc">Get a head start on your adventure. Watch a short video to get comfortable with your RZR, then take a quick knowledge check. You'll arrive ready to roll — with more time for the trails.</p> : null}
             {showAssessment ? (
-              sessionId && readinessId ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} onExit={() => { setShowAssessment(false); setOpen(false); }} /> : <p role="alert">EXP session unavailable. Please reopen your guest portal.</p>
+              sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); setOpen(false); }} /> : <p role="alert">EXP session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (
               <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={[...new Set([...waiverDrivers, ...signedRentalDrivers])]} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
             ) : (
