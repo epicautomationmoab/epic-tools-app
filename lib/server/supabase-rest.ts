@@ -17,7 +17,8 @@ export function serverSupabaseHeaders(prefer?: string) {
   const { key } = getServerSupabaseConfig();
   return {
     apikey: key,
-    Authorization: `Bearer ${key}`,
+    // New sb_secret keys are API keys, not JWTs. Do not send them as Bearer tokens.
+    ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
     "Content-Type": "application/json",
     ...(prefer ? { Prefer: prefer } : {}),
   };
