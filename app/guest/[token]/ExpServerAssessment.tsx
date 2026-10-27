@@ -3,7 +3,7 @@ import {useEffect,useState} from "react";
 
 type Answer={questionId:string;optionId:string};
 type PublicQuestion={id:string;prompt:string;options:Array<{id:string;text:string}>};
-type Result={status:string;correct?:number;reason?:string;questionIds?:string[];questions?:PublicQuestion[];corrections?:Array<{questionId:string;correctAnswer:string;explanation:string}>};
+type Result={status:string;expReady?:boolean;correct?:number;reason?:string;questionIds?:string[];questions?:PublicQuestion[];corrections?:Array<{questionId:string;correctAnswer:string;explanation:string}>};
 export default function ExpServerAssessment({token,readinessId,sessionId,questions,onExit}:{token:string;readinessId:string;sessionId:string;questions:PublicQuestion[];onExit:()=>void}){
  const [answers,setAnswers]=useState<Record<string,string>>({});
  const [questionOrder,setQuestionOrder]=useState<PublicQuestion[]>(questions);
@@ -46,7 +46,7 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
  const q=activeQuestions[index];
  return <section aria-label="EXP saved knowledge check">
   <h3>One Last Step to More Trail Time</h3>
-  {result?<><p>{result.status==="assessment_complete"?"Knowledge check saved. Final EXP readiness remains pending paperwork and driver verification.":"Your answers have been recorded. The safety orientation video must be watched again before another assessment, or you can finish with an Adventure Technician."}</p>
+  {result?<><p>{result.status==="assessment_complete"?(result.expReady?"EXP Ready — all required paperwork and driver orientation verified.":"Knowledge check saved. Final EXP readiness remains pending paperwork and driver verification."):"Your answers have been recorded. The safety orientation video must be watched again before another assessment, or you can finish with an Adventure Technician."}</p>
    {result.corrections?.map(c=><p key={c.questionId}>{c.correctAnswer} — {c.explanation}</p>)}
    <button type="button" onClick={onExit}>Return to Guest Portal</button></>:
    <><p>{mode==="critical"?"Critical safety question retry":`Question ${index+1} of ${questionOrder.length}`}. {mode==="initial"?"You can close this page and resume your saved answers later.":"Each missed critical question must be answered correctly."}</p>

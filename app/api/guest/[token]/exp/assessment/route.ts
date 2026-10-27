@@ -1,3 +1,4 @@
+import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import {expVideoDuration,matchesExpVideoDuration} from "@/lib/server/exp-video";
 import { NextRequest, NextResponse } from "next/server";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
@@ -146,7 +147,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       });
       if(updated.length!==1)return fail("This assessment has already been submitted.",409);
       if(requiresRewatch)return NextResponse.json({status:"retry_or_technician",reason:"critical",completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
-      return NextResponse.json(resultForGuest(result),{headers:{"Cache-Control":"no-store"}});
+      const readiness=result.status==="complete"?await loadExpReadiness(activity.readiness_id):null;
+      return NextResponse.json({...resultForGuest(result),expReady:readiness?.expReady===true},{headers:{"Cache-Control":"no-store"}});
     }
     if (body.action === "critical_retry") {
       if (session.outcome !== "critical_retry" || !isAnswerArray(session.result_summary?.originalAnswers)) return fail("Critical retry not available.", 409);
