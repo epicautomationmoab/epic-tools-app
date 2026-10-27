@@ -213,8 +213,8 @@ export async function POST(
     const verifiedNames = new Set([
       ...signatures.map(p=>p.signer_name??""),
       ...(v2.get(readinessId)?.signers??[]).filter(p=>p.role==="driver").map(p=>p.name)
-    ].map(n=>n.trim().toLowerCase().replace(/\\s+/g," ")).filter(Boolean));
-    if(!verifiedNames.has(driverName.toLowerCase().replace(/\\s+/g," "))){
+    ].map(n=>n.trim().toLowerCase().replace(/\s+/g," ")).filter(Boolean));
+    if(!verifiedNames.has(driverName.toLowerCase().replace(/\s+/g," "))){
       return NextResponse.json({error:"This driver must sign the Epic rental driver agreement before uploading a certificate."},{status:409});
     }
     const config = getSupabaseConfig();
