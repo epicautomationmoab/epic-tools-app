@@ -48,6 +48,26 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       guest_portal_token: `eq.${token}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
     }));
     if (!reservation || reservation.business_line?.toLowerCase() !== "rental") return bad("Rental reservation not found.", 404);
+    // Only known, completed Epic rental driver-agreement signers are eligible.
+    // A signed agreement is not proof that Polaris or OHV requirements are met.
+    const tasks = await supabaseSelect<{ id: string; template_id: string; task_status: string }>("guest_form_tasks", new URLSearchParams({
+      select: "id,template_id,task_status", readiness_id: `eq.${reservation.readiness_id}`, task_status: "eq.completed",
+    }));
+    const templateIds = [...new Set(tasks.map(t => t.template_id))];
+    if (!templateIds.length) return bad("Complete the required rental driver agreement before EXP.", 409);
+    const templates = await supabaseSelect<{ id: string; template_key: string }>("guest_form_templates", new URLSearchParams({
+      select: "id,template_key", id: `in.(${templateIds.join(",")})`,
+    }));
+    const allowedTemplateIds = new Set(templates.filter(t => t.template_key === "rental_v2_driver_terms_targeted").map(t => t.id));
+    const allowedTasks = tasks.filter(t => allowedTemplateIds.has(t.template_id));
+    if (!allowedTasks.length) return bad("Signed rental driver agreement is required.", 409);
+    const submissions = await supabaseSelect<{ task_id: string; signer_name: string | null }>("guest_form_submissions", new URLSearchParams({
+      select: "task_id,signer_name", task_id: `in.(${allowedTasks.map(t => t.id).join(",")})`,
+    }));
+    const eligible = new Set(submissions.map(s => cleanName(s.signer_name ?? "").toLowerCase()).filter(Boolean));
+    if (normalized.some(p => !eligible.has(p.display_name.toLowerCase()))) {
+      return bad("Every driver must first sign the required rental agreement under their own name.", 409);
+    }
     const [session] = await supabaseSelect<Session>("exp_sessions", new URLSearchParams({
       select: "id,readiness_id,outcome,mode", id: `eq.${body.sessionId}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
     }));
