@@ -30,7 +30,7 @@ export async function supabaseSelect<T>(resource: string, params: URLSearchParam
     headers: serverSupabaseHeaders(),
     cache: "no-store",
   });
-  if (!response.ok) throw new Error(`Unable to read ${resource}: ${await response.text()}`);
+  if (!response.ok) throw new Error(`Unable to read ${resource}: HTTP ${response.status}`);
   return (await response.json()) as T[];
 }
 
