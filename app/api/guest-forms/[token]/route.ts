@@ -222,6 +222,9 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     if (task.expires_at && new Date(task.expires_at).getTime() <= Date.now()) return NextResponse.json({ error: "This form link has expired." }, { status: 410 });
     const template = await loadTemplate(task.template_id);
     if (!template) return NextResponse.json({ error: "Form template unavailable." }, { status: 404 });
+    if (process.env.EPIC_STAGING_NO_OUTBOUND === "true" && template.template_key !== "rental_v2_driver_terms_targeted") {
+      return NextResponse.json({ error: "Only the isolated rental driver agreement is enabled for staging submission." }, { status: 403 });
+    }
 
     const body = await request.json() as { formData?: Record<string, string>; signerName?: string; signatureDataUrl?: string; agreed?: boolean };
     const formData = body.formData ?? {};
