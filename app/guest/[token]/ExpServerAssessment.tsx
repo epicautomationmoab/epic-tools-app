@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
+import styles from "./ExpAssessment.module.css";
 
 type Answer={questionId:string;optionId:string};
 type PublicQuestion={id:string;prompt:string;options:Array<{id:string;text:string}>};
@@ -23,7 +24,7 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
    const response=await fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({readinessId,sessionId,draftAnswers:next})});
    if(!response.ok)throw new Error("Unable to save your answers. Please try again.");
  };
- const choose=async(qid:string,oid:string)=>{if(busy)return;setBusy(true);if(mode==="critical"){setCriticalAnswers(a=>({...a,[qid]:oid}));return}
+ const choose=async(qid:string,oid:string)=>{if(busy)return;setBusy(true);if(mode==="critical"){setCriticalAnswers(a=>({...a,[qid]:oid}));setBusy(false);return}
    const next={...answers,[qid]:oid};setAnswers(next);setStatus("Saving…");try{await save(next);setStatus("Progress saved")}catch(e){setStatus(e instanceof Error?e.message:"Save failed")}finally{setBusy(false)}};
  const submit=async()=>{
    if(activeQuestions.some(q=>!currentAnswers[q.id]))return;
@@ -44,16 +45,18 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
    }catch(e){setStatus(e instanceof Error?e.message:"Assessment failed")}finally{setBusy(false)}
  };
  const q=activeQuestions[index];
- return <section aria-label="EXP saved knowledge check">
+ return <section className={styles.assessment} aria-label="EXP saved knowledge check" aria-busy={busy}>
   <h3>One Last Step to More Trail Time</h3>
   {result?<><p>{result.status==="assessment_complete"?(result.expReady?"EXP Ready — all required paperwork and driver orientation verified.":"Knowledge check saved. Final EXP readiness remains pending paperwork and driver verification."):"Your answers have been recorded. The safety orientation video must be watched again before another assessment, or you can finish with an Adventure Technician."}</p>
    {result.corrections?.map(c=><p key={c.questionId}>{c.correctAnswer} — {c.explanation}</p>)}
-   <button type="button" onClick={onExit}>Return to Guest Portal</button></>:
-   <><p>{mode==="critical"?"Critical safety question retry":`Question ${index+1} of ${questionOrder.length}`}. {mode==="initial"?"You can close this page and resume your saved answers later.":"Each missed critical question must be answered correctly."}</p>
-   {q?<fieldset><legend>{q.prompt}</legend>{q.options.map(o=><label key={o.id} style={{display:"block",margin:"12px 0"}}><input type="radio" disabled={busy} name={q.id} checked={currentAnswers[q.id]===o.id} onChange={()=>void choose(q.id,o.id)}/> {o.text}</label>)}</fieldset>:<p>Questions unavailable.</p>}
-   <p role="status">{status}</p>
-   <div style={{display:"flex",gap:12}}><button type="button" disabled={index===0||busy} onClick={()=>setIndex(i=>i-1)}>Back</button>
-   {index<activeQuestions.length-1?<button type="button" disabled={!q||!currentAnswers[q.id]||busy} onClick={()=>setIndex(i=>i+1)}>Next</button>:<button type="button" disabled={activeQuestions.some(x=>!currentAnswers[x.id])||busy} onClick={()=>void submit()}>Submit Knowledge Check</button>}</div>
-   <button type="button" onClick={onExit}>Finish with an Adventure Technician instead</button></>}
+   <div className={styles.actions}><button className={styles.primary} type="button" onClick={onExit}>Return to Guest Portal</button></div></>:
+   <><p className={styles.intro}>Your answers save as you go. You can close this page and return later.</p>
+   <div className={styles.progressHeading}><strong>Question {index+1} of {activeQuestions.length}</strong><span>{activeQuestions.filter(x=>currentAnswers[x.id]).length} answered</span></div>
+   <div className={styles.progressTrack} role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={activeQuestions.length} aria-valuenow={activeQuestions.filter(x=>currentAnswers[x.id]).length}><div className={styles.progressFill} style={{width:`${100*activeQuestions.filter(x=>currentAnswers[x.id]).length/Math.max(1,activeQuestions.length)}%`}}/></div>
+   {q?<fieldset className={styles.question}><legend>{q.prompt}</legend>{q.options.map(o=><label key={o.id} className={styles.answer}><input type="radio" disabled={busy} name={q.id} checked={currentAnswers[q.id]===o.id} onChange={()=>void choose(q.id,o.id)}/><span>{o.text}</span></label>)}</fieldset>:<p>Questions unavailable.</p>}
+   <p className={styles.saveStatus} role="status" aria-live="polite">{status || (busy?"Loading saved answers…":"Select an answer to continue.")}</p>
+   <div className={styles.actions}><button className={styles.secondary} type="button" disabled={index===0||busy} onClick={()=>setIndex(i=>i-1)}>Back</button>
+   {index<activeQuestions.length-1?<button className={styles.primary} type="button" disabled={!q||!currentAnswers[q.id]||busy} onClick={()=>setIndex(i=>i+1)}>Next</button>:<button className={styles.primary} type="button" disabled={activeQuestions.some(x=>!currentAnswers[x.id])||busy} onClick={()=>void submit()}>Submit Knowledge Check</button>}</div>
+   <button className={styles.technician} type="button" onClick={onExit}>Prefer to finish in person? An Adventure Technician can help at arrival.</button></>}
  </section>;
 }
