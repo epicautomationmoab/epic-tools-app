@@ -888,7 +888,7 @@ export default function GuestPortalPage() {
             token={reservation.guestPortalToken}
             activities={reservation.activities}
             waiverDrivers={expRentalDrivers}
-            reviewerMode
+            reviewerMode={false}
             confirmationCode={reservation.confirmationCode}
           />
         ) : null}
