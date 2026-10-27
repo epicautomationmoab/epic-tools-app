@@ -1,9 +1,10 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
-import {EXP_QUESTION_BANK_DRAFT} from "@/lib/exp/question-bank-draft";
+import {useEffect,useState} from "react";
+
 type Answer={questionId:string;optionId:string};
 type Result={status:string;correct?:number;reason?:string;questionIds?:string[];corrections?:Array<{questionId:string;correctAnswer:string;explanation:string}>};
-export default function ExpServerAssessment({token,readinessId,sessionId,onExit}:{token:string;readinessId:string;sessionId:string;onExit:()=>void}){
+type PublicQuestion={id:string;prompt:string;options:Array<{id:string;text:string}>};
+export default function ExpServerAssessment({token,readinessId,sessionId,questions,onExit}:{token:string;readinessId:string;sessionId:string;questions:PublicQuestion[];onExit:()=>void}){
  const [answers,setAnswers]=useState<Record<string,string>>({});
  const [criticalAnswers,setCriticalAnswers]=useState<Record<string,string>>({});
  const [criticalIds,setCriticalIds]=useState<string[]>([]);
@@ -12,7 +13,6 @@ export default function ExpServerAssessment({token,readinessId,sessionId,onExit}
  const [busy,setBusy]=useState(false);
  const [result,setResult]=useState<Result|null>(null);
  const [mode,setMode]=useState<"initial"|"critical">("initial");
- const questions=useMemo(()=>EXP_QUESTION_BANK_DRAFT.map(q=>({id:q.id,prompt:q.prompt,options:q.options})),[]);
  const activeQuestions=mode==="critical"?questions.filter(q=>criticalIds.includes(q.id)):questions;
  const currentAnswers=mode==="critical"?criticalAnswers:answers;
  useEffect(()=>{let active=true;fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress?readinessId=${encodeURIComponent(readinessId)}&sessionId=${encodeURIComponent(sessionId)}`,{cache:"no-store"})
