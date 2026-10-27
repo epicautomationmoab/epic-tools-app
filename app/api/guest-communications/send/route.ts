@@ -1,4 +1,4 @@
-import { requireCorrectSupabaseEnvironment, denyOutboundInStaging } from "@/lib/server/staging-boundary";
+import { requireCorrectSupabaseEnvironment } from "@/lib/server/staging-boundary";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
