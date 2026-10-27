@@ -502,6 +502,17 @@ function mountainMidnightUtc(year: number, month: number, day: number) {
 }
 
 function normalizeTimestamp(value: string) {
+  // Readiness stores Moab wall time; Arrival Board exposes timestamptz.
+  // Match the same instant, independent of the server's timezone.
+  if(!/(Z|[+-]\d{2}:?\d{2})$/i.test(value)) {
+    const parts=value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if(parts){
+      const wallUtc=Date.UTC(Number(parts[1]),Number(parts[2])-1,Number(parts[3]),Number(parts[4]),Number(parts[5]),Number(parts[6]??0));
+      let instant=wallUtc;
+      for(let i=0;i<3;i++)instant=wallUtc-getMountainOffsetMs(new Date(instant));
+      return new Date(instant).toISOString();
+    }
+  }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
 }
@@ -522,8 +533,12 @@ export async function getArrivalBoardRows() {
   });
   for (const [key, value] of dateFilters) {
     arrivalParams.append(key, value);
-    readinessParams.append(key, value);
+
   }
+
+  const wallDate=(day:number)=>new Date(Date.UTC(today.year,today.month-1,day)).toISOString().slice(0,10)+"T00:00:00";
+  readinessParams.append("visit_start_time",`gte.${wallDate(today.day)}`);
+  readinessParams.append("visit_start_time",`lt.${wallDate(today.day+1)}`);
 
   const [rows, readinessRows] = await Promise.all([
     fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams, true),
