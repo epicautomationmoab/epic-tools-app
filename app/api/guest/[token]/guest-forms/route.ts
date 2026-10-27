@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 
-type PortalRow = { readiness_id: string };
+type PortalRow = { readiness_id: string; business_line: string; confirmation_code: string; expected_guest_count: number|null; total_vehicle_count: number|null };
 type TaskRow = {
   id: string;
   readiness_id: string | null;
@@ -43,13 +44,19 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     if (!token) return NextResponse.json({ error: "Portal token is required." }, { status: 400 });
 
     const portalRows = await select<PortalRow>("guest_portal_v", new URLSearchParams({
-      select: "readiness_id",
+      select: "readiness_id,business_line,confirmation_code,expected_guest_count,total_vehicle_count",
       guest_portal_token: `eq.${token}`,
     }));
     if (!portalRows.length) return NextResponse.json({ error: "Guest portal not found." }, { status: 404 });
 
     const readinessIds = Array.from(new Set(portalRows.map((row) => row.readiness_id).filter(Boolean)));
-    if (!readinessIds.length) return NextResponse.json({ tasks: [] });
+    if (!readinessIds.length) return NextResponse.json({ tasks: [], signedRentalDrivers: [] });
+    const rentalSources = portalRows.filter(row=>row.business_line==="rental").map(row=>({
+      readinessId:row.readiness_id,confirmationCode:row.confirmation_code,
+      expectedGuestCount:row.expected_guest_count,vehicleCount:row.total_vehicle_count
+    }));
+    const rentalV2 = await loadRentalV2Readiness(rentalSources);
+    const v2Drivers = [...new Set([...rentalV2.values()].flatMap(r=>r.signers.filter(s=>s.role==="driver").map(s=>s.name)))];
 
     const tasks = await select<TaskRow>("guest_form_tasks", new URLSearchParams({
       select: "id,readiness_id,task_status,required,assigned_guest_name,completed_at,template_id",
@@ -57,7 +64,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       task_status: "not.in.(cancelled,expired)",
       order: "created_at.asc",
     }));
-    if (!tasks.length) return NextResponse.json({ tasks: [] });
+    if (!tasks.length) return NextResponse.json({ tasks: [], signedRentalDrivers: v2Drivers });
 
     const templateIds = Array.from(new Set(tasks.map((task) => task.template_id)));
     const templates = await select<TemplateRow>("guest_form_templates", new URLSearchParams({
@@ -73,7 +80,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     const submissionByTask = new Map(submissions.map((submission) => [submission.task_id, submission]));
 
     return NextResponse.json({
-      signedRentalDrivers: Array.from(new Set(tasks.filter(task => task.task_status === "completed" && templateById.get(task.template_id)?.template_key === "rental_v2_driver_terms_targeted").map(task => submissionByTask.get(task.id)?.signer_name?.trim()).filter((name): name is string => Boolean(name && name.includes(" "))))),
+      signedRentalDrivers: Array.from(new Set([...v2Drivers,...tasks.filter(task => task.task_status === "completed" && templateById.get(task.template_id)?.template_key === "rental_v2_driver_terms_targeted").map(task => submissionByTask.get(task.id)?.signer_name?.trim()).filter((name): name is string => Boolean(name && name.includes(" "))))]),
       tasks: tasks.map((task) => {
         const template = templateById.get(task.template_id);
         const submission = submissionByTask.get(task.id);
