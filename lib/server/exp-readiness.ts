@@ -40,13 +40,26 @@ export async function loadExpReadiness(readinessId:string){
   const signedDrivers=new Map<string,string>();
   for(const p of v2Record?.signers??[]){if(p.role==="driver")signedDrivers.set(normalize(p.name),p.name)}
   for(const p of signatures){const name=p.signer_name?.trim();if(name&&name.includes(" "))signedDrivers.set(normalize(name),name)}
-  const mpwrDrivers=new Set((Array.isArray(portal.mpwr_waivers)?portal.mpwr_waivers:[])
-    .filter(w=>w&&w.name&&!w.is_minor&&!w.is_passenger).map(w=>normalize(w.name)));
+  // Verified MPWR waiver observations are tied to the readiness record.
+  // A name in the portal's unverified summary is never evidence of a signed waiver.
+  const verifiedWaivers=await supabaseSelect<{rider_name:string;is_minor:boolean|null;is_passenger:boolean|null;last_verified_at:string|null}>(
+    "scout_mpwr_waivers",new URLSearchParams({
+      select:"rider_name,is_minor,is_passenger,last_verified_at",
+      readiness_id:`eq.${readinessId}`,last_verified_at:"not.is.null",limit:"100"
+    })
+  );
+  const mpwrDrivers=new Set(verifiedWaivers.filter(w=>w.rider_name&&!w.is_minor&&!w.is_passenger&&w.last_verified_at)
+    .map(w=>normalize(w.rider_name)));
+  const ohvUploads=await supabaseSelect<{driver_name:string;storage_path:string}>(
+    "ohv_certificate_uploads",new URLSearchParams({
+      select:"driver_name,storage_path",readiness_id:`eq.${readinessId}`,limit:"100"
+    })
+  );
   const allForms=tasks.filter(t=>t.required&&templates.some(k=>k.id===t.template_id&&k.template_key!=="damage_acknowledgment"));
   const formReady=(signedTasks.length>0&&allForms.length>0&&allForms.every(t=>t.task_status==="completed"))||v2Record?.ready===true;
   const epicReady=((portal.epic_document_expected_count??0)>0&&(portal.epic_document_received_count??0)>=(portal.epic_document_expected_count??0))||v2Record?.agreementsComplete===true;
-  const mpwrReady=(portal.mpwr_document_expected_count??0)>0&&(portal.mpwr_document_received_count??0)>=(portal.mpwr_document_expected_count??0);
-  const ohvReady=portal.ohv_required===false||(portal.ohv_required===true&&portal.ohv_certificate_uploaded===true);
+  const mpwrReady=(portal.mpwr_document_expected_count??0)>0&&verifiedWaivers.length>=(portal.mpwr_document_expected_count??0);
+  const ohvReady=portal.ohv_required===false||(portal.ohv_required===true&&ohvUploads.filter(u=>u.storage_path).length>=Math.max(1,portal.total_vehicle_count??1));
   const vehicleCount=Math.max(1,portal.total_vehicle_count??1);
   const driverRosterReady=signedDrivers.size>=vehicleCount;
   const completedSessions=new Set(sessions.filter(s=>
