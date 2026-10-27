@@ -24,13 +24,14 @@ export async function middleware(request: NextRequest) {
   if (process.env.EPIC_STAGING_NO_OUTBOUND === "true" && pathname.startsWith("/api/")) {
     const expGuestPath = /^\/api\/guest\/[^/]+\/exp\/(assessment|progress|participants)$/.test(pathname);
     const allowedExpWrite = expGuestPath && ["POST", "PATCH"].includes(request.method);
+    const allowedStagingOhvUpload = /^\/api\/guest\/[^/]+\/ohv$/.test(pathname) && request.method === "POST";
     // Employee authentication is isolated to staging Supabase Auth and does not
     // trigger operational guest communications or booking agents.
     const allowedLogin = pathname === "/api/auth/login" && request.method === "POST";
     // Only the isolated rental agreement form submission may write in EXP staging.
     // All other operational mutations and forms with outbound side effects remain denied.
     const allowedRentalFormSubmission = /^\/api\/guest-forms\/[^/]+$/.test(pathname) && request.method === "POST";
-    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite && !allowedLogin && !allowedRentalFormSubmission) {
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite && !allowedLogin && !allowedRentalFormSubmission && !allowedStagingOhvUpload) {
       return NextResponse.json(
         { error: "Operational API mutations are disabled in isolated EXP staging." },
         { status: 403, headers: { "Cache-Control": "no-store" } },
