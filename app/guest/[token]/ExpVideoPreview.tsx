@@ -160,8 +160,8 @@ export default function ExpVideoPreview({
         if (progressResponse.ok){
           const progress = await progressResponse.json();
           const duration = Number(progress.videoDurationSeconds ?? 0);
-          if(!cancelled && duration>0)setSavedPlayback({watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true});
-          if (!cancelled && progress.videoEndedReported && duration>0 &&
+          if(!cancelled && progress.videoVerificationAvailable && duration>0)setSavedPlayback({watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true});
+          if (!cancelled && progress.videoCoverageMet===true && duration>0 &&
             Number(progress.videoSecondsObserved ?? 0)>=Math.ceil(duration*0.98)) {
             setVideoCoverageMet(true);
             setWatchedAcknowledged(true);

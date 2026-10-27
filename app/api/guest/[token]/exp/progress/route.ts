@@ -1,3 +1,4 @@
+import {expVideoDuration} from "@/lib/server/exp-video";
 import { NextRequest, NextResponse } from "next/server";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 import { supabaseSelect, supabasePatchRows } from "@/lib/server/supabase-rest";
@@ -44,7 +45,9 @@ export async function GET(request:NextRequest,context:{params:Promise<{token:str
     const session=await authorized(token,readinessId,sessionId);
     if(!session)return reply({error:"Session not found."},404);
     const participants=await supabaseSelect<{display_name:string}>("exp_participants",new URLSearchParams({select:"display_name",session_id:`eq.${session.id}`}));
-    return reply({...summary(session),participants});
+    const duration=await expVideoDuration();
+    return reply({...summary(session),participants,videoVerificationAvailable:duration!==null,
+      videoCoverageMet:duration!==null&&session.video_duration_seconds===duration&&session.video_ended&&new Set(session.video_watched_seconds??[]).size>=Math.ceil(duration*0.98)});
   }catch{return reply({error:"Unable to retrieve EXP progress."},500);}
 }
 export async function PATCH(request:NextRequest,context:{params:Promise<{token:string}>}) {
