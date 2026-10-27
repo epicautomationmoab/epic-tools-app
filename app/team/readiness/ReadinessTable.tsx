@@ -416,6 +416,27 @@ function mergeReadinessDetail(previous: ReadinessRow, incoming: ReadinessRow): R
 }
 
 export default function ReadinessTable({ rows, expStatuses = {} }: { rows: ReadinessRow[]; expStatuses?: Record<string, ExpTeamStatus> }) {
+  const [verifiedExpStatuses,setVerifiedExpStatuses]=useState<Record<string,ExpTeamStatus>>({});
+  useEffect(()=>{
+    if(process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW!=="true")return;
+    let active=true;
+    const rentals=rows.filter(row=>row.business_line==="rental"&&row.readiness_id).slice(0,75);
+    async function refresh(){
+      const next:Record<string,ExpTeamStatus>={};
+      for(const row of rentals){
+        if(!active)break;
+        try{
+          const response=await fetch(`/api/team/exp/readiness?readinessId=${encodeURIComponent(row.readiness_id!)}`,{cache:"no-store"});
+          if(!response.ok)continue;
+          const value=await response.json();
+          if(value.expReady===true&&value.assessmentStatus?.allReady===true)next[row.readiness_id!]=value.assessmentStatus;
+        }catch{/* preserve existing non-EXP status on failure */}
+      }
+      if(active)setVerifiedExpStatuses(next);
+    }
+    void refresh();const timer=window.setInterval(()=>void refresh(),60000);
+    return()=>{active=false;window.clearInterval(timer)};
+  },[rows]);
 
   const [filter, setFilter] = useState<Filter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
@@ -1243,7 +1264,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     </div>
                   </td>
                   <td>
-                    <div className={styles.mainLine} style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>{row.customer_name}{row.business_line==="rental" && expStatuses[row.readiness_id || ""]?.allReady ? <span title="Verified EXP readiness" style={{fontSize:11,padding:"2px 6px",borderRadius:5,background:"#dff2e5",color:"#176534",fontWeight:800}}>EXP</span> : null}</div>
+                    <div className={styles.mainLine} style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>{row.customer_name}{row.business_line==="rental" && (verifiedExpStatuses[row.readiness_id || ""]?.allReady || expStatuses[row.readiness_id || ""]?.allReady) ? <span title="Verified EXP readiness" style={{fontSize:11,padding:"2px 6px",borderRadius:5,background:"#dff2e5",color:"#176534",fontWeight:800}}>EXP</span> : null}</div>
                     <div className={styles.subLine}>
                       {phone || row.confirmation_code}
                     </div>
