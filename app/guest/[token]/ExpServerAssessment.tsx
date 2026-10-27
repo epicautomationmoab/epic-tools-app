@@ -2,10 +2,11 @@
 import {useEffect,useState} from "react";
 
 type Answer={questionId:string;optionId:string};
-type Result={status:string;correct?:number;reason?:string;questionIds?:string[];corrections?:Array<{questionId:string;correctAnswer:string;explanation:string}>};
 type PublicQuestion={id:string;prompt:string;options:Array<{id:string;text:string}>};
+type Result={status:string;correct?:number;reason?:string;questionIds?:string[];questions?:PublicQuestion[];corrections?:Array<{questionId:string;correctAnswer:string;explanation:string}>};
 export default function ExpServerAssessment({token,readinessId,sessionId,questions,onExit}:{token:string;readinessId:string;sessionId:string;questions:PublicQuestion[];onExit:()=>void}){
  const [answers,setAnswers]=useState<Record<string,string>>({});
+ const [questionOrder,setQuestionOrder]=useState<PublicQuestion[]>(questions);
  const [criticalAnswers,setCriticalAnswers]=useState<Record<string,string>>({});
  const [criticalIds,setCriticalIds]=useState<string[]>([]);
  const [index,setIndex]=useState(0);
@@ -13,7 +14,7 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
  const [busy,setBusy]=useState(false);
  const [result,setResult]=useState<Result|null>(null);
  const [mode,setMode]=useState<"initial"|"critical">("initial");
- const activeQuestions=mode==="critical"?questions.filter(q=>criticalIds.includes(q.id)):questions;
+ const activeQuestions=mode==="critical"?questionOrder.filter(q=>criticalIds.includes(q.id)):questionOrder;
  const currentAnswers=mode==="critical"?criticalAnswers:answers;
  useEffect(()=>{let active=true;fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress?readinessId=${encodeURIComponent(readinessId)}&sessionId=${encodeURIComponent(sessionId)}`,{cache:"no-store"})
    .then(r=>r.ok?r.json():null).then(d=>{if(active&&d?.draftAnswers)setAnswers(d.draftAnswers);}).catch(()=>{});
@@ -32,6 +33,12 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
     const response=await fetch(`/api/guest/${encodeURIComponent(token)}/exp/assessment`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:mode==="critical"?"critical_retry":"submit",readinessId,sessionId,answers:a})});
     const data=await response.json() as Result & {error?:string};
     if(!response.ok)throw new Error(data.error||"Unable to submit assessment.");
+    if(data.status==="retry_quiz"){
+      setQuestionOrder(data.questions?.length===10?data.questions:questionOrder);
+      setAnswers({});setCriticalAnswers({});setIndex(0);setMode("initial");setResult(null);
+      setStatus("One or two questions need another try. Your video viewing is retained.");
+      return;
+    }
     if(data.status==="critical_retry" && data.questionIds?.length){setCriticalIds(data.questionIds);setIndex(0);setMode("critical");setStatus("Important safety questions need another attempt.");return;}
     setResult(data);setStatus("");
    }catch(e){setStatus(e instanceof Error?e.message:"Assessment failed")}finally{setBusy(false)}
@@ -42,7 +49,7 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
   {result?<><p>{result.status==="practice_complete"?"Knowledge check saved. Final EXP readiness remains pending paperwork and driver verification.":"Your answers have been recorded. The safety orientation video must be watched again before another assessment, or you can finish with an Adventure Technician."}</p>
    {result.corrections?.map(c=><p key={c.questionId}>{c.correctAnswer} — {c.explanation}</p>)}
    <button type="button" onClick={onExit}>Return to Guest Portal</button></>:
-   <><p>{mode==="critical"?"Critical safety question retry":`Question ${index+1} of ${questions.length}`}. {mode==="initial"?"You can close this page and resume your saved answers later.":"Each missed critical question must be answered correctly."}</p>
+   <><p>{mode==="critical"?"Critical safety question retry":`Question ${index+1} of ${questionOrder.length}`}. {mode==="initial"?"You can close this page and resume your saved answers later.":"Each missed critical question must be answered correctly."}</p>
    {q?<fieldset><legend>{q.prompt}</legend>{q.options.map(o=><label key={o.id} style={{display:"block",margin:"12px 0"}}><input type="radio" name={q.id} checked={currentAnswers[q.id]===o.id} onChange={()=>void choose(q.id,o.id)}/> {o.text}</label>)}</fieldset>:<p>Questions unavailable.</p>}
    <p role="status">{status}</p>
    <div style={{display:"flex",gap:12}}><button type="button" disabled={index===0||busy} onClick={()=>setIndex(i=>i-1)}>Back</button>
