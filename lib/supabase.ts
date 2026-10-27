@@ -85,6 +85,7 @@ export type ReadinessRow = {
 };
 
 export type ArrivalBoardRow = {
+  readiness_id?: string | null;
   visit_start_time: string;
   confirmation_code: string;
   customer_name: string;
@@ -617,6 +618,7 @@ export async function getArrivalBoardRows() {
 
       return {
         ...row,
+        readiness_id: readiness?.readiness_id ?? null,
         customer_phone_last_four: readiness?.customer_phone_last_four ?? row.customer_phone_last_four ?? null,
         handoff_status: readiness?.handoff_status ?? row.handoff_status ?? null,
         product_display_name: readiness?.product_display_name ?? row.product_display_name ?? row.board_activity_label,
