@@ -9,11 +9,12 @@ export default function GuestOhvUpload({token,readinessId,driverNames,onUploaded
  const [error,setError]=useState("");
  const [success,setSuccess]=useState("");
  useEffect(()=>{let active=true;
+ fetch(`/api/guest/${encodeURIComponent(token)}/guest-forms`,{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(active)setFormDrivers(d?.signedRentalDrivers??[])}).catch(()=>{});
  fetch(`/api/guest/${encodeURIComponent(token)}/ohv?readinessId=${encodeURIComponent(readinessId)}`,{cache:"no-store"})
   .then(async r=>{const data=await r.json();if(!r.ok)throw new Error(data.error||"Cannot load certificates");if(active)setUploads(data.uploads??[])})
   .catch(e=>{if(active)setError(e instanceof Error?e.message:"Unable to retrieve certificates")});
  return()=>{active=false};},[token,readinessId]);
- const names=[...new Set(driverNames.map(n=>n.trim()).filter(Boolean))];
+ const names=[...new Set([...driverNames,...formDrivers].map(n=>n.trim()).filter(Boolean))];
  async function submit(){
   if(!driver||!file)return;
   setBusy(true);setError("");setSuccess("");
