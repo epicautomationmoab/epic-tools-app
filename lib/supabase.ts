@@ -1,3 +1,4 @@
+import {requireCorrectSupabaseEnvironment} from "@/lib/server/staging-boundary";
 import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 export type VehicleBreakdownItem = {
@@ -136,6 +137,7 @@ function getSupabaseConfig(useSecretKey = false) {
     );
   }
 
+  requireCorrectSupabaseEnvironment(rawUrl);
   const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
   const url = normalizedUrl.replace(/\/+$/, "");
   return { url, key };
@@ -248,7 +250,7 @@ function rentalActivityCustomerTotalCents(order: OperationalTripOrderAccountingR
 export async function getReadinessRows(options: { fast?: boolean; enrich?: boolean } = {}) {
   const params = new URLSearchParams({ select: "*", limit: "500" });
   const readinessView = options.fast ? "guest_readiness_fast_v" : "guest_readiness_with_handoff_v";
-  const rows = await fetchView<ReadinessRow>(readinessView, params);
+  const rows = await fetchView<ReadinessRow>(readinessView, params, true);
   if(process.env.EXP_ASSESSMENT_SERVER_ENABLED === "true") {
     await Promise.all(rows.filter(row=>row.business_line==="rental"&&row.readiness_id).map(async row=>{
       const exp=await loadExpReadiness(row.readiness_id!);
@@ -524,7 +526,7 @@ export async function getArrivalBoardRows() {
   }
 
   const [rows, readinessRows] = await Promise.all([
-    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams),
+    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams, true),
     fetchView<Pick<ReadinessRow,
       "readiness_id" |
       "confirmation_code" |
@@ -542,7 +544,7 @@ export async function getArrivalBoardRows() {
       "mpwr_document_expected_count" |
       "ohv_required" |
       "ohv_certificate_uploaded"
-    >>("guest_readiness_with_handoff_v", readinessParams),
+    >>("guest_readiness_with_handoff_v", readinessParams, true),
   ]);
 
   const readinessIds = readinessRows
