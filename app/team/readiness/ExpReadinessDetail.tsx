@@ -25,3 +25,4 @@ export default function ExpReadinessDetail({readinessId}:{readinessId:string|nul
    <p>{data.checkoutReady?"All required checks passed.":"EXP Ready remains blocked until paperwork, driver identity, video and knowledge check are fully verified."}</p>
    </>}
  </section>;
+}
