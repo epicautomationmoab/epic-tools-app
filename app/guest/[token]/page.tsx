@@ -854,32 +854,7 @@ export default function GuestPortalPage() {
               );
             })}
 
-            <article
-              className={`${styles.requirement} ${styles.readyRow}`}
-            >
-              <div className={styles.requirementAccent} />
-              <div className={styles.requirementContent}>
-                <div className={styles.requirementHeading}>
-                  <div>
-                    <span className={styles.requirementKicker}>
-                      Arrival Status
-                    </span>
-                    <h3>{hasRentalActivity?"Arrival Check-out":"Ready for Adventure"}</h3>
-                  </div>
 
-                  <StatusBadge
-                    complete={readiness.allComplete}
-                    requiredLabel="Pending"
-                  />
-                </div>
-
-                <p className={styles.requirementInstructions}>
-                  {readiness.allComplete
-                    ? (hasRentalActivity?"Your pre-arrival requirements are complete. Your Adventure Tech will help with final check-out when you arrive.":"Everything is complete. We will see you soon!")
-                    : "This page will update automatically as your required items are completed."}
-                </p>
-              </div>
-            </article>
           </div>
         </section>
 
