@@ -6,7 +6,7 @@ type Upload={id:string;driver_name:string;original_filename:string};
 const normalized=(name:string)=>name.trim().replace(/\s+/g," ").toLowerCase();
 export default function GuestOhvUpload({token,readinessId,driverNames,onUploaded}:{token:string;readinessId:string;driverNames:string[];onUploaded?:()=>void}){
  const [uploads,setUploads]=useState<Upload[]>([]);
- const [formDrivers,setFormDrivers]=useState<string[]>([]);
+ const [formDrivers,setFormDrivers]=useState<string[]|null>(null);
  const [driver,setDriver]=useState("");
  const [file,setFile]=useState<File|null>(null);
  const [busy,setBusy]=useState(false);
@@ -20,7 +20,7 @@ export default function GuestOhvUpload({token,readinessId,driverNames,onUploaded
   .then(async r=>{const data=await r.json();if(!r.ok)throw new Error(data.error||"Cannot load certificates");if(active)setUploads(data.uploads??[])})
   .catch(e=>{if(active)setError(e instanceof Error?e.message:"Unable to retrieve certificates")});
  return()=>{active=false};},[token,readinessId]);
- const names=[...new Map([...driverNames,...formDrivers].map(n=>n.trim()).filter(Boolean).map(n=>[normalized(n),n])).values()];
+ const names=[...new Map((formDrivers??driverNames).map(n=>n.trim()).filter(Boolean).map(n=>[normalized(n),n])).values()];
  const uploadedNames=new Set(uploads.map(upload=>normalized(upload.driver_name)));
  const remainingNames=names.filter(name=>!uploadedNames.has(normalized(name)));
  const complete=names.length>0&&remainingNames.length===0;

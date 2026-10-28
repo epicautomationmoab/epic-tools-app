@@ -845,7 +845,7 @@ export default function GuestPortalPage() {
                         </div>
 
                         <GuestOhvUpload token={token} readinessId={activity.readinessId}
-                          driverNames={getExpWaiverDriverNames(activity.readinessId,reservation.epicDocuments,reservation.mpwrWaivers)}
+                          driverNames={(reservation.epicDocuments.find(doc=>doc.readinessId===activity.readinessId)?.signers??[]).filter(signer=>signer.role==="driver").map(signer=>signer.name)}
                         />
                       </article>
                     </>
