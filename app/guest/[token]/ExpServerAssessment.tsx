@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import styles from "./ExpAssessment.module.css";
+import ExpAssessmentResult from "./ExpAssessmentResult";
 
 type Answer={questionId:string;optionId:string};
 type PublicQuestion={id:string;prompt:string;options:Array<{id:string;text:string}>};
@@ -46,10 +47,8 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
  };
  const q=activeQuestions[index];
  return <section className={styles.assessment} aria-label="EXP saved knowledge check" aria-busy={busy}>
-  <h3>One Last Step to More Trail Time</h3>
-  {result?<><p>{result.status==="assessment_complete"?(result.expReady?"EXP Ready — all required paperwork and driver orientation verified.":"Knowledge check saved. Final EXP readiness remains pending paperwork and driver verification."):"Your answers have been recorded. The safety orientation video must be watched again before another assessment, or you can finish with an Adventure Technician."}</p>
-   {result.corrections?.map(c=><p key={c.questionId}>{c.correctAnswer} — {c.explanation}</p>)}
-   <div className={styles.actions}><button className={styles.primary} type="button" onClick={onExit}>Return to Guest Portal</button></div></>:
+  {!result?<h3>One Last Step to More Trail Time</h3>:null}
+  {result?<ExpAssessmentResult result={result} onExit={onExit}/>:
    <><p className={styles.intro}>Your answers save as you go. You can close this page and return later.</p>
    <div className={styles.progressHeading}><strong>Question {index+1} of {activeQuestions.length}</strong><span>{activeQuestions.filter(x=>currentAnswers[x.id]).length} answered</span></div>
    <div className={styles.progressTrack} role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={activeQuestions.length} aria-valuenow={activeQuestions.filter(x=>currentAnswers[x.id]).length}><div className={styles.progressFill} style={{width:`${100*activeQuestions.filter(x=>currentAnswers[x.id]).length/Math.max(1,activeQuestions.length)}%`}}/></div>
