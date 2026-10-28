@@ -44,6 +44,9 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
   useEffect(() => { checkpointCallback.current = onCheckpoint; }, [onCheckpoint]);
   useEffect(() => {
     let disposed = false;
+    const host = frame.current;
+    // An SDK iframe must never survive an effect restart (including React Strict Mode).
+    host?.replaceChildren();
     let inquiryPublished=false;
     const publishInquiry=(position:number)=>{if(!inquiryPublished&&beltTireCueReached(position,initialCheckpoint?.watchedSeconds)){inquiryPublished=true;inquiryCallback.current?.()}};
     publishInquiry(0);
@@ -93,10 +96,11 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
       publishCheckpoint(data.duration);
     };
     void loadVimeoSdk().then(async () => {
-      if (disposed || !frame.current) return;
+      if (disposed || !host) return;
       const Vimeo = (window as VimeoWindow).Vimeo;
       if (!Vimeo?.Player) throw new Error("Player SDK unavailable");
-      player = new Vimeo.Player(frame.current, {url: VIDEO_URL});
+      host.replaceChildren();
+      player = new Vimeo.Player(host, {url: VIDEO_URL});
       player.on("seeking", onSeeking);
       player.on("seeked", onSeeked);
       player.on("timeupdate", onTimeUpdate);
@@ -107,6 +111,8 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
     return () => {
       publishCheckpoint(knownDuration,true);
       disposed = true;
+      // Clear the SDK-created iframe synchronously; destroy() alone is async.
+      host?.replaceChildren();
       if (player) {
         player.off("seeking", onSeeking);
         player.off("seeked", onSeeked);
