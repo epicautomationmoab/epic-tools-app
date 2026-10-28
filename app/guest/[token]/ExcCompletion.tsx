@@ -26,4 +26,9 @@ export default function ExcCompletion({drivers,qualified}:{drivers:ExcDriver[];q
 export function ExcOptionalInvitation({onChooseInPerson}:{onChooseInPerson?:()=>void}={}){return <div className={styles.optionalInvitation}>
  <h3>Prefer to complete your orientation with us?</h3>
  <p>Epic Xpress Checkout is entirely optional and designed to save you time at arrival. If you prefer, our Adventure Techs are happy to guide you through the orientation and knowledge assessment in person when you arrive.</p>
-{onChooseInPerson?<button className={styles.later} type="button" onClick={onChooseInPerson}>Complete Orientation In Person</button>:null}</div>}
+{onChooseInPerson?<button className={styles.inPersonLink} type="button" onClick={onChooseInPerson}>Complete Orientation In Person – Close this window</button>:null}</div>}
+
+export function ExcOrientationIntro({id}:{id?:string}){return <div id={id}>
+ <p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive. If you have multiple drivers, you can complete the orientation and knowledge check together as a group or individually.</p>
+ <p>Allow approximately <strong>13 minutes</strong> now to save time at check-out and get on the trail sooner.</p>
+</div>}

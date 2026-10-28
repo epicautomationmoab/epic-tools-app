@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
-import ExcCompletion,{ExcOptionalInvitation} from "./ExcCompletion";
+import ExcCompletion,{ExcOptionalInvitation,ExcOrientationIntro} from "./ExcCompletion";
 import ExpServerAssessment from "./ExpServerAssessment";
 import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
@@ -249,7 +249,7 @@ export default function ExpVideoPreview({
           <h2>Epic Xpress Checkout</h2>
           {verifiedExpStatus===null?<p role="status">{statusError?'Orientation status is unavailable. Please refresh this page.':'Checking saved orientation progress…'}</p>:<ExcCompletion drivers={driverStatuses} qualified={verifiedExpStatus===true}/>}
           {reviewerMode?<p><strong>Employee preview only.</strong> This demonstration does not change guest readiness.</p>:null}
-          {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>:null}
+          {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<ExcOrientationIntro/>:null}
         </div>
         {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
           {assessmentStarted?"Continue Orientation":"Get Started"}
@@ -261,7 +261,7 @@ export default function ExpVideoPreview({
             <button className={styles.close} type="button" aria-label="Close orientation" onClick={closeOrientation}>×</button>
             <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
             <h2 id="exp-title">Epic Xpress Checkout</h2>
-            {!showAssessment && !selectDrivers ? <><ExcOptionalInvitation onChooseInPerson={closeOrientation}/><p id="exp-desc">Get a head start on your adventure. Watch a short video to get comfortable with your RZR, then take a quick knowledge check. You'll arrive ready to roll — with more time for the trails.</p></> : null}
+            {!showAssessment && !selectDrivers ? <><ExcOrientationIntro id="exp-desc"/><ExcOptionalInvitation onChooseInPerson={closeOrientation}/></> : null}
             {showAssessment ? (
               sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); closeOrientation(); }} /> : <p role="alert">Orientation session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (

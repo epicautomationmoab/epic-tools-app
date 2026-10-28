@@ -22,7 +22,7 @@ export default function ExpParticipants({
   const valid = all.length>0 && all.every(x=>x.name.length>=3 && x.name.includes(" ") && Boolean(signed[x.name])) && new Set(all.map(x=>x.name.toLowerCase())).size===all.length;
   return <section className={styles.wrap} aria-label="Orientation participating drivers">
     <h3>Almost trail-ready!</h3>
-    <p>Everyone watching together can complete one knowledge check. Select each participating driver, then have each person draw their initials.</p>
+    <p>Everyone watching together can complete one knowledge check. Select the drivers present and have each person initial that they are participating.</p>
     {distinctWaivers.length ? <>
       <strong>Select drivers with signed waivers</strong>
       <p className={styles.note}>Choose everyone participating. More than one selection is welcome.</p>
@@ -51,6 +51,5 @@ export default function ExpParticipants({
       {reviewerMode ? <button type="button" className={styles.back} onClick={()=>onContinue(all.length ? all.map(x=>({fullName:x.name,initials:signed[x.name]||"",waiverMatched:x.matched})) : [{fullName:"Preview Reviewer",initials:"",waiverMatched:false}])}>Reviewer shortcut: Open knowledge check</button> : null}
       <button type="button" className={styles.back} onClick={onBack}>Back</button>
     </div>
-    <p className={styles.note}>Only drivers listed by the reservation paperwork can participate. Additional Polaris and OHV checks remain required for checkout.</p>
   </section>;
 }
