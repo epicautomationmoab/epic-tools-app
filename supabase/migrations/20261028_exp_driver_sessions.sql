@@ -8,7 +8,7 @@ begin
  select array_agg(n order by n) into chosen from (select distinct lower(regexp_replace(trim(v),'\s+',' ','g')) n from unnest(p_driver_names) v) x;
  if cardinality(chosen)<>cardinality(p_driver_names) or exists(select 1 from unnest(chosen) n where length(n)<3) then raise exception 'Invalid driver selection'; end if;
  perform pg_advisory_xact_lock(hashtextextended('exp-booking:'||p_booking_key,0));
- for s in select * from exp_sessions where readiness_id=any(p_readiness_ids) and assessment_version=p_assessment_version and outcome in ('in_progress','critical_retry') order by created_at desc loop
+ for s in select * from exp_sessions where readiness_id=any(p_readiness_ids::text[]) and assessment_version=p_assessment_version and outcome in ('in_progress','critical_retry') order by created_at desc loop
   select array_agg(distinct n order by n) into roster from (
    select lower(regexp_replace(trim(value),'\s+',' ','g')) n from jsonb_array_elements_text(coalesce(s.result_summary->'selectedDriverNames','[]'::jsonb))
    union select lower(regexp_replace(trim(display_name),'\s+',' ','g')) from exp_participants where session_id=s.id
@@ -19,7 +19,7 @@ begin
   end if;
  end loop;
  insert into exp_sessions(readiness_id,video_version,assessment_version,mode,outcome,result_summary)
- values(p_readiness_id,'3.2',p_assessment_version,case when cardinality(chosen)>1 then 'group' else 'individual' end,'in_progress',jsonb_build_object('selectedDriverNames',to_jsonb(p_driver_names))) returning * into s;
+ values(p_readiness_id::text,'3.2',p_assessment_version,case when cardinality(chosen)>1 then 'group' else 'individual' end,'in_progress',jsonb_build_object('selectedDriverNames',to_jsonb(p_driver_names))) returning * into s;
  return next s;
 end $$;
 revoke all on function public.start_exp_driver_session(text,uuid[],uuid,text[],text) from public,anon,authenticated;
