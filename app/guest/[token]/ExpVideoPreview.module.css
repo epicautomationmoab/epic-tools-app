@@ -46,3 +46,12 @@
 .inquiry{margin:18px 0;padding:16px 18px;border:1px solid #e2e5e3;border-radius:12px;background:#fafbf9}.inquiry h3{margin:0;font-size:18px}.inquiry p{font-size:15px;line-height:1.55}.inquiryDriver{margin:12px 0;padding:8px 0 0;border:0}.inquiryDriver legend{font-weight:700;color:#26333e}.inquiryDriver label{display:flex;align-items:center;gap:9px;margin:8px 0;font-size:15px;color:#46515b}.inquiryDriver input{accent-color:#bc4b18}.inquirySaved span{margin-left:8px;color:#54735d;font-size:12px}.inquiry .disclaimer{font-size:13px}
 
 .inquiry{padding:12px 14px;margin:12px 0}.inquiry h3{font-size:16px}.inquiryPrice{font-size:15px;font-weight:650;margin-left:8px}.inquiry .inquiryQuestion{margin:7px 0;font-size:14px}.inquiryDriver{display:flex;gap:18px;flex-wrap:wrap;margin:5px 0;padding:4px 0 0}.inquiryDriver legend{font-size:12px;font-weight:500;color:#68736c}.inquiryDriver label{font-size:14px;margin:3px 0}.inquiry .disclaimer{margin:6px 0 0;font-size:12px}.inquirySaved{margin:6px 0 0}
+
+/* EXC invitation and compact video introduction */
+.welcomeInvitation { margin-top: 1rem; }
+.welcomeInvitation h3 { margin: 0 0 .75rem; font-size: clamp(1.35rem, 2.3vw, 1.8rem); }
+.welcomeInvitation p { margin: .5rem 0; }
+.welcomeActions { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; margin-top: 1.25rem; }
+.videoIntroduction { margin: .5rem 0 1rem; }
+.videoIntroduction p { margin: 0 0 .35rem; }
+.videoIntroduction .inPersonLink { font-size: .9rem; }
