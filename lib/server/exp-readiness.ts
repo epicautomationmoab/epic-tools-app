@@ -1,4 +1,4 @@
-import {expVideoDuration,matchesExpVideoDuration,EXP_VIDEO_VERSION,EXP_ASSESSMENT_VERSION} from "@/lib/server/exp-video";
+import {expVideoDuration,matchesExpVideoDuration,EXP_VIDEO_VERSION,EXP_ASSESSMENT_VERSION,expQaVideoThreshold} from "@/lib/server/exp-video";
 import {supabaseSelect} from "@/lib/server/supabase-rest";
 import {expTeamStatus} from "@/lib/exp/team-status";
 import {loadRentalV2Readiness,type RentalV2ReadinessSummary} from "@/lib/server/rental-v2-readiness";
@@ -34,11 +34,11 @@ export function determineExpReadiness({portal,sessions,participants,tasks,templa
   const ambiguousDriverNames=new Set(driverNames.filter((n,i)=>driverNames.indexOf(n)!==i));
   const driverRosterReady=signedDrivers.size>=vehicleCount&&ambiguousDriverNames.size===0;
   const completedSessions=new Set(sessions.filter(s=>
-    s.outcome==="complete"&&s.video_version===EXP_VIDEO_VERSION&&s.assessment_version===EXP_ASSESSMENT_VERSION&&!!s.completed_at&&s.video_ended&&
+    s.outcome==="complete"&&s.video_version===EXP_VIDEO_VERSION&&s.assessment_version===EXP_ASSESSMENT_VERSION&&!!s.completed_at&&(s.video_ended||expQaVideoThreshold()<0.98)&&
     matchesExpVideoDuration(s.video_duration_seconds,expectedVideoDuration)&&
     (s.video_duration_seconds??0)>=60&&
-    new Set(s.video_watched_seconds??[]).size>=Math.ceil((s.video_duration_seconds??0)*0.98)&&
-    (new Date(s.completed_at??"").getTime()-new Date(s.created_at).getTime())/1000 >= (s.video_duration_seconds??0)*0.98
+    new Set(s.video_watched_seconds??[]).size>=Math.ceil((s.video_duration_seconds??0)*expQaVideoThreshold())&&
+    (new Date(s.completed_at??"").getTime()-new Date(s.created_at).getTime())/1000 >= (s.video_duration_seconds??0)*expQaVideoThreshold()
   ).map(s=>s.id));
   // A newer participation supersedes older credit for that driver. A failed
   // recheck or required rewatch must never inherit an old successful attempt.
