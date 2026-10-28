@@ -1,4 +1,4 @@
-import {expVideoDuration,matchesExpVideoDuration} from "@/lib/server/exp-video";
+import {expVideoDuration,matchesExpVideoDuration,expQaVideoThreshold} from "@/lib/server/exp-video";
 import { NextRequest, NextResponse } from "next/server";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 import { supabaseSelect, supabasePatchRows } from "@/lib/server/supabase-rest";
@@ -49,7 +49,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{token:str
     const participants=await supabaseSelect<{display_name:string}>("exp_participants",new URLSearchParams({select:"display_name",session_id:`eq.${session.id}`}));
     const duration=await expVideoDuration();
     return reply({...summary(session),participants,videoVerificationAvailable:duration!==null,
-      videoCoverageMet:duration!==null&&matchesExpVideoDuration(session.video_duration_seconds,duration)&&session.video_ended&&new Set(session.video_watched_seconds??[]).size>=Math.ceil(duration*0.98)});
+      videoCoverageMet:duration!==null&&matchesExpVideoDuration(session.video_duration_seconds,duration)&&(session.video_ended||expQaVideoThreshold()<0.98)&&new Set(session.video_watched_seconds??[]).size>=Math.ceil(duration*expQaVideoThreshold())});
   }catch{return reply({error:"Unable to retrieve orientation progress."},500);}
 }
 export async function PATCH(request:NextRequest,context:{params:Promise<{token:string}>}) {
