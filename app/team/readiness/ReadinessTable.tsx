@@ -346,7 +346,19 @@ function getSupabaseBrowserConfig() {
   return { url, key };
 }
 
-async function callPeopleOverride<T>(action:"get"|"set"|"clear",readinessId:string,extra:Record<string,unknown>={}):Promise<T>{
+async function callReadinessRpc<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
+ const { url, key } = getSupabaseBrowserConfig();
+ return fetch(`${url}/rest/v1/rpc/${functionName}`,{
+  method:"POST",
+  headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json"},
+  body:JSON.stringify(body)
+ }).then(async response=>{
+  if(!response.ok)throw new Error(await response.text()||`Unable to run ${functionName}.`);
+  return response.json() as Promise<T>;
+ });
+}
+
+function callPeopleOverride<T>(action:"get"|"set"|"clear",readinessId:string,extra:Record<string,unknown>={}):Promise<T>{
  return fetch("/api/team/readiness/people-override",{
   method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
   body:JSON.stringify({action,readinessId,...extra})
