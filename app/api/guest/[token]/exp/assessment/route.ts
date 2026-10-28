@@ -1,6 +1,6 @@
 import {loadExpSessionOptions,expNameKey} from "@/lib/server/exp-session-options";
 import {loadExpReadiness} from "@/lib/server/exp-readiness";
-import {expVideoDuration,matchesExpVideoDuration} from "@/lib/server/exp-video";
+import {expVideoDuration,matchesExpVideoDuration,expQaVideoThreshold} from "@/lib/server/exp-video";
 import { NextRequest, NextResponse } from "next/server";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 import { gradeExpAssessment, resolveCriticalRetry, type ExpAnswer, type ExpOutcome } from "@/lib/exp/assessment-policy";
@@ -136,9 +136,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const recordedDuration = session.video_duration_seconds ?? 0;
     const observedSeconds = new Set(session.video_watched_seconds ?? []);
     const wallElapsedSeconds = (Date.now()-new Date(session.created_at).getTime())/1000;
-    if (!session.video_ended || !matchesExpVideoDuration(recordedDuration,expectedDuration) ||
-        observedSeconds.size < Math.ceil(recordedDuration * 0.98) ||
-        !Number.isFinite(wallElapsedSeconds) || wallElapsedSeconds < recordedDuration*0.98) {
+    if ((expQaVideoThreshold()>=0.98&&!session.video_ended) || !matchesExpVideoDuration(recordedDuration,expectedDuration) ||
+        observedSeconds.size < Math.ceil(recordedDuration * expQaVideoThreshold()) ||
+        !Number.isFinite(wallElapsedSeconds) || wallElapsedSeconds < recordedDuration*expQaVideoThreshold()) {
       return fail("Finish the entire safety orientation video before submitting the assessment.",409);
     }
     // A submitted assessment must belong to a recorded group of participating drivers.
