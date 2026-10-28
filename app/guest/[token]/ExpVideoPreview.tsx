@@ -255,11 +255,11 @@ export default function ExpVideoPreview({
             <h2 id="exp-title">Epic Xpress Checkout</h2>
             {!sessionId && showWelcome ? <div className={styles.welcomeInvitation}>
               <h3>Your Xpress Checkout is ready when you are.</h3>
-              <p>Spend about <strong>13 minutes</strong> completing your safety orientation and knowledge check before arrival, so you can spend less time checking out and more time on the trail.</p>
+              <p>Spend <strong>less than 15 minutes</strong> completing your safety orientation and knowledge check before arrival, so you can spend less time checking out and more time on the trail.</p>
               <p>Multiple drivers? Complete it together or individually.</p>
               <div className={styles.welcomeActions}>
                 <button className={styles.action} type="button" onClick={() => setShowWelcome(false)}>Get Started</button>
-                <button className={styles.inPersonLink} type="button" onClick={closeOrientation}>I’ll complete this when I arrive</button>
+                <button className={styles.inPersonLink} type="button" onClick={closeOrientation}>Maybe Later</button>
               </div>
             </div> : null}
             {sessionId && !showAssessment && !selectDrivers ? <div id="exp-desc" className={styles.videoIntroduction}>
