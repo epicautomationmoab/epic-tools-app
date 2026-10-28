@@ -14,7 +14,7 @@ type Player = {
   ready: () => Promise<void>;
   destroy: () => Promise<void>;
 };
-type VimeoWindow = Window & { Vimeo?: { Player: new (iframe: HTMLIFrameElement) => Player } };
+type VimeoWindow = Window & { Vimeo?: { Player: new (element: HTMLElement, options: {url: string}) => Player } };
 let sdkLoading: Promise<void> | null = null;
 function loadVimeoSdk(): Promise<void> {
   if ((window as VimeoWindow).Vimeo?.Player) return Promise.resolve();
@@ -35,7 +35,7 @@ export type ExpPlaybackCheckpoint = { watchedSeconds: number[]; durationSeconds:
 export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initialCheckpoint, onInquiryAvailable }: { onInquiryAvailable?:()=>void; initialCheckpoint?: ExpPlaybackCheckpoint; onCoverageChange: (complete: boolean) => void; onCheckpoint?: (data: ExpPlaybackCheckpoint) => void }) {
   const inquiryCallback=useRef(onInquiryAvailable);
   useEffect(()=>{inquiryCallback.current=onInquiryAvailable},[onInquiryAvailable]);
-  const frame = useRef<HTMLIFrameElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
   const callback = useRef(onCoverageChange);
   const checkpointCallback = useRef(onCheckpoint);
   const [coverage, setCoverage] = useState(initialCheckpoint ? Math.min(100,Math.round(initialCheckpoint.watchedSeconds.length/initialCheckpoint.durationSeconds*100)) : 0);
@@ -96,7 +96,7 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
       if (disposed || !frame.current) return;
       const Vimeo = (window as VimeoWindow).Vimeo;
       if (!Vimeo?.Player) throw new Error("Player SDK unavailable");
-      player = new Vimeo.Player(frame.current);
+      player = new Vimeo.Player(frame.current, {url: VIDEO_URL});
       player.on("seeking", onSeeking);
       player.on("seeked", onSeeked);
       player.on("timeupdate", onTimeUpdate);
@@ -112,16 +112,15 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
         player.off("seeked", onSeeked);
         player.off("timeupdate", onTimeUpdate);
         player.off("ended", onEnded);
-        // Keep the iframe instance under React ownership; do not destroy it.
+        // Vimeo owns the iframe inside our stable div; release it on unmount.
+        void player.destroy().catch(() => {});
       }
     };
   }, []);
 
   return <>
     <div className={styles.video}>
-      <iframe ref={frame} src={VIDEO_URL} title="Epic 4X4 Rental Operations Video 3.2"
-        allow="fullscreen; picture-in-picture; encrypted-media" allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin" />
+      <div ref={frame} aria-label="Epic 4X4 Rental Operations Video 3.2" />
     </div>
     <p className={styles.videoProgress} role="status">
       {coverage >= 100 ? "Video viewing complete." :
