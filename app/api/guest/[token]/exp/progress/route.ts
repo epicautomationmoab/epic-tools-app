@@ -8,7 +8,7 @@ type Session = {
   id: string; readiness_id: string; outcome: string;
   video_watched_seconds: number[] | null; video_ended: boolean;
   video_duration_seconds: number | null; draft_answers: Record<string,string> | null;
-  last_activity_at: string; pause_reason: string | null;
+  result_summary: Record<string,unknown>; last_activity_at: string; pause_reason: string | null;
 };
 function reply(body: object, status = 200) {
   return NextResponse.json(body, {status,headers:{"Cache-Control":"no-store"}});
@@ -19,7 +19,7 @@ async function authorized(token:string,readyId:string,sessionId:string) {
   }));
   if (!portal || portal.business_line.toLowerCase()!=="rental") return null;
   const [session] = await supabaseSelect<Session>("exp_sessions",new URLSearchParams({
-    select:"id,readiness_id,outcome,video_watched_seconds,video_ended,video_duration_seconds,draft_answers,last_activity_at,pause_reason",
+    select:"id,readiness_id,outcome,video_watched_seconds,video_ended,video_duration_seconds,draft_answers,result_summary,last_activity_at,pause_reason",
     readiness_id:`eq.${readyId}`,id:`eq.${sessionId}`,limit:"1"
   }));
   return session || null;
@@ -27,6 +27,8 @@ async function authorized(token:string,readyId:string,sessionId:string) {
 function summary(session:Session) {
   const answers=session.draft_answers||{};
   return {sessionId:session.id,outcome:session.outcome,
+    criticalQuestionIds:session.outcome==="critical_retry"?session.result_summary?.criticalQuestionIds:undefined,
+    retryOffered:session.result_summary?.retryOffered===true,
     videoSecondsObserved:(session.video_watched_seconds||[]).length,
     videoWatchedSeconds:session.video_watched_seconds||[],
     videoDurationSeconds:session.video_duration_seconds,videoEndedReported:session.video_ended,
@@ -61,7 +63,8 @@ export async function PATCH(request:NextRequest,context:{params:Promise<{token:s
     for(let attempt=0;attempt<3;attempt++){
     const session=await authorized(token,body.readinessId,body.sessionId);
     if(!session)return reply({error:"Session not found."},404);
-    if(session.outcome!=="in_progress")return reply({error:"Completed sessions cannot be edited."},409);
+    if(!["in_progress","critical_retry"].includes(session.outcome))return reply({error:"Completed sessions cannot be edited."},409);
+    if(session.outcome==="critical_retry" && (body.videoWatchedSeconds!==undefined||body.videoDurationSeconds!==undefined||body.videoEnded!==undefined))return reply({error:"Retry only the pending safety questions."},409);
     const patch:Record<string,unknown>={last_activity_at:new Date(Math.max(Date.now(),new Date(session.last_activity_at).getTime()+1)).toISOString()};
     if(body.videoWatchedSeconds!==undefined){
       const seconds=body.videoWatchedSeconds;
@@ -85,14 +88,16 @@ export async function PATCH(request:NextRequest,context:{params:Promise<{token:s
       const questionIds=new Map(EXP_QUESTION_BANK_DRAFT.map(q=>[q.id,new Set(q.options.map(o=>o.id))]));
       if(Object.keys(draft).length>10||Object.entries(draft).some(([id,answer])=>typeof answer!=="string"||!questionIds.get(id)?.has(answer)))
         return reply({error:"Invalid answers."},400);
+      if(session.outcome==="critical_retry" && Object.keys(draft).some(id=>!((session.result_summary?.criticalQuestionIds||[]) as string[]).includes(id)))return reply({error:"Only pending safety questions can be saved."},400);
       patch.draft_answers=draft;
+      if(session.result_summary?.retryOffered===true)patch.result_summary={...session.result_summary,retryOffered:false};
     }
     if(body.pauseReason!==undefined){
       if(!["none","closed","technician"].includes(String(body.pauseReason)))return reply({error:"Invalid pause reason."},400);
       patch.pause_reason=body.pauseReason;
     }
     const updated=await supabasePatchRows<Session>("exp_sessions",new URLSearchParams({
-      id:`eq.${session.id}`,last_activity_at:`eq.${session.last_activity_at}`,readiness_id:`eq.${session.readiness_id}`,outcome:"eq.in_progress",select:"id,readiness_id,outcome,video_watched_seconds,video_ended,video_duration_seconds,draft_answers,last_activity_at,pause_reason"
+      id:`eq.${session.id}`,last_activity_at:`eq.${session.last_activity_at}`,readiness_id:`eq.${session.readiness_id}`,outcome:`eq.${session.outcome}`,select:"id,readiness_id,outcome,video_watched_seconds,video_ended,video_duration_seconds,draft_answers,result_summary,last_activity_at,pause_reason"
     }),patch);
     if(updated.length===1)return reply(summary(updated[0]));
     }

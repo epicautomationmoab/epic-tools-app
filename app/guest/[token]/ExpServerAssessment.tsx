@@ -19,14 +19,16 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
  const activeQuestions=mode==="critical"?questionOrder.filter(q=>criticalIds.includes(q.id)):questionOrder;
  const currentAnswers=mode==="critical"?criticalAnswers:answers;
  useEffect(()=>{let active=true;fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress?readinessId=${encodeURIComponent(readinessId)}&sessionId=${encodeURIComponent(sessionId)}`,{cache:"no-store"})
-   .then(r=>r.ok?r.json():null).then(d=>{if(active&&d?.draftAnswers)setAnswers(d.draftAnswers);}).catch(()=>{}).finally(()=>{if(active)setBusy(false)});
+   .then(r=>r.ok?r.json():null).then(d=>{if(!active)return;
+     if(d?.outcome==="critical_retry" && d.criticalQuestionIds?.length){setCriticalIds(d.criticalQuestionIds);setCriticalAnswers(d.draftAnswers||{});setMode("critical");setStatus("Please give these safety questions one more try.");}
+     else {if(d?.draftAnswers)setAnswers(d.draftAnswers);if(d?.retryOffered)setResult({status:"retry_quiz"});}
+   }).catch(()=>{}).finally(()=>{if(active)setBusy(false)});
    return()=>{active=false}},[token,readinessId,sessionId]);
  const save=async(next:Record<string,string>)=>{
    const response=await fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({readinessId,sessionId,draftAnswers:next})});
    if(!response.ok)throw new Error("Unable to save your answers. Please try again.");
  };
- const choose=async(qid:string,oid:string)=>{if(busy)return;setBusy(true);if(mode==="critical"){setCriticalAnswers(a=>({...a,[qid]:oid}));setBusy(false);return}
-   const next={...answers,[qid]:oid};setAnswers(next);setStatus("Saving…");try{await save(next);setStatus("Progress saved")}catch(e){setStatus(e instanceof Error?e.message:"Save failed")}finally{setBusy(false)}};
+ const choose=async(qid:string,oid:string)=>{if(busy)return;setBusy(true);const next={...currentAnswers,[qid]:oid};if(mode==="critical")setCriticalAnswers(next);else setAnswers(next);setStatus("Saving…");try{await save(next);setStatus("Progress saved")}catch(e){setStatus(e instanceof Error?e.message:"Save failed")}finally{setBusy(false)}};
  const submit=async()=>{
    if(activeQuestions.some(q=>!currentAnswers[q.id]))return;
    setBusy(true);setStatus("Checking answers…");
@@ -37,19 +39,17 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
     if(!response.ok)throw new Error(data.error||"Unable to submit assessment.");
     if(data.status==="retry_quiz"){
       setQuestionOrder(data.questions?.length===10?data.questions:questionOrder);
-      setAnswers({});setCriticalAnswers({});setIndex(0);setMode("initial");setResult(null);
-      setStatus("One or two questions need another try. Your video viewing is retained.");
-      return;
+      setAnswers({});setCriticalAnswers({});setIndex(0);setMode("initial");setResult(data);setStatus("");return;
     }
-    if(data.status==="critical_retry" && data.questionIds?.length){setCriticalIds(data.questionIds);setIndex(0);setMode("critical");setStatus("Important safety questions need another attempt.");return;}
+    if(data.status==="critical_retry" && data.questionIds?.length){setCriticalIds(data.questionIds);setCriticalAnswers({});setIndex(0);setMode("critical");setStatus("Important safety questions need another attempt.");return;}
     setResult(data);setStatus("");
    }catch(e){setStatus(e instanceof Error?e.message:"Assessment failed")}finally{setBusy(false)}
  };
  const q=activeQuestions[index];
  return <section className={styles.assessment} aria-label="EXP saved knowledge check" aria-busy={busy}>
   {!result?<h3>One Last Step to More Trail Time</h3>:null}
-  {result?<ExpAssessmentResult result={result} onExit={onExit}/>:
-   <><p className={styles.intro}>Your answers save as you go. You can close this page and return later.</p>
+  {result?<ExpAssessmentResult result={result} onExit={onExit} onRetry={()=>{setResult(null);setAnswers({});setCriticalAnswers({});setMode("initial");setIndex(0);setStatus("Your video viewing is saved. Please try the knowledge check again.");}}/>:
+   <><p className={styles.intro}>{mode==="critical"?"Please give these safety questions one more try. Your answers save as you go.":"Your answers save as you go. You can close this page and return later."}</p>
    <div className={styles.progressHeading}><strong>Question {index+1} of {activeQuestions.length}</strong><span>{activeQuestions.filter(x=>currentAnswers[x.id]).length} answered</span></div>
    <div className={styles.progressTrack} role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={activeQuestions.length} aria-valuenow={activeQuestions.filter(x=>currentAnswers[x.id]).length}><div className={styles.progressFill} style={{width:`${100*activeQuestions.filter(x=>currentAnswers[x.id]).length/Math.max(1,activeQuestions.length)}%`}}/></div>
    {q?<fieldset className={styles.question}><legend>{q.prompt}</legend>{q.options.map(o=><label key={o.id} className={styles.answer}><input type="radio" disabled={busy} name={q.id} checked={currentAnswers[q.id]===o.id} onChange={()=>void choose(q.id,o.id)}/><span>{o.text}</span></label>)}</fieldset>:<p>Questions unavailable.</p>}

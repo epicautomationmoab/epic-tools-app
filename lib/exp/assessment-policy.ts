@@ -29,6 +29,7 @@ export function gradeExpAssessment(questions: ExpQuestion[], answers: ExpAnswer[
   const critical = missed.filter(q => q.critical);
   const noncritical = missed.filter(q => !q.critical);
   const correct = 10 - missed.length;
+  if (critical.length >= 3) return { status: "retry_or_technician", reason: "critical", correct, missedNoncritical: noncritical.map(q => q.id) };
   if (critical.length) return { status: "critical_retry", questionIds: critical.map(q => q.id), correct };
   if (noncritical.length >= 3) return { status: "retry_or_technician", reason: "noncritical", correct, missedNoncritical: noncritical.map(q => q.id) };
   return {
@@ -42,6 +43,7 @@ export function gradeCriticalRetry(questions: ExpQuestion[], retryAnswers: ExpAn
   if (!questions.length || questions.some(q => !q.critical)) throw new Error("Only missed critical questions can be retried.");
   const answerMap = new Map(retryAnswers.map(a => [a.questionId, a.optionId]));
   if (retryAnswers.length !== questions.length || answerMap.size !== questions.length) throw new Error("Every critical retry question requires an answer.");
+  if (questions.some(q => !q.options.some(o => o.id === answerMap.get(q.id)))) throw new Error("Invalid retry answer.");
   const failed = questions.filter(q => answerMap.get(q.id) !== q.correctOptionId).map(q => q.id);
   return { status: failed.length ? "retry_or_technician" : "resolved", failedQuestionIds: failed };
 }
