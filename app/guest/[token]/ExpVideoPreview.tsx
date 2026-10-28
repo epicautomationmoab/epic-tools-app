@@ -5,6 +5,7 @@ import styles from "./ExpVideoPreview.module.css";
 import ExcCompletion,{ExcOptionalInvitation,ExcOrientationIntro} from "./ExcCompletion";
 import ExpServerAssessment from "./ExpServerAssessment";
 import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
+import ExpSessionChoice,{type ExpSessionChoices} from "./ExpSessionChoice";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 
 // EXP opens at 8:00 AM Moab time on the calendar day before the rental.
@@ -51,12 +52,14 @@ export default function ExpVideoPreview({
   const [showAssessment, setShowAssessment] = useState(false);
   const [selectDrivers, setSelectDrivers] = useState(false);
   const [driverNames, setDriverNames] = useState<ExpParticipantDraft[]>([]);
+  const [sessionChoices,setSessionChoices]=useState<ExpSessionChoices|null>(null);
+  const [selectedSessionDrivers,setSelectedSessionDrivers]=useState<string[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [serverQuestions,setServerQuestions] = useState<Array<{id:string;prompt:string;options:Array<{id:string;text:string}>}>>([]);
   const [savedPlayback,setSavedPlayback]=useState<ExpPlaybackCheckpoint|undefined>();
   const [serverError, setServerError] = useState("");
   const [savingParticipants, setSavingParticipants] = useState(false);
-  const lastPlayback = useRef<ExpPlaybackCheckpoint | null>(null);
+  const lastPlayback = useRef<{sessionId:string;checkpoint:ExpPlaybackCheckpoint} | null>(null);
   const startingRef = useRef(false);
   const [startingSession,setStartingSession] = useState(false);
   const [sessionReadinessId,setSessionReadinessId]=useState<string|null>(null);
@@ -148,48 +151,36 @@ export default function ExpVideoPreview({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  // Create/resume a session when the guest opens the orientation, not after
-  // finishing the video. This lets periodic playback checkpoints survive exit.
-  useEffect(() => {
-    if (!open || !readinessId || !token || sessionId || startingRef.current) return;
-    startingRef.current = true;
-    setStartingSession(true);
-    let cancelled = false;
-    void (async () => {
-      try {
-        const base = `/api/guest/${encodeURIComponent(token)}/exp`;
-        const response = await fetch(`${base}/assessment`,{
-          method:"POST",headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({action:"start",readinessId})
-        });
-        const started = await response.json();
-        if (!response.ok || !started.sessionId || !Array.isArray(started.questions))
-          throw new Error(started.error || "Unable to resume your orientation.");
-        if (cancelled) return;
-        const savedReadinessId=String(started.readinessId||readinessId);
-        setServerQuestions(started.questions);
-        const progressResponse = await fetch(`${base}/progress?readinessId=${encodeURIComponent(savedReadinessId)}&sessionId=${encodeURIComponent(started.sessionId)}`,{cache:"no-store"});
-        if (progressResponse.ok){
-          const progress = await progressResponse.json();
-          const duration = Number(progress.videoDurationSeconds ?? 0);
-          if(!cancelled && progress.videoVerificationAvailable && duration>0)setSavedPlayback({watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true});
-          if (!cancelled && progress.videoCoverageMet===true && duration>0 &&
-            Number(progress.videoSecondsObserved ?? 0)>=Math.ceil(duration*0.98)) {
-            setVideoCoverageMet(true);
-            setWatchedAcknowledged(true);
-            if(progress.participants?.length)setShowAssessment(true);
-          }
-        }
-        if(!cancelled){setSessionReadinessId(savedReadinessId);setSessionId(started.sessionId);}
-      }catch(error){
-        if(!cancelled)setServerError(error instanceof Error?error.message:"Orientation session unavailable.");
-      }finally{
-        startingRef.current=false;
-        if(!cancelled)setStartingSession(false);
-      }
-    })();
+  // Reopening always offers saved sessions and untouched drivers; it never silently picks another driver's work.
+  useEffect(()=>{
+    if(!open||sessionId||!primaryReadinessId)return;
+    let cancelled=false;setSessionChoices(null);setServerError("");
+    void (async()=>{try{
+      const response=await fetch(`/api/guest/${encodeURIComponent(token)}/exp/sessions?readinessId=${encodeURIComponent(primaryReadinessId)}`,{cache:"no-store"});
+      const data=await response.json();if(!response.ok)throw new Error(data.error||"Unable to load orientations.");
+      if(!cancelled)setSessionChoices(data);
+    }catch(error){if(!cancelled)setServerError(error instanceof Error?error.message:"Unable to load orientations.")}})();
     return()=>{cancelled=true};
-  },[open,readinessId,token,sessionId]);
+  },[open,sessionId,primaryReadinessId,token]);
+
+  async function chooseSession(selection:{sessionId:string}|{selectedDriverNames:string[]}){
+    if(startingRef.current)return;startingRef.current=true;setStartingSession(true);setServerError("");
+    try{
+      const base=`/api/guest/${encodeURIComponent(token)}/exp`;
+      const response=await fetch(`${base}/assessment`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"start",readinessId:primaryReadinessId,...selection})});
+      const saved=await response.json();if(!response.ok)throw new Error(saved.error||"Unable to open orientation.");
+      const anchor=String(saved.readinessId||primaryReadinessId);
+      const progressResponse=await fetch(`${base}/progress?readinessId=${encodeURIComponent(anchor)}&sessionId=${encodeURIComponent(saved.sessionId)}`,{cache:"no-store"});
+      if(!progressResponse.ok)throw new Error("Unable to retrieve saved progress.");
+      const progress=await progressResponse.json();const duration=Number(progress.videoDurationSeconds??0);
+      setSelectedSessionDrivers(saved.selectedDriverNames??[]);setServerQuestions(saved.questions);setSessionReadinessId(anchor);
+      setSavedPlayback(duration>0?{watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true}:undefined);
+      const covered=progress.videoCoverageMet===true;setVideoCoverageMet(covered);setWatchedAcknowledged(covered);
+      setShowAssessment(covered&&progress.participants?.length>0);setSelectDrivers(false);lastPlayback.current=null;
+      setSessionId(saved.sessionId);
+    }catch(error){setServerError(error instanceof Error?error.message:"Unable to open orientation.")}
+    finally{startingRef.current=false;setStartingSession(false)}
+  }
 
   async function prepareSession(drivers: ExpParticipantDraft[]) {
     if (!readinessId) return;
@@ -197,18 +188,11 @@ export default function ExpVideoPreview({
     setServerError("");
     try {
       const base = `/api/guest/${encodeURIComponent(token)}/exp`;
-      const startResponse = await fetch(`${base}/assessment`, {
-        method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({action:"start",readinessId}),
-      });
-      const start = await startResponse.json();
-      if (!startResponse.ok) throw new Error(start.error || "Unable to start your orientation.");
-      const savedId = String(start.sessionId);
-      const savedReadinessId=String(start.readinessId||readinessId);
-      if (!Array.isArray(start.questions) || start.questions.length !== 10) throw new Error("Assessment questions unavailable.");
-      setServerQuestions(start.questions);
-      if (lastPlayback.current) {
-        const cp = lastPlayback.current;
+      if(!sessionId)throw new Error("Choose the participating drivers before continuing.");
+      const savedId=sessionId;
+      const savedReadinessId=readinessId;
+      if (lastPlayback.current?.sessionId===savedId) {
+        const cp = lastPlayback.current.checkpoint;
         const checkpointResponse = await fetch(`${base}/progress`,{
           method:"PATCH",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({readinessId:savedReadinessId,sessionId:savedId,videoWatchedSeconds:cp.watchedSeconds,videoDurationSeconds:cp.durationSeconds,videoEnded:cp.ended})
@@ -232,8 +216,8 @@ export default function ExpVideoPreview({
     } finally { setSavingParticipants(false); }
   }
   async function checkpointPlayback(cp:ExpPlaybackCheckpoint){
-    lastPlayback.current = cp;
     if (!sessionId || !readinessId) return;
+    lastPlayback.current = {sessionId,checkpoint:cp};
     try { await fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress`,{
       method:"PATCH",keepalive:true,headers:{"Content-Type":"application/json"},
       body:JSON.stringify({readinessId,sessionId,videoWatchedSeconds:cp.watchedSeconds,videoDurationSeconds:cp.durationSeconds,videoEnded:cp.ended})
@@ -251,28 +235,30 @@ export default function ExpVideoPreview({
           {reviewerMode?<p><strong>Employee preview only.</strong> This demonstration does not change guest readiness.</p>:null}
           {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<ExcOrientationIntro/>:null}
         </div>
-        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
+        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
           {assessmentStarted?"Continue Orientation":"Get Started"}
         </button>:null}
       </section>
       {open ? (
         <div className={styles.backdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) closeOrientation(); }}>
-          <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="exp-title" aria-describedby={!showAssessment&&!selectDrivers?"exp-desc":undefined}>
+          <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="exp-title" aria-describedby={sessionId&&!showAssessment&&!selectDrivers?"exp-desc":undefined}>
             <button className={styles.close} type="button" aria-label="Close orientation" onClick={closeOrientation}>×</button>
             <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
             <h2 id="exp-title">Epic Xpress Checkout</h2>
-            {!showAssessment && !selectDrivers ? <><ExcOrientationIntro id="exp-desc"/><ExcOptionalInvitation onChooseInPerson={closeOrientation}/></> : null}
-            {showAssessment ? (
+            {sessionId && !showAssessment && !selectDrivers ? <><ExcOrientationIntro id="exp-desc"/><ExcOptionalInvitation onChooseInPerson={closeOrientation}/></> : null}
+            {!sessionId ? (
+              sessionChoices ? <ExpSessionChoice choices={sessionChoices} busy={startingSession} onStart={names=>void chooseSession({selectedDriverNames:names})} onResume={id=>void chooseSession({sessionId:id})}/> : <p role="status">Loading saved orientations…</p>
+            ) : showAssessment ? (
               sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); closeOrientation(); }} /> : <p role="alert">Orientation session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (
-              <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={signedRentalDrivers} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
+              <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={selectedSessionDrivers.length?selectedSessionDrivers:signedRentalDrivers} fixedRoster={selectedSessionDrivers.length>0} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
             ) : (
               sessionId ? <ExpTrackedVideo key={sessionId} initialCheckpoint={savedPlayback} onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} /> : <p>Loading saved orientation…</p>
             )}
             {startingSession ? <p role="status">Preparing saved orientation…</p> : null}
             {serverError ? <p role="alert" style={{color:"#a83232"}}>{serverError}</p> : null}
             {savingParticipants ? <p role="status">Saving driver acknowledgments…</p> : null}
-            {started && !showAssessment && !selectDrivers ? (
+            {started && sessionId && !showAssessment && !selectDrivers ? (
               <div className={styles.previewNext}>
                 <label className={styles.acknowledge}>
                   <input type="checkbox" checked={watchedAcknowledged} onChange={(event) => setWatchedAcknowledged(event.target.checked)} />

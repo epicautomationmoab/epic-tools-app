@@ -1,9 +1,10 @@
+import {loadExpSessionOptions,expNameKey} from "@/lib/server/exp-session-options";
 import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import {expVideoDuration,matchesExpVideoDuration} from "@/lib/server/exp-video";
 import { NextRequest, NextResponse } from "next/server";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 import { gradeExpAssessment, resolveCriticalRetry, type ExpAnswer, type ExpOutcome } from "@/lib/exp/assessment-policy";
-import { supabaseInsert, supabasePatchRows, supabaseSelect } from "@/lib/server/supabase-rest";
+import { supabaseInsert, supabasePatchRows, supabaseSelect, supabaseRpc } from "@/lib/server/supabase-rest";
 
 type Portal = { readiness_id: string; business_line: string; visit_start_time: string; confirmation_code:string };
 type Session = {
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const { token } = await context.params;
     const body = await request.json() as {
       action?: "start" | "submit" | "critical_retry";
-      readinessId?: string; sessionId?: string; answers?: unknown;
+      readinessId?: string; sessionId?: string; answers?: unknown; selectedDriverNames?: unknown;
     };
     if (!token || !body.readinessId || !body.action) return fail("Reservation and action required.");
     const activities = await supabaseSelect<Portal>("guest_portal_v", new URLSearchParams({
@@ -77,6 +78,32 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!activity || activity.business_line?.toLowerCase() !== "rental") return fail("Rental reservation not found.", 404);
 
     if (body.action === "start") {
+      // Explicit driver/group choice never resumes another driver's unfinished work.
+      if(body.sessionId || body.selectedDriverNames!==undefined){
+        const options=await loadExpSessionOptions(token,body.readinessId);
+        if(!options)return fail("Rental reservation not found.",404);
+        let chosenSession: {id:string;readiness_id:string;result_summary:Record<string,unknown>};
+        let selectedNames:string[];
+        if(body.sessionId){
+          const saved=options.sessions.find(s=>s.sessionId===body.sessionId);
+          if(!saved)return fail("Saved orientation not found for this booking.",404);
+          const [row]=await supabaseSelect<typeof chosenSession>("exp_sessions",new URLSearchParams({select:"id,readiness_id,result_summary",id:`eq.${saved.sessionId}`,outcome:"in.(in_progress,critical_retry)",limit:"1"}));
+          if(!row)return fail("This orientation has already finished. Please refresh your portal.",409);
+          chosenSession=row;selectedNames=saved.names;
+        }else{
+          const names=body.selectedDriverNames;
+          if(!Array.isArray(names)||names.length<1||names.length>20||names.some(n=>typeof n!=="string")||new Set(names.map(expNameKey)).size!==names.length)return fail("Select each participating driver once.");
+          const eligible=new Map(options.drivers.map(d=>[expNameKey(d.name),d]));
+          if(names.some(n=>!eligible.has(expNameKey(n))))return fail("Every selected driver must have a signed rental driver agreement.",409);
+          if(names.some(n=>eligible.get(expNameKey(n))?.orientationComplete))return fail("A selected driver has already completed orientation. Their completion is saved.",409);
+          selectedNames=names.map(n=>eligible.get(expNameKey(n))!.name);
+          try{
+            const rows=await supabaseRpc<Array<typeof chosenSession>>("start_exp_driver_session",{p_booking_key:options.bookingKey,p_readiness_ids:options.ids,p_readiness_id:body.readinessId,p_driver_names:selectedNames,p_assessment_version:VERSION});
+            chosenSession=rows[0];if(!chosenSession)throw new Error("No saved orientation returned");
+          }catch(error){if(String(error).includes("Resume the original"))return fail("A selected driver has a saved orientation. Resume the original driver or group session.",409);throw error;}
+        }
+        return NextResponse.json({sessionId:chosenSession.id,readinessId:chosenSession.readiness_id,selectedDriverNames:selectedNames,questions:publicQuestions(chosenSession.id+"-attempt-"+(Number(chosenSession.result_summary?.attemptCount||0)+1)),completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
+      }
       const bookingIds=activities.filter(a=>a.business_line.toLowerCase()==="rental"&&a.confirmation_code===activity.confirmation_code).map(a=>a.readiness_id);
       // Resume an unfinished assessment instead of silently creating a second session.
       const existing = await supabaseSelect<{ id: string; readiness_id:string; result_summary: Record<string,unknown> }>("exp_sessions", new URLSearchParams({
@@ -138,7 +165,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       }),{
         outcome:nextOutcome,
         draft_answers: {},
-        result_summary:{attemptCount,initialOutcome:result.status,participantCount:participants.length,
+        result_summary:{...session.result_summary,attemptCount,initialOutcome:result.status,participantCount:participants.length,
           policyVersion:"relaxed-2026-10-27", originalAnswers:body.answers,
           ...(result.status==="critical_retry"?{criticalQuestionIds:result.questionIds}:{}),
           retryOffered:retryQuiz, verifiedForCheckout:false,

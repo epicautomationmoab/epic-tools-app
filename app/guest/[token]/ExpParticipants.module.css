@@ -7,3 +7,4 @@
 .signatureDialog p{margin:0 0 12px}
 .manualSignature{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #e3e7eb}
 @media(max-width:600px){.signatureDialog{padding:18px}.signatureThumb{flex-basis:82px;width:82px}}
+.sessionRow{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;border:1px solid #e0e4e7;border-radius:11px}.sessionRow p{font-size:14px;margin-top:5px}.sessionRow button{flex-shrink:0;min-height:44px}

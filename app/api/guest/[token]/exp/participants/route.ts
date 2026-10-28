@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseSelect, getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
+import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 
 type PortalActivity = { readiness_id: string; business_line: string; confirmation_code: string; expected_guest_count: number|null; total_vehicle_count: number|null };
-type Session = { id: string; readiness_id: string; outcome: string; mode: string };
+type Session = { id: string; readiness_id: string; outcome: string; mode: string; result_summary:Record<string,unknown> };
 type ParticipantInput = { fullName: string; initials: string };
 
 function bad(message: string, status = 400) {
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return bad("Every driver must first sign the required rental agreement under their own name.", 409);
     }
     const [session] = await supabaseSelect<Session>("exp_sessions", new URLSearchParams({
-      select: "id,readiness_id,outcome,mode", id: `eq.${body.sessionId}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
+      select: "id,readiness_id,outcome,mode,result_summary", id: `eq.${body.sessionId}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
     }));
     if (!session) return bad("Assessment session not found.", 404);
     if (session.outcome !== "in_progress") return bad("Participants must be confirmed before submitting the assessment.", 409);
@@ -92,6 +93,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       if (!exactSameRoster) return bad("An orientation session already exists for a different set of participating drivers.", 409);
       return NextResponse.json({ok:true,recorded:existing.length,resumed:true,verifiedDrivers:0,completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
     }
+    const planned=session.result_summary?.selectedDriverNames;
+    if(Array.isArray(planned)){
+      const expected=new Set(planned.filter((n):n is string=>typeof n==='string').map(n=>cleanName(n).toLowerCase()));
+      if(expected.size!==normalized.length||normalized.some(p=>!expected.has(p.display_name.toLowerCase())))return bad("Keep the original selected drivers together in this orientation.",409);
+    }
+    const readiness=await loadExpReadiness(body.readinessId);
+    if(normalized.some(p=>readiness?.drivers.some(d=>d.orientationComplete&&cleanName(d.name).toLowerCase()===p.display_name.toLowerCase())))return bad("A selected driver has already completed orientation. Their completion is saved.",409);
     // One bulk insert is atomic: a failure cannot leave a partial group recorded.
     // A unique (session_id, normalized-name) index provides duplicate protection.
     const { url } = getServerSupabaseConfig();

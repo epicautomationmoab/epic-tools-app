@@ -285,3 +285,7 @@ Provide screenshots of each applicable state for review.
 **We've made it faster to get on the trail, not harder to get help.**
 
 Every guest should understand that Xpress Checkout is an optional convenience, that our Adventure Techs remain available, and that Epic's commitment is to a confident departure—not simply a faster transaction.
+
+## Driver session selection — October 28 owner clarification
+
+Reopening orientation asks “Who’s completing orientation?” using existing styling. Drivers can resume their own saved individual session, resume an original group together, or select untouched drivers for a new individual/group session. Completed drivers remain completed. Each new session starts its own video and assessment; it cannot inherit another session’s progress. Original group membership remains fixed. Existing saved sessions and initials remain intact.

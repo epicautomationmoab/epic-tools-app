@@ -6,14 +6,15 @@ import ExpDrawnInitials from "./ExpDrawnInitials";
 
 export type ExpParticipantDraft = { fullName: string; initials: string; waiverMatched?: boolean };
 export default function ExpParticipants({
-  onContinue, onBack, waiverDrivers = [], reviewerMode = false,
+  onContinue, onBack, waiverDrivers = [], reviewerMode = false, fixedRoster = false,
 }: {
   onContinue: (participants: ExpParticipantDraft[]) => void;
   onBack: () => void;
   waiverDrivers?: string[];
   reviewerMode?: boolean;
+  fixedRoster?: boolean;
 }) {
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(()=>fixedRoster?waiverDrivers:[]);
   const [manual, setManual] = useState<string[]>([]);
   const [signed, setSigned] = useState<Record<string,string>>({});
   const [signing, setSigning] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export default function ExpParticipants({
       <strong>Select drivers with signed waivers</strong>
       <p className={styles.note}>Choose everyone participating. More than one selection is welcome.</p>
       {distinctWaivers.map(name=><label key={name} className={styles.confirm} style={{marginBottom:8}}>
-        <input type="checkbox" checked={selected.includes(name)} onChange={e=>{setSelected(prev=>e.target.checked?[...prev,name]:prev.filter(n=>n!==name));if(e.target.checked&&!signed[name])setSigning(name);}}/>
+        <input type="checkbox" disabled={fixedRoster} checked={selected.includes(name)} onChange={e=>{setSelected(prev=>e.target.checked?[...prev,name]:prev.filter(n=>n!==name));if(e.target.checked&&!signed[name])setSigning(name);}}/>
         <span style={{flex:1}}>{name}</span>
         {selected.includes(name) ? <button type="button" className={styles.signatureThumb} onClick={e=>{e.preventDefault();setSigning(name);}} aria-label={`Draw or update initials for ${name}`}>
           {signed[name] ? <img src={signed[name]} alt={`Initials captured for ${name}`} /> : "Add initials"}
