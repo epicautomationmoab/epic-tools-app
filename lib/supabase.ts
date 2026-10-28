@@ -622,9 +622,13 @@ export async function getArrivalBoardRows(options: { date?: string } = {}) {
 
   return rows
     .map((row) => {
-      const readiness = readinessByKey.get(
+      const exactReadiness = readinessByKey.get(
         `${row.confirmation_code}|${normalizeTimestamp(row.visit_start_time)}|${row.business_line}`,
       );
+      // A single same-day booking activity is unambiguous even when legacy
+      // source timestamps disagree about wall time. Never guess among items.
+      const bookingCandidates=exactReadiness?[]:readinessRows.filter(candidate=>candidate.confirmation_code===row.confirmation_code&&candidate.business_line===row.business_line);
+      const readiness=exactReadiness??(bookingCandidates.length===1?bookingCandidates[0]:undefined);
       const totalVehicleCount = readiness?.total_vehicle_count ?? row.total_vehicle_count ?? null;
       const uploadedOhvCount = readiness?.readiness_id
         ? (ohvUploadCountByReadinessId.get(readiness.readiness_id) ?? 0)
