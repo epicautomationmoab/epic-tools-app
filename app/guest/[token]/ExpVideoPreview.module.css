@@ -36,3 +36,5 @@
 .videoProgress{margin:10px 0 0!important;font-size:13px;color:#425364!important;font-weight:700}
 
 .readyStatus{font-weight:750;color:#176534!important}.pendingStatus{font-weight:750;color:#865621!important}.panel .pendingCheck{background:#f0e9dc;color:#865621}.driverReady{color:#176534!important}.rosterNote{font-size:13px;line-height:1.6}.panel>div{min-width:0;flex:1}.close{min-width:44px;min-height:44px}
+
+.confidence{margin-top:22px;padding:20px;border:1px solid #dce4de;border-radius:14px;background:#f6faf7}.confidence h3{margin:0;color:#24303b;font-size:19px}.confidence p{font-size:15px;line-height:1.6}.optionalInvitation{margin:20px 0;padding:16px 18px;border:1px solid #e8d8cd;border-radius:12px;background:#fffaf6}.optionalInvitation h3{margin:0;font-size:18px}.optionalInvitation p{font-size:15px}.panel h3.readyStatus{margin:14px 0 8px;font-size:19px;line-height:1.5}

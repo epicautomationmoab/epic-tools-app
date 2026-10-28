@@ -20,7 +20,7 @@ export default function ExpParticipants({
   const distinctWaivers = Array.from(new Set(waiverDrivers.map(n=>n.trim()).filter(Boolean)));
   const all = selected.map(n=>({name:n,matched:true})).filter(x=>x.name);
   const valid = all.length>0 && all.every(x=>x.name.length>=3 && x.name.includes(" ") && Boolean(signed[x.name])) && new Set(all.map(x=>x.name.toLowerCase())).size===all.length;
-  return <section className={styles.wrap} aria-label="EXP participating drivers">
+  return <section className={styles.wrap} aria-label="Orientation participating drivers">
     <h3>Almost trail-ready!</h3>
     <p>Everyone watching together can complete one knowledge check. Select each participating driver, then have each person draw their initials.</p>
     {distinctWaivers.length ? <>
@@ -33,7 +33,7 @@ export default function ExpParticipants({
           {signed[name] ? <img src={signed[name]} alt={`Initials captured for ${name}`} /> : "Add initials"}
         </button> : null}
       </label>)}
-    </> : <p className={styles.note}>No signed driver agreements have been found. Complete the required rental paperwork before starting EXP.</p>}
+    </> : <p className={styles.note}>No signed driver agreements have been found. Complete the required rental paperwork before starting your orientation.</p>}
     {signing ? <div className={styles.signatureOverlay} onMouseDown={e=>{if(e.target===e.currentTarget)setSigning(null);}}>
       <section className={styles.signatureDialog} role="dialog" aria-modal="true" aria-labelledby="exp-initials-title">
         <h3 id="exp-initials-title">Your initials, {signing}</h3>

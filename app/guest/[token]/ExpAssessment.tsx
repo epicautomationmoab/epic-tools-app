@@ -74,11 +74,11 @@ export default function ExpAssessment({
     setStage("questions");
   }
 
-  if (questions.length !== 10) return <p role="status">The EXP assessment question bank is not configured. Please complete your orientation with an Adventure Technician.</p>;
-  return <section className={styles.assessment} aria-label="Epic Xpress Ready knowledge assessment">
+  if (questions.length !== 10) return <p role="status">The EXP assessment question bank is not configured. Please complete your orientation with an Adventure Tech.</p>;
+  return <section className={styles.assessment} aria-label="Epic Xpress Checkout knowledge assessment">
     <h3>One Last Step to More Trail Time</h3>
     {stage === "technician" ? <>
-      <p>Our Adventure Technician will complete your safety orientation at checkout.</p>
+      <p>Our Adventure Tech will complete your safety orientation at checkout.</p>
       <p>This choice does not mark online EXP complete.</p>
       <button type="button" onClick={onExit}>Return to Guest Portal</button>
     </> : stage === "result" && result ? <>
@@ -101,9 +101,9 @@ export default function ExpAssessment({
           ? "One or more essential safety answers still need review after the second attempt."
           : "Three or more noncritical answers need another look."}</p>
         <p className={styles.note}>Initial knowledge check: {result.correct} of 10 correct. This practice check does not save your answers.</p>
-        <p>You can give the knowledge check another try here, or finish getting ready with an Adventure Technician when you arrive.</p>
+        <p>You can give the knowledge check another try here, or finish getting ready with an Adventure Tech when you arrive.</p>
         <div className={styles.actions}><button type="button" onClick={restart}>Try Again</button>
-          <button type="button" onClick={() => setStage("technician")}>Finish with an Adventure Technician</button></div>
+          <button type="button" onClick={() => setStage("technician")}>Finish with an Adventure Tech</button></div>
       </>}
     </> : <>
       {stage === "critical_retry" ? <p>Almost there! Please give these important safety questions another try.</p> :
@@ -136,7 +136,7 @@ export default function ExpAssessment({
           <button type="button" disabled={!answeredAll} onClick={submit}>Finish Knowledge Check</button>}
       </div>
       <button className={styles.technician} type="button" onClick={() => setStage("technician")}>
-        Prefer to finish in person? Our Adventure Technicians are happy to help.
+        Prefer to finish in person? Our Adventure Techs are happy to help.
       </button>
     </>}
   </section>;

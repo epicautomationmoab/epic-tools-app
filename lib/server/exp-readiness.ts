@@ -4,7 +4,7 @@ import {expTeamStatus} from "@/lib/exp/team-status";
 import {loadRentalV2Readiness,type RentalV2ReadinessSummary} from "@/lib/server/rental-v2-readiness";
 type Session={id:string;created_at:string;readiness_id:string;mode:string;outcome:string;completed_at:string|null;video_version:string;assessment_version:string;video_ended:boolean;video_duration_seconds:number|null;video_watched_seconds:number[]|null};
 type Participant={id:string;readiness_id:string;session_id:string;display_name:string;initials:string;reconciliation_status:string;waiver_signer_reference:string|null;acknowledgement_at:string|null};
-type Portal={readiness_id:string;confirmation_code:string;business_line:string;expected_guest_count:number|null;total_vehicle_count:number|null;epic_document_received_count:number|null;epic_document_expected_count:number|null;mpwr_document_received_count:number|null;mpwr_document_expected_count:number|null;mpwr_waivers:Array<{name:string;is_minor?:boolean;is_passenger?:boolean}>|null;ohv_required:boolean|null;ohv_certificate_uploaded:boolean|null};
+type Portal={guest_portal_token?:string|null;readiness_id:string;confirmation_code:string;business_line:string;expected_guest_count:number|null;total_vehicle_count:number|null;epic_document_received_count:number|null;epic_document_expected_count:number|null;mpwr_document_received_count:number|null;mpwr_document_expected_count:number|null;mpwr_waivers:Array<{name:string;is_minor?:boolean;is_passenger?:boolean}>|null;ohv_required:boolean|null;ohv_certificate_uploaded:boolean|null};
 type Task={id:string;readiness_id:string;template_id:string;task_status:string;required:boolean};
 type Template={id:string;template_key:string};
 type Submission={task_id:string;signer_name:string|null};
@@ -89,7 +89,7 @@ export function determineExpReadiness({portal,sessions,participants,tasks,templa
     signedDrivers:[...signedDrivers.values()],
     expectedDriverCount:signedDrivers.size,
     assessmentQualifiedDriverCount:qualifiedNames.size,
-    documentChecks,outstanding,expReady,
+    documentChecks,itemDocumentChecks:documentChecks,outstanding,expReady,
     checkoutReady:false,
     readinessVerification:expReady?"exp_verified_checkout_separate":"pending_authoritative_document_checks",
     needsReconciliation:participants.filter(p=>!qualifiedIds.has(p.id)).length
@@ -110,6 +110,35 @@ async function selectAll<T>(resource:string,params:URLSearchParams){
 export async function loadExpReadiness(readinessId:string){
  return (await loadExpReadinessMany([readinessId])).get(readinessId)??null;
 }
+/** Orientation is shared within a booking; document checks remain per rental item. */
+export function combineExpBookingReadiness(items:ExpReadiness[]):ExpReadiness {
+ const first=items[0];
+ if(items.length===1)return first;
+ const unique=<T,>(rows:T[],key:(row:T)=>string)=>[...new Map(rows.map(row=>[key(row),row])).values()];
+ const names=[...new Set(items.flatMap(r=>r.drivers.map(d=>normalize(d.name))))];
+ const drivers=names.map(name=>{
+  const matches=items.flatMap(r=>r.drivers.filter(d=>normalize(d.name)===name));
+  return {...matches[0],orientationComplete:matches.every(d=>d.orientationComplete),expReady:matches.every(d=>d.expReady),outstanding:[...new Set(matches.flatMap(d=>d.outstanding))]};
+ });
+ const documentChecks={...first.documentChecks};
+ for(const key of Object.keys(documentChecks) as Array<keyof typeof documentChecks>)documentChecks[key]=items.every(r=>r.documentChecks[key]);
+ const outstanding=Object.entries(documentChecks).filter(([,met])=>!met).map(([key])=>key);
+ const expReady=outstanding.length===0;
+ const assessmentQualifiedDriverCount=drivers.filter(d=>d.orientationComplete&&!d.outstanding.includes('polarisWaiver')).length;
+ return {...first,documentChecks,outstanding,expReady,drivers,
+  sessions:unique(items.flatMap(r=>r.sessions),row=>row.id),
+  participants:unique(items.flatMap(r=>r.participants),row=>row.id).map(p=>{
+   const verified=items.some(r=>r.participants.some(other=>other.id===p.id&&other.assessmentAndIdentityVerified));
+   return {...p,assessmentAndIdentityVerified:verified,reconciliation_status:verified?'verified':'unmatched',expReady:expReady&&verified,outstanding};
+  }),
+  signedDrivers:drivers.map(d=>d.name),expectedDriverCount:drivers.length,assessmentQualifiedDriverCount,
+  assessmentStatus:expTeamStatus(assessmentQualifiedDriverCount,drivers.length),
+  videoVerificationAvailable:items.every(r=>r.videoVerificationAvailable),
+  readinessVerification:expReady?'exp_verified_checkout_separate':'pending_authoritative_document_checks'
+ };
+}
+const portalColumns='readiness_id,guest_portal_token,confirmation_code,business_line,expected_guest_count,total_vehicle_count,epic_document_received_count,epic_document_expected_count,mpwr_document_received_count,mpwr_document_expected_count,mpwr_waivers,ohv_required,ohv_certificate_uploaded';
+const bookingKey=(p:Portal)=>p.guest_portal_token&&p.confirmation_code?p.guest_portal_token+'|'+p.confirmation_code:'item|'+p.readiness_id;
 /** Bounded batches share evidence reads, V2 reconciliation and video metadata. */
 export async function loadExpReadinessMany(readinessIds:string[]){
  const result=new Map<string,ExpReadiness>();
@@ -117,29 +146,40 @@ export async function loadExpReadinessMany(readinessIds:string[]){
  if(!ids.length)return result;
  const expectedVideoDuration=await expVideoDuration();
  for(let index=0;index<ids.length;index+=25){
-  const batch=ids.slice(index,index+25),filter=inList(batch);
-  const [portals,sessions,tasks,verifiedWaivers,ohvUploads]=await Promise.all([
-   selectAll<Portal>("guest_portal_v",new URLSearchParams({select:"readiness_id,confirmation_code,business_line,expected_guest_count,total_vehicle_count,epic_document_received_count,epic_document_expected_count,mpwr_document_received_count,mpwr_document_expected_count,mpwr_waivers,ohv_required,ohv_certificate_uploaded",readiness_id:filter,order:"readiness_id.asc"})),
-   selectAll<Session>("exp_sessions",new URLSearchParams({select:"id,created_at,readiness_id,mode,outcome,completed_at,video_version,assessment_version,video_ended,video_duration_seconds,video_watched_seconds",readiness_id:filter,order:"id.asc"})),
-   selectAll<Task>("guest_form_tasks",new URLSearchParams({select:"id,readiness_id,template_id,task_status,required",readiness_id:filter,task_status:"neq.cancelled",order:"id.asc"})),
-   selectAll<VerifiedWaiver>("scout_mpwr_waivers",new URLSearchParams({select:"readiness_id,rider_name,is_minor,is_passenger,last_verified_at",readiness_id:filter,last_verified_at:"not.is.null",order:"id.asc"})),
-   selectAll<OhvUpload>("ohv_certificate_uploads",new URLSearchParams({select:"readiness_id,driver_name,storage_path",readiness_id:filter,order:"id.asc"}))
+  const batch=ids.slice(index,index+25);
+  const requested=await selectAll<Portal>('guest_portal_v',new URLSearchParams({select:portalColumns,readiness_id:inList(batch),order:'readiness_id.asc'}));
+  const tokens=[...new Set(requested.map(p=>p.guest_portal_token).filter((v):v is string=>!!v))];
+  const siblings=tokens.length?await selectAll<Portal>('guest_portal_v',new URLSearchParams({select:portalColumns,guest_portal_token:inList(tokens),order:'readiness_id.asc'})):[];
+  const keys=new Set(requested.map(bookingKey));
+  const rentals=[...new Map([...requested,...siblings].filter(p=>p.business_line.toLowerCase()==='rental'&&keys.has(bookingKey(p))).map(p=>[p.readiness_id,p])).values()];
+  if(!rentals.length)continue;
+  const filter=inList(rentals.map(p=>p.readiness_id));
+  const [sessions,tasks,verifiedWaivers,ohvUploads]=await Promise.all([
+   selectAll<Session>('exp_sessions',new URLSearchParams({select:'id,created_at,readiness_id,mode,outcome,completed_at,video_version,assessment_version,video_ended,video_duration_seconds,video_watched_seconds',readiness_id:filter,order:'id.asc'})),
+   selectAll<Task>('guest_form_tasks',new URLSearchParams({select:'id,readiness_id,template_id,task_status,required',readiness_id:filter,task_status:'neq.cancelled',order:'id.asc'})),
+   selectAll<VerifiedWaiver>('scout_mpwr_waivers',new URLSearchParams({select:'readiness_id,rider_name,is_minor,is_passenger,last_verified_at',readiness_id:filter,last_verified_at:'not.is.null',order:'id.asc'})),
+   selectAll<OhvUpload>('ohv_certificate_uploads',new URLSearchParams({select:'readiness_id,driver_name,storage_path',readiness_id:filter,order:'id.asc'}))
   ]);
-  const rentals=portals.filter(p=>p.business_line==="rental");
   const templateIds=[...new Set(tasks.map(t=>t.template_id))];
-  const sessionIds=sessions.map(s=>s.id);
   const [templates,participants,v2]=await Promise.all([
-   templateIds.length?selectAll<Template>("guest_form_templates",new URLSearchParams({select:"id,template_key",id:inList(templateIds),order:"id.asc"})):Promise.resolve([]),
-   sessionIds.length?selectAll<Participant>("exp_participants",new URLSearchParams({select:"id,readiness_id,session_id,display_name,initials,reconciliation_status,waiver_signer_reference,acknowledgement_at",readiness_id:filter,order:"id.asc"})):Promise.resolve([]),
+   templateIds.length?selectAll<Template>('guest_form_templates',new URLSearchParams({select:'id,template_key',id:inList(templateIds),order:'id.asc'})):Promise.resolve([]),
+   sessions.length?selectAll<Participant>('exp_participants',new URLSearchParams({select:'id,readiness_id,session_id,display_name,initials,reconciliation_status,waiver_signer_reference,acknowledgement_at',readiness_id:filter,order:'id.asc'})):Promise.resolve([]),
    loadRentalV2Readiness(rentals.map(p=>({readinessId:p.readiness_id,confirmationCode:p.confirmation_code,expectedGuestCount:p.expected_guest_count,vehicleCount:p.total_vehicle_count})))
   ]);
-  const signedTaskIds=tasks.filter(t=>t.task_status==="completed"&&templates.some(k=>k.id===t.template_id&&k.template_key==="rental_v2_driver_terms_targeted")).map(t=>t.id);
-  // Keep URL lengths bounded when a party has many saved agreement tasks.
+  const signedTaskIds=tasks.filter(t=>t.task_status==='completed'&&templates.some(k=>k.id===t.template_id&&k.template_key==='rental_v2_driver_terms_targeted')).map(t=>t.id);
   const signatures:Submission[]=[];
-  for(let offset=0;offset<signedTaskIds.length;offset+=100)signatures.push(...await selectAll<Submission>("guest_form_submissions",new URLSearchParams({select:"task_id,signer_name",task_id:inList(signedTaskIds.slice(offset,offset+100)),order:"id.asc"})));
+  for(let offset=0;offset<signedTaskIds.length;offset+=100)signatures.push(...await selectAll<Submission>('guest_form_submissions',new URLSearchParams({select:'task_id,signer_name',task_id:inList(signedTaskIds.slice(offset,offset+100)),order:'id.asc'})));
+  const local=new Map<string,ExpReadiness>();
   for(const portal of rentals){
    const id=portal.readiness_id,rowTasks=tasks.filter(t=>t.readiness_id===id),taskIds=new Set(rowTasks.map(t=>t.id));
-   result.set(id,determineExpReadiness({portal,sessions:sessions.filter(s=>s.readiness_id===id),participants:participants.filter(p=>p.readiness_id===id),tasks:rowTasks,templates,signatures:signatures.filter(s=>taskIds.has(s.task_id)),v2Record:v2.get(id),verifiedWaivers:verifiedWaivers.filter(w=>w.readiness_id===id),ohvUploads:ohvUploads.filter(u=>u.readiness_id===id),expectedVideoDuration}));
+   const bookingIds=new Set(rentals.filter(p=>bookingKey(p)===bookingKey(portal)).map(p=>p.readiness_id));
+   const sharedSessions=sessions.filter(s=>bookingIds.has(s.readiness_id));
+   const sessionIds=new Set(sharedSessions.map(s=>s.id));
+   local.set(id,determineExpReadiness({portal,sessions:sharedSessions,participants:participants.filter(p=>sessionIds.has(p.session_id)),tasks:rowTasks,templates,signatures:signatures.filter(s=>taskIds.has(s.task_id)),v2Record:v2.get(id),verifiedWaivers:verifiedWaivers.filter(w=>w.readiness_id===id),ohvUploads:ohvUploads.filter(u=>u.readiness_id===id),expectedVideoDuration}));
+  }
+  for(const portal of requested.filter(p=>p.business_line.toLowerCase()==='rental')){
+   const group=[local.get(portal.readiness_id)!,...rentals.filter(p=>p.readiness_id!==portal.readiness_id&&bookingKey(p)===bookingKey(portal)).map(p=>local.get(p.readiness_id)!)];
+   if(group.length)result.set(portal.readiness_id,combineExpBookingReadiness(group));
   }
  }
  return result;

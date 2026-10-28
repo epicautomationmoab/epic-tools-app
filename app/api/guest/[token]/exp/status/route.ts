@@ -4,7 +4,7 @@ import {loadExpReadiness} from "@/lib/server/exp-readiness";
 type Portal={readiness_id:string;business_line:string};
 const reply=(value:object,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"no-store"}});
 export async function GET(_request:NextRequest,context:{params:Promise<{token:string}>}){
- if(process.env.EXP_ASSESSMENT_SERVER_ENABLED!=="true")return reply({error:"EXP status is not enabled."},503);
+ if(process.env.EXP_ASSESSMENT_SERVER_ENABLED!=="true")return reply({error:"Orientation status is not enabled."},503);
  try{
   const {token}=await context.params;
   if(!/^[0-9a-f-]{36}$/i.test(token))return reply({error:"Reservation token required."},400);
@@ -26,6 +26,6 @@ export async function GET(_request:NextRequest,context:{params:Promise<{token:st
   return reply({rentals:results});
  }catch(error){
   console.error("Guest EXP status failed",error);
-  return reply({error:"Unable to load EXP status."},500);
+  return reply({error:"Unable to load orientation status."},500);
  }
 }

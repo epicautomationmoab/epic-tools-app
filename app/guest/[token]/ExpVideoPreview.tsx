@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
-import portalStyles from "./GuestPortal.module.css";
+import ExcCompletion,{ExcOptionalInvitation} from "./ExcCompletion";
 import ExpServerAssessment from "./ExpServerAssessment";
 import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
@@ -59,7 +59,9 @@ export default function ExpVideoPreview({
   const lastPlayback = useRef<ExpPlaybackCheckpoint | null>(null);
   const startingRef = useRef(false);
   const [startingSession,setStartingSession] = useState(false);
-  const readinessId = activities.find(a => a.businessLine.toLowerCase() === "rental")?.readinessId ?? "";
+  const [sessionReadinessId,setSessionReadinessId]=useState<string|null>(null);
+  const primaryReadinessId = activities.find(a => a.businessLine.toLowerCase() === "rental")?.readinessId ?? "";
+  const readinessId=sessionReadinessId||primaryReadinessId;
   const [watchedAcknowledged, setWatchedAcknowledged] = useState(false);
   const [videoCoverageMet, setVideoCoverageMet] = useState(false);
   const [formsLoaded, setFormsLoaded] = useState(false);
@@ -162,10 +164,11 @@ export default function ExpVideoPreview({
         });
         const started = await response.json();
         if (!response.ok || !started.sessionId || !Array.isArray(started.questions))
-          throw new Error(started.error || "Unable to resume EXP.");
+          throw new Error(started.error || "Unable to resume your orientation.");
         if (cancelled) return;
+        const savedReadinessId=String(started.readinessId||readinessId);
         setServerQuestions(started.questions);
-        const progressResponse = await fetch(`${base}/progress?readinessId=${encodeURIComponent(readinessId)}&sessionId=${encodeURIComponent(started.sessionId)}`,{cache:"no-store"});
+        const progressResponse = await fetch(`${base}/progress?readinessId=${encodeURIComponent(savedReadinessId)}&sessionId=${encodeURIComponent(started.sessionId)}`,{cache:"no-store"});
         if (progressResponse.ok){
           const progress = await progressResponse.json();
           const duration = Number(progress.videoDurationSeconds ?? 0);
@@ -177,9 +180,9 @@ export default function ExpVideoPreview({
             if(progress.participants?.length)setShowAssessment(true);
           }
         }
-        if(!cancelled)setSessionId(started.sessionId);
+        if(!cancelled){setSessionReadinessId(savedReadinessId);setSessionId(started.sessionId);}
       }catch(error){
-        if(!cancelled)setServerError(error instanceof Error?error.message:"EXP session unavailable.");
+        if(!cancelled)setServerError(error instanceof Error?error.message:"Orientation session unavailable.");
       }finally{
         startingRef.current=false;
         if(!cancelled)setStartingSession(false);
@@ -199,31 +202,33 @@ export default function ExpVideoPreview({
         body: JSON.stringify({action:"start",readinessId}),
       });
       const start = await startResponse.json();
-      if (!startResponse.ok) throw new Error(start.error || "Unable to start EXP session.");
+      if (!startResponse.ok) throw new Error(start.error || "Unable to start your orientation.");
       const savedId = String(start.sessionId);
+      const savedReadinessId=String(start.readinessId||readinessId);
       if (!Array.isArray(start.questions) || start.questions.length !== 10) throw new Error("Assessment questions unavailable.");
       setServerQuestions(start.questions);
       if (lastPlayback.current) {
         const cp = lastPlayback.current;
         const checkpointResponse = await fetch(`${base}/progress`,{
           method:"PATCH",headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({readinessId,sessionId:savedId,videoWatchedSeconds:cp.watchedSeconds,videoDurationSeconds:cp.durationSeconds,videoEnded:cp.ended})
+          body:JSON.stringify({readinessId:savedReadinessId,sessionId:savedId,videoWatchedSeconds:cp.watchedSeconds,videoDurationSeconds:cp.durationSeconds,videoEnded:cp.ended})
         });
         if (!checkpointResponse.ok) throw new Error("Unable to save video progress. Please try again.");
       }
       const participantResponse = await fetch(`${base}/participants`, {
         method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({readinessId,sessionId:savedId,allDriversWatched:true,
+        body: JSON.stringify({readinessId:savedReadinessId,sessionId:savedId,allDriversWatched:true,
           participants:drivers.map(d=>({fullName:d.fullName,initials:d.initials}))}),
       });
       const saved = await participantResponse.json();
       if (!participantResponse.ok)
         throw new Error(saved.error || "Unable to save driver acknowledgments.");
+      setSessionReadinessId(savedReadinessId);
       setSessionId(savedId);
       setDriverNames(drivers);
       setShowAssessment(true);
     } catch(error) {
-      setServerError(error instanceof Error ? error.message : "Unable to record EXP.");
+      setServerError(error instanceof Error ? error.message : "Unable to record your orientation.");
     } finally { setSavingParticipants(false); }
   }
   async function checkpointPlayback(cp:ExpPlaybackCheckpoint){
@@ -238,36 +243,33 @@ export default function ExpVideoPreview({
 
   return (
     <>
-      <section className={styles.panel} aria-label="Epic Xpress Ready orientation">
+      <section className={styles.panel} aria-label="Epic Xpress Checkout orientation">
         <div>
           <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
-          <h2>Epic Xpress Ready</h2>
-          <p role="status" className={verifiedExpStatus?styles.readyStatus:styles.pendingStatus}>{verifiedExpStatus?"Your party is EXP Ready.":verifiedExpStatus===null?(statusError?"EXP status is unavailable. Please refresh this page.":"Checking saved EXP progress…"):driverStatuses.length?`${driverStatuses.filter(driver=>driver.expReady).length} of ${driverStatuses.length} signed drivers EXP Ready`:"EXP not started"}</p>
-          {reviewerMode ? <p><strong>Employee preview only.</strong> This demonstration does not record EXP completion or change guest readiness.</p> : null}
-          {verifiedExpStatus!==true?<p>Complete the safety orientation and knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>:<p>Your drivers have completed their paperwork and orientation. Our team will finish your check-out at arrival.</p>}
-          {driverStatuses.length>0?<div className={portalStyles.signerList} aria-label="Driver EXP readiness">{driverStatuses.map(driver=><div className={portalStyles.signerRow} key={driver.name}><div className={`${portalStyles.signerCheck} ${driver.expReady?"":styles.pendingCheck}`} aria-hidden="true">{driver.expReady?"✓":"○"}</div><div><strong>{driver.name}</strong><span className={driver.expReady?styles.driverReady:undefined}>Driver · {driver.expReady?"EXP Ready":"Not complete"}</span>{!driver.expReady?<span>{driver.outstanding.map(check=>({driverIdentity:"Driver identity needs review",polarisWaiver:"Polaris waiver needed",ohvCertificate:"OHV certificate needed",videoAndAssessment:"Orientation and knowledge check needed"}[check]??"Verification needed")).join(" · ")}</span>:null}</div></div>)}</div>:verifiedExpStatus===false?<p className={styles.rosterNote}>Driver names will appear here after they sign the Epic Rental Agreement.</p>:null}
-          {verifiedExpStatus===false&&driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)?<p className={styles.rosterNote}>Orientation is complete. Finish the remaining paperwork above.</p>:null}
-          
+          <h2>Epic Xpress Checkout</h2>
+          {verifiedExpStatus===null?<p role="status">{statusError?'Orientation status is unavailable. Please refresh this page.':'Checking saved orientation progress…'}</p>:<ExcCompletion drivers={driverStatuses} qualified={verifiedExpStatus===true}/>}
+          {reviewerMode?<p><strong>Employee preview only.</strong> This demonstration does not change guest readiness.</p>:null}
+          {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<p>Get a head start on your adventure. Complete a short safety orientation and quick knowledge check before you arrive for our fastest check-out — and more time on the trail.</p>:null}
         </div>
-        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
-          {assessmentStarted?"Continue EXP":"Get Started"}
+        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
+          {assessmentStarted?"Continue Orientation":"Get Started"}
         </button>:null}
       </section>
       {open ? (
         <div className={styles.backdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) closeOrientation(); }}>
-          <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="exp-title" aria-describedby="exp-desc">
+          <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="exp-title" aria-describedby={!showAssessment&&!selectDrivers?"exp-desc":undefined}>
             <button className={styles.close} type="button" aria-label="Close orientation" onClick={closeOrientation}>×</button>
             <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
-            <h2 id="exp-title">Epic Xpress Ready</h2>
-            {!showAssessment && !selectDrivers ? <p id="exp-desc">Get a head start on your adventure. Watch a short video to get comfortable with your RZR, then take a quick knowledge check. You'll arrive ready to roll — with more time for the trails.</p> : null}
+            <h2 id="exp-title">Epic Xpress Checkout</h2>
+            {!showAssessment && !selectDrivers ? <><ExcOptionalInvitation onChooseInPerson={closeOrientation}/><p id="exp-desc">Get a head start on your adventure. Watch a short video to get comfortable with your RZR, then take a quick knowledge check. You'll arrive ready to roll — with more time for the trails.</p></> : null}
             {showAssessment ? (
-              sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); closeOrientation(); }} /> : <p role="alert">EXP session unavailable. Please reopen your guest portal.</p>
+              sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); closeOrientation(); }} /> : <p role="alert">Orientation session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (
               <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={signedRentalDrivers} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
             ) : (
               sessionId ? <ExpTrackedVideo key={sessionId} initialCheckpoint={savedPlayback} onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} /> : <p>Loading saved orientation…</p>
             )}
-            {startingSession ? <p role="status">Preparing saved EXP session…</p> : null}
+            {startingSession ? <p role="status">Preparing saved orientation…</p> : null}
             {serverError ? <p role="alert" style={{color:"#a83232"}}>{serverError}</p> : null}
             {savingParticipants ? <p role="status">Saving driver acknowledgments…</p> : null}
             {started && !showAssessment && !selectDrivers ? (
@@ -280,7 +282,7 @@ export default function ExpVideoPreview({
                   Continue to Knowledge Check
                 </button>
                 {reviewerMode ? <button className={styles.later} type="button" onClick={() => setSelectDrivers(true)}>Reviewer shortcut: Continue to driver selection</button> : null}
-                <p className={styles.disclaimer}>Your progress saves automatically. EXP Ready requires all driver paperwork and orientation steps; our team completes final check-out at arrival.</p>
+                <p className={styles.disclaimer}>Your progress saves automatically. Your Adventure Tech will help with final check-out when you arrive.</p>
               </div>
             ) : null}
           </section>

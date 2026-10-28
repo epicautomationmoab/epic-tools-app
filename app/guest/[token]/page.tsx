@@ -522,12 +522,13 @@ export default function GuestPortalPage() {
               <p className={styles.eyebrow}>Your Progress</p>
               <h2>
                 {readiness.allComplete
-                  ? "You are ready for your adventure."
+                  ? (hasRentalActivity?"You're all set for check-out!":"You are ready for your adventure.")
                   : "A few things still need your attention."}
               </h2>
               <p className={styles.sectionIntro}>
-                We will update this page automatically as each requirement is
-                completed.
+                {readiness.allComplete&&hasRentalActivity
+                  ? `${readiness.total===3?'All three':'All'} pre-arrival requirements are complete. Your Adventure Tech will help you with the final steps when you arrive.`
+                  : 'We will update this page automatically as each requirement is completed.'}
               </p>
             </div>
 
@@ -863,7 +864,7 @@ export default function GuestPortalPage() {
                     <span className={styles.requirementKicker}>
                       Arrival Status
                     </span>
-                    <h3>Ready for Adventure</h3>
+                    <h3>{hasRentalActivity?"Arrival Check-out":"Ready for Adventure"}</h3>
                   </div>
 
                   <StatusBadge
@@ -874,7 +875,7 @@ export default function GuestPortalPage() {
 
                 <p className={styles.requirementInstructions}>
                   {readiness.allComplete
-                    ? "Everything is complete. We will see you soon!"
+                    ? (hasRentalActivity?"Your pre-arrival requirements are complete. Your Adventure Tech will help with final check-out when you arrive.":"Everything is complete. We will see you soon!")
                     : "This page will update automatically as your required items are completed."}
                 </p>
               </div>

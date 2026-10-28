@@ -1,4 +1,4 @@
-/** EXP Ready is always a per-driver decision, never a reservation shortcut. */
+/** Individual orientation completion feeds reservation-wide EXC qualification. */
 export type ExpReadinessInput = {
   assessmentComplete: boolean;
   videoAcknowledged: boolean;

@@ -47,7 +47,7 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
    }catch(e){setStatus(e instanceof Error?e.message:"Assessment failed")}finally{setBusy(false)}
  };
  const q=activeQuestions[index];
- return <section className={styles.assessment} aria-label="EXP saved knowledge check" aria-busy={busy}>
+ return <section className={styles.assessment} aria-label="Saved knowledge check" aria-busy={busy}>
   {!result?(mode==="critical"?<ExpAssessmentRetryIntro count={activeQuestions.length}/>:<h3>Quick Knowledge Check</h3>):null}
   {result?<ExpAssessmentResult result={result} onExit={onExit} onRetry={()=>{setResult(null);setAnswers({});setCriticalAnswers({});setMode("initial");setIndex(0);setStatus("Your video viewing is saved. Please try the knowledge check again.");}}/>:
    <>{mode!=="critical"?<p className={styles.intro}>Your answers save as you go. You can close this page and return later.</p>:null}
@@ -57,6 +57,6 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
    <p className={styles.saveStatus} role="status" aria-live="polite">{status || (busy?"Loading saved answers…":"Select an answer to continue.")}</p>
    <div className={styles.actions}><button className={styles.secondary} type="button" disabled={index===0||busy} onClick={()=>setIndex(i=>i-1)}>Back</button>
    {index<activeQuestions.length-1?<button className={styles.primary} type="button" disabled={!q||!currentAnswers[q.id]||busy} onClick={()=>setIndex(i=>i+1)}>Next</button>:<button className={styles.primary} type="button" disabled={activeQuestions.some(x=>!currentAnswers[x.id])||busy} onClick={()=>void submit()}>{mode==="critical"?"Submit Safety Review":"Submit Knowledge Check"}</button>}</div>
-   <button className={styles.technician} type="button" onClick={onExit}>Prefer to finish in person? An Adventure Technician can help at arrival.</button></>}
+   <button className={styles.technician} type="button" onClick={onExit}>Prefer to finish in person? An Adventure Tech can help at arrival.</button></>}
  </section>;
 }

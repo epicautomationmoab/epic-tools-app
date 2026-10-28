@@ -25,7 +25,7 @@ function validInitials(value: string) {
  * identities later, using an authenticated staff or deterministic exact match.
  */
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
-  if (process.env.EXP_ASSESSMENT_SERVER_ENABLED !== "true") return bad("EXP participant recording is not enabled.", 503);
+  if (process.env.EXP_ASSESSMENT_SERVER_ENABLED !== "true") return bad("Orientation participant recording is not enabled.", 503);
   try {
     const { token } = await context.params;
     const body = await request.json() as {
@@ -47,15 +47,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (new Set(normalized.map(p => p.display_name.toLowerCase())).size !== normalized.length) {
       return bad("Each participating driver must be listed once.");
     }
-    const [reservation] = await supabaseSelect<PortalActivity>("guest_portal_v", new URLSearchParams({
+    const activities = await supabaseSelect<PortalActivity>("guest_portal_v", new URLSearchParams({
       select: "readiness_id,business_line,confirmation_code,expected_guest_count,total_vehicle_count",
-      guest_portal_token: `eq.${token}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
+      guest_portal_token: `eq.${token}`,
     }));
+    const reservation=activities.find(a=>a.readiness_id===body.readinessId);
     if (!reservation || reservation.business_line?.toLowerCase() !== "rental") return bad("Rental reservation not found.", 404);
+    const booking=activities.filter(a=>a.business_line.toLowerCase()==="rental"&&a.confirmation_code===reservation.confirmation_code);
     // Only known, completed Epic rental driver-agreement signers are eligible.
     // A signed agreement is not proof that Polaris or OHV requirements are met.
     const tasks = await supabaseSelect<{ id: string; template_id: string; task_status: string }>("guest_form_tasks", new URLSearchParams({
-      select: "id,template_id,task_status", readiness_id: `eq.${reservation.readiness_id}`, task_status: "eq.completed",
+      select: "id,template_id,task_status", readiness_id: `in.(${booking.map(a=>'"'+a.readiness_id+'"').join(',')})`, task_status: "eq.completed",
     }));
     const templateIds = [...new Set(tasks.map(t => t.template_id))];
     const templates = templateIds.length ? await supabaseSelect<{ id: string; template_key: string }>("guest_form_templates", new URLSearchParams({
@@ -66,16 +68,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const submissions = allowedTasks.length ? await supabaseSelect<{ task_id: string; signer_name: string | null }>("guest_form_submissions", new URLSearchParams({
       select: "task_id,signer_name", task_id: `in.(${allowedTasks.map(t => t.id).join(",")})`,
     })) : [];
-    const v2 = await loadRentalV2Readiness([{
-      readinessId:reservation.readiness_id,confirmationCode:reservation.confirmation_code,
-      expectedGuestCount:reservation.expected_guest_count,vehicleCount:reservation.total_vehicle_count,
-    }]);
+    const v2 = await loadRentalV2Readiness(booking.map(a=>({readinessId:a.readiness_id,confirmationCode:a.confirmation_code,expectedGuestCount:a.expected_guest_count,vehicleCount:a.total_vehicle_count})));
     const eligible = new Set([
       ...submissions.map(s => cleanName(s.signer_name ?? "").toLowerCase()).filter(Boolean),
-      ...(v2.get(reservation.readiness_id)?.signers ?? []).filter(s => s.role === "driver")
+      ...[...v2.values()].flatMap(record=>record.signers).filter(s => s.role === "driver")
         .map(s => cleanName(s.name).toLowerCase()),
     ]);
-    if (!eligible.size) return bad("Complete a signed Epic rental driver agreement before starting EXP.", 409);
+    if (!eligible.size) return bad("Complete a signed Epic rental driver agreement before starting your orientation.", 409);
     if (normalized.some(p => !eligible.has(p.display_name.toLowerCase()))) {
       return bad("Every driver must first sign the required rental agreement under their own name.", 409);
     }
@@ -90,7 +89,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (existing.length) {
       const known = new Set(existing.map(p => cleanName(p.display_name).toLowerCase()));
       const exactSameRoster = known.size === normalized.length && normalized.every(p => known.has(p.display_name.toLowerCase()));
-      if (!exactSameRoster) return bad("An EXP session already exists for a different set of participating drivers.", 409);
+      if (!exactSameRoster) return bad("An orientation session already exists for a different set of participating drivers.", 409);
       return NextResponse.json({ok:true,recorded:existing.length,resumed:true,verifiedDrivers:0,completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
     }
     // One bulk insert is atomic: a failure cannot leave a partial group recorded.
@@ -116,6 +115,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("EXP participant recording failed", error);
-    return bad("Unable to record EXP participants.", 500);
+    return bad("Unable to record participating drivers.", 500);
   }
 }

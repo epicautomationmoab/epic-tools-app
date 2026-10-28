@@ -5,7 +5,7 @@ import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
 import { gradeExpAssessment, resolveCriticalRetry, type ExpAnswer, type ExpOutcome } from "@/lib/exp/assessment-policy";
 import { supabaseInsert, supabasePatchRows, supabaseSelect } from "@/lib/server/supabase-rest";
 
-type Portal = { readiness_id: string; business_line: string; visit_start_time: string };
+type Portal = { readiness_id: string; business_line: string; visit_start_time: string; confirmation_code:string };
 type Session = {
   id: string; readiness_id: string; outcome: string;
   result_summary: Record<string, unknown>; assessment_version: string;
@@ -43,7 +43,7 @@ function isAnswerArray(value: unknown): value is ExpAnswer[] {
 function completionDetails(readiness: Awaited<ReturnType<typeof loadExpReadiness>>, participants: Array<{display_name:string}>) {
   const names=new Set(participants.map(p=>p.display_name.trim().replace(/\s+/g," ").toLowerCase()));
   const participatingDrivers=(readiness?.drivers??[]).filter(d=>names.has(d.name.trim().replace(/\s+/g," ").toLowerCase()));
-  return {expReady:readiness?.expReady===true,participatingDrivers,
+  return {expReady:readiness?.expReady===true,drivers:readiness?.drivers??[],participatingDrivers,
     otherDriversPending:(readiness?.drivers??[]).some(d=>!d.expReady&&!names.has(d.name.trim().replace(/\s+/g," ").toLowerCase()))};
 }
 function resultForGuest(result: ExpOutcome) {
@@ -62,7 +62,7 @@ function resultForGuest(result: ExpOutcome) {
 
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   // Deliberately OFF until migration and reservation/waiver integration have been tested.
-  if (process.env.EXP_ASSESSMENT_SERVER_ENABLED !== "true") return fail("EXP server assessment is not enabled.", 503);
+  if (process.env.EXP_ASSESSMENT_SERVER_ENABLED !== "true") return fail("Online assessment is not enabled.", 503);
   try {
     const { token } = await context.params;
     const body = await request.json() as {
@@ -71,28 +71,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     };
     if (!token || !body.readinessId || !body.action) return fail("Reservation and action required.");
     const activities = await supabaseSelect<Portal>("guest_portal_v", new URLSearchParams({
-      select: "readiness_id,business_line,visit_start_time", guest_portal_token: `eq.${token}`,
-      readiness_id: `eq.${body.readinessId}`, limit: "1",
+      select: "readiness_id,business_line,visit_start_time,confirmation_code", guest_portal_token: `eq.${token}`,
     }));
-    const activity = activities[0];
+    const activity = activities.find(a=>a.readiness_id===body.readinessId);
     if (!activity || activity.business_line?.toLowerCase() !== "rental") return fail("Rental reservation not found.", 404);
 
     if (body.action === "start") {
+      const bookingIds=activities.filter(a=>a.business_line.toLowerCase()==="rental"&&a.confirmation_code===activity.confirmation_code).map(a=>a.readiness_id);
       // Resume an unfinished assessment instead of silently creating a second session.
-      const existing = await supabaseSelect<{ id: string; result_summary: Record<string,unknown> }>("exp_sessions", new URLSearchParams({
-        select: "id,result_summary", readiness_id: `eq.${activity.readiness_id}`,
+      const existing = await supabaseSelect<{ id: string; readiness_id:string; result_summary: Record<string,unknown> }>("exp_sessions", new URLSearchParams({
+        select: "id,readiness_id,result_summary", readiness_id: `in.(${bookingIds.map(id=>'"'+id+'"').join(',')})`,
         assessment_version: `eq.${VERSION}`, outcome: "in.(in_progress,critical_retry)",
         order: "created_at.desc", limit: "1",
       }));
       if (existing.length) {
-        return NextResponse.json({ sessionId: existing[0].id, questions: publicQuestions(existing[0].id + "-attempt-" + (Number(existing[0].result_summary?.attemptCount || 0) + 1)),
+        return NextResponse.json({ sessionId: existing[0].id, readinessId:existing[0].readiness_id, questions: publicQuestions(existing[0].id + "-attempt-" + (Number(existing[0].result_summary?.attemptCount || 0) + 1)),
           resumed: true, completionRecorded: false }, { headers: { "Cache-Control": "no-store" } });
       }
       const session = await supabaseInsert<{ id: string }>("exp_sessions", {
         readiness_id: activity.readiness_id, video_version: "3.2",
         assessment_version: VERSION, mode: "individual", outcome: "in_progress",
       });
-      return NextResponse.json({ sessionId: session.id, questions: publicQuestions(session.id+"-attempt-1"), completionRecorded: false });
+      return NextResponse.json({ sessionId: session.id, readinessId:activity.readiness_id, questions: publicQuestions(session.id+"-attempt-1"), completionRecorded: false });
     }
 
     if (!body.sessionId || !isAnswerArray(body.answers)) return fail("Valid session and responses required.");
@@ -171,6 +171,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     return fail("Unsupported assessment action.");
   } catch (error) {
     console.error("EXP assessment request failed", error);
-    return fail("Unable to process EXP assessment.", 500);
+    return fail("Unable to process your assessment.", 500);
   }
 }

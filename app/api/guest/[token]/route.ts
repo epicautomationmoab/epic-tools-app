@@ -133,7 +133,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       await Promise.all(rows.filter(row=>row.business_line.toLowerCase()==="rental").map(async row=>{
         const exp=await loadExpReadiness(row.readiness_id);
         if(!exp)return;
-        row.ohv_certificate_uploaded=exp.documentChecks.ohvCertificates;
+        row.ohv_certificate_uploaded=exp.itemDocumentChecks.ohvCertificates;
         row.mpwr_waivers=exp.verifiedPolarisWaivers;
         row.mpwr_document_received_count=new Set(exp.verifiedPolarisWaivers.map(w=>w.name.trim().toLowerCase())).size;
       }));

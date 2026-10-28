@@ -38,7 +38,7 @@ function summary(session:Session) {
     videoVerified:false,expReady:false};
 }
 export async function GET(request:NextRequest,context:{params:Promise<{token:string}>}) {
-  if(process.env.EXP_ASSESSMENT_SERVER_ENABLED!=="true")return reply({error:"EXP progress recording is disabled."},503);
+  if(process.env.EXP_ASSESSMENT_SERVER_ENABLED!=="true")return reply({error:"Orientation progress recording is disabled."},503);
   try {
     const {token}=await context.params;
     const readinessId=request.nextUrl.searchParams.get("readinessId")||"";
@@ -50,10 +50,10 @@ export async function GET(request:NextRequest,context:{params:Promise<{token:str
     const duration=await expVideoDuration();
     return reply({...summary(session),participants,videoVerificationAvailable:duration!==null,
       videoCoverageMet:duration!==null&&matchesExpVideoDuration(session.video_duration_seconds,duration)&&session.video_ended&&new Set(session.video_watched_seconds??[]).size>=Math.ceil(duration*0.98)});
-  }catch{return reply({error:"Unable to retrieve EXP progress."},500);}
+  }catch{return reply({error:"Unable to retrieve orientation progress."},500);}
 }
 export async function PATCH(request:NextRequest,context:{params:Promise<{token:string}>}) {
-  if(process.env.EXP_ASSESSMENT_SERVER_ENABLED!=="true")return reply({error:"EXP progress recording is disabled."},503);
+  if(process.env.EXP_ASSESSMENT_SERVER_ENABLED!=="true")return reply({error:"Orientation progress recording is disabled."},503);
   try {
     const {token}=await context.params;
     const body=await request.json() as {readinessId?:string;sessionId?:string;
@@ -102,5 +102,5 @@ export async function PATCH(request:NextRequest,context:{params:Promise<{token:s
     if(updated.length===1)return reply(summary(updated[0]));
     }
     return reply({error:"Session state changed. Reload progress."},409);
-  }catch{return reply({error:"Unable to save EXP progress."},500);}
+  }catch{return reply({error:"Unable to save orientation progress."},500);}
 }
