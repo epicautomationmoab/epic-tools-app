@@ -13,6 +13,6 @@ export default function ExpSessionChoice({choices,busy,onStart,onResume}:{choice
   {choices.sessions.map(s=><div className={styles.sessionRow} key={s.sessionId}><div><strong>{s.names.length?s.names.join(' & '):'Saved orientation'}</strong><p>{s.names.length>1?'Group orientation in progress':'Orientation in progress'}</p></div><button className={styles.back} type="button" disabled={busy} aria-label={`Resume ${s.names.join(' and ')||'saved orientation'}`} onClick={()=>onResume(s.sessionId)}>Resume</button></div>)}
   {available.map(d=><label className={styles.confirm} key={d.name}><input type="checkbox" disabled={busy} checked={selected.includes(d.name)} onChange={e=>setSelected(names=>e.target.checked?[...names,d.name]:names.filter(n=>n!==d.name))}/><span><strong>{d.name}</strong><br/>Not started</span></label>)}
   {available.length?<><p>Completing orientation together? Select multiple drivers to participate as a group.</p><div className={styles.actions}><button type="button" disabled={busy||!selected.length} onClick={()=>onStart(selected)}>Start Orientation</button></div></>:null}
-  <p className={styles.note}>Each driver’s saved progress stays with their original individual or group session.</p>
+  <p className={styles.note}>You can leave and pick up where you left off.</p>
  </section>;
 }
