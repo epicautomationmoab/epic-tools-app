@@ -1,11 +1,12 @@
 "use client";
 import {useEffect,useState} from "react";
 import styles from "./ExpAssessment.module.css";
-import ExpAssessmentResult from "./ExpAssessmentResult";
+import ExpAssessmentResult, {type AssessmentResult} from "./ExpAssessmentResult";
+import ExpAssessmentRetryIntro from "./ExpAssessmentRetryIntro";
 
 type Answer={questionId:string;optionId:string};
 type PublicQuestion={id:string;prompt:string;options:Array<{id:string;text:string}>};
-type Result={status:string;expReady?:boolean;correct?:number;reason?:string;questionIds?:string[];questions?:PublicQuestion[];corrections?:Array<{questionId:string;correctAnswer:string;explanation:string}>};
+type Result=AssessmentResult & {correct?:number;reason?:string;questionIds?:string[];questions?:PublicQuestion[];corrections?:Array<{questionId:string;correctAnswer:string;explanation:string}>};
 export default function ExpServerAssessment({token,readinessId,sessionId,questions,onExit}:{token:string;readinessId:string;sessionId:string;questions:PublicQuestion[];onExit:()=>void}){
  const [answers,setAnswers]=useState<Record<string,string>>({});
  const [questionOrder,setQuestionOrder]=useState<PublicQuestion[]>(questions);
@@ -20,7 +21,7 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
  const currentAnswers=mode==="critical"?criticalAnswers:answers;
  useEffect(()=>{let active=true;fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress?readinessId=${encodeURIComponent(readinessId)}&sessionId=${encodeURIComponent(sessionId)}`,{cache:"no-store"})
    .then(r=>r.ok?r.json():null).then(d=>{if(!active)return;
-     if(d?.outcome==="critical_retry" && d.criticalQuestionIds?.length){setCriticalIds(d.criticalQuestionIds);setCriticalAnswers(d.draftAnswers||{});setMode("critical");setStatus("Please give these safety questions one more try.");}
+     if(d?.outcome==="critical_retry" && d.criticalQuestionIds?.length){setCriticalIds(d.criticalQuestionIds);setCriticalAnswers(d.draftAnswers||{});setMode("critical");setStatus("");}
      else {if(d?.draftAnswers)setAnswers(d.draftAnswers);if(d?.retryOffered)setResult({status:"retry_quiz"});}
    }).catch(()=>{}).finally(()=>{if(active)setBusy(false)});
    return()=>{active=false}},[token,readinessId,sessionId]);
@@ -41,21 +42,21 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
       setQuestionOrder(data.questions?.length===10?data.questions:questionOrder);
       setAnswers({});setCriticalAnswers({});setIndex(0);setMode("initial");setResult(data);setStatus("");return;
     }
-    if(data.status==="critical_retry" && data.questionIds?.length){setCriticalIds(data.questionIds);setCriticalAnswers({});setIndex(0);setMode("critical");setStatus("Important safety questions need another attempt.");return;}
+    if(data.status==="critical_retry" && data.questionIds?.length){setCriticalIds(data.questionIds);setCriticalAnswers({});setIndex(0);setMode("critical");setStatus("");return;}
     setResult(data);setStatus("");
    }catch(e){setStatus(e instanceof Error?e.message:"Assessment failed")}finally{setBusy(false)}
  };
  const q=activeQuestions[index];
  return <section className={styles.assessment} aria-label="EXP saved knowledge check" aria-busy={busy}>
-  {!result?<h3>One Last Step to More Trail Time</h3>:null}
+  {!result?(mode==="critical"?<ExpAssessmentRetryIntro count={activeQuestions.length}/>:<h3>Quick Knowledge Check</h3>):null}
   {result?<ExpAssessmentResult result={result} onExit={onExit} onRetry={()=>{setResult(null);setAnswers({});setCriticalAnswers({});setMode("initial");setIndex(0);setStatus("Your video viewing is saved. Please try the knowledge check again.");}}/>:
-   <><p className={styles.intro}>{mode==="critical"?"Please give these safety questions one more try. Your answers save as you go.":"Your answers save as you go. You can close this page and return later."}</p>
-   <div className={styles.progressHeading}><strong>Question {index+1} of {activeQuestions.length}</strong><span>{activeQuestions.filter(x=>currentAnswers[x.id]).length} answered</span></div>
+   <>{mode!=="critical"?<p className={styles.intro}>Your answers save as you go. You can close this page and return later.</p>:null}
+   <div className={styles.progressHeading}><strong>{mode==="critical"?"Safety review":"Question"} {index+1} of {activeQuestions.length}</strong><span>{activeQuestions.filter(x=>currentAnswers[x.id]).length} answered</span></div>
    <div className={styles.progressTrack} role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={activeQuestions.length} aria-valuenow={activeQuestions.filter(x=>currentAnswers[x.id]).length}><div className={styles.progressFill} style={{width:`${100*activeQuestions.filter(x=>currentAnswers[x.id]).length/Math.max(1,activeQuestions.length)}%`}}/></div>
    {q?<fieldset className={styles.question}><legend>{q.prompt}</legend>{q.options.map(o=><label key={o.id} className={styles.answer}><input type="radio" disabled={busy} name={q.id} checked={currentAnswers[q.id]===o.id} onChange={()=>void choose(q.id,o.id)}/><span>{o.text}</span></label>)}</fieldset>:<p>Questions unavailable.</p>}
    <p className={styles.saveStatus} role="status" aria-live="polite">{status || (busy?"Loading saved answers…":"Select an answer to continue.")}</p>
    <div className={styles.actions}><button className={styles.secondary} type="button" disabled={index===0||busy} onClick={()=>setIndex(i=>i-1)}>Back</button>
-   {index<activeQuestions.length-1?<button className={styles.primary} type="button" disabled={!q||!currentAnswers[q.id]||busy} onClick={()=>setIndex(i=>i+1)}>Next</button>:<button className={styles.primary} type="button" disabled={activeQuestions.some(x=>!currentAnswers[x.id])||busy} onClick={()=>void submit()}>Submit Knowledge Check</button>}</div>
+   {index<activeQuestions.length-1?<button className={styles.primary} type="button" disabled={!q||!currentAnswers[q.id]||busy} onClick={()=>setIndex(i=>i+1)}>Next</button>:<button className={styles.primary} type="button" disabled={activeQuestions.some(x=>!currentAnswers[x.id])||busy} onClick={()=>void submit()}>{mode==="critical"?"Submit Safety Review":"Submit Knowledge Check"}</button>}</div>
    <button className={styles.technician} type="button" onClick={onExit}>Prefer to finish in person? An Adventure Technician can help at arrival.</button></>}
  </section>;
 }

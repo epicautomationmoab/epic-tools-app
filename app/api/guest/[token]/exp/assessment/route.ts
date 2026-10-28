@@ -40,6 +40,12 @@ function isAnswerArray(value: unknown): value is ExpAnswer[] {
     a && typeof a === "object" && typeof a.questionId === "string" &&
     typeof a.optionId === "string");
 }
+function completionDetails(readiness: Awaited<ReturnType<typeof loadExpReadiness>>, participants: Array<{display_name:string}>) {
+  const names=new Set(participants.map(p=>p.display_name.trim().replace(/\s+/g," ").toLowerCase()));
+  const participatingDrivers=(readiness?.drivers??[]).filter(d=>names.has(d.name.trim().replace(/\s+/g," ").toLowerCase()));
+  return {expReady:readiness?.expReady===true,participatingDrivers,
+    otherDriversPending:(readiness?.drivers??[]).some(d=>!d.expReady&&!names.has(d.name.trim().replace(/\s+/g," ").toLowerCase()))};
+}
 function resultForGuest(result: ExpOutcome) {
   if (result.status === "critical_retry") return { status: result.status, questionIds: result.questionIds };
   if (result.status === "complete") return {
@@ -110,8 +116,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }
     // A submitted assessment must belong to a recorded group of participating drivers.
     // This prevents orphaned assessment completions and preserves the all-driver model.
-    const participants = await supabaseSelect<{ id: string; acknowledgement_at: string | null; reconciliation_status: string }>("exp_participants", new URLSearchParams({
-      select: "id,acknowledgement_at,reconciliation_status", session_id: `eq.${session.id}`, limit: "21",
+    const participants = await supabaseSelect<{ id: string; display_name:string; acknowledgement_at: string | null; reconciliation_status: string }>("exp_participants", new URLSearchParams({
+      select: "id,display_name,acknowledgement_at,reconciliation_status", session_id: `eq.${session.id}`, limit: "21",
     }));
     if (!participants.length || participants.some(p => !p.acknowledgement_at)) {
       return fail("Confirm all participating drivers and their video acknowledgments before submitting.", 409);
@@ -142,7 +148,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       if(updated.length!==1)return fail("This assessment has already been submitted.",409);
       if(retryQuiz)return NextResponse.json({status:"retry_quiz",questions:publicQuestions(session.id+"-attempt-"+(attemptCount+1)),completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
       const readiness=result.status==="complete"?await loadExpReadiness(activity.readiness_id):null;
-      return NextResponse.json({...resultForGuest(result),expReady:readiness?.expReady===true},{headers:{"Cache-Control":"no-store"}});
+      return NextResponse.json({...resultForGuest(result),...(result.status==="complete"?completionDetails(readiness,participants):{})},{headers:{"Cache-Control":"no-store"}});
     }
     if (body.action === "critical_retry") {
       if (session.outcome !== "critical_retry" || !isAnswerArray(session.result_summary?.originalAnswers)) return fail("Critical retry not available.", 409);
@@ -160,7 +166,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       if (updated.length !== 1) return fail("This critical retry has already been submitted.", 409);
       if(retryQuiz)return NextResponse.json({status:"retry_quiz",questions:publicQuestions(session.id+"-attempt-"+(Number(session.result_summary.attemptCount||0)+1)),completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
       const readiness=result.status==="complete"?await loadExpReadiness(activity.readiness_id):null;
-      return NextResponse.json({...resultForGuest(result),expReady:readiness?.expReady===true}, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json({...resultForGuest(result),...(result.status==="complete"?completionDetails(readiness,participants):{})}, { headers: { "Cache-Control": "no-store" } });
     }
     return fail("Unsupported assessment action.");
   } catch (error) {
