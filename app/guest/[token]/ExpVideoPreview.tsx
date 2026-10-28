@@ -237,11 +237,11 @@ export default function ExpVideoPreview({
     <>
       <section className={styles.panel} aria-label="Epic Xpress Checkout orientation">
         <div>
-          <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
+          <span className={styles.eyebrow}>OPTIONAL · SAVE TIME AT ARRIVAL</span>
           <h2>Epic Xpress Checkout</h2>
           {verifiedExpStatus===null?<p role="status">{statusError?'Orientation status is unavailable. Please refresh this page.':'Checking saved orientation progress…'}</p>:<ExcCompletion drivers={driverStatuses} qualified={verifiedExpStatus===true}/>}
           {reviewerMode?<p><strong>Employee preview only.</strong> This demonstration does not change guest readiness.</p>:null}
-          {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<ExcOrientationIntro/>:null}
+          {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<p>Finish a short safety orientation before arrival and get on the trail sooner. <strong>About 13 minutes.</strong></p>:null}
         </div>
         {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setInquiryAvailable(false);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setShowWelcome(true);setOpen(true); }}>
           {assessmentStarted?"Continue Orientation":"Get Started"}
