@@ -50,6 +50,7 @@ export default function ExpVideoPreview({
   // Assessment scoring and progress persistence are owned by the server.
   const [now, setNow] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
   const [started, setStarted] = useState(false);
   const [showAssessment, setShowAssessment] = useState(false);
   const [selectDrivers, setSelectDrivers] = useState(false);
@@ -143,6 +144,7 @@ export default function ExpVideoPreview({
       // Storage may be blocked; still permit manual opening via the portal card.
     }
     setStarted(true);
+    setShowWelcome(true);
     setOpen(true);
   }, [eligible, token, formsLoaded, outstandingRequiredForms, reviewerMode,verifiedExpStatus,driverStatuses,paperworkReady]);
 
@@ -241,7 +243,7 @@ export default function ExpVideoPreview({
           {reviewerMode?<p><strong>Employee preview only.</strong> This demonstration does not change guest readiness.</p>:null}
           {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<ExcOrientationIntro/>:null}
         </div>
-        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setInquiryAvailable(false);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
+        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setInquiryAvailable(false);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setShowWelcome(true);setOpen(true); }}>
           {assessmentStarted?"Continue Orientation":"Get Started"}
         </button>:null}
       </section>
@@ -251,9 +253,21 @@ export default function ExpVideoPreview({
             <button className={styles.close} type="button" aria-label="Close orientation" onClick={closeOrientation}>×</button>
             <span className={styles.eyebrow}>OUR FASTEST CHECK-OUT · OPTIONAL</span>
             <h2 id="exp-title">Epic Xpress Checkout</h2>
-            {sessionId && !showAssessment && !selectDrivers ? <><ExcOrientationIntro id="exp-desc"/><ExcOptionalInvitation onChooseInPerson={closeOrientation}/></> : null}
+            {!sessionId && showWelcome ? <div className={styles.welcomeInvitation}>
+              <h3>Your Xpress Checkout is ready when you are.</h3>
+              <p>Spend about <strong>13 minutes</strong> completing your safety orientation and knowledge check before arrival, so you can spend less time checking out and more time on the trail.</p>
+              <p>Multiple drivers? Complete it together or individually.</p>
+              <div className={styles.welcomeActions}>
+                <button className={styles.action} type="button" onClick={() => setShowWelcome(false)}>Get Started</button>
+                <button className={styles.inPersonLink} type="button" onClick={closeOrientation}>I’ll complete this when I arrive</button>
+              </div>
+            </div> : null}
+            {sessionId && !showAssessment && !selectDrivers ? <div id="exp-desc" className={styles.videoIntroduction}>
+              <p>Watch our safety orientation, then complete a quick knowledge check. Your progress is saved if you need to come back later.</p>
+              <button className={styles.inPersonLink} type="button" onClick={closeOrientation}>Prefer to complete this in person?</button>
+            </div> : null}
             {!sessionId ? (
-              sessionChoices ? <ExpSessionChoice choices={sessionChoices} busy={startingSession} onStart={names=>void chooseSession({selectedDriverNames:names})} onResume={id=>void chooseSession({sessionId:id})}/> : <p role="status">Loading saved orientations…</p>
+              showWelcome ? null : sessionChoices ? <ExpSessionChoice choices={sessionChoices} busy={startingSession} onStart={names=>void chooseSession({selectedDriverNames:names})} onResume={id=>void chooseSession({sessionId:id})}/> : <p role="status">Loading saved orientations…</p>
             ) : showAssessment ? (
               sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); closeOrientation(); }} /> : <p role="alert">Orientation session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (
