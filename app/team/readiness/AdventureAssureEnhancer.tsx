@@ -89,6 +89,8 @@ function resolveReadinessRow(
   tableRow: HTMLTableRowElement,
   rows: ReadinessRow[],
 ): ReadinessRow | null {
+  const exactId=tableRow.dataset.readinessId;
+  if(exactId)return rows.find(row=>row.readiness_id===exactId&&row.business_line==="rental")??null;
   const confirmation = confirmationFromRow(tableRow);
   if (!confirmation) return null;
 

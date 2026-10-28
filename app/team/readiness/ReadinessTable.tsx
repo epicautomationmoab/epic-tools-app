@@ -1216,6 +1216,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
               return (
                 <tr
                   key={row.readiness_id}
+                  data-readiness-id={row.readiness_id}
                   className={
                     row.handoff_status === "rental_out"
                       ? styles.rentalOutRow

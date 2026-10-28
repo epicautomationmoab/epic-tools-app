@@ -4,6 +4,7 @@ create table if not exists public.exp_belt_tire_inquiries (
  confirmation_code text not null,
  driver_key text not null,
  driver_name text not null,
+ member_keys text[] not null default '{}'::text[],
  response text not null check(response in ('information_requested','declined')),
  source_session_id uuid not null references public.exp_sessions(id),
  price_shown integer not null check(price_shown in (39,59)),
@@ -14,3 +15,5 @@ create index if not exists exp_belt_tire_inquiry_session_idx on public.exp_belt_
 alter table public.exp_belt_tire_inquiries enable row level security;
 revoke all on public.exp_belt_tire_inquiries from public,anon,authenticated;
 grant select,insert on public.exp_belt_tire_inquiries to service_role;
+
+alter table public.exp_belt_tire_inquiries add column if not exists member_keys text[] not null default '{}'::text[];

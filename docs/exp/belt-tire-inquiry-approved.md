@@ -1,3 +1,5 @@
+> Owner update, October 28: Groups watching together answer once. Automatically record the session's watching drivers with that shared answer. Individual sessions answer once for that driver. Keep a tiny modal footprint: heading with applicable price, short question, two choices and no-charge note. No additional driver entry or individual response sections in a group. Existing recorded answers remain intact, and an earlier information request cannot be cancelled by a later group decline. This update supersedes individual-input requirements for group viewing below.
+
 # Epic Xpress Checkout — Belt & Tire Protection Inquiry
 ## Final Feature Specification for ChatGPT Work
 
