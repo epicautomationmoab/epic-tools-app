@@ -67,6 +67,7 @@ export default function ExpVideoPreview({
   const [verifiedExpStatus,setVerifiedExpStatus]=useState<boolean|null>(null);
   const [driverStatuses,setDriverStatuses]=useState<DriverStatus[]>([]);
   const [statusError,setStatusError]=useState(false);
+  const [paperworkReady,setPaperworkReady]=useState(false);
   const [assessmentStarted,setAssessmentStarted]=useState(false);
   const [statusRefresh,setStatusRefresh]=useState(0);
   function closeOrientation(){setOpen(false);setStatusRefresh(value=>value+1)}
@@ -93,10 +94,10 @@ export default function ExpVideoPreview({
       try{
        const response=await fetch(`/api/guest/${encodeURIComponent(token)}/exp/status`,{cache:"no-store"});
        if(!response.ok)throw new Error("Status unavailable");
-       const payload=await response.json() as {rentals?:Array<{readinessId:string;expReady:boolean;drivers:DriverStatus[];assessmentSessions:number}>};
+       const payload=await response.json() as {rentals?:Array<{readinessId:string;expReady:boolean;drivers:DriverStatus[];assessmentSessions:number;documentChecks?:Record<string,boolean>}>};
        const rental=payload.rentals?.find(r=>r.readinessId===readinessId);
-       if(active){setStatusError(false);setVerifiedExpStatus(rental?.expReady===true);setDriverStatuses(rental?.drivers??[]);setAssessmentStarted((rental?.assessmentSessions??0)>0)}
-      }catch{if(active){setStatusError(true);setVerifiedExpStatus(null);setDriverStatuses([])}}
+       if(active){setStatusError(false);setPaperworkReady(["signedEpicDriverAgreements","epicAgreements","polarisWaivers","ohvCertificates","driverRoster"].every(key=>rental?.documentChecks?.[key]===true));setVerifiedExpStatus(rental?.expReady===true);setDriverStatuses(rental?.drivers??[]);setAssessmentStarted((rental?.assessmentSessions??0)>0)}
+      }catch{if(active){setStatusError(true);setPaperworkReady(false);setVerifiedExpStatus(null);setDriverStatuses([])}}
     }
     void refresh();const timer=window.setInterval(()=>void refresh(),30000);
     return()=>{active=false;window.clearInterval(timer)};
@@ -124,7 +125,7 @@ export default function ExpVideoPreview({
   }, [eligible, token]);
 
   useEffect(() => {
-    if (reviewerMode || !eligible || !token || !formsLoaded || outstandingRequiredForms || verifiedExpStatus!==false || (driverStatuses.length>0 && driverStatuses.every(d=>d.orientationComplete))) return;
+    if (reviewerMode || !eligible || !token || !formsLoaded || !paperworkReady || outstandingRequiredForms || verifiedExpStatus!==false || (driverStatuses.length>0 && driverStatuses.every(d=>d.orientationComplete))) return;
     const key = `epic-exp-prompted-v1:${token}`;
     try {
       if (window.localStorage.getItem(key)) return;
@@ -134,7 +135,7 @@ export default function ExpVideoPreview({
     }
     setStarted(true);
     setOpen(true);
-  }, [eligible, token, formsLoaded, outstandingRequiredForms, reviewerMode,verifiedExpStatus,driverStatuses]);
+  }, [eligible, token, formsLoaded, outstandingRequiredForms, reviewerMode,verifiedExpStatus,driverStatuses,paperworkReady]);
 
   useEffect(() => {
     if (!open) return;

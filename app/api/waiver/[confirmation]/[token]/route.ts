@@ -1,3 +1,4 @@
+import {EXP_WALKTHROUGH,EXP_SAMPLE_SIGNERS,expWalkthroughEnabled} from "@/lib/exp/staging-walkthrough";
 import { NextResponse } from "next/server";
 
 function config() {
@@ -148,6 +149,8 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     return NextResponse.json({
       session: {
         ...session,
+        staging_sample_default:expWalkthroughEnabled() && confirmation===EXP_WALKTHROUGH.confirmation && token===EXP_WALKTHROUGH.waiverToken?EXP_SAMPLE_SIGNERS[Math.max(0,Math.min(2,Number(session.adult_signature_count??0)))].firstName:undefined,
+        staging_sample_signers:expWalkthroughEnabled() && confirmation===EXP_WALKTHROUGH.confirmation && token===EXP_WALKTHROUGH.waiverToken?EXP_SAMPLE_SIGNERS:undefined,
         start_time: denverWallTimeToIso(session.start_time ?? null),
         experience_name: businessLine === "tour" && tourActivityLabel ? tourActivityLabel : session.experience_name,
         customer_phone: customerPhone,
