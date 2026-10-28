@@ -346,57 +346,23 @@ function getSupabaseBrowserConfig() {
   return { url, key };
 }
 
-async function callReadinessRpc<T>(
-  functionName: string,
-  body: Record<string, unknown>,
-): Promise<T> {
-  const { url, key } = getSupabaseBrowserConfig();
-  const response = await fetch(`${url}/rest/v1/rpc/${functionName}`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `Unable to run ${functionName}.`);
-  }
-
+async function callPeopleOverride<T>(action:"get"|"set"|"clear",readinessId:string,extra:Record<string,unknown>={}):Promise<T>{
+ return fetch("/api/team/readiness/people-override",{
+  method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({action,readinessId,...extra})
+ }).then(async response=>{
+  if(!response.ok){const detail=await response.json().catch(()=>({error:"Unable to update people count."}));throw new Error(detail.error||"Unable to update people count.");}
   return response.json() as Promise<T>;
+ });
 }
-
-function getPeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus | null>(
-    "get_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+function getPeopleOverride(readinessId:string){
+ return callPeopleOverride<PeopleOverrideStatus|null>("get",readinessId);
 }
-
-function savePeopleOverride(
-  readinessId: string,
-  peopleCount: number,
-  reason: string,
-) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "set_readiness_people_override",
-    {
-      p_readiness_id: readinessId,
-      p_people_count: peopleCount,
-      p_reason: reason,
-      p_updated_by: "EpicTools",
-    },
-  );
+function savePeopleOverride(readinessId:string,peopleCount:number,reason:string){
+ return callPeopleOverride<PeopleOverrideStatus>("set",readinessId,{peopleCount,reason});
 }
-
-function removePeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "clear_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+function removePeopleOverride(readinessId:string){
+ return callPeopleOverride<PeopleOverrideStatus>("clear",readinessId);
 }
 
 // Merge lightweight snapshots without losing already fetched drawer-only data.
