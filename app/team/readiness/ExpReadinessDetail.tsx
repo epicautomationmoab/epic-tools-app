@@ -1,28 +1,29 @@
 "use client";
 import {useEffect,useState} from "react";
-type Driver={id:string;display_name:string;acknowledgement_at:string|null;reconciliation_status:string;assessmentAndIdentityVerified:boolean;outstanding:string[]};
-type Session={id:string;outcome:string;completed_at:string|null;video_version:string};
-type Status={sessions:Session[];participants:Driver[];checkoutReady:boolean;expReady?:boolean;readinessVerification:string;needsReconciliation:number};
+type Driver={name:string;expReady:boolean;orientationComplete:boolean;outstanding:string[]};
+type Status={sessions:{id:string}[];drivers:Driver[];expReady:boolean;outstanding:string[]};
+const labels:Record<string,string>={driverIdentity:"Driver identity",polarisWaiver:"Polaris waiver",ohvCertificate:"OHV certificate",videoAndAssessment:"Orientation and knowledge check"};
 export default function ExpReadinessDetail({readinessId}:{readinessId:string|null|undefined}){
  const [data,setData]=useState<Status|null>(null),[error,setError]=useState("");
  useEffect(()=>{if(!readinessId)return;let active=true;setData(null);setError("");
   const load=()=>fetch(`/api/team/exp/readiness?readinessId=${encodeURIComponent(readinessId)}`,{cache:"no-store"})
-   .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||"Unable to load EXP");if(active)setData(d as Status)})
-   .catch(e=>{if(active)setError(e instanceof Error?e.message:"Unable to load EXP")});
+   .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||"Unable to load EXC");if(active)setData(d as Status)})
+   .catch(e=>{if(active)setError(e instanceof Error?e.message:"Unable to load EXC")});
   void load();const timer=window.setInterval(()=>void load(),30000);
   return()=>{active=false;window.clearInterval(timer)};
  },[readinessId]);
- return <section aria-label="Epic Xpress Ready" style={{padding:"16px 0"}}>
-  <h3>Epic Xpress Ready</h3>
-  <p>Verified driver orientation is required in addition to Epic agreements, Polaris waivers and OHV certificates. EXP never bypasses missing paperwork.</p>
-  {!readinessId?<p>No reservation ID available.</p>:error?<p role="alert">{error}</p>:!data?<p>Checking saved EXP records…</p>:
-   <><p><strong>{data.sessions.length?"EXP activity recorded":"EXP not started"}</strong> · {data.expReady?"EXP Ready — paperwork and drivers verified":"EXP pending — missing verification"}</p>
-   <p>Recorded sessions: {data.sessions.length} · Participating drivers: {data.participants.length} · Waiver identities awaiting reconciliation: {data.needsReconciliation}</p>
-   {data.sessions.map(s=><p key={s.id}>Knowledge check: {s.outcome.replace(/_/g," ")} {s.completed_at? `· ${new Date(s.completed_at).toLocaleString()}`:""}</p>)}
-   {data.participants.map(p=><div key={p.id} style={{padding:"8px 0",borderTop:"1px solid #dde5ea"}}>
-    <strong>{p.display_name}</strong> — {p.acknowledgement_at?"Initials/acknowledgment saved":"Acknowledgment missing"}; {p.assessmentAndIdentityVerified?"identity checked":"waiver verification pending"}
-   </div>)}
-   <p>{data.expReady?"EXP requirements verified. Checkout has additional requirements.":"EXP Ready remains blocked until paperwork, driver identity, video and knowledge check are fully verified."}</p>
+ return <section aria-label="Epic Xpress Checkout" style={{padding:"16px 0"}}>
+  <h3>Epic Xpress Checkout</h3>
+  <p>Driver orientation is verified alongside Epic agreements, Polaris waivers and OHV certificates. EXC does not bypass paperwork.</p>
+  {!readinessId?<p>No reservation ID available.</p>:error?<p role="alert">{error}</p>:!data?<p>Checking driver readiness…</p>:
+   <><p><strong>{data.expReady?"EXC complete":"EXC needs attention"}</strong> · {data.drivers.filter(d=>d.expReady).length} of {data.drivers.length} drivers verified</p>
+   {data.drivers.length===0?<p>No signed drivers identified yet.</p>:data.drivers.map(d=>
+    <div key={d.name.trim().toLowerCase()} style={{padding:"8px 0",borderTop:"1px solid #dde5ea"}}>
+     <strong>{d.name}</strong> — {d.expReady?"Ready":d.orientationComplete?"Orientation complete; other requirements pending":"Orientation pending"}
+     {d.outstanding.length>0?<div style={{fontSize:"0.9em"}}>Needs: {d.outstanding.map(k=>labels[k]??k).join(", ")}</div>:null}
+    </div>
+   )}
+   <p style={{fontSize:"0.9em"}}>{data.expReady?"EXC requirements verified. Final vehicle checkout is separate.":"Driver requirements must be verified before EXC can be marked complete."}</p>
    </>}
  </section>;
 }
