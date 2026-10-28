@@ -1,3 +1,4 @@
+import {loadBeltTireReadinessMany} from "@/lib/server/exp-belt-tire-inquiry";
 import type {ExpTeamStatus} from "@/lib/exp/team-status";
 import {requireCorrectSupabaseEnvironment} from "@/lib/server/staging-boundary";
 import {loadExpReadinessMany} from "@/lib/server/exp-readiness";
@@ -54,6 +55,7 @@ export type ReadinessRow = {
   premier_adventure_assure?: boolean | null;
   adventure_assure_level?: string | null;
   belt_tire_protection?: boolean | null;
+  belt_tire_inquiry?: {symbol:string;detail:string};
   overnight_addon?: boolean | null;
   ohv_required: boolean | null;
   ohv_certificate_uploaded: boolean | null;
@@ -256,6 +258,7 @@ export async function getReadinessRows(options: { fast?: boolean; enrich?: boole
   const rows = await fetchView<ReadinessRow>(readinessView, params, true);
   if(process.env.EXP_ASSESSMENT_SERVER_ENABLED === "true") {
     const statuses=await loadExpReadinessMany(rows.filter(row=>row.business_line==="rental"&&row.readiness_id).map(row=>row.readiness_id!));
+    try{const inquiries=await loadBeltTireReadinessMany(rows,statuses);for(const row of rows){if(row.readiness_id)row.belt_tire_inquiry=inquiries.get(row.readiness_id)}}catch(error){console.error("Optional Belt/tire preferences unavailable",error)}
     for(const row of rows){
       const exp=row.readiness_id?statuses.get(row.readiness_id):undefined;
       if(!exp)continue;

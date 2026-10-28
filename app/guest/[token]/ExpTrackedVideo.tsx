@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {beltTireCueReached} from "@/lib/exp/belt-tire-inquiry";
 import styles from "./ExpVideoPreview.module.css";
 
 const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&loop=0&title=0&byline=0&portrait=0";
@@ -31,7 +32,9 @@ function loadVimeoSdk(): Promise<void> {
 
 /** Track watched seconds, not the video seek position. */
 export type ExpPlaybackCheckpoint = { watchedSeconds: number[]; durationSeconds: number; ended: boolean };
-export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initialCheckpoint }: { initialCheckpoint?: ExpPlaybackCheckpoint; onCoverageChange: (complete: boolean) => void; onCheckpoint?: (data: ExpPlaybackCheckpoint) => void }) {
+export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initialCheckpoint, onInquiryAvailable }: { onInquiryAvailable?:()=>void; initialCheckpoint?: ExpPlaybackCheckpoint; onCoverageChange: (complete: boolean) => void; onCheckpoint?: (data: ExpPlaybackCheckpoint) => void }) {
+  const inquiryCallback=useRef(onInquiryAvailable);
+  useEffect(()=>{inquiryCallback.current=onInquiryAvailable},[onInquiryAvailable]);
   const frame = useRef<HTMLIFrameElement>(null);
   const callback = useRef(onCoverageChange);
   const checkpointCallback = useRef(onCheckpoint);
@@ -41,6 +44,9 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
   useEffect(() => { checkpointCallback.current = onCheckpoint; }, [onCheckpoint]);
   useEffect(() => {
     let disposed = false;
+    let inquiryPublished=false;
+    const publishInquiry=(position:number)=>{if(!inquiryPublished&&beltTireCueReached(position,initialCheckpoint?.watchedSeconds)){inquiryPublished=true;inquiryCallback.current?.()}};
+    publishInquiry(0);
     let player: Player | null = null;
     const watched = new Set<number>(initialCheckpoint?.watchedSeconds??[]);
     let previous: number | null = null;
@@ -71,6 +77,7 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
       if (!Number.isFinite(data.seconds) || !Number.isFinite(data.duration) || data.duration <= 0) return;
       const current = Math.max(0, Math.min(data.seconds, data.duration));
       knownDuration = data.duration;
+      publishInquiry(current);
       if (!seeking && previous !== null) {
         const elapsed = current - previous;
         if (elapsed > 0 && elapsed <= 2) {

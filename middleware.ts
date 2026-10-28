@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
   // The only allowed API writes are the dedicated, staged EXP endpoints.
   // This boundary does not replace DB-level/credential-level outbound isolation.
   if (process.env.EPIC_STAGING_NO_OUTBOUND === "true" && pathname.startsWith("/api/")) {
-    const expGuestPath = /^\/api\/guest\/[^/]+\/exp\/(assessment|progress|participants)$/.test(pathname);
+    const expGuestPath = /^\/api\/guest\/[^/]+\/exp\/(assessment|progress|participants|belt-tire-inquiry)$/.test(pathname);
     const allowedExpWrite = expGuestPath && ["POST", "PATCH"].includes(request.method);
     const allowedStagingOhvUpload = /^\/api\/guest\/[^/]+\/ohv$/.test(pathname) && request.method === "POST";
     // Employee authentication is isolated to staging Supabase Auth and does not

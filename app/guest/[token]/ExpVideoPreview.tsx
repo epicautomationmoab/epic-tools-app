@@ -5,6 +5,8 @@ import styles from "./ExpVideoPreview.module.css";
 import ExcCompletion,{ExcOptionalInvitation,ExcOrientationIntro} from "./ExcCompletion";
 import ExpServerAssessment from "./ExpServerAssessment";
 import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
+import BeltTireInquiry from "./BeltTireInquiry";
+import {beltTireCueReached} from "@/lib/exp/belt-tire-inquiry";
 import ExpSessionChoice,{type ExpSessionChoices} from "./ExpSessionChoice";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 
@@ -52,6 +54,7 @@ export default function ExpVideoPreview({
   const [showAssessment, setShowAssessment] = useState(false);
   const [selectDrivers, setSelectDrivers] = useState(false);
   const [driverNames, setDriverNames] = useState<ExpParticipantDraft[]>([]);
+  const [inquiryAvailable,setInquiryAvailable]=useState(false);
   const [sessionChoices,setSessionChoices]=useState<ExpSessionChoices|null>(null);
   const [selectedSessionDrivers,setSelectedSessionDrivers]=useState<string[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -174,6 +177,7 @@ export default function ExpVideoPreview({
       const progressResponse=await fetch(`${base}/progress?readinessId=${encodeURIComponent(anchor)}&sessionId=${encodeURIComponent(saved.sessionId)}`,{cache:"no-store"});
       if(!progressResponse.ok)throw new Error("Unable to retrieve saved progress.");
       const progress=await progressResponse.json();if(generation!==selectionGeneration.current)return;const duration=Number(progress.videoDurationSeconds??0);
+      setInquiryAvailable(beltTireCueReached(0,progress.videoWatchedSeconds??[]));
       setSelectedSessionDrivers(saved.selectedDriverNames??[]);setServerQuestions(saved.questions);setSessionReadinessId(anchor);
       setSavedPlayback(duration>0?{watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true}:undefined);
       const covered=progress.videoCoverageMet===true;setVideoCoverageMet(covered);setWatchedAcknowledged(covered);
@@ -211,6 +215,7 @@ export default function ExpVideoPreview({
       setSessionReadinessId(savedReadinessId);
       setSessionId(savedId);
       setDriverNames(drivers);
+      setSelectedSessionDrivers(drivers.map(d=>d.fullName));
       setShowAssessment(true);
     } catch(error) {
       setServerError(error instanceof Error ? error.message : "Unable to record your orientation.");
@@ -236,7 +241,7 @@ export default function ExpVideoPreview({
           {reviewerMode?<p><strong>Employee preview only.</strong> This demonstration does not change guest readiness.</p>:null}
           {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<ExcOrientationIntro/>:null}
         </div>
-        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
+        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setInquiryAvailable(false);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setOpen(true); }}>
           {assessmentStarted?"Continue Orientation":"Get Started"}
         </button>:null}
       </section>
@@ -254,8 +259,9 @@ export default function ExpVideoPreview({
             ) : selectDrivers ? (
               <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={selectedSessionDrivers.length?selectedSessionDrivers:signedRentalDrivers} fixedRoster={selectedSessionDrivers.length>0} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
             ) : (
-              sessionId ? <ExpTrackedVideo key={sessionId} initialCheckpoint={savedPlayback} onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} /> : <p>Loading saved orientation…</p>
+              sessionId ? <ExpTrackedVideo key={sessionId} initialCheckpoint={savedPlayback} onInquiryAvailable={()=>setInquiryAvailable(true)} onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} /> : <p>Loading saved orientation…</p>
             )}
+            {sessionId&&inquiryAvailable?<BeltTireInquiry key={sessionId} token={token} readinessId={readinessId} sessionId={sessionId} rosterKey={selectedSessionDrivers.join("|")}/>:null}
             {startingSession ? <p role="status">Preparing saved orientation…</p> : null}
             {serverError ? <p role="alert" style={{color:"#a83232"}}>{serverError}</p> : null}
             {savingParticipants ? <p role="status">Saving driver acknowledgments…</p> : null}
