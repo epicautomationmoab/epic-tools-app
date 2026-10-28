@@ -61,6 +61,7 @@ export default function ExpVideoPreview({
   const [savingParticipants, setSavingParticipants] = useState(false);
   const lastPlayback = useRef<{sessionId:string;checkpoint:ExpPlaybackCheckpoint} | null>(null);
   const startingRef = useRef(false);
+  const selectionGeneration=useRef(0);
   const [startingSession,setStartingSession] = useState(false);
   const [sessionReadinessId,setSessionReadinessId]=useState<string|null>(null);
   const primaryReadinessId = activities.find(a => a.businessLine.toLowerCase() === "rental")?.readinessId ?? "";
@@ -75,7 +76,7 @@ export default function ExpVideoPreview({
   const [paperworkReady,setPaperworkReady]=useState(false);
   const [assessmentStarted,setAssessmentStarted]=useState(false);
   const [statusRefresh,setStatusRefresh]=useState(0);
-  function closeOrientation(){setOpen(false);setStatusRefresh(value=>value+1)}
+  function closeOrientation(){selectionGeneration.current++;startingRef.current=false;setStartingSession(false);setOpen(false);setStatusRefresh(value=>value+1)}
   const [outstandingRequiredForms, setOutstandingRequiredForms] = useState(false);
   const eligible = useMemo(() => {
     if (now === null) return false;
@@ -145,7 +146,7 @@ export default function ExpVideoPreview({
   useEffect(() => {
     if (!open) return;
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") closeOrientation();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -164,7 +165,7 @@ export default function ExpVideoPreview({
   },[open,sessionId,primaryReadinessId,token]);
 
   async function chooseSession(selection:{sessionId:string}|{selectedDriverNames:string[]}){
-    if(startingRef.current)return;startingRef.current=true;setStartingSession(true);setServerError("");
+    if(startingRef.current)return;const generation=++selectionGeneration.current;startingRef.current=true;setStartingSession(true);setServerError("");
     try{
       const base=`/api/guest/${encodeURIComponent(token)}/exp`;
       const response=await fetch(`${base}/assessment`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"start",readinessId:primaryReadinessId,...selection})});
@@ -172,14 +173,14 @@ export default function ExpVideoPreview({
       const anchor=String(saved.readinessId||primaryReadinessId);
       const progressResponse=await fetch(`${base}/progress?readinessId=${encodeURIComponent(anchor)}&sessionId=${encodeURIComponent(saved.sessionId)}`,{cache:"no-store"});
       if(!progressResponse.ok)throw new Error("Unable to retrieve saved progress.");
-      const progress=await progressResponse.json();const duration=Number(progress.videoDurationSeconds??0);
+      const progress=await progressResponse.json();if(generation!==selectionGeneration.current)return;const duration=Number(progress.videoDurationSeconds??0);
       setSelectedSessionDrivers(saved.selectedDriverNames??[]);setServerQuestions(saved.questions);setSessionReadinessId(anchor);
       setSavedPlayback(duration>0?{watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true}:undefined);
       const covered=progress.videoCoverageMet===true;setVideoCoverageMet(covered);setWatchedAcknowledged(covered);
       setShowAssessment(covered&&progress.participants?.length>0);setSelectDrivers(false);lastPlayback.current=null;
       setSessionId(saved.sessionId);
-    }catch(error){setServerError(error instanceof Error?error.message:"Unable to open orientation.")}
-    finally{startingRef.current=false;setStartingSession(false)}
+    }catch(error){if(generation===selectionGeneration.current)setServerError(error instanceof Error?error.message:"Unable to open orientation.")}
+    finally{if(generation===selectionGeneration.current){startingRef.current=false;setStartingSession(false)}}
   }
 
   async function prepareSession(drivers: ExpParticipantDraft[]) {
