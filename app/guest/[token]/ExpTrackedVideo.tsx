@@ -14,7 +14,7 @@ type Player = {
   ready: () => Promise<void>;
   destroy: () => Promise<void>;
 };
-type VimeoWindow = Window & { Vimeo?: { Player: new (element: HTMLElement, options: {url: string}) => Player } };
+type VimeoWindow = Window & { Vimeo?: { Player: new (element: HTMLIFrameElement) => Player } };
 let sdkLoading: Promise<void> | null = null;
 function loadVimeoSdk(): Promise<void> {
   if ((window as VimeoWindow).Vimeo?.Player) return Promise.resolve();
@@ -35,7 +35,7 @@ export type ExpPlaybackCheckpoint = { watchedSeconds: number[]; durationSeconds:
 export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initialCheckpoint, onInquiryAvailable }: { onInquiryAvailable?:()=>void; initialCheckpoint?: ExpPlaybackCheckpoint; onCoverageChange: (complete: boolean) => void; onCheckpoint?: (data: ExpPlaybackCheckpoint) => void }) {
   const inquiryCallback=useRef(onInquiryAvailable);
   useEffect(()=>{inquiryCallback.current=onInquiryAvailable},[onInquiryAvailable]);
-  const frame = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLIFrameElement>(null);
   const callback = useRef(onCoverageChange);
   const checkpointCallback = useRef(onCheckpoint);
   const [coverage, setCoverage] = useState(initialCheckpoint ? Math.min(100,Math.round(initialCheckpoint.watchedSeconds.length/initialCheckpoint.durationSeconds*100)) : 0);
@@ -45,8 +45,6 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
   useEffect(() => {
     let disposed = false;
     const host = frame.current;
-    // An SDK iframe must never survive an effect restart (including React Strict Mode).
-    host?.replaceChildren();
     let inquiryPublished=false;
     const publishInquiry=(position:number)=>{if(!inquiryPublished&&beltTireCueReached(position,initialCheckpoint?.watchedSeconds)){inquiryPublished=true;inquiryCallback.current?.()}};
     publishInquiry(0);
@@ -99,8 +97,7 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
       if (disposed || !host) return;
       const Vimeo = (window as VimeoWindow).Vimeo;
       if (!Vimeo?.Player) throw new Error("Player SDK unavailable");
-      host.replaceChildren();
-      player = new Vimeo.Player(host, {url: VIDEO_URL});
+      player = new Vimeo.Player(host);
       player.on("seeking", onSeeking);
       player.on("seeked", onSeeked);
       player.on("timeupdate", onTimeUpdate);
@@ -111,22 +108,22 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
     return () => {
       publishCheckpoint(knownDuration,true);
       disposed = true;
-      // Clear the SDK-created iframe synchronously; destroy() alone is async.
-      host?.replaceChildren();
+      // React owns the single iframe. Never let Vimeo create or remove iframe elements.
       if (player) {
         player.off("seeking", onSeeking);
         player.off("seeked", onSeeked);
         player.off("timeupdate", onTimeUpdate);
         player.off("ended", onEnded);
-        // Vimeo owns the iframe inside our stable div; release it on unmount.
-        void player.destroy().catch(() => {});
+        // Unsubscribe only; React owns the iframe lifecycle.
       }
     };
   }, []);
 
   return <>
     <div className={styles.video}>
-      <div ref={frame} aria-label="Epic 4X4 Rental Operations Video 3.2" />
+      <iframe ref={frame} src={VIDEO_URL} title="Epic 4X4 Rental Operations Video 3.2"
+        allow="fullscreen; picture-in-picture; encrypted-media" allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin" />
     </div>
     <p className={styles.videoProgress} role="status">
       {coverage >= 100 ? "Video viewing complete." :
