@@ -1,34 +1,28 @@
-# EXP release candidate — October 27, 2026
+# Epic Xpress Checkout — production approval checklist
 
-Production is held at the user's direction. PR #107 remains draft and unmerged.
+PR #107 targets main. Production deployment and merge require Jennifer's approval.
 
-## Review environment
+## Scope and operational standards
 
-- Fixed address: https://epic-tools-exp-staging.vercel.app/staging
-- Supabase: cchsrkhpvvrvcuepkqdu; Vercel: epic-tools-exp-staging.
-- The hub links to prepared completed/incomplete parties, quiz design, staff Readiness, sample Arrival Board, kiosk, and the unpublished reminder preview.
-- Sample rentals are October 28. They are synthetic snapshots, not a continuously refreshed production copy. The date viewer is staging-only. No real guests should be imported or contacted.
-- Keep the fixed hostname: Vimeo permits playback only on approved origins.
+Guest language and styling are approved. Qualification is reservation-wide; one operator orientation per driver covers the booking's rental items. All driver/passenger agreements, applicable signed guardian acknowledgment and child details, Polaris observations and accepted OHV uploads remain required. OHV follows the existing accepted-upload standard; there is no new manual approval step.
 
-## Verification
+Final staging reservation: EXC-FINAL-20261028, two drivers, one adult passenger and one minor. This uses real staging submissions, private stored files, video checkpoints and assessment outcomes. Polaris observations are explicitly seeded in isolated staging; no live integrations or guests are contacted.
 
-The earlier real browser test completed Vimeo playback, three drawn initials, saved/resumed answers, ordinary retry and successful server grading. Critical rewatch and multi-driver failures also passed synthetic checkpoint/state tests. Files were uploaded through actual staging APIs and retrieved byte-for-byte. A signed rental PDF was generated and retrieved.
+## Deploy after approval
 
-After the morning styling change, 22 staging regression checks passed again; completed party remained 3/3 EXP Ready and incomplete party remained blocked. The later batch loader must pass those checks again on its exact deployment before sign-off.
+1. Record the current production deployment and flags for rollback. Take the normal database backup/snapshot. Keep EXC flags off during migration.
+2. Apply `20261026_exp_foundation.sql` (sessions, participants, audit records, indexes and RLS) and `20261027_guest_portal_moab_agreement_link.sql` (Moab time comparison). The existing guardian/child columns already exist in production; this fix needs no additional guardian schema migration.
+3. At the approved launch time, configure the new production build with `EXP_ASSESSMENT_SERVER_ENABLED=true` and `NEXT_PUBLIC_EXP_VIDEO_PREVIEW=true`, then deploy the reviewed PR. Vercel environment changes require a new deployment, and the public flag is compiled into the client bundle. Keep the current production deployment in place until that approved deployment is ready. Use the existing production service configuration. Never copy staging fixtures, staging credentials, disabled-trigger state, or `EPIC_STAGING_NO_OUTBOUND` into production.
+4. Confirm the actual guest portal hostname is approved for Vimeo video 1239550688. Technical EXP names remain for compatibility.
+5. If launching the rental reminder at the same time, publish the separately approved rental template and set `RESEND_RENTAL_REMINDER_TEMPLATE_ID` to its ID. Rental-only routing must preserve the existing tours/mixed-booking path. Do not send a test to a real guest without authorization. The existing C360 sent-record mirror remains in place; exact rendered-body archival is a separate existing limitation, not a new EXC approval workflow.
+6. Smoke-check an authorized test booking: guest/staff/Arrival Board agreement; incomplete requirements block qualification; completed drivers remain listed; full qualification and confidence box require all checks; in-person orientation stays available; kiosk and saved progress work. Check runtime errors and the existing communication history.
 
-Staff and board now receive one server determination. Batch evidence reads replace per-reservation polling and the 75/60-row browser caps. The evidence-isolated regression covers 101 parties/303 drivers, pagination beyond 500 observations, a newer failed attempt, one missing certificate, and a passenger waiver incorrectly offered for a signed driver. This is correctness coverage, not a production load benchmark.
+## Roll back
 
-## Reminder
+1. Turn both EXC flags off and restore the previously recorded production deployment. Disable rental-template selection if it was activated.
+2. Keep additive EXP tables and records in place; do not drop guest progress, signatures, uploaded files or audit evidence.
+3. Recheck ordinary guest forms, OHV uploads, staff Readiness, Arrival Board, kiosk and existing reminders. Retain the previously working view definition in the release snapshot if the time-comparison change needs reversal.
 
-Separate Resend draft: 5213803b-05d2-4827-9462-324644e73ecf. Never published or sent. It preserves the existing Adventure Tomorrow arrival details and adds optional rental EXP preparation. `RESEND_RENTAL_REMINDER_TEMPLATE_ID` selects it only for rental-only itineraries when explicitly configured; tours, mixed itineraries, and absent config retain the existing template. Six routing cases passed. No production configuration was changed.
+## Preview isolation
 
-## Release gates
-
-1. User reviews the staged guest design and reminder wording.
-2. Review and apply the EXP foundation migration to production only with release authorization. A read-only October 27 check confirms production has no exp_sessions/exp_participants tables. Its existing OHV, signature and PDF storage buckets are private.
-3. Confirm production credentials/grants, EXP flags, stable public origin and Vimeo allowlist, generated-PDF function, and rollback procedure. Never copy staging fixtures or outbound-disabled trigger state into production.
-4. Publish and configure the rental reminder only with explicit approval. No live messages are authorized by this document.
-5. Resolve or explicitly assess the previously observed baseline security advisories and staging/production function differences. Those are not blanket certification of production security.
-6. Run a release smoke test at the approved time and monitor errors. Production load testing has not been performed.
-
-A read-only check confirms the existing Polaris observation feed is populated, with explicit adult-driver/passenger classification and recent verification. Staging Polaris observations remain synthetic; no live operational integration was activated by this work. Production has not been tested end-to-end or released.
+Main-project production credentials are excluded from its Preview environment. The EXC feature branch is disabled for automatic Git deployments; isolated staging is deployed explicitly. A main-project Preview runtime guard rejects EXC branch traffic before operational APIs. No deployment history is deleted and no account authentication settings change. Production values, domains and deployment remain unchanged until approval.

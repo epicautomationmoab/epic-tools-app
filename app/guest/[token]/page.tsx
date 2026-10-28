@@ -242,7 +242,7 @@ export default function GuestPortalPage() {
       if (epic) {
         if (activity.businessLine.toLowerCase() === "rental") {
           steps.push(
-            requirementComplete(epic.received, epic.expected) &&
+            epic.ready !== false && requirementComplete(epic.received, epic.expected) &&
               requirementComplete(epic.driversReceived ?? 0, epic.driversExpected ?? 0),
           );
         } else {

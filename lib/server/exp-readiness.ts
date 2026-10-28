@@ -23,7 +23,8 @@ export function determineExpReadiness({portal,sessions,participants,tasks,templa
     .map(w=>normalize(w.rider_name)));
   const allForms=tasks.filter(t=>t.required&&templates.some(k=>k.id===t.template_id&&k.template_key!=="damage_acknowledgment"));
   const formReady=(signedTasks.length>0||v2Record?.ready===true)&&allForms.every(t=>t.task_status==="completed");
-  const epicReady=((portal.epic_document_expected_count??0)>0&&(portal.epic_document_received_count??0)>=(portal.epic_document_expected_count??0))||v2Record?.agreementsComplete===true;
+  const expectedEpic=Math.max(portal.epic_document_expected_count??0,portal.expected_guest_count??0);
+  const epicReady=v2Record?.signers.length?v2Record.agreementsComplete:(expectedEpic>0&&(portal.epic_document_received_count??0)>=expectedEpic);
   const verifiedWaiverNames=new Set(verifiedWaivers.map(w=>normalize(w.rider_name)));
   const mpwrReady=(portal.mpwr_document_expected_count??0)>0&&verifiedWaiverNames.size>=(portal.mpwr_document_expected_count??0);
   const ohvNames=new Set(ohvUploads.filter(u=>u.storage_path).map(u=>normalize(u.driver_name)));
@@ -59,6 +60,7 @@ export function determineExpReadiness({portal,sessions,participants,tasks,templa
   const allDriversQualified=driverRosterReady&&[...signedDrivers.keys()].every(n=>qualifiedNames.has(n));
   const documentChecks={
     signedEpicDriverAgreements:formReady,
+    minorAcknowledgments:v2Record?.minorRequirementsComplete!==false,
     epicAgreements:epicReady,
     polarisWaivers:mpwrReady&&[...signedDrivers.keys()].every(n=>mpwrDrivers.has(n)),
     ohvCertificates:ohvReady,

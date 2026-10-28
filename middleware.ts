@@ -7,6 +7,9 @@ async function sha256Hex(value: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  if(process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_PROJECT_ID==='prj_UWMks41frvwzomqw3h8R0VzkRcOl'&&process.env.VERCEL_GIT_COMMIT_REF==='feature/exp-vimeo-preview-20261026'){
+    return new NextResponse('EXC testing is available only in isolated staging.',{status:503,headers:{'Cache-Control':'no-store'}});
+  }
   const previewToken = process.env.EPIC_PREVIEW_TOKEN;
   const suppliedPreviewToken = request.cookies.get("epic_preview_access")?.value;
   const hasPreviewAccess = Boolean(previewToken && suppliedPreviewToken === previewToken);
@@ -70,5 +73,8 @@ export const config = {
     "/kiosk/:path*",
     "/visit/:path*",
     "/api/:path*",
+    "/guest/:path*",
+    "/waiver/:path*",
+    "/staging/:path*",
   ],
 };
