@@ -24,3 +24,9 @@ export async function expVideoDuration(): Promise<number | null> {
 export function matchesExpVideoDuration(reported:number|null,expected:number|null){
   return expected!==null&&reported!==null&&Math.abs(reported-expected)<=1;
 }
+
+/** Temporary, isolated staging-only QA shortcut. Never qualifies on production Supabase. */
+export function expQaVideoThreshold(){
+ const host=process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/^https?:\/\//,"").replace(/\/$/,"");
+ return process.env.EPIC_STAGING_NO_OUTBOUND==="true" && host==="cchsrkhpvvrvcuepkqdu.supabase.co" && process.env.NEXT_PUBLIC_EXC_QA_VIDEO_10_PERCENT==="true" ? 0.1 : 0.98;
+}
