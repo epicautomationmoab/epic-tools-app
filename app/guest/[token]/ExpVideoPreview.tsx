@@ -5,8 +5,6 @@ import styles from "./ExpVideoPreview.module.css";
 import ExcCompletion,{ExcOptionalInvitation,ExcOrientationIntro} from "./ExcCompletion";
 import ExpServerAssessment from "./ExpServerAssessment";
 import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
-import BeltTireInquiry from "./BeltTireInquiry";
-import {beltTireCueReached} from "@/lib/exp/belt-tire-inquiry";
 import ExpSessionChoice,{type ExpSessionChoices} from "./ExpSessionChoice";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 
@@ -269,13 +267,13 @@ export default function ExpVideoPreview({
             {!sessionId ? (
               showWelcome ? null : sessionChoices ? <ExpSessionChoice choices={sessionChoices} busy={startingSession} onStart={names=>void chooseSession({selectedDriverNames:names})} onResume={id=>void chooseSession({sessionId:id})}/> : <p role="status">Loading saved orientations…</p>
             ) : showAssessment ? (
-              sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} onExit={() => { setShowAssessment(false); closeOrientation(); }} /> : <p role="alert">Orientation session unavailable. Please reopen your guest portal.</p>
+              sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} rosterKey={selectedSessionDrivers.join("|")} onExit={() => { setShowAssessment(false); closeOrientation(); }} /> : <p role="alert">Orientation session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (
               <ExpParticipants reviewerMode={reviewerMode} waiverDrivers={selectedSessionDrivers.length?selectedSessionDrivers:signedRentalDrivers} fixedRoster={selectedSessionDrivers.length>0} onContinue={drivers => void prepareSession(drivers)} onBack={() => setSelectDrivers(false)} />
             ) : (
-              sessionId ? <ExpTrackedVideo key={sessionId} initialCheckpoint={savedPlayback} onInquiryAvailable={()=>setInquiryAvailable(true)} onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} /> : <p>Loading saved orientation…</p>
+              sessionId ? <ExpTrackedVideo key={sessionId} initialCheckpoint={savedPlayback} onCoverageChange={setVideoCoverageMet} onCheckpoint={cp=>void checkpointPlayback(cp)} /> : <p>Loading saved orientation…</p>
             )}
-            {sessionId&&inquiryAvailable?<BeltTireInquiry key={sessionId} token={token} readinessId={readinessId} sessionId={sessionId} rosterKey={selectedSessionDrivers.join("|")}/>:null}
+            
             {startingSession ? <p role="status">Preparing saved orientation…</p> : null}
             {serverError ? <p role="alert" style={{color:"#a83232"}}>{serverError}</p> : null}
             {savingParticipants ? <p role="status">Saving driver acknowledgments…</p> : null}
