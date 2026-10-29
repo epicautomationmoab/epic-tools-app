@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./ExpVideoPreview.module.css";
 
 const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&loop=0&title=0&byline=0&portrait=0";
-const REQUIRED_COVERAGE = 0.98;
+const REQUIRED_COVERAGE = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("cchsrkhpvvrvcuepkqdu.supabase.co") ? 0.1 : 0.98;
 
 type PlaybackEvent = { seconds: number; duration: number };
 type Player = {
@@ -53,7 +53,7 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
       checkpointCallback.current?.({watchedSeconds: Array.from(watched), durationSeconds: Math.ceil(duration), ended: reachedEnd});
     };
     const checkComplete = (duration: number) => {
-      if (reachedEnd && watched.size >= Math.ceil(duration) * REQUIRED_COVERAGE) callback.current(true);
+      if ((reachedEnd || REQUIRED_COVERAGE < 0.98) && watched.size >= Math.ceil(duration * REQUIRED_COVERAGE)) callback.current(true);
     };
     const onEnded = () => {
       reachedEnd = true;
@@ -118,7 +118,7 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
     </div>
     <p className={styles.videoProgress} role="status">
       {coverage >= 100 ? "Video viewing complete." :
-        `Video watched: ${coverage}% · Complete the video to continue.`}
+        `Video watched: ${coverage}% · ${REQUIRED_COVERAGE < 0.98 ? "Staging test: watch 10% to continue." : "Complete the video to continue."}`}
     </p>
     {trackingError ? <p role="alert">Video tracking could not connect. Please let our team know; you won't be marked complete by watching alone.</p> : null}
   </>;
