@@ -269,7 +269,7 @@ export default function ExpVideoPreview({
             </div> : null}
             {sessionId && !showAssessment && !selectDrivers ? <div id="exp-desc" className={styles.videoIntroduction}>
               <p>Watch our safety orientation, then complete a quick knowledge check. Your progress is saved if you need to come back later.</p>
-              <button className={styles.inPersonLink} type="button" onClick={closeOrientation}>Prefer to complete this in person?</button>
+              <button className={styles.inPersonLink} type="button" onClick={closeOrientation}>Prefer to complete orientation with a member of our team? Close This Window.</button>
             </div> : null}
             {!sessionId ? (
               showWelcome ? null : sessionChoices ? <ExpSessionChoice choices={sessionChoices} busy={startingSession} onStart={drivers=>void chooseSession({selectedDriverNames:drivers.map(d=>d.fullName)},drivers)} onResume={id=>void chooseSession({sessionId:id})}/> : <p role="status">Loading saved orientations…</p>
