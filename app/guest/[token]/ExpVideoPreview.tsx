@@ -53,6 +53,7 @@ export default function ExpVideoPreview({
   const [showAssessment, setShowAssessment] = useState(false);
   const [selectDrivers, setSelectDrivers] = useState(false);
   const [driverNames, setDriverNames] = useState<ExpParticipantDraft[]>([]);
+  const [participantsRecorded,setParticipantsRecorded]=useState(false);
   const [inquiryAvailable,setInquiryAvailable]=useState(false);
   const [sessionChoices,setSessionChoices]=useState<ExpSessionChoices|null>(null);
   const [selectedSessionDrivers,setSelectedSessionDrivers]=useState<string[]>([]);
@@ -182,6 +183,7 @@ export default function ExpVideoPreview({
         const recorded=await participantResponse.json();if(!participantResponse.ok)throw new Error(recorded.error||"Unable to save driver initials.");
         setDriverNames(initialDrivers);
       }
+      setParticipantsRecorded(Boolean(initialDrivers?.length || progress.participants?.length>0));
       setSelectedSessionDrivers(saved.selectedDriverNames??[]);setServerQuestions(saved.questions);setSessionReadinessId(anchor);
       setSavedPlayback(duration>0?{watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true}:undefined);
       const covered=progress.videoCoverageMet===true;setVideoCoverageMet(covered);setWatchedAcknowledged(covered);
@@ -219,6 +221,7 @@ export default function ExpVideoPreview({
       setSessionReadinessId(savedReadinessId);
       setSessionId(savedId);
       setDriverNames(drivers);
+      setParticipantsRecorded(true);
       setSelectedSessionDrivers(drivers.map(d=>d.fullName));
       setShowAssessment(true);
     } catch(error) {
@@ -245,7 +248,7 @@ export default function ExpVideoPreview({
           {reviewerMode?<p><strong>Employee preview only.</strong> This demonstration does not change guest readiness.</p>:null}
           {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<p>Finish a short safety orientation before arrival and get on the trail sooner. <strong>About 13 minutes.</strong></p>:null}
         </div>
-        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setInquiryAvailable(false);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setShowWelcome(true);setOpen(true); }}>
+        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]);setParticipantsRecorded(false); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setInquiryAvailable(false);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setShowWelcome(true);setOpen(true); }}>
           {assessmentStarted?"Continue Orientation":"Get Started"}
         </button>:null}
       </section>
@@ -287,7 +290,7 @@ export default function ExpVideoPreview({
                   <input type="checkbox" checked={watchedAcknowledged} onChange={(event) => setWatchedAcknowledged(event.target.checked)} />
                   <span>{process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("cchsrkhpvvrvcuepkqdu.supabase.co") ? "Staging test: I/we have completed the required 10% video preview." : "I/we have watched the entire safety orientation video."}</span>
                 </label>
-                <button className={styles.action} type="button" disabled={!watchedAcknowledged || !videoCoverageMet} onClick={() => { if(driverNames.length || selectedSessionDrivers.length && sessionChoices?.sessions.some(s=>s.sessionId===sessionId && s.names.length>0)) { setShowAssessment(true); } else setSelectDrivers(true); }}>
+                <button className={styles.action} type="button" disabled={!watchedAcknowledged || !videoCoverageMet} onClick={() => { if(participantsRecorded) { setShowAssessment(true); } else setSelectDrivers(true); }}>
                   Continue to Knowledge Check
                 </button>
                 {reviewerMode ? <button className={styles.later} type="button" onClick={() => setSelectDrivers(true)}>Reviewer shortcut: Continue to driver selection</button> : null}
