@@ -55,3 +55,10 @@
 .videoIntroduction { margin: .5rem 0 1rem; }
 .videoIntroduction p { margin: 0 0 .35rem; }
 .videoIntroduction .inPersonLink { font-size: .9rem; }
+
+/* Completed EXC: distinguish qualification, driver readiness, and confidence. */
+.readyHighlight{margin-top:16px;padding:18px 20px;border:1px solid #cae2d0;border-left:5px solid #2a8151;border-radius:12px;background:#eff8f1}
+.readyHighlight h3{margin:0 0 8px!important;color:#176534!important}
+.readyHighlight p{color:#344d3e!important;margin:6px 0!important}
+.readyDrivers{margin-top:16px;padding:12px 16px;border:1px solid #dae3ed;border-radius:12px;background:#f4f7fb}
+.confidence{border-color:#eadbc8;background:#fff8f0;border-left:4px solid #c55c2b}
