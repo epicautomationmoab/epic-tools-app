@@ -167,7 +167,7 @@ export default function ExpVideoPreview({
     return()=>{cancelled=true};
   },[open,sessionId,primaryReadinessId,token]);
 
-  async function chooseSession(selection:{sessionId:string}|{selectedDriverNames:string[]}){
+  async function chooseSession(selection:{sessionId:string}|{selectedDriverNames:string[]}, initialDrivers?:ExpParticipantDraft[]){
     if(startingRef.current)return;const generation=++selectionGeneration.current;startingRef.current=true;setStartingSession(true);setServerError("");
     try{
       const base=`/api/guest/${encodeURIComponent(token)}/exp`;
@@ -177,6 +177,11 @@ export default function ExpVideoPreview({
       const progressResponse=await fetch(`${base}/progress?readinessId=${encodeURIComponent(anchor)}&sessionId=${encodeURIComponent(saved.sessionId)}`,{cache:"no-store"});
       if(!progressResponse.ok)throw new Error("Unable to retrieve saved progress.");
       const progress=await progressResponse.json();if(generation!==selectionGeneration.current)return;const duration=Number(progress.videoDurationSeconds??0);
+      if(initialDrivers?.length){
+        const participantResponse=await fetch(`${base}/participants`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({readinessId:anchor,sessionId:saved.sessionId,allDriversWatched:true,participants:initialDrivers.map(d=>({fullName:d.fullName,initials:d.initials}))})});
+        const recorded=await participantResponse.json();if(!participantResponse.ok)throw new Error(recorded.error||"Unable to save driver initials.");
+        setDriverNames(initialDrivers);
+      }
       setSelectedSessionDrivers(saved.selectedDriverNames??[]);setServerQuestions(saved.questions);setSessionReadinessId(anchor);
       setSavedPlayback(duration>0?{watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true}:undefined);
       const covered=progress.videoCoverageMet===true;setVideoCoverageMet(covered);setWatchedAcknowledged(covered);
@@ -264,7 +269,7 @@ export default function ExpVideoPreview({
               <button className={styles.inPersonLink} type="button" onClick={closeOrientation}>Prefer to complete this in person?</button>
             </div> : null}
             {!sessionId ? (
-              showWelcome ? null : sessionChoices ? <ExpSessionChoice choices={sessionChoices} busy={startingSession} onStart={names=>void chooseSession({selectedDriverNames:names})} onResume={id=>void chooseSession({sessionId:id})}/> : <p role="status">Loading saved orientations…</p>
+              showWelcome ? null : sessionChoices ? <ExpSessionChoice choices={sessionChoices} busy={startingSession} onStart={drivers=>void chooseSession({selectedDriverNames:drivers.map(d=>d.fullName)},drivers)} onResume={id=>void chooseSession({sessionId:id})}/> : <p role="status">Loading saved orientations…</p>
             ) : showAssessment ? (
               sessionId && readinessId && serverQuestions.length===10 ? <ExpServerAssessment token={token} readinessId={readinessId} sessionId={sessionId} questions={serverQuestions} rosterKey={selectedSessionDrivers.join("|")} onExit={() => { setShowAssessment(false); closeOrientation(); }} /> : <p role="alert">Orientation session unavailable. Please reopen your guest portal.</p>
             ) : selectDrivers ? (
@@ -282,7 +287,7 @@ export default function ExpVideoPreview({
                   <input type="checkbox" checked={watchedAcknowledged} onChange={(event) => setWatchedAcknowledged(event.target.checked)} />
                   <span>{process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("cchsrkhpvvrvcuepkqdu.supabase.co") ? "Staging test: I/we have completed the required 10% video preview." : "I/we have watched the entire safety orientation video."}</span>
                 </label>
-                <button className={styles.action} type="button" disabled={!watchedAcknowledged || !videoCoverageMet} onClick={() => setSelectDrivers(true)}>
+                <button className={styles.action} type="button" disabled={!watchedAcknowledged || !videoCoverageMet} onClick={() => { if(driverNames.length || selectedSessionDrivers.length && sessionChoices?.sessions.some(s=>s.sessionId===sessionId && s.names.length>0)) { setShowAssessment(true); } else setSelectDrivers(true); }}>
                   Continue to Knowledge Check
                 </button>
                 {reviewerMode ? <button className={styles.later} type="button" onClick={() => setSelectDrivers(true)}>Reviewer shortcut: Continue to driver selection</button> : null}
