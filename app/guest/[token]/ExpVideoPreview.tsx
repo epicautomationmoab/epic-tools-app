@@ -177,7 +177,6 @@ export default function ExpVideoPreview({
       const progressResponse=await fetch(`${base}/progress?readinessId=${encodeURIComponent(anchor)}&sessionId=${encodeURIComponent(saved.sessionId)}`,{cache:"no-store"});
       if(!progressResponse.ok)throw new Error("Unable to retrieve saved progress.");
       const progress=await progressResponse.json();if(generation!==selectionGeneration.current)return;const duration=Number(progress.videoDurationSeconds??0);
-      setInquiryAvailable(beltTireCueReached(0,progress.videoWatchedSeconds??[]));
       setSelectedSessionDrivers(saved.selectedDriverNames??[]);setServerQuestions(saved.questions);setSessionReadinessId(anchor);
       setSavedPlayback(duration>0?{watchedSeconds:progress.videoWatchedSeconds??[],durationSeconds:duration,ended:progress.videoEndedReported===true}:undefined);
       const covered=progress.videoCoverageMet===true;setVideoCoverageMet(covered);setWatchedAcknowledged(covered);
