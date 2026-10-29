@@ -8,11 +8,11 @@ export default function ExcCompletion({drivers,qualified}:{drivers:ExcDriver[];q
  if(!completed.length)return null;
  return <>
   {showQualification?<>
-   <h3 className={styles.readyStatus}>Your party has qualified for our fastest check-out.</h3>
+   <div className={styles.readyHighlight}><h3 className={styles.readyStatus}>Your party has qualified for our fastest check-out.</h3>
    <p>Your party has completed all required forms. Every driver has completed Utah's required OHV education course and our operator orientation.</p>
-   <p>Please see an Adventure Tech upon arrival to complete your check-out.</p>
+   <p>Please see an Adventure Tech upon arrival to complete your check-out.</p></div>
   </>:<p>The drivers listed below have completed our operator orientation.</p>}
-  <div className={portalStyles.signerList} aria-label="Completed driver orientations">{completed.map(driver=><div className={portalStyles.signerRow} key={driver.name}>
+  <div className={`${portalStyles.signerList} ${styles.readyDrivers}`} aria-label="Completed driver orientations">{completed.map(driver=><div className={portalStyles.signerRow} key={driver.name}>
    <div className={portalStyles.signerCheck} aria-hidden="true">✓</div>
    <div><strong>{driver.name}</strong><span className={styles.driverReady}>Orientation Complete</span></div>
   </div>)}</div>
