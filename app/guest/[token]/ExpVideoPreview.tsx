@@ -280,7 +280,7 @@ export default function ExpVideoPreview({
               <div className={styles.previewNext}>
                 <label className={styles.acknowledge}>
                   <input type="checkbox" checked={watchedAcknowledged} onChange={(event) => setWatchedAcknowledged(event.target.checked)} />
-                  <span>I/we have watched the entire safety orientation video.</span>
+                  <span>{process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("cchsrkhpvvrvcuepkqdu.supabase.co") ? "Staging test: I/we have completed the required 10% video preview." : "I/we have watched the entire safety orientation video."}</span>
                 </label>
                 <button className={styles.action} type="button" disabled={!watchedAcknowledged || !videoCoverageMet} onClick={() => setSelectDrivers(true)}>
                   Continue to Knowledge Check
