@@ -3,11 +3,12 @@ import {useEffect,useState} from "react";
 import styles from "./ExpAssessment.module.css";
 import ExpAssessmentResult, {type AssessmentResult} from "./ExpAssessmentResult";
 import ExpAssessmentRetryIntro from "./ExpAssessmentRetryIntro";
+import BeltTireInquiry from "./BeltTireInquiry";
 
 type Answer={questionId:string;optionId:string};
 type PublicQuestion={id:string;prompt:string;options:Array<{id:string;text:string}>};
 type Result=AssessmentResult & {correct?:number;reason?:string;questionIds?:string[];questions?:PublicQuestion[];corrections?:Array<{questionId:string;correctAnswer:string;explanation:string}>};
-export default function ExpServerAssessment({token,readinessId,sessionId,questions,onExit}:{token:string;readinessId:string;sessionId:string;questions:PublicQuestion[];onExit:()=>void}){
+export default function ExpServerAssessment({token,readinessId,sessionId,questions,rosterKey,onExit}:{token:string;readinessId:string;sessionId:string;questions:PublicQuestion[];rosterKey:string;onExit:()=>void}){
  const [answers,setAnswers]=useState<Record<string,string>>({});
  const [questionOrder,setQuestionOrder]=useState<PublicQuestion[]>(questions);
  const [criticalAnswers,setCriticalAnswers]=useState<Record<string,string>>({});
@@ -49,6 +50,7 @@ export default function ExpServerAssessment({token,readinessId,sessionId,questio
  const q=activeQuestions[index];
  return <section className={styles.assessment} aria-label="Saved knowledge check" aria-busy={busy}>
   {!result?(mode==="critical"?<ExpAssessmentRetryIntro count={activeQuestions.length}/>:<h3>Quick Knowledge Check</h3>):null}
+  {result?.status==="assessment_complete"?<BeltTireInquiry token={token} readinessId={readinessId} sessionId={sessionId} rosterKey={rosterKey}/>:null}
   {result?<ExpAssessmentResult result={result} onExit={onExit} onRetry={()=>{setResult(null);setAnswers({});setCriticalAnswers({});setMode("initial");setIndex(0);setStatus("Your video viewing is saved. Please try the knowledge check again.");}}/>:
    <>{mode!=="critical"?<p className={styles.intro}>Your answers save as you go. You can close this page and return later.</p>:null}
    <div className={styles.progressHeading}><strong>{mode==="critical"?"Safety review":"Question"} {index+1} of {activeQuestions.length}</strong><span>{activeQuestions.filter(x=>currentAnswers[x.id]).length} answered</span></div>
