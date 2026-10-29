@@ -22,6 +22,7 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
   useEffect(() => { checkpointCallback.current = onCheckpoint; }, [onCheckpoint]);
   useEffect(() => {
     let disposed = false;
+    let registered = false;
     const host = frame.current;
     let inquiryPublished=false;
     const publishInquiry=(position:number)=>{if(!inquiryPublished&&beltTireCueReached(position,initialCheckpoint?.watchedSeconds)){inquiryPublished=true;inquiryCallback.current?.()}};
@@ -74,27 +75,33 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
     // Listen directly to Vimeo iframe messages; never load its DOM-mutating SDK.
     const listen = (event: MessageEvent) => {
       if (disposed || event.origin !== "https://player.vimeo.com" || event.source !== host?.contentWindow) return;
-      let message: {event?: string; data?: PlaybackEvent};
+      let message: {event?: string; method?: string; data?: PlaybackEvent};
       try { message = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch { return; }
-      if (message.event === "ready") {
+      if (message.event === "ready" || message.method === "ping") {
+        registered = true;
         setTrackingError(false);
         for (const name of ["timeupdate", "seeking", "seeked", "ended"]) {
           host?.contentWindow?.postMessage(JSON.stringify({method:"addEventListener",value:name}),"https://player.vimeo.com");
         }
-      } else if (message.event === "timeupdate" && message.data) onTimeUpdate(message.data);
+      } else if (message.event === "timeupdate" && message.data) { registered = true; onTimeUpdate(message.data); }
       else if (message.event === "seeking") onSeeking();
       else if (message.event === "seeked") onSeeked();
       else if (message.event === "ended") onEnded();
     };
     window.addEventListener("message",listen);
     const register = () => {
+      host?.contentWindow?.postMessage(JSON.stringify({method:"ping"}),"https://player.vimeo.com");
       for (const name of ["timeupdate", "seeking", "seeked", "ended"]) {
         host?.contentWindow?.postMessage(JSON.stringify({method:"addEventListener",value:name}),"https://player.vimeo.com");
       }
     };
     host?.addEventListener("load", register);
     register();
+    // The Vimeo iframe can become ready before React subscribes. Retry the
+    // handshake until playback events begin; do not depend on a one-shot ready.
+    const handshake = window.setInterval(() => { if (!registered) register(); }, 1200);
     return () => {
+      window.clearInterval(handshake);
       publishCheckpoint(knownDuration,true);
       disposed = true;
       window.removeEventListener("message",listen);
