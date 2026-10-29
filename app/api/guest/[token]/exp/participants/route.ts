@@ -32,10 +32,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const body = await request.json() as {
       readinessId?: string; sessionId?: string;
       participants?: ParticipantInput[];
-      allDriversWatched?: boolean;
+      allDriversWatched?: boolean; preVideoParticipation?: boolean;
     };
     if (!token || !body.readinessId || !body.sessionId) return bad("Reservation and session are required.");
-    if (body.allDriversWatched !== true) return bad("All participating drivers must confirm watching the orientation.");
+    if (body.allDriversWatched !== true && body.preVideoParticipation !== true) return bad("Each participating driver must acknowledge the orientation.");
     if (!Array.isArray(body.participants) || body.participants.length < 1 || body.participants.length > 20) {
       return bad("Enter between 1 and 20 participating drivers.");
     }
