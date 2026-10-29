@@ -9,7 +9,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{uploadId:
  const url=(process.env.NEXT_PUBLIC_SUPABASE_URL||"").replace(/\/+$/,"");
  const secret=process.env.SUPABASE_SECRET_KEY||"";
  if(!url||!secret)return NextResponse.json({error:"Document storage unavailable"},{status:503});
- const headers={apikey:secret,Authorization:"Bearer "+secret};
+ const headers={apikey:secret,...(secret.startsWith("sb_secret_") ? {} : {Authorization:"Bearer "+secret})};
  const query=new URLSearchParams({id:"eq."+uploadId,select:"storage_path",limit:"1"});
  const result=await fetch(url+"/rest/v1/ohv_certificate_uploads?"+query,{headers,cache:"no-store"});
  if(!result.ok)return NextResponse.json({error:"Certificate unavailable"},{status:502});

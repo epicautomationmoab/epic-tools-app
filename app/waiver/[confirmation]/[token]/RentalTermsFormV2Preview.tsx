@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import {useSearchParams} from "next/navigation";
 import {
   RENTAL_V2_DRIVER_HTML,
   RENTAL_V2_MINOR_ACK_HTML,
@@ -17,6 +18,8 @@ type RentalSession = {
   rental_terms_html: string | null;
   total_vehicle_count: number;
   guest_portal_token?: string | null;
+  staging_sample_default?:string;
+  staging_sample_signers?:Array<{firstName:string;lastName:string;email:string;phone:string;dob:string}>;
 };
 
 type Role = "driver" | "passenger";
@@ -67,16 +70,19 @@ export default function RentalTermsFormV2Preview({
   writeEnabled?: boolean;
   productionMode?: boolean;
 }) {
+  const searchParams=useSearchParams();
+  const samples=session.staging_sample_signers??[];
+  const sample=samples.find(s=>s.firstName.toLowerCase()===searchParams.get("sampleDriver"))??samples.find(s=>s.firstName===session.staging_sample_default)??samples[0];
   const vehicleCount = Math.max(1, Number(session.total_vehicle_count) || 1);
-  const [role, setRole] = useState<Role | null>(null);
-  const [hasMinors, setHasMinors] = useState<boolean | null>(null);
+  const [role, setRole] = useState<Role | null>(sample?"driver":null);
+  const [hasMinors, setHasMinors] = useState<boolean | null>(sample?false:null);
   const [minors, setMinors] = useState<Minor[]>([emptyMinor()]);
-  const [firstName, setFirstName] = useState("");
+  const [firstName, setFirstName] = useState(sample?.firstName??"");
   const [middleInitial, setMiddleInitial] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [dob, setDob] = useState("");
+  const [lastName, setLastName] = useState(sample?.lastName??"");
+  const [email, setEmail] = useState(sample?.email??"");
+  const [phone, setPhone] = useState(sample?.phone??"");
+  const [dob, setDob] = useState(sample?.dob??"");
   const [acknowledged, setAcknowledged] = useState(false);
   const [signatureMethod, setSignatureMethod] = useState<"drawn" | "typed">("drawn");
   const [typedSignature, setTypedSignature] = useState("");
@@ -286,7 +292,7 @@ export default function RentalTermsFormV2Preview({
       const portalToken = session?.guest_portal_token;
       if (portalToken) {
         setSignatureSuccess(
-          "Agreement submitted successfully. A signed copy has been emailed to you. Returning you to your Guest Portal…",
+          `Agreement submitted successfully.${result?.copyEmailStatus==="sent"?" A signed copy has been emailed to you.":""} Returning you to your Guest Portal…`,
         );
         window.setTimeout(() => {
           window.location.assign(
@@ -313,6 +319,7 @@ export default function RentalTermsFormV2Preview({
   return (
     <main className="waiver-page">
       <div className="waiver-shell">
+        {sample?<aside className="waiver-status" style={{background:"#fff4e9",padding:18,borderRadius:12,marginBottom:20}}><strong>STAGING TEST ONLY — no real rental or guest communication.</strong><p>Sample participant: {sample.firstName} {sample.lastName}. Contact details are pre-filled. Review and test the agreement, then sign using this sample name. No email will be sent.</p><p>{samples.map(person=><a style={{marginRight:16}} key={person.firstName} href={`?sampleDriver=${person.firstName.toLowerCase()}`}>{person.firstName}’s test agreement</a>)}</p></aside>:null}
         <div className="waiver-brand">Epic 4X4 Adventures</div>
         <h1 className="waiver-title">
           {productionMode ? "UTV Rental Agreement" : "UTV Rental Agreement V2"}

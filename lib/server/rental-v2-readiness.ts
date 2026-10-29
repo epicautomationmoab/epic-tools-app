@@ -1,5 +1,17 @@
 import { supabaseSelect } from "@/lib/server/supabase-rest";
 
+/** Avoid truncating multi-party evidence at the REST response row cap. */
+async function selectAll<T>(resource:string,params:URLSearchParams){
+ const rows:T[]=[];
+ const order=params.get("order");
+ params.set("order",order?`${order},id.asc`:resource==="guest_readiness_operational"?"readiness_id.asc":"id.asc");
+ for(let offset=0;;offset+=500){
+  const pageParams=new URLSearchParams(params);pageParams.set("limit","500");pageParams.set("offset",String(offset));
+  const page=await supabaseSelect<T>(resource,pageParams);rows.push(...page);
+  if(page.length<500)return rows;
+ }
+}
+
 export type RentalV2ReadinessSource = {
   readinessId: string;
   confirmationCode: string;
@@ -23,6 +35,7 @@ export type RentalV2ReadinessSummary = {
   agreementsComplete: boolean;
   driversComplete: boolean;
   ready: boolean;
+  minorRequirementsComplete: boolean;
   signers: RentalV2SignerSummary[];
   exceptions: string[];
 };
@@ -56,6 +69,11 @@ type SignatureRow = {
   archived_at?: string | null;
   business_line?: string | null;
   rental_role?: string | null;
+  acknowledged_terms?: boolean | null;
+  acknowledged_minor_authority?: boolean | null;
+  electronic_signature_consent?: boolean | null;
+  signed_minor_ack_html?: string | null;
+  agreement_content_version?: string | null;
 };
 
 type MinorRow = {
@@ -64,6 +82,7 @@ type MinorRow = {
   minor_last_name: string | null;
   minor_full_name: string | null;
   minor_dob?: string | null;
+  relationship_to_signer?: string | null;
 };
 
 function quoteList(values: string[]) {
@@ -113,6 +132,7 @@ export async function loadRentalV2Readiness(
       agreementsComplete: agreementsExpected === 0,
       driversComplete: driversExpected === 0,
       ready: agreementsExpected === 0 && driversExpected === 0,
+      minorRequirementsComplete:true,
       signers: [],
       exceptions: [],
     });
@@ -121,7 +141,7 @@ export async function loadRentalV2Readiness(
   if (!rentalSources.length) return result;
 
   const readinessIds = [...new Set(rentalSources.map((source) => source.readinessId))];
-  const operationalRows = await supabaseSelect<OperationalReadinessRow>(
+  const operationalRows = await selectAll<OperationalReadinessRow>(
     "guest_readiness_operational",
     new URLSearchParams({
       select: "readiness_id,source_store_visit_id,confirmation_code,epic_document_received_count,epic_document_expected_count",
@@ -134,7 +154,7 @@ export async function loadRentalV2Readiness(
   const confirmationCodes = [...new Set(operationalRows.map((row) => row.confirmation_code).filter(Boolean))];
   if (!confirmationCodes.length) return result;
 
-  const sessions = await supabaseSelect<SessionRow>(
+  const sessions = await selectAll<SessionRow>(
     "epic_waiver_sessions",
     new URLSearchParams({
       select: "id,confirmation_code,store_visit_id,business_line,session_status",
@@ -166,7 +186,7 @@ export async function loadRentalV2Readiness(
 
   // select=* is intentional during staged rollout: production does not have
   // rental_role until the V2 migration is applied. Old rows simply omit it.
-  const signatures = await supabaseSelect<SignatureRow>(
+  const signatures = await selectAll<SignatureRow>(
     "epic_waiver_signatures",
     new URLSearchParams({
       select: "*",
@@ -183,10 +203,10 @@ export async function loadRentalV2Readiness(
   );
   const signatureIds = v2Signatures.map((signature) => signature.id);
   const minors = signatureIds.length
-    ? await supabaseSelect<MinorRow>(
+    ? await selectAll<MinorRow>(
         "epic_waiver_minors",
         new URLSearchParams({
-          select: "adult_signature_id,minor_first_name,minor_last_name,minor_full_name,minor_dob",
+          select: "adult_signature_id,minor_first_name,minor_last_name,minor_full_name,minor_dob,relationship_to_signer",
           adult_signature_id: `in.(${quoteList(signatureIds)})`,
           limit: "2000",
         }),
@@ -228,6 +248,7 @@ export async function loadRentalV2Readiness(
     const adultSignatures = [...latestByIdentity.values()];
     const signers: RentalV2SignerSummary[] = [];
     const seenMinorKeys = new Set<string>();
+    let minorRequirementsComplete=true;
     const exceptions = duplicateKeys.size
       ? [`${duplicateKeys.size} duplicate adult signer submission${duplicateKeys.size === 1 ? "" : "s"} collapsed for readiness.`]
       : [];
@@ -251,7 +272,18 @@ export async function loadRentalV2Readiness(
         signatureId: signature.id,
         signedAt: signature.signed_at ?? null,
       });
-      for (const minor of minorsBySignature.get(signature.id) ?? []) {
+      const linkedMinors=minorsBySignature.get(signature.id)??[];
+      const v2=signature.agreement_content_version?.startsWith('rental-v2')===true;
+      const guardianSigned=signature.acknowledged_minor_authority===true&&signature.acknowledged_terms===true&&signature.electronic_signature_consent===true&&!!signature.signed_at&&(!v2||!!signature.signed_minor_ack_html?.trim());
+      if((linkedMinors.length>0&&!guardianSigned)||(signature.acknowledged_minor_authority===true&&linkedMinors.length===0)){
+        minorRequirementsComplete=false;
+        exceptions.push('A parent/legal guardian acknowledgment is incomplete.');
+      }
+      for (const minor of linkedMinors) {
+        if(!guardianSigned||(v2&&(!minor.minor_first_name?.trim()||!minor.minor_last_name?.trim()||!minor.minor_dob||!minor.relationship_to_signer?.trim()))){
+          minorRequirementsComplete=false;
+          continue;
+        }
         const name = minorName(minor);
         const minorKey = `${name.trim().toLowerCase().replace(/\s+/g, " ")}|${minor.minor_dob ?? ""}`;
         if (seenMinorKeys.has(minorKey)) {
@@ -281,7 +313,8 @@ export async function loadRentalV2Readiness(
       driversReceived,
       agreementsComplete,
       driversComplete,
-      ready: agreementsComplete && driversComplete,
+      ready: agreementsComplete && driversComplete && minorRequirementsComplete,
+      minorRequirementsComplete,
       signers,
       exceptions,
     });

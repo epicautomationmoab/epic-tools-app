@@ -32,6 +32,7 @@ function escapeHtml(value: string) {
 }
 
 export function waiverEmailConfigured() {
+  if(process.env.EPIC_STAGING_NO_OUTBOUND === "true")return false;
   return ["RESEND_API_KEY", "GUEST_EMAIL_FROM"].every((name) => Boolean(process.env[name]?.trim()));
 }
 
@@ -43,6 +44,7 @@ export async function sendWaiverCopyEmail(input: {
   documentTitle?: string;
   filename?: string;
 }) {
+  if(process.env.EPIC_STAGING_NO_OUTBOUND === "true")throw new Error("Outbound copies disabled in staging.");
   const firstName = input.signerName.trim().split(/\s+/)[0] || "Guest";
   const documentTitle = input.documentTitle?.trim() || "Waiver";
   const filename = input.filename?.trim() || "Epic-4X4-Signed-Waiver.pdf";

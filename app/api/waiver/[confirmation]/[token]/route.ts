@@ -1,3 +1,4 @@
+import {EXP_WALKTHROUGH,EXP_SAMPLE_SIGNERS,expWalkthroughEnabled} from "@/lib/exp/staging-walkthrough";
 import { NextResponse } from "next/server";
 
 function config() {
@@ -9,7 +10,7 @@ function config() {
 
 async function getJson(url: string, key: string) {
   const response = await fetch(url, {
-    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }) },
     cache: "no-store",
   });
   if (!response.ok) return null;
@@ -17,7 +18,7 @@ async function getJson(url: string, key: string) {
 }
 
 function denverWallTimeToIso(value: string | null) {
-  if (!value) return value;
+  if (!value || /(Z|[+-]\d{2}:?\d{2})$/i.test(value)) return value;
 
   const match = value.match(
     /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?/,
@@ -66,7 +67,7 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     const c = config();
     const response = await fetch(`${c.url}/rest/v1/rpc/resolve_epic_waiver_session_v2`, {
       method: "POST",
-      headers: { apikey: c.key, Authorization: `Bearer ${c.key}`, "Content-Type": "application/json" },
+      headers: { apikey: c.key, ...(c.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${c.key}` }), "Content-Type": "application/json" },
       body: JSON.stringify({ p_confirmation_code: confirmation, p_public_token: token }),
       cache: "no-store",
     });
@@ -148,6 +149,8 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
     return NextResponse.json({
       session: {
         ...session,
+        staging_sample_default:expWalkthroughEnabled() && confirmation===EXP_WALKTHROUGH.confirmation && token===EXP_WALKTHROUGH.waiverToken?EXP_SAMPLE_SIGNERS[Math.max(0,Math.min(2,Number(session.adult_signature_count??0)))].firstName:undefined,
+        staging_sample_signers:expWalkthroughEnabled() && confirmation===EXP_WALKTHROUGH.confirmation && token===EXP_WALKTHROUGH.waiverToken?EXP_SAMPLE_SIGNERS:undefined,
         start_time: denverWallTimeToIso(session.start_time ?? null),
         experience_name: businessLine === "tour" && tourActivityLabel ? tourActivityLabel : session.experience_name,
         customer_phone: customerPhone,
@@ -157,7 +160,7 @@ export async function GET(_request: Request, context: { params: Promise<{ confir
         guest_portal_token: guestPortalToken,
         rental_v2_enabled:
           businessLine === "rental" &&
-          process.env.ENABLE_RENTAL_V2_LIVE === "true",
+          (process.env.ENABLE_RENTAL_V2_LIVE === "true" || process.env.EPIC_STAGING_NO_OUTBOUND === "true"),
       },
     });
   } catch (error) {

@@ -1,3 +1,7 @@
+import {loadBeltTireReadinessMany} from "@/lib/server/exp-belt-tire-inquiry";
+import type {ExpTeamStatus} from "@/lib/exp/team-status";
+import {requireCorrectSupabaseEnvironment} from "@/lib/server/staging-boundary";
+import {loadExpReadinessMany} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 export type VehicleBreakdownItem = {
   model: string;
@@ -12,6 +16,7 @@ export type TripWorksReadinessNote = {
 
 export type ReadinessRow = {
   readiness_id?: string;
+  exp_status?: ExpTeamStatus | null;
   visit_start_time: string;
   confirmation_code: string;
   guest_portal_token?: string | null;
@@ -50,6 +55,7 @@ export type ReadinessRow = {
   premier_adventure_assure?: boolean | null;
   adventure_assure_level?: string | null;
   belt_tire_protection?: boolean | null;
+  belt_tire_inquiry?: {symbol:string;detail:string};
   overnight_addon?: boolean | null;
   ohv_required: boolean | null;
   ohv_certificate_uploaded: boolean | null;
@@ -85,6 +91,8 @@ export type ReadinessRow = {
 };
 
 export type ArrivalBoardRow = {
+  readiness_id?: string | null;
+  exp_status?: ExpTeamStatus | null;
   visit_start_time: string;
   confirmation_code: string;
   customer_name: string;
@@ -134,6 +142,7 @@ function getSupabaseConfig(useSecretKey = false) {
     );
   }
 
+  requireCorrectSupabaseEnvironment(rawUrl);
   const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
   const url = normalizedUrl.replace(/\/+$/, "");
   return { url, key };
@@ -146,7 +155,7 @@ async function fetchView<T>(viewName: string, searchParams: URLSearchParams, use
 
   try {
     response = await fetch(endpoint, {
-      headers: { apikey: config.key, Authorization: `Bearer ${config.key}` },
+      headers: { apikey: config.key, ...(config.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${config.key}` }) },
       cache: "no-store",
     });
   } catch (error) {
@@ -246,7 +255,19 @@ function rentalActivityCustomerTotalCents(order: OperationalTripOrderAccountingR
 export async function getReadinessRows(options: { fast?: boolean; enrich?: boolean } = {}) {
   const params = new URLSearchParams({ select: "*", limit: "500" });
   const readinessView = options.fast ? "guest_readiness_fast_v" : "guest_readiness_with_handoff_v";
-  const rows = await fetchView<ReadinessRow>(readinessView, params);
+  const rows = await fetchView<ReadinessRow>(readinessView, params, true);
+  if(process.env.EXP_ASSESSMENT_SERVER_ENABLED === "true") {
+    const statuses=await loadExpReadinessMany(rows.filter(row=>row.business_line==="rental"&&row.readiness_id).map(row=>row.readiness_id!));
+    try{const inquiries=await loadBeltTireReadinessMany(rows,statuses);for(const row of rows){if(row.readiness_id)row.belt_tire_inquiry=inquiries.get(row.readiness_id)}}catch(error){console.error("Optional Belt/tire preferences unavailable",error)}
+    for(const row of rows){
+      const exp=row.readiness_id?statuses.get(row.readiness_id):undefined;
+      if(!exp)continue;
+      row.exp_status=exp.expReady?exp.assessmentStatus:null;
+      row.ohv_certificate_uploaded=exp.documentChecks.ohvCertificates;
+      row.mpwr_waivers=exp.verifiedPolarisWaivers;
+      row.mpwr_document_received_count=new Set(exp.verifiedPolarisWaivers.map(w=>w.name.trim().toLowerCase())).size;
+    }
+  }
   if (options.enrich === false) {
     // The fast readiness view may lag certificate uploads. Read the authoritative
     // upload records so the main OHV indicator agrees with the document drawer.
@@ -259,7 +280,7 @@ export async function getReadinessRows(options: { fast?: boolean; enrich?: boole
       certificates.forEach(c => uploaded.add(c.readiness_id));
     }
     for (const row of rows) {
-      if (row.business_line === "rental" && row.readiness_id && uploaded.has(row.readiness_id)) row.ohv_certificate_uploaded = true;
+      if (process.env.EXP_ASSESSMENT_SERVER_ENABLED !== "true" && row.business_line === "rental" && row.readiness_id && uploaded.has(row.readiness_id)) row.ohv_certificate_uploaded = true;
     }
     return rows.sort(
       (a, b) =>
@@ -489,12 +510,30 @@ function mountainMidnightUtc(year: number, month: number, day: number) {
 }
 
 function normalizeTimestamp(value: string) {
+  // Readiness stores Moab wall time; Arrival Board exposes timestamptz.
+  // Match the same instant, independent of the server's timezone.
+  if(!/(Z|[+-]\d{2}:?\d{2})$/i.test(value)) {
+    const parts=value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if(parts){
+      const wallUtc=Date.UTC(Number(parts[1]),Number(parts[2])-1,Number(parts[3]),Number(parts[4]),Number(parts[5]),Number(parts[6]??0));
+      let instant=wallUtc;
+      for(let i=0;i<3;i++)instant=wallUtc-getMountainOffsetMs(new Date(instant));
+      return new Date(instant).toISOString();
+    }
+  }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
 }
 
-export async function getArrivalBoardRows() {
-  const today = getMountainDateParts(new Date());
+export async function getArrivalBoardRows(options: { date?: string } = {}) {
+  let today = getMountainDateParts(new Date());
+  // Date travel is a read-only fixture viewer, available only in isolated staging.
+  if(process.env.EPIC_STAGING_NO_OUTBOUND==="true" && process.env.NEXT_PUBLIC_SUPABASE_URL==="https://cchsrkhpvvrvcuepkqdu.supabase.co" && options.date && /^\d{4}-\d{2}-\d{2}$/.test(options.date)){
+    const parsed=new Date(options.date+"T12:00:00Z");
+    if(Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0,10)===options.date){
+      const [year,month,day]=options.date.split("-").map(Number);today={year,month,day};
+    }
+  }
   const start = mountainMidnightUtc(today.year, today.month, today.day);
   const end = mountainMidnightUtc(today.year, today.month, today.day + 1);
   const dateFilters = [
@@ -509,11 +548,15 @@ export async function getArrivalBoardRows() {
   });
   for (const [key, value] of dateFilters) {
     arrivalParams.append(key, value);
-    readinessParams.append(key, value);
+
   }
 
+  const wallDate=(day:number)=>new Date(Date.UTC(today.year,today.month-1,day)).toISOString().slice(0,10)+"T00:00:00";
+  readinessParams.append("visit_start_time",`gte.${wallDate(today.day)}`);
+  readinessParams.append("visit_start_time",`lt.${wallDate(today.day+1)}`);
+
   const [rows, readinessRows] = await Promise.all([
-    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams),
+    fetchView<ArrivalBoardRow>("guest_arrival_board_with_handoff_v", arrivalParams, true),
     fetchView<Pick<ReadinessRow,
       "readiness_id" |
       "confirmation_code" |
@@ -531,7 +574,7 @@ export async function getArrivalBoardRows() {
       "mpwr_document_expected_count" |
       "ohv_required" |
       "ohv_certificate_uploaded"
-    >>("guest_readiness_with_handoff_v", readinessParams),
+    >>("guest_readiness_with_handoff_v", readinessParams, true),
   ]);
 
   const readinessIds = readinessRows
@@ -577,13 +620,18 @@ export async function getArrivalBoardRows() {
         vehicleCount: row.total_vehicle_count,
       })),
   );
+  const expReadiness=process.env.EXP_ASSESSMENT_SERVER_ENABLED==="true"?await loadExpReadinessMany(readinessIds):new Map();
   const terminalStatuses = new Set(["checked_in", "tour_returned", "rental_out", "rental_returned"]);
 
   return rows
     .map((row) => {
-      const readiness = readinessByKey.get(
+      const exactReadiness = readinessByKey.get(
         `${row.confirmation_code}|${normalizeTimestamp(row.visit_start_time)}|${row.business_line}`,
       );
+      // A single same-day booking activity is unambiguous even when legacy
+      // source timestamps disagree about wall time. Never guess among items.
+      const bookingCandidates=exactReadiness?[]:readinessRows.filter(candidate=>candidate.confirmation_code===row.confirmation_code&&candidate.business_line===row.business_line);
+      const readiness=exactReadiness??(bookingCandidates.length===1?bookingCandidates[0]:undefined);
       const totalVehicleCount = readiness?.total_vehicle_count ?? row.total_vehicle_count ?? null;
       const uploadedOhvCount = readiness?.readiness_id
         ? (ohvUploadCountByReadinessId.get(readiness.readiness_id) ?? 0)
@@ -617,6 +665,8 @@ export async function getArrivalBoardRows() {
 
       return {
         ...row,
+        exp_status:readiness?.readiness_id && expReadiness.get(readiness.readiness_id)?.expReady?expReadiness.get(readiness.readiness_id)!.assessmentStatus:null,
+        readiness_id: readiness?.readiness_id ?? null,
         customer_phone_last_four: readiness?.customer_phone_last_four ?? row.customer_phone_last_four ?? null,
         handoff_status: readiness?.handoff_status ?? row.handoff_status ?? null,
         product_display_name: readiness?.product_display_name ?? row.product_display_name ?? row.board_activity_label,

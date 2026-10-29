@@ -95,7 +95,7 @@ export default async function TeamReadinessPage() {
     <div className={styles.page}>
       <AutoRefresh />
       <ReadinessRealtimeRefresh />
-      <AutoCancellationPopupWatcher />
+      {process.env.EPIC_STAGING_NO_OUTBOUND !== "true" && <AutoCancellationPopupWatcher />}
       <PortalEmailEnhancer />
       <PortalQrEnhancer />
       <PortalQrRailEnhancer />

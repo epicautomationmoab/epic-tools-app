@@ -26,7 +26,7 @@ function getSupabaseConfig() {
 function headers(key: string, extra?: HeadersInit): HeadersInit {
   return {
     apikey: key,
-    Authorization: `Bearer ${key}`,
+    ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
     ...extra,
   };
 }

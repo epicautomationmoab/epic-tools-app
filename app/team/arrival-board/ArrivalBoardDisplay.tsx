@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ArrivalBoardRow } from "@/lib/supabase";
 import styles from "./ArrivalBoard.module.css";
+import { expBoardDirection } from "@/lib/exp/team-status";
 
 type Filter = "all" | "tour" | "rental";
 
@@ -64,7 +65,6 @@ export default function ArrivalBoardDisplay({
   rows: ArrivalBoardRow[];
 }) {
   const [filter, setFilter] = useState<Filter>("all");
-
   const visibleRows = useMemo(
     () =>
       filter === "all"
@@ -104,7 +104,8 @@ export default function ArrivalBoardDisplay({
 
       <section className={styles.rows}>
         {visibleRows.map((row) => {
-          const isKiosk = row.board_action_type === "kiosk";
+          const exp = row.exp_status ?? null;
+          const isKiosk = expBoardDirection(row.board_action_type === "kiosk", row.business_line, exp) === "kiosk";
 
           const details = [
             row.business_line === "rental" ? row.rental_duration : null,
@@ -131,6 +132,7 @@ export default function ArrivalBoardDisplay({
               <div className={styles.activity}>
                 <strong>{reservationLabel(row)}</strong>
                 {details.length ? <span>{details.join(" • ")}</span> : null}
+                
               </div>
 
               <div
@@ -138,6 +140,7 @@ export default function ArrivalBoardDisplay({
                   isKiosk ? styles.kiosk : styles.agentReady
                 }`}
               >
+                {exp?.allReady && row.business_line === "rental" ? <span style={{background:"#def2e4",color:"#087238",fontSize:12,fontWeight:800,borderRadius:20,padding:"4px 10px",letterSpacing:".03em",whiteSpace:"nowrap"}}>XPRESS CHECKOUT</span> : null}
                 <span className={styles.directionIcon} aria-hidden="true">
                   {isKiosk ? "→" : "🎉"}
                 </span>

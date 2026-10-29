@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import {supabaseSelect} from "@/lib/server/supabase-rest";
 
 function getSupabaseConfig() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -38,7 +39,7 @@ export async function GET(
 
     const config = getSupabaseConfig();
     const params = new URLSearchParams({
-      select: "epic_document_url",
+      select: "epic_document_url,confirmation_code,business_line",
       guest_portal_token: `eq.${token}`,
       readiness_id: `eq.${readinessId}`,
       limit: "1",
@@ -60,8 +61,17 @@ export async function GET(
       );
     }
 
-    const rows = (await response.json()) as Array<{ epic_document_url: string | null }>;
-    const documentUrl = rows[0]?.epic_document_url;
+    const rows = (await response.json()) as Array<{ epic_document_url: string | null;confirmation_code:string;business_line:string }>;
+    let documentUrl = rows[0]?.epic_document_url;
+    // Use the authenticated reservation's existing store visit when a legacy
+    // wall-time/UTC join cannot resolve its agreement. Never guess another booking.
+    if(!documentUrl&&rows[0]?.business_line==='rental'){
+      const [source]=await supabaseSelect<{source_store_visit_id:string|null}>('guest_readiness_operational',new URLSearchParams({select:'source_store_visit_id',readiness_id:`eq.${readinessId}`,confirmation_code:`eq.${rows[0].confirmation_code}`,limit:'1'}));
+      if(source?.source_store_visit_id){
+        const [session]=await supabaseSelect<{public_path:string|null}>('epic_waiver_sessions',new URLSearchParams({select:'public_path',store_visit_id:`eq.${source.source_store_visit_id}`,confirmation_code:`eq.${rows[0].confirmation_code}`,business_line:'eq.rental',session_status:'eq.active',expires_at:`gte.${new Date().toISOString()}`,order:'updated_at.desc',limit:'1'}));
+        documentUrl=session?.public_path;
+      }
+    }
 
     if (!documentUrl) {
       return NextResponse.json(

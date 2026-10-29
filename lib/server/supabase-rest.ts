@@ -1,3 +1,4 @@
+import { requireCorrectSupabaseEnvironment } from "@/lib/server/staging-boundary";
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -6,6 +7,7 @@ function requiredEnv(name: string) {
 
 export function getServerSupabaseConfig() {
   const rawUrl = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
+  requireCorrectSupabaseEnvironment(rawUrl);
   const key = requiredEnv("SUPABASE_SECRET_KEY");
   const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
   return { url: normalizedUrl.replace(/\/+$/, ""), key };
@@ -15,7 +17,8 @@ export function serverSupabaseHeaders(prefer?: string) {
   const { key } = getServerSupabaseConfig();
   return {
     apikey: key,
-    Authorization: `Bearer ${key}`,
+    // New sb_secret keys are API keys, not JWTs. Do not send them as Bearer tokens.
+    ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
     "Content-Type": "application/json",
     ...(prefer ? { Prefer: prefer } : {}),
   };
@@ -27,7 +30,7 @@ export async function supabaseSelect<T>(resource: string, params: URLSearchParam
     headers: serverSupabaseHeaders(),
     cache: "no-store",
   });
-  if (!response.ok) throw new Error(`Unable to read ${resource}: ${await response.text()}`);
+  if (!response.ok) throw new Error(`Unable to read ${resource}: HTTP ${response.status}`);
   return (await response.json()) as T[];
 }
 
