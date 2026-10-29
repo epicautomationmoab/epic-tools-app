@@ -14,11 +14,11 @@ export default function BeltTireInquiry({token,readinessId,sessionId,rosterKey}:
   <h3>Optional Belt &amp; Tire Protection <span className={styles.inquiryPrice}>${data.price}</span></h3>
   {unanswered?<>
    <p className={styles.inquiryQuestion}>Would you like more information about Belt &amp; Tire Protection when you arrive?</p>
-   <fieldset className={styles.inquiryDriver}><legend>{data.isGroup?'Watching together: ':''}{data.drivers.map(d=>d.name).join(' & ')}</legend>
+   <fieldset className={styles.inquiryDriver} aria-label="Belt and Tire Protection information choice">
     {([['information_requested',"I'd like more information."],['declined','No thank you.']] as const).map(([value,label])=><label key={value}><input type="radio" name={`belt-tire-${sessionId}`} checked={false} disabled={saving} onChange={()=>void respond(data.drivers.find(d=>!d.response)!.name,value)}/>{label}</label>)}
    </fieldset>
    <p className={styles.disclaimer}><em>Requesting information does not add a charge to your reservation.</em></p>
-  </>:<p className={styles.inquirySaved}>{data.drivers.every(d=>d.response===data.drivers[0].response)?<>{data.drivers[0].response==='information_requested'?"Information requested":"No thank you"} — saved for {data.drivers.map(d=>d.name).join(' & ')}.</>:<>Your previously recorded information preferences are saved.</>}</p>}
+  </>:<p className={styles.inquirySaved}>{data.drivers.every(d=>d.response===data.drivers[0].response)?<>{data.drivers[0].response==='information_requested'?"Information requested":"No thank you"} — your preference has been saved.</>:<>Your previously recorded information preferences are saved.</>}</p>}
   {saving?<p className={styles.disclaimer} role="status">Saving response…</p>:null}{error?<p className={styles.disclaimer} role="status">{error}</p>:null}
  </aside>;
 }
