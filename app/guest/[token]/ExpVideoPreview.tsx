@@ -179,7 +179,7 @@ export default function ExpVideoPreview({
       if(!progressResponse.ok)throw new Error("Unable to retrieve saved progress.");
       const progress=await progressResponse.json();if(generation!==selectionGeneration.current)return;const duration=Number(progress.videoDurationSeconds??0);
       if(initialDrivers?.length){
-        const participantResponse=await fetch(`${base}/participants`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({readinessId:anchor,sessionId:saved.sessionId,allDriversWatched:true,participants:initialDrivers.map(d=>({fullName:d.fullName,initials:d.initials}))})});
+        const participantResponse=await fetch(`${base}/participants`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({readinessId:anchor,sessionId:saved.sessionId,preVideoParticipation:true,participants:initialDrivers.map(d=>({fullName:d.fullName,initials:d.initials}))})});
         const recorded=await participantResponse.json();if(!participantResponse.ok)throw new Error(recorded.error||"Unable to save driver initials.");
         setDriverNames(initialDrivers);
       }
