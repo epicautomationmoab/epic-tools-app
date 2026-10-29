@@ -8,28 +8,6 @@ const VIDEO_URL = "https://player.vimeo.com/video/1239550688?autoplay=0&muted=0&
 const REQUIRED_COVERAGE = process.env.NEXT_PUBLIC_EXC_QA_VIDEO_10_PERCENT === 'true' ? 0.1 : 0.98;
 
 type PlaybackEvent = { seconds: number; duration: number };
-type Player = {
-  on: (event: string, handler: (data: PlaybackEvent) => void) => void;
-  off: (event: string, handler: (data: PlaybackEvent) => void) => void;
-  ready: () => Promise<void>;
-  destroy: () => Promise<void>;
-};
-type VimeoWindow = Window & { Vimeo?: { Player: new (element: HTMLIFrameElement) => Player } };
-let sdkLoading: Promise<void> | null = null;
-function loadVimeoSdk(): Promise<void> {
-  if ((window as VimeoWindow).Vimeo?.Player) return Promise.resolve();
-  if (sdkLoading) return sdkLoading;
-  sdkLoading = new Promise<void>((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://player.vimeo.com/api/player.js";
-    script.async = true;
-    script.onload = () => (window as VimeoWindow).Vimeo?.Player ? resolve() : reject(new Error("Vimeo SDK unavailable"));
-    script.onerror = () => reject(new Error("Vimeo SDK could not load"));
-    document.head.appendChild(script);
-  }).catch(error => { sdkLoading = null; throw error; });
-  return sdkLoading;
-}
-
 /** Track watched seconds, not the video seek position. */
 export type ExpPlaybackCheckpoint = { watchedSeconds: number[]; durationSeconds: number; ended: boolean };
 export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initialCheckpoint, onInquiryAvailable }: { onInquiryAvailable?:()=>void; initialCheckpoint?: ExpPlaybackCheckpoint; onCoverageChange: (complete: boolean) => void; onCheckpoint?: (data: ExpPlaybackCheckpoint) => void }) {
@@ -48,7 +26,7 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
     let inquiryPublished=false;
     const publishInquiry=(position:number)=>{if(!inquiryPublished&&beltTireCueReached(position,initialCheckpoint?.watchedSeconds)){inquiryPublished=true;inquiryCallback.current?.()}};
     publishInquiry(0);
-    let player: Player | null = null;
+
     const watched = new Set<number>(initialCheckpoint?.watchedSeconds??[]);
     let previous: number | null = null;
     let seeking = false;
@@ -93,29 +71,34 @@ export default function ExpTrackedVideo({ onCoverageChange, onCheckpoint, initia
       checkComplete(data.duration);
       publishCheckpoint(data.duration);
     };
-    void loadVimeoSdk().then(async () => {
-      if (disposed || !host) return;
-      const Vimeo = (window as VimeoWindow).Vimeo;
-      if (!Vimeo?.Player) throw new Error("Player SDK unavailable");
-      player = new Vimeo.Player(host);
-      player.on("seeking", onSeeking);
-      player.on("seeked", onSeeked);
-      player.on("timeupdate", onTimeUpdate);
-      player.on("ended", onEnded);
-      await player.ready();
-      if (!disposed) setTrackingError(false);
-    }).catch(() => { if (!disposed) setTrackingError(true); });
+    // Listen directly to Vimeo iframe messages; never load its DOM-mutating SDK.
+    const listen = (event: MessageEvent) => {
+      if (disposed || event.origin !== "https://player.vimeo.com" || event.source !== host?.contentWindow) return;
+      let message: {event?: string; data?: PlaybackEvent};
+      try { message = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch { return; }
+      if (message.event === "ready") {
+        setTrackingError(false);
+        for (const name of ["timeupdate", "seeking", "seeked", "ended"]) {
+          host?.contentWindow?.postMessage(JSON.stringify({method:"addEventListener",value:name}),"https://player.vimeo.com");
+        }
+      } else if (message.event === "timeupdate" && message.data) onTimeUpdate(message.data);
+      else if (message.event === "seeking") onSeeking();
+      else if (message.event === "seeked") onSeeked();
+      else if (message.event === "ended") onEnded();
+    };
+    window.addEventListener("message",listen);
+    const register = () => {
+      for (const name of ["timeupdate", "seeking", "seeked", "ended"]) {
+        host?.contentWindow?.postMessage(JSON.stringify({method:"addEventListener",value:name}),"https://player.vimeo.com");
+      }
+    };
+    host?.addEventListener("load", register);
+    register();
     return () => {
       publishCheckpoint(knownDuration,true);
       disposed = true;
-      // React owns the single iframe. Never let Vimeo create or remove iframe elements.
-      if (player) {
-        player.off("seeking", onSeeking);
-        player.off("seeked", onSeeked);
-        player.off("timeupdate", onTimeUpdate);
-        player.off("ended", onEnded);
-        // Unsubscribe only; React owns the iframe lifecycle.
-      }
+      window.removeEventListener("message",listen);
+      host?.removeEventListener("load",register);
     };
   }, []);
 
