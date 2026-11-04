@@ -8,25 +8,7 @@ import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
 import ExpSessionChoice,{type ExpSessionChoices} from "./ExpSessionChoice";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 
-// EXP opens at 8:00 AM Moab time on the calendar day before the rental.
-// Use local calendar dates rather than a 24-hour difference (DST-safe).
-const MOAB_ZONE = "America/Denver";
-function moabParts(timestamp: number) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: MOAB_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", hourCycle: "h23",
-  }).formatToParts(new Date(timestamp));
-  const part = (type: string) => Number(parts.find(item => item.type === type)?.value);
-  return { year: part("year"), month: part("month"), day: part("day"), hour: part("hour") };
-}
-function withinExpWindow(start: number, now: number) {
-  if (!Number.isFinite(start) || start < now) return false;
-  const visit = moabParts(start);
-  const today = moabParts(now);
-  const dayDifference = Math.round((Date.UTC(visit.year, visit.month - 1, visit.day) -
-    Date.UTC(today.year, today.month - 1, today.day)) / 86_400_000);
-  return dayDifference === 0 || (dayDifference === 1 && today.hour >= 8);
-}
+import {withinExpWindow} from '@/lib/exp/window';
 
 type DriverStatus={name:string;expReady:boolean;orientationComplete:boolean;outstanding:string[]};
 type Rental = { readinessId: string; businessLine: string; visitStartTime: string };

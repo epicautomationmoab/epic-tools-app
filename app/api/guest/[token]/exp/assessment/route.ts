@@ -1,3 +1,4 @@
+import {withinExpWindow,denverWallTimeToIso} from '@/lib/exp/window';
 import {loadExpSessionOptions,expNameKey} from "@/lib/server/exp-session-options";
 import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import {expVideoDuration,matchesExpVideoDuration,expQaVideoThreshold} from "@/lib/server/exp-video";
@@ -76,6 +77,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }));
     const activity = activities.find(a=>a.readiness_id===body.readinessId);
     if (!activity || activity.business_line?.toLowerCase() !== "rental") return fail("Rental reservation not found.", 404);
+
+    if (!withinExpWindow(Date.parse(denverWallTimeToIso(activity.visit_start_time)), Date.now())) {
+      return fail("Online orientation opens at 8 AM the day before pickup and closes 30 minutes before pickup. Please see an Adventure Technician outside that window.", 409);
+    }
 
     if (body.action === "start") {
       // Explicit driver/group choice never resumes another driver's unfinished work.

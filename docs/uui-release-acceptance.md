@@ -64,3 +64,6 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Server and player full viewing threshold corrected from 98% to 100%. No relaxed threshold in UUI. End-of-video requirement retained; progress label cannot claim completion early by rounding.
 - Tests now reject 98% coverage, one missing second and missing end event; existing driver, guardian, OHV, booking separation and result presentation tests pass.
 - Original separate EXC staging shortcut is not used by UUI; original EXC deployment/branch/database not changed.
+- Browser on enabled UUI: Readiness now shows actual EXC driver requirements instead of "not enabled". Incomplete synthetic driver correctly remains pending with missing Polaris/OHV/orientation, not qualified.
+- Availability defect repaired: shared browser/server window opens 8 AM prior day and closes exactly 30 minutes before pickup. Tests cover DST and invalid/past timestamps; full build passed.
+- Full guest video playback and completed assessment remain unverified; existing synthetic reservation dates are already past pickup. Do not equate mocked qualification tests with a completed browser guest journey.
