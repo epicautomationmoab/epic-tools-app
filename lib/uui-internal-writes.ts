@@ -7,6 +7,6 @@ export function allowsUuiInternalWrite(
   return env.VERCEL_PROJECT_ID === "prj_lZGiQ85J6jQRgSRostBvUJGVKv6r"
     && ["preview", "development"].includes(env.VERCEL_ENV || "")
     && env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "") === "https://jgpihdpcdlqugmqanzfj.supabase.co"
-    && ((pathname === "/api/sales/unified-notes" && ["POST", "PATCH"].includes(method)) || (["/api/team/epic-ping", "/api/team/live-calls", "/api/sales/live-calls", "/api/sales/quotes"].includes(pathname)
+    && ((pathname === "/api/sales/unified-notes" && ["POST", "PATCH"].includes(method)) || (["/api/team/epic-ping", "/api/team/live-calls", "/api/sales/live-calls", "/api/team/readiness/note-flags", "/api/sales/quotes"].includes(pathname)
     && method === "POST"));
 }

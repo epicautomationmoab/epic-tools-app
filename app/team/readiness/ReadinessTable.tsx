@@ -1356,6 +1356,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
             role="dialog"
             aria-modal="true"
             aria-label={`${selected.customer_name} reservation details`}
+            data-confirmation-code={selected.confirmation_code || ""}
             onMouseDown={(event) => event.stopPropagation()}
           >
             <header className={styles.drawerHeader}>

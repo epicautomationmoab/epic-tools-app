@@ -12,6 +12,8 @@ type Note = {
 };
 
 function confirmationFromDrawer(drawer: HTMLElement) {
+  const code=drawer.dataset.confirmationCode?.trim().toUpperCase();
+  if(code && /^[A-Z0-9-]{3,25}$/.test(code)) return code;
   const values = Array.from(drawer.querySelectorAll("strong"))
     .map((node) => node.textContent?.trim() || "")
     .filter(Boolean);
