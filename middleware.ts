@@ -27,6 +27,10 @@ export async function middleware(request: NextRequest) {
     workstationPassword && workstationCookie && workstationCookie === await sha256Hex(workstationPassword),
   );
   const pathname = request.nextUrl.pathname;
+  // Preserve old bookmarks but expose only the unified employee sign-in in UUI.
+  if (pathname === "/employee-login" && process.env.VERCEL_PROJECT_ID === "prj_lZGiQ85J6jQRgSRostBvUJGVKv6r") {
+    return NextResponse.redirect(new URL("/uui-login", request.url));
+  }
 
   // EXP staging is deliberately read-only for every operational API.
   // The only allowed API writes are the dedicated, staged EXP endpoints.
@@ -53,7 +57,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/team") && !hasPreviewAccess && !hasEmployeeSession && !hasWorkstationAccess) {
-    const loginUrl = new URL("/employee-login", request.url);
+    const loginUrl = new URL("/uui-login", request.url);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -78,6 +82,7 @@ export const config = {
   matcher: [
     "/",
     "/team/:path*",
+    "/employee-login",
     "/kiosk/:path*",
     "/visit/:path*",
     "/api/:path*",

@@ -74,7 +74,7 @@ export default function LogoutButton() {
       await fetch("/api/auth/logout", { method: "POST" });
       window.localStorage.removeItem(LAST_ACTIVITY_KEY);
     } finally {
-      window.location.href = "/employee-login";
+      window.location.href = "/uui-login";
     }
   }
 

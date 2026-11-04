@@ -1,0 +1,11 @@
+const ts=require('typescript'),fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const exportsObj={};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/employee-activity.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:exportsObj});
+const {recordEmployeeActivity,EMPLOYEE_IDLE_MS}=exportsObj;
+let value='1000';const storage={getItem:()=>value,setItem:(_,v)=>value=v};
+assert(recordEmployeeActivity(storage,2000));assert.equal(value,'2000');
+assert.equal(recordEmployeeActivity(storage,2000+EMPLOYEE_IDLE_MS),false);assert.equal(value,'2000');
+assert(recordEmployeeActivity(storage,2000+EMPLOYEE_IDLE_MS,true));
+assert.equal(value,String(2000+EMPLOYEE_IDLE_MS));
+value=null;assert(recordEmployeeActivity(storage,3000));assert.equal(value,'3000');
+console.log('Employee activity: active workspace events extend clock, actual expiry remains locked, explicit sign-in starts fresh, absent clock initializes.');

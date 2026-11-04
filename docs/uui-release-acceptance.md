@@ -48,3 +48,11 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Readiness document detail read moved from anonymous database request to employee-guarded same-origin reader. Fixed fields and one-reservation bound, no-store, generic error, invalid ID/unauthorized/not-found tests pass. Deployment/browser verification pending.
 - Security advisor warnings for these existing employee-guarded SECURITY DEFINER functions are intentional; no anonymous execution. Unrelated pre-existing advisor findings remain.
 - Lead sheet draft/finalization and other operational writes remain outside this completed subset. Do not mark all Sales or Readiness workflows complete.
+
+## November 4 unified sign-in correction
+- Home-to-Readiness verified in Jennifer's renewed session: same employee, no second login.
+- Legacy employee-login URL redirects to unified sign-in in the UUI project; session recovery and Readiness logout target unified sign-in.
+- Explicit successful password sign-in resets the existing inactivity clock. Credential refresh does not reset it.
+- Sales, Home, Admin and Management activity now updates the same clock as Readiness. Truly expired idle clocks remain locked; listeners clean up across navigation.
+- Activity/session tests, 83 write-boundary checks and full build passed.
+- Previous document-reader deployment 8e4d3a1: browser confirmed unit A shows three MPWR waivers (Driver, Minor, Passenger) without the anonymous retrieval error.

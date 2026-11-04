@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { recordEmployeeActivity } from "@/lib/employee-activity";
 import { usePathname } from "next/navigation";
 
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
@@ -20,7 +21,7 @@ export default function EmployeeSessionRefresher() {
       if (redirecting || stopped) return;
       redirecting = true;
       const next = `${window.location.pathname}${window.location.search}`;
-      window.location.replace(`/employee-login?next=${encodeURIComponent(next)}`);
+      window.location.replace(`/uui-login?next=${encodeURIComponent(next)}`);
     }
 
     async function checkSession() {
@@ -65,6 +66,18 @@ export default function EmployeeSessionRefresher() {
       if (!stopped && document.visibilityState === "visible") void refresh();
     }
 
+    // Activity in Sales, Home and Admin counts just as activity in Readiness.
+    // An expired clock stays expired until PIN unlock or explicit sign-in.
+    let lastActivityWrite = 0;
+    function recordActivity() {
+      const now = Date.now();
+      if (now - lastActivityWrite < 15000) return;
+      lastActivityWrite = now;
+      try { recordEmployeeActivity(window.localStorage, now); } catch { /* Storage may be unavailable. */ }
+    }
+    const activityEvents = ["pointerdown", "keydown", "scroll", "touchstart"] as const;
+    activityEvents.forEach(event => window.addEventListener(event, recordActivity, { passive: true }));
+
     // Refresh immediately, periodically, and whenever a sleeping/backgrounded
     // workstation becomes active again. If authentication is truly gone, the
     // status check redirects immediately instead of leaving a stale dashboard.
@@ -75,6 +88,7 @@ export default function EmployeeSessionRefresher() {
 
     return () => {
       stopped = true;
+      activityEvents.forEach(event => window.removeEventListener(event, recordActivity));
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshWhenActive);
       window.removeEventListener("focus", refreshWhenActive);
