@@ -37,3 +37,12 @@ Automatic Vercel Git deployment is disabled for this integration branch. Preserv
 - Updated the staging database guard to recognize the dedicated UUI project while retaining the existing EXC-staging restriction elsewhere. Six isolation checks passed.
 - Sales internal relay URLs now default to the deployment's own VERCEL_URL; removed the remaining Meta Messenger production database fallback.
 - Operational mutation restrictions remain enabled pending route-by-route isolated workflow validation. No live communications or production changes.
+
+## Deployed verification checkpoint
+- Protected Preview deployment: dpl_B7TrkZPm7tghFwJ645WRWEXdKMjy; commit aa27c779d9e2a209544667462e4760bc782def52; status READY.
+- URL: https://epic-uui-development-dg3z1hswq-automation-4515s-projects.vercel.app/uui-login
+- Browser verified login renders and /uui-home redirects to login when signed out.
+- Restored authenticated EXECUTE only on existing search_epic_customers(text,integer) and search_epic_inbound_only_customers(text,integer). Verified named Team Test finds synthetic records and Workstation Test is rejected by existing function checks.
+- Employee browser sign-in returned Invalid login credentials. No live password or Auth configuration changed. Full signed-in browser acceptance remains outstanding.
+- Automated temporary share link request was rejected by approval review; use the signed-in Vercel browser instead. Do not disable protection.
+- Remaining: original Sales RPC permissions, operational mutation/outbound isolation, authenticated workspace flows, EXC fixtures and full completion checks, and extension availability verification. Do not call the combined application complete until these pass.
