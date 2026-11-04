@@ -84,3 +84,12 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Guest portal receives per-item handoff status; new/resumed orientation and participant/progress/inquiry saves check current checkout status server-side. Completed/history reads remain available.
 - Multi-item selection favors items not checked out. Guest page refresh closes an open orientation when that item's checkout arrives.
 - Tests verify late and multi-day starts, opening/DST, and API rejection after checkout without creating a new session.
+
+## EXC late-arrival browser acceptance — November 4
+- Rule deployed to protected UUI Preview at 7ace6c2062bf2be4b796f29fa8355e1c92495a7a (dpl_9cSEGjtDP3MeEqpcJDEfCCi84UMo READY).
+- Vimeo domain correction verified: video 1239550688 loads and plays normally in the stable Preview portal. Actual player duration is 702 rounded seconds; real playback checkpoints persisted to the existing synthetic session. No manufactured viewing credit or qualification.
+- Existing saved driver session opened after scheduled pickup when unit A was not checked out. Unit B remained returned throughout.
+- Restoring unit A's original returned handoff automatically closed the active orientation on the portal refresh and removed the Continue Orientation button. Server start/progress guards also pass focused tests.
+- Temporary fixture change was limited to removing/restoring handoff 19ba941c-c99a-416d-8e7b-847cf01333a8 with transaction-local trigger suppression. Original ID, timestamps, attribution and status restored and verified; reservation dates unchanged. No operational notifications sent.
+- Closed-card copy no longer invites the guest to finish an unavailable orientation. Typecheck and availability regression pass.
+- Full uninterrupted video completion and knowledge-check-to-Arrival/Exceptions browser journey remain unverified. This checkpoint proves video playback/persistence and checkout availability, not full EXC qualification or release readiness.
