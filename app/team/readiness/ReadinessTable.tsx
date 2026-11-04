@@ -534,28 +534,18 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
 
   useEffect(() => {
     if (!selected?.readiness_id) return;
-    // Always resolve the selected reservation token, even when documents are present.
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) return;
-
+    const documentReadinessId=selected.readiness_id;
     let cancelled = false;
     setDocumentDetailStatus("loading");
-    const params = new URLSearchParams({
-      select: "readiness_id,epic_document_signers,mpwr_waivers",
-      readiness_id: `eq.${selected.readiness_id}`,
-      limit: "1",
-    });
+
 
     const loadDocumentDetail = async () => {
       // A transient view timeout must not be presented as proof that no waivers exist.
       for (let attempt = 0; attempt < 3 && !cancelled; attempt += 1) {
         try {
           const response = await fetch(
-            `${url}/rest/v1/guest_readiness_with_handoff_v?${params.toString()}`,
+            `/api/team/readiness/document-detail?readiness_id=${encodeURIComponent(documentReadinessId)}`,
             {
-              headers: { apikey: key, Authorization: `Bearer ${key}` },
               cache: "no-store",
             },
           );

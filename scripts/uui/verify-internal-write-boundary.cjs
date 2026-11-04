@@ -24,7 +24,8 @@ for(const method of ['POST','PATCH','DELETE']) {
  assert.equal(check('/api/team/readiness/notes',method,env),true);count++;
  for(const changed of [{VERCEL_ENV:'production'},{VERCEL_PROJECT_ID:'other'},{NEXT_PUBLIC_SUPABASE_URL:'https://kbuxcvqzicnydqllyong.supabase.co'}]) {assert.equal(check('/api/team/readiness/notes',method,{...env,...changed}),false);count++;}
 }
-console.log(`${count+4} internal-write boundary checks passed`);
+
 
 assert.equal(check('/api/sales/followups','PATCH',env),true);
 assert.equal(check('/api/sales/followups','PATCH',{...env,VERCEL_ENV:'production'}),false);
+console.log(`${count+6} internal-write boundary checks passed`);

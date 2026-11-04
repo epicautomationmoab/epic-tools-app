@@ -7,7 +7,7 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Existing Readiness reservation drawer, C360 lifetime lookup/history, management report date selection, Admin profile list and Jennifer audit were browser verified. These checks do not establish every write workflow.
 - Quote create/edit/reopen persisted the same quote and totals in the browser.
 - C360 shared note creation/visibility and Readiness create/edit/reopen/archive passed browser and database checks. Employee attribution and before/after history retained; stale edits rejected.
-- Exact UUI-only write allowlist: 67 checks pass. Real outbound operations remain blocked.
+- Exact UUI-only write allowlist: 83 checks pass. Real outbound operations remain blocked.
 - Introduction-history reader corrected: validates active employee/non-workstation before server-only timestamp query. No direct mailbox grants. Route transport tests pass, including errors and denial. Deployed browser verified: the introduction-history error is gone on Preview Lifetime Customer.
 - C360 internal history now combines linked phone/contact/email/reservation and active opportunity threads, deduplicates note IDs, preserves chronological order and mention response destinations, and surfaces read failures instead of claiming no messages. Focused tests passed.
 - EXC isolated policy/result checks: 23 passed previously. Booking isolation, guardians, batched readiness and deployment boundaries: 21 additional checks passed in this pass after repairing stale test mocks. No EXC runtime policy changed.
@@ -38,3 +38,13 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Full build and focused introduction/history/session tests passed; 67 boundary checks passed.
 - Browser verified session recovery and both C360 history repairs at approximately 2:00 PM America/Phoenix, November 4.
 - No database schema or data migrations in this pass. Read-only DB verification confirmed four phone-thread notes versus zero active-opportunity notes, reproducing the original mismatch.
+
+## November 4 Sales actions and Readiness documents
+- Restored existing guarded lead/follow-up function grants in UUI only. Anonymous execution remains denied; no direct table grants. Reviewed affected triggers: no outbound sends for these actions.
+- Follow-up NULL outcome validation corrected so completion/attempt cannot omit the required outcome.
+- Transactional rollback tests passed lead claim/release, note/edit, close/reactivate; follow-up create/attempt/reschedule/complete/dismiss; workstation and unassigned employee denial; premature dismissal and missing outcome denial.
+- Browser: created `Preview follow-up acceptance — Nov 4` from C360, assigned Jennifer Test; found it in My Catch-Up, recorded synthetic attempt, completed with explanation, reloaded, inspected created/attempted/completed history, dismissed. Record `441c054e-4e80-490b-b0a5-f48c39470c75` remains in history; no real call or message.
+- Browser: claimed Synthetic Inbox 902 as Jennifer and released with explanation; returned to Unclaimed.
+- Readiness document detail read moved from anonymous database request to employee-guarded same-origin reader. Fixed fields and one-reservation bound, no-store, generic error, invalid ID/unauthorized/not-found tests pass. Deployment/browser verification pending.
+- Security advisor warnings for these existing employee-guarded SECURITY DEFINER functions are intentional; no anonymous execution. Unrelated pre-existing advisor findings remain.
+- Lead sheet draft/finalization and other operational writes remain outside this completed subset. Do not mark all Sales or Readiness workflows complete.
