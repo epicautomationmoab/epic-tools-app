@@ -1,3 +1,4 @@
+import {getServerSupabaseConfig,serverSupabaseHeaders} from '@/lib/server/supabase-rest';
 import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
@@ -48,13 +49,7 @@ type FinancialRow = {
   guest_portal_payment_hidden: boolean | null;
 };
 
-function getSupabaseConfig() {
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SECRET_KEY?.trim();
-  if (!rawUrl || !key) throw new Error("Supabase environment variables are missing.");
-  const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
-  return { url: normalizedUrl.replace(/\/+$/, ""), key };
-}
+const getSupabaseConfig = getServerSupabaseConfig;
 
 function denverWallTimeToIso(value: string) {
   const match = value.match(
@@ -83,10 +78,10 @@ async function loadPaymentState(config: ReturnType<typeof getSupabaseConfig>, co
     limit: "1",
   });
   const response = await fetch(`${config.url}/rest/v1/operational_reservations?${financialParams.toString()}`, {
-    headers: { apikey: config.key },
+    headers: serverSupabaseHeaders(),
     cache: "no-store",
   });
-  if (!response.ok) return { balanceDueCents: 0, hidden: false };
+  if (!response.ok) throw new Error("Unable to verify reservation balance.");
   const rows = (await response.json()) as FinancialRow[];
   const baseDueCents = Math.max(rows[0]?.amount_due_cents ?? 0, 0);
   return {
@@ -107,12 +102,11 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       order: "visit_start_time.asc",
     });
     const response = await fetch(`${config.url}/rest/v1/guest_portal_v?${params.toString()}`, {
-      headers: { apikey: config.key },
+      headers: serverSupabaseHeaders(),
       cache: "no-store",
     });
     if (!response.ok) {
-      const body = await response.text();
-      return NextResponse.json({ error: "Unable to load guest portal.", detail: body.slice(0, 300) }, { status: response.status });
+      return NextResponse.json({ error: "Unable to load guest portal." }, { status: 502 });
     }
 
     const rows = (await response.json()) as GuestPortalRow[];
