@@ -2,7 +2,7 @@ import {expVideoDuration,matchesExpVideoDuration,EXP_VIDEO_VERSION,EXP_ASSESSMEN
 import {supabaseSelect} from "@/lib/server/supabase-rest";
 import {expTeamStatus} from "@/lib/exp/team-status";
 import {loadRentalV2Readiness,type RentalV2ReadinessSummary} from "@/lib/server/rental-v2-readiness";
-type Session={id:string;created_at:string;readiness_id:string;mode:string;outcome:string;completed_at:string|null;video_version:string;assessment_version:string;video_ended:boolean;video_duration_seconds:number|null;video_watched_seconds:number[]|null};
+type Session={id:string;created_at:string;readiness_id:string;mode:string;outcome:string;pause_reason?:string|null;completed_at:string|null;video_version:string;assessment_version:string;video_ended:boolean;video_duration_seconds:number|null;video_watched_seconds:number[]|null};
 type Participant={id:string;readiness_id:string;session_id:string;display_name:string;initials:string;reconciliation_status:string;waiver_signer_reference:string|null;acknowledgement_at:string|null};
 type Portal={guest_portal_token?:string|null;readiness_id:string;confirmation_code:string;business_line:string;expected_guest_count:number|null;total_vehicle_count:number|null;epic_document_received_count:number|null;epic_document_expected_count:number|null;mpwr_document_received_count:number|null;mpwr_document_expected_count:number|null;mpwr_waivers:Array<{name:string;is_minor?:boolean;is_passenger?:boolean}>|null;ohv_required:boolean|null;ohv_certificate_uploaded:boolean|null};
 type Task={id:string;readiness_id:string;template_id:string;task_status:string;required:boolean};
@@ -157,7 +157,7 @@ export async function loadExpReadinessMany(readinessIds:string[]){
   if(!rentals.length)continue;
   const filter=inList(rentals.map(p=>p.readiness_id));
   const [sessions,tasks,verifiedWaivers,ohvUploads]=await Promise.all([
-   selectAll<Session>('exp_sessions',new URLSearchParams({select:'id,created_at,readiness_id,mode,outcome,completed_at,video_version,assessment_version,video_ended,video_duration_seconds,video_watched_seconds',readiness_id:filter,order:'id.asc'})),
+   selectAll<Session>('exp_sessions',new URLSearchParams({select:'id,created_at,readiness_id,mode,outcome,pause_reason,completed_at,video_version,assessment_version,video_ended,video_duration_seconds,video_watched_seconds',readiness_id:filter,order:'id.asc'})),
    selectAll<Task>('guest_form_tasks',new URLSearchParams({select:'id,readiness_id,template_id,task_status,required',readiness_id:filter,task_status:'neq.cancelled',order:'id.asc'})),
    selectAll<VerifiedWaiver>('scout_mpwr_waivers',new URLSearchParams({select:'readiness_id,rider_name,is_minor,is_passenger,last_verified_at',readiness_id:filter,last_verified_at:'not.is.null',order:'id.asc'})),
    selectAll<OhvUpload>('ohv_certificate_uploads',new URLSearchParams({select:'readiness_id,driver_name,storage_path',readiness_id:filter,order:'id.asc'}))
