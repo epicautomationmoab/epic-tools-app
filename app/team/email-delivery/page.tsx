@@ -1,3 +1,4 @@
+import { getTourReturnExceptions, type ReturnException } from "@/lib/server/tour-return-health";
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
@@ -255,6 +256,7 @@ function JobExceptionRow({ row, guestName, label, sourceType }: { row: JobRow; g
 }
 
 export default async function ExceptionsPage() {
+  let tourReturns: ReturnException[] = [];
   let rhettExceptions: RhettJob[] = [];
   let emailIncidents: EmailIncident[] = [];
   let paymentExceptions: JobRow[] = [];
@@ -265,13 +267,14 @@ export default async function ExceptionsPage() {
   let error = "";
 
   try {
-    [rhettExceptions, emailIncidents, paymentExceptions, depositExceptions, resolutions, deferredBookings] = await Promise.all([
+    [rhettExceptions, emailIncidents, paymentExceptions, depositExceptions, resolutions, deferredBookings, tourReturns] = await Promise.all([
       getRhettExceptions(),
       getEmailIncidents(),
       getLatestJobs("cassie_mpwr_jobs"),
       getLatestJobs("victor_deposit_jobs"),
       getResolutions(),
       getDeferredBookings(),
+      getTourReturnExceptions(),
     ]);
 
     const confirmationCodes = [...new Set([
@@ -305,7 +308,7 @@ export default async function ExceptionsPage() {
     error = err instanceof Error ? err.message : "Unable to load exceptions.";
   }
 
-  const total = rhettExceptions.length + emailIncidents.length + paymentExceptions.length + depositExceptions.length;
+  const total = tourReturns.length + rhettExceptions.length + emailIncidents.length + paymentExceptions.length + depositExceptions.length;
 
   return (
     <div className={styles.page}>
@@ -334,12 +337,23 @@ export default async function ExceptionsPage() {
               <div>
                 <div style={{ fontWeight: 900, color: total ? "#202733" : "#187a45" }}>{total ? "Active Exceptions" : "All clear"}</div>
                 <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}>
-                  {total ? "These items still need attention." : "No active booking, payment, deposit-release, or email-delivery exceptions."}
+                  {total ? "These items still need attention." : "No active tour-return, booking, payment, deposit-release, or email-delivery exceptions."}
                 </div>
               </div>
               <CountBadge count={total} />
             </div>
           ) : null}
+
+          <section style={sectionStyle}>
+            <SectionHeader title="Tour Return Exceptions" description="Failed or stalled vehicle check-ins. Verify the vehicle’s return in MPWR; these remain visible until completion is recorded." count={tourReturns.length} />
+            {tourReturns.length === 0 ? <Empty>No unresolved tour return exceptions.</Empty> : tourReturns.map(row => (
+              <div key={row.dispatch_id} style={rowStyle}>
+                <div><strong>{row.customer_name}</strong><div>{row.confirmation_code}</div><div>Car {row.vehicle_label || row.vehicle_slot} · {row.visit_date}</div></div>
+                <div><strong>Vehicle return needs attention</strong><div>{row.return_health.message}</div><div>Submitted {formatMoabTime(row.checkin_requested_at!)} · Attempts: {row.return_health.attempts}</div></div>
+                <Link href={`/team/previous-guests?q=${encodeURIComponent(row.confirmation_code)}`}>Open Guest Lookup</Link>
+              </div>
+            ))}
+          </section>
 
           <section style={sectionStyle}>
             <SectionHeader

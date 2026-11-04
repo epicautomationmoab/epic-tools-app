@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { returnHealth } from '../lib/tour-return-health.ts';
+const now = Date.parse('2026-11-04T01:14:00Z');
+const dispatch = { dispatch_id: 'test', checkin_status: 'checkin_queued', checkin_requested_at: '2026-11-04T00:51:16Z', last_error: null };
+const job = { id: 'test-job', dispatch_id: 'test', status: 'shadow_ready', attempt_count: 1, last_error: 'MPWR rejected Complete with required fields: no visible Required markers found', created_at: '2026-11-03T21:34:10Z', updated_at: '2026-11-04T00:51:52Z', started_at: null, claimed_at: null };
+assert.equal(returnHealth(dispatch, job, now).message, job.last_error);
+assert.equal(returnHealth(dispatch, job, now).needsAttention, true);
+assert.equal(returnHealth({...dispatch, checkin_status: 'returned'}, job, now).needsAttention, false);
+assert.equal(returnHealth({...dispatch, checkin_status: 'prepared', checkin_requested_at: null}, job, now).needsAttention, false);
+assert.equal(returnHealth(dispatch, undefined, now).needsAttention, true);
+assert.equal(returnHealth({...dispatch, checkin_requested_at: new Date(now - 299_999).toISOString()}, undefined, now).needsAttention, false);
+assert.equal(returnHealth({...dispatch, checkin_requested_at: new Date(now - 300_000).toISOString()}, undefined, now).needsAttention, true);
+assert.equal(returnHealth(dispatch, {...job, status: 'training_claimed', started_at: new Date(now - 1000).toISOString()}, now).needsAttention, false);
+assert.equal(returnHealth(dispatch, {...job, status: 'training_claimed', started_at: new Date(now - 300_000).toISOString()}, now).needsAttention, true);
+assert.equal(returnHealth(dispatch, {...job, status: 'completed', last_error: null}, now).needsAttention, true);
+console.log('10 tour return health checks passed');
