@@ -562,6 +562,7 @@ export default function QuoteBuilder() {
       })));
       setAvailabilityDates(Object.fromEntries(detail.activities.map((activity) => [activity.id, String(q.visit_start_date || "")])));
       setAvailabilityByActivity({});
+      window.history.replaceState({}, "", `/sales/quote?quote=${encodeURIComponent(quoteId)}`);
       setActive("quotes");
     } catch (err) {
       setSaveMessage(err instanceof Error ? err.message : "Unable to open quote.");
