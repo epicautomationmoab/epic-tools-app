@@ -102,3 +102,9 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Isolated acknowledgement request and acceptance tables exist but are empty. Presence of imported code is not full workflow acceptance.
 - Required before combined release: test synthetic copy-link creation, correct policy selection, guest acceptance evidence/version/time, accepted/replaced/expired behavior, and the same status/history visible in C360 and Readiness. Delivery integration must remain disabled during synthetic testing. Legal acceptance requires owner-controlled test submission or an explicitly approved nonbinding fixture flow.
 - Focused regression verifies local reservation-scoped lookup, employee/workstation boundaries, blocked Preview delivery/reset and zero live forwarding. Typecheck passed.
+
+## Full EXC playback findings — November 4
+- Real full-length playback reached the Vimeo end event and unlocked the knowledge check. All ten answers persisted, but final submission correctly refused qualification because server-side Vimeo metadata was unavailable.
+- Verified Vimeo's own Progress Bar DOM reports max=701 and duration label 11:41 for video 1239550688. Configured EXP_VIDEO_DURATION_SECONDS=701 only in UUI Preview/Development. Fractional player checkpoints round to 702; existing one-second representation tolerance retained. Reverify when replacing the video.
+- Found resumed participants could advance without awaiting the final playback checkpoint. Continue now requires a successful final save before showing the assessment; failures remain visible and retryable. Full-viewing and end-event checks remain enforced.
+- Employee browser currently idle-locked; do not bypass its PIN. Staff-side visual acceptance needs an unlocked session.

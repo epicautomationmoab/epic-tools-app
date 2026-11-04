@@ -215,6 +215,25 @@ export default function ExpVideoPreview({
       setServerError(error instanceof Error ? error.message : "Unable to record your orientation.");
     } finally { setSavingParticipants(false); }
   }
+  async function continueAfterVideo() {
+    if (!participantsRecorded) { setSelectDrivers(true); return; }
+    if (!sessionId || !readinessId || !videoCoverageMet || !watchedAcknowledged || savingParticipants) return;
+    setSavingParticipants(true);
+    setServerError("");
+    try {
+      const saved = lastPlayback.current;
+      if (!saved || saved.sessionId !== sessionId) throw new Error("Video progress is not ready to save. Please try again.");
+      const cp = saved.checkpoint;
+      const response = await fetch(`/api/guest/${encodeURIComponent(token)}/exp/progress`, {
+        method:"PATCH",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({readinessId,sessionId,videoWatchedSeconds:cp.watchedSeconds,videoDurationSeconds:cp.durationSeconds,videoEnded:cp.ended})
+      });
+      if (!response.ok) throw new Error("Unable to save the completed video. Please try again before continuing.");
+      setShowAssessment(true);
+    } catch(error) {
+      setServerError(error instanceof Error ? error.message : "Unable to save completed video.");
+    } finally { setSavingParticipants(false); }
+  }
   async function checkpointPlayback(cp:ExpPlaybackCheckpoint){
     if (!sessionId || !readinessId) return;
     lastPlayback.current = {sessionId,checkpoint:cp};
@@ -278,7 +297,7 @@ export default function ExpVideoPreview({
                   <input type="checkbox" checked={watchedAcknowledged} onChange={(event) => setWatchedAcknowledged(event.target.checked)} />
                   <span>{process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("cchsrkhpvvrvcuepkqdu.supabase.co") ? "Staging test: I/we have completed the required 10% video preview." : "I/we have watched the entire safety orientation video."}</span>
                 </label>
-                <button className={styles.action} type="button" disabled={!watchedAcknowledged || !videoCoverageMet} onClick={() => { if(participantsRecorded) { setShowAssessment(true); } else setSelectDrivers(true); }}>
+                <button className={styles.action} type="button" disabled={!watchedAcknowledged || !videoCoverageMet || savingParticipants} onClick={() => void continueAfterVideo()}>
                   Continue to Knowledge Check
                 </button>
                 {reviewerMode ? <button className={styles.later} type="button" onClick={() => setSelectDrivers(true)}>Reviewer shortcut: Continue to driver selection</button> : null}
