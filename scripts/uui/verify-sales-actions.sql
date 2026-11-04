@@ -1,0 +1,40 @@
+begin;
+-- All changes to the known synthetic opportunity roll back.
+update public.sales_opportunities set status='open',claimed_by_profile_id=null,claimed_by_name=null,claimed_at=null where id='e5807473-11b8-4c91-9b1d-c7337238d583';
+select set_config('request.jwt.claim.sub','0d0fa277-0c03-43db-b5dc-c81a78452a6c',true);
+set local role authenticated;
+do $$
+declare lead uuid:='e5807473-11b8-4c91-9b1d-c7337238d583'; f jsonb; fid uuid; n jsonb; rejected boolean;
+begin
+ perform public.epic_sales_claim_lead(lead,false);
+ n:=public.epic_sales_add_note(lead,'Preview transaction-only lead action verification');
+ if n->>'author_name'<>'Team Test' then raise exception 'Wrong note actor'; end if;
+ perform public.epic_sales_edit_note((n->>'id')::uuid,'Preview transaction-only edited lead note');
+ f:=public.epic_followup_create(lead,'64eb0331-d16a-4ab8-81a1-7aaefe578944','Other employee task','No real contact',now()+interval '1 day','uui_test',null);
+ rejected:=false;begin perform public.epic_followup_action((f->>'id')::uuid,'complete','contacted','Must reject unassigned employee',null,null);exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Unassigned employee changed followup';end if;
+ f:=public.epic_followup_create(lead,'0d0fa277-0c03-43db-b5dc-c81a78452a6c','Preview follow-up verification','No real contact',now()+interval '1 day','uui_test',null);fid:=(f->>'id')::uuid;
+ if f->>'created_by_profile_id'<>'0d0fa277-0c03-43db-b5dc-c81a78452a6c' then raise exception 'Wrong followup actor'; end if;
+ rejected:=false;begin perform public.epic_followup_action(fid,'complete',null,'Must reject missing outcome',null,null);exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Null completion outcome allowed';end if;
+ perform public.epic_followup_action(fid,'attempt','no_answer','Synthetic attempt',null,null);
+ f:=public.epic_followup_action(fid,'reschedule',null,'Synthetic reschedule',now()+interval '2 days',null);
+ rejected:=false;begin perform public.epic_followup_dismiss(fid);exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Pending dismissal allowed';end if;
+ f:=public.epic_followup_action(fid,'complete','no_longer_needed','Synthetic verification complete',null,null);
+ if f->>'status'<>'completed' then raise exception 'Not completed';end if;
+ perform public.epic_followup_dismiss(fid);
+ perform set_config('request.jwt.claim.sub','f24dc053-b9fe-4c8c-864b-4705f2fd940b',true);
+ rejected:=false;begin perform public.epic_followup_action(fid,'reschedule',null,null,now(),null);exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Workstation followup allowed';end if;
+ rejected:=false;begin perform public.epic_sales_add_note(lead,'Workstation must fail');exception when others then rejected:=true;end;
+ if not rejected then raise exception 'Workstation note allowed';end if;
+ perform set_config('request.jwt.claim.sub','0d0fa277-0c03-43db-b5dc-c81a78452a6c',true);
+ perform public.epic_sales_claim_lead(lead,true);
+ perform public.epic_sales_claim_lead(lead,false);
+ perform public.epic_sales_close_lead(lead,'retired','test_or_staff_activity','Transaction-only test');
+ perform public.epic_sales_activate_lead(lead);
+end $$;
+reset role;
+select 'PASS existing lead claim/release/note/edit/close/reactivate and follow-up create/attempt/reschedule/complete/dismiss; workstation and premature dismissal denied' result;
+rollback;
