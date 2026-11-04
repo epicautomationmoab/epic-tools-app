@@ -671,12 +671,13 @@ export default function QuoteBuilder() {
         return;
       }
 
-      const customerSearch = phone.trim() || email.trim() || name.trim();
+      const customerSearch = phone.trim() || email.trim();
       if (customerSearch) {
         window.location.href = `/sales/customers?q=${encodeURIComponent(customerSearch)}&open=1`;
         return;
       }
-      setSaveMessage(`Estimate saved as quote ${result.quote_id.slice(0, 8)}. Add a customer name, email, or phone to open EpicC360.`);
+      window.history.replaceState({}, "", `/sales/quote?quote=${encodeURIComponent(result.quote_id)}`);
+      setSaveMessage(`Quote ${result.quote_id.slice(0, 8)} saved. You can reopen it from Saved Quotes. Add an email or phone to connect it to C360.`);
     } catch (err) {
       setSaveMessage(err instanceof Error ? err.message : "Unable to save estimate.");
     } finally {
@@ -795,7 +796,7 @@ export default function QuoteBuilder() {
             <section>
               <div className="sectionHeading">
                 <div><h2>{editingQuoteId ? `Edit Quote ${editingQuoteId.slice(0, 8)}` : "Build Estimate"}</h2></div>
-                <button className="secondary" type="button" onClick={newQuote}>+ New Quote</button>
+                <div style={{ display: "flex", gap: 8 }}><button className="secondary" type="button" onClick={() => setActive("leads")}>Saved Quotes</button><button className="secondary" type="button" onClick={newQuote}>+ New Quote</button></div>
               </div>
               <div className="card" style={{marginBottom:14}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
@@ -1039,7 +1040,7 @@ export default function QuoteBuilder() {
               <div className="field"><label>Moab arrival / first activity</label><input type="date" value={visitStart} onChange={(e) => setVisitStart(e.target.value)} /></div>
               <div className="field"><label>Moab departure / last activity</label><input type="date" value={visitEnd} onChange={(e) => setVisitEnd(e.target.value)} /></div>
             </div>
-            <button className="primary" type="button" onClick={handleSave} disabled={saving || dateSeasonMismatch || (pricingYear === 2027 && !effectiveVisitStart.startsWith("2027-")) || activities.some(a => Boolean(pending2027[a.experienceId]))}>{saving ? "Saving..." : pendingBooking ? (editingQuoteId ? "Update & Book It" : "Save & Book It") : editingQuoteId ? "Update & Open C360" : "Save & Open C360"}</button>
+            <button className="primary" type="button" onClick={handleSave} disabled={saving || dateSeasonMismatch || (pricingYear === 2027 && !effectiveVisitStart.startsWith("2027-")) || activities.some(a => Boolean(pending2027[a.experienceId]))}>{saving ? "Saving..." : pendingBooking ? (editingQuoteId ? "Update & Book It" : "Save & Book It") : phone.trim() || email.trim() ? (editingQuoteId ? "Update & Open C360" : "Save & Open C360") : (editingQuoteId ? "Update Quote" : "Save Quote")}</button>
             {!pendingBooking ? <button className="secondary modalSecondary" type="button" onClick={beginQuoteBookingFromDetails} disabled={saving || dateSeasonMismatch || (pricingYear === 2027 && !effectiveVisitStart.startsWith("2027-")) || activities.some(a => Boolean(pending2027[a.experienceId]))}>Book It</button> : null}
             {!pendingBooking ? <button className="secondary modalSecondary" type="button" onClick={handleSaveAndEmail} disabled={!email || saving || emailing || dateSeasonMismatch || (pricingYear === 2027 && !effectiveVisitStart.startsWith("2027-")) || activities.some(a => Boolean(pending2027[a.experienceId]))}>{emailing ? "Saving & Emailing..." : "Save & Email Quote"}</button> : null}
           </div>
