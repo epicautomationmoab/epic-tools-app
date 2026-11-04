@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "../../../../lib/team-auth";
 
-const EPIC_TOOLS_BASE_URL = (process.env.EPIC_TOOLS_BASE_URL || (process.env.EPIC_UNIFIED_INTERNAL_ORIGIN || "")).replace(/\/+$/, "");
+const EPIC_TOOLS_BASE_URL = (process.env.EPIC_TOOLS_BASE_URL || (process.env.EPIC_UNIFIED_INTERNAL_ORIGIN || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : ""))).replace(/\/+$/, "");
 
 export async function POST(request: NextRequest) {
   const accessToken = request.cookies.get("epic_access_token")?.value;

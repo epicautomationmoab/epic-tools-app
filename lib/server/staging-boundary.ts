@@ -6,7 +6,10 @@ export function requireCorrectSupabaseEnvironment(rawUrl: string) {
   let host: string;
   try { host = new URL(/^https?:\/\//.test(rawUrl) ? rawUrl : `https://${rawUrl}`).hostname; }
   catch { throw new Error("Staging: invalid Supabase URL."); }
-  if (host !== STAGING_SUPABASE_HOST) {
+  const expectedHost = process.env.VERCEL_PROJECT_ID === "prj_lZGiQ85J6jQRgSRostBvUJGVKv6r"
+    && process.env.VERCEL_ENV !== "production"
+    ? "jgpihdpcdlqugmqanzfj.supabase.co" : STAGING_SUPABASE_HOST;
+  if (host !== expectedHost) {
     throw new Error("Staging refused a non-staging Supabase database.");
   }
 }

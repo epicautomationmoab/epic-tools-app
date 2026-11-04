@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   if (!accessToken) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
 
   const body = await request.json().catch(() => null);
-  const response = await fetch(((process.env.EPIC_UNIFIED_INTERNAL_ORIGIN || "") + "/api/team/sales-introduction-email"), {
+  const response = await fetch(((process.env.EPIC_UNIFIED_INTERNAL_ORIGIN || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")) + "/api/team/sales-introduction-email"), {
     method: "POST",
     headers: {
       Authorization: "Bearer " + accessToken,

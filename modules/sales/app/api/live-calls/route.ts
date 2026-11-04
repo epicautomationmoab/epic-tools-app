@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "../../../lib/team-auth";
 
 export const dynamic = "force-dynamic";
-const SOURCE = ((process.env.EPIC_UNIFIED_INTERNAL_ORIGIN || "") + "/api/team/live-calls");
+const SOURCE = ((process.env.EPIC_UNIFIED_INTERNAL_ORIGIN || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")) + "/api/team/live-calls");
 
 async function relay(request: NextRequest, method: "GET" | "POST") {
   const token = request.cookies.get("epic_access_token")?.value;

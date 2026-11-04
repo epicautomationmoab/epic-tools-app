@@ -9,7 +9,7 @@ async function sha256Hex(value: string) {
 export async function middleware(request: NextRequest) {
   if(process.env.VERCEL_GIT_COMMIT_REF === "integration/epic-tools-unified" && (
     process.env.VERCEL_PROJECT_ID !== "prj_lZGiQ85J6jQRgSRostBvUJGVKv6r" ||
-    !process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith("https://jgpihdpcdlqugmqanzfj.supabase.co") ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "") !== "https://jgpihdpcdlqugmqanzfj.supabase.co" ||
     process.env.VERCEL_ENV === "production"
   )) return new NextResponse("Unified integration requires the isolated development project.",{status:503});
 

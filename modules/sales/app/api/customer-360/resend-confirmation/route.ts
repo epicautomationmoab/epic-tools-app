@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {getAuthenticatedTeamProfile} from "../../../../lib/team-auth";
-const DESTINATION=((process.env.EPIC_UNIFIED_INTERNAL_ORIGIN || "") + "/api/guest-communications/resend-confirmation");
+const DESTINATION=((process.env.EPIC_UNIFIED_INTERNAL_ORIGIN || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")) + "/api/guest-communications/resend-confirmation");
 async function forward(request:NextRequest,method:"GET"|"POST"){
  const token=request.cookies.get("epic_access_token")?.value;
  const employee=await getAuthenticatedTeamProfile(token);

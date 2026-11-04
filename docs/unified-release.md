@@ -29,3 +29,11 @@ Automatic Vercel Git deployment is disabled for this integration branch. Preserv
 - Nine unauthenticated HTTP checks passed: login loads and protected workspace routes redirect to employee login.
 - Original tour-checkin-sweep, tour issue report, and rental issue report handlers match main byte-for-byte.
 - No authenticated workflow acceptance or deployment is claimed. Existing EXC middleware still blocks operational writes when EPIC_STAGING_NO_OUTBOUND is enabled; this must be reconciled with isolated full-workflow testing before deployment.
+
+## November 4 continuation
+- Vercel UUI project confirmed protected, without custom domains; server credential exists only for Preview/Development.
+- Configured public database key, Jennifer/Joe test profile audit allowlist, and outbound-disabled staging flag.
+- Applied the existing three EXC migrations to UUI development only. Verified RLS and absence of direct client table access on all four EXC tables.
+- Updated the staging database guard to recognize the dedicated UUI project while retaining the existing EXC-staging restriction elsewhere. Six isolation checks passed.
+- Sales internal relay URLs now default to the deployment's own VERCEL_URL; removed the remaining Meta Messenger production database fallback.
+- Operational mutation restrictions remain enabled pending route-by-route isolated workflow validation. No live communications or production changes.
