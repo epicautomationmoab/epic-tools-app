@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import TeamSidebar from "@/app/team/TeamSidebar";
+import EpicToolsHome from "@/app/team/EpicToolsHome";
 import HeaderClock from "@/app/team/readiness/HeaderClock";
 import styles from "@/app/team/readiness/ReadinessShell.module.css";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
@@ -90,26 +90,25 @@ export default async function SalesReport({ searchParams }: { searchParams: Prom
     current.cents += row.total_sales_cents ?? row.total_amount_cents ?? 0;
     bySource.set(name, current);
   }
-  return <div className={styles.page}>
-    <TeamSidebar active="Guest Readiness" />
-    <main className={styles.main}>
+  return <EpicToolsHome profile={profile} title="Management & Reports">
+    <section>
       <header className={styles.topbar}>
         <div className={styles.titleBlock}>
           <h1>Today's Sales</h1><HeaderClock />
           <p>TripWorks bookings made on the selected Moab calendar date, regardless of the activity date.</p>
         </div>
         <div className={styles.headerActions}>
-          <Link className={styles.actionButton} href="/team/readiness">Guest Readiness</Link>
+          <Link className={styles.actionButton} href="/management">All Reports</Link>
         </div>
       </header>
       <section className={styles.content}>
         <div style={{ ...panel, marginBottom: 16 }}>
-          <form method="GET" action="/team/sales-report" style={{ display: "flex", alignItems: "end", gap: 12, flexWrap: "wrap" }}>
+          <form method="GET" action="/management/sales" style={{ display: "flex", alignItems: "end", gap: 12, flexWrap: "wrap" }}>
             <label style={{ display: "grid", gap: 5, fontWeight: 750 }}>Booking date (Moab)
               <input type="date" name="date" defaultValue={date} style={{ border: "1px solid #cbd5df", borderRadius: 7, padding: "9px 12px", fontSize: 15 }} />
             </label>
             <button type="submit" style={{ padding: "10px 18px", border: 0, borderRadius: 8, background: "#255783", color: "#fff", fontWeight: 800 }}>Run Report</button>
-            <Link href="/team/sales-report" style={{ padding: 10 }}>Today</Link>
+            <Link href="/management/sales" style={{ padding: 10 }}>Today</Link>
           </form>
           <div style={{ fontSize: 12, color: "#607080", marginTop: 10 }}>
             Based on synchronized TripWorks reservations. Recent bookings may appear after webhook processing; this is not a direct live TripWorks API query.
@@ -149,6 +148,6 @@ export default async function SalesReport({ searchParams }: { searchParams: Prom
           </div>
         </>}
       </section>
-    </main>
-  </div>;
+    </section>
+  </EpicToolsHome>;
 }

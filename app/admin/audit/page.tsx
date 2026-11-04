@@ -1,3 +1,4 @@
+import EpicToolsHome from "@/app/team/EpicToolsHome";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -81,9 +82,9 @@ export default async function ManagerAuditPreview({
   const {events,errors}=await loadAuditEvents();
   const uncovered = "Sales follow-up history is not yet available to this preview (database SELECT permission is restricted).";
   const visible=events.filter(e=>(!employee||e.actor.toLowerCase().includes(employee)||e.actor_id?.toLowerCase().includes(employee)) && (!area||e.domain===area));
-  return <main style={{maxWidth:1250,margin:"0 auto",padding:"25px 20px",fontFamily:"system-ui,sans-serif",color:"#17304b"}}>
+  return <EpicToolsHome profile={profile} title="User Audit Trail"><section style={{maxWidth:1250,color:"#17304b"}}>
     <p style={{fontSize:12,color:"#657c92"}}>EPIC COMMAND CENTER / MANAGEMENT / AUDIT PREVIEW</p>
-    <h1>Team Activity</h1>
+    <h2>Team Activity</h2>
     <p style={{color:"#56718b"}}>Read-only pilot using verified operational history records. Recent events only. Incomplete coverage is expected; this is not yet a comprehensive audit log.</p>
     <div style={{background:"#fff6e6",border:"1px solid #ead6ad",borderRadius:10,padding:14,margin:"15px 0"}}>Preview branch only. No writes or changes to employee access. Sensitive customer contact changes and session metadata are intentionally excluded.</div>
     <form method="get" style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"end",padding:"18px 0"}}>
@@ -103,6 +104,6 @@ export default async function ManagerAuditPreview({
       </table>
       {!visible.length&&<p style={{padding:20}}>No recorded events match these filters.</p>}
     </div>
-    <p style={{fontSize:12,color:"#6c8193",marginTop:20}}>Next: source-level pagination, linked records, actor identity resolution, before/after detail, unified session history, full coverage review, and production manager-permission tests.</p>
-  </main>;
+    <p style={{fontSize:12,color:"#6c8193",marginTop:20}}>Next: source-level pagination, linked records, actor identity resolution, before/after detail, unified session history, full coverage review, and owner-only access verification.</p>
+  </section></EpicToolsHome>;
 }

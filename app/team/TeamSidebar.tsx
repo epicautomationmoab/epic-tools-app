@@ -17,8 +17,7 @@ type Props = {
     | "Rental Inbox"
     | "Tour Inbox"
     | "Exceptions"
-    | "Referral Partners"
-    | "Manage Users";
+    | "Referral Partners";
 };
 
 const baseNavItems = [
@@ -70,7 +69,6 @@ export default async function TeamSidebar({ active }: Props) {
     ? [
         ...baseNavItems,
         { label: "Referral Partners", href: "/team/referral-partners", external: false } as const,
-        { label: "Manage Users", href: "/admin/users", external: false } as const,
       ]
     : baseNavItems;
 
