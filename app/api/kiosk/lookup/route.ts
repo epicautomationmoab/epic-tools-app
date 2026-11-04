@@ -59,7 +59,7 @@ async function fetchPortalRows() {
     {
       headers: {
         apikey: config.key,
-        Authorization: `Bearer ${config.key}`,
+        ...(config.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${config.key}` }),
       },
       cache: "no-store",
     },
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         } => Boolean(row.guest_portal_token),
       )
       .map((row) => ({
-        portalPath: `${PUBLIC_PORTAL_ORIGIN}/guest/${encodeURIComponent(
+        portalPath: `${process.env.EPIC_STAGING_NO_OUTBOUND === "true" ? new URL(request.url).origin : PUBLIC_PORTAL_ORIGIN}/guest/${encodeURIComponent(
           row.guest_portal_token,
         )}`,
         confirmationCode:

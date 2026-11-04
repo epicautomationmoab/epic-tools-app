@@ -1,10 +1,12 @@
 "use client";
+import ExpReadinessDetail from "./ExpReadinessDetail";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReadinessRow, VehicleBreakdownItem } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 import CancellationAgreementPanel from "./CancellationAgreementPanel";
 import { guestFacingBalanceCents } from "@/lib/guest-confirmation-accounting";
+
 
 type TimeFilter = "all" | "today" | "tomorrow";
 type Filter = "all" | "rental" | "tour";
@@ -344,57 +346,35 @@ function getSupabaseBrowserConfig() {
   return { url, key };
 }
 
-async function callReadinessRpc<T>(
-  functionName: string,
-  body: Record<string, unknown>,
-): Promise<T> {
-  const { url, key } = getSupabaseBrowserConfig();
-  const response = await fetch(`${url}/rest/v1/rpc/${functionName}`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `Unable to run ${functionName}.`);
-  }
-
+async function callReadinessRpc<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
+ const { url, key } = getSupabaseBrowserConfig();
+ return fetch(`${url}/rest/v1/rpc/${functionName}`,{
+  method:"POST",
+  headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json"},
+  body:JSON.stringify(body)
+ }).then(async response=>{
+  if(!response.ok)throw new Error(await response.text()||`Unable to run ${functionName}.`);
   return response.json() as Promise<T>;
+ });
 }
 
-function getPeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus | null>(
-    "get_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+function callPeopleOverride<T>(action:"get"|"set"|"clear",readinessId:string,extra:Record<string,unknown>={}):Promise<T>{
+ return fetch("/api/team/readiness/people-override",{
+  method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({action,readinessId,...extra})
+ }).then(async response=>{
+  if(!response.ok){const detail=await response.json().catch(()=>({error:"Unable to update people count."}));throw new Error(detail.error||"Unable to update people count.");}
+  return response.json() as Promise<T>;
+ });
 }
-
-function savePeopleOverride(
-  readinessId: string,
-  peopleCount: number,
-  reason: string,
-) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "set_readiness_people_override",
-    {
-      p_readiness_id: readinessId,
-      p_people_count: peopleCount,
-      p_reason: reason,
-      p_updated_by: "EpicTools",
-    },
-  );
+function getPeopleOverride(readinessId:string){
+ return callPeopleOverride<PeopleOverrideStatus|null>("get",readinessId);
 }
-
-function removePeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "clear_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+function savePeopleOverride(readinessId:string,peopleCount:number,reason:string){
+ return callPeopleOverride<PeopleOverrideStatus>("set",readinessId,{peopleCount,reason});
+}
+function removePeopleOverride(readinessId:string){
+ return callPeopleOverride<PeopleOverrideStatus>("clear",readinessId);
 }
 
 // Merge lightweight snapshots without losing already fetched drawer-only data.
@@ -1214,6 +1194,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
               return (
                 <tr
                   key={row.readiness_id}
+                  data-readiness-id={row.readiness_id}
                   className={
                     row.handoff_status === "rental_out"
                       ? styles.rentalOutRow
@@ -1239,7 +1220,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     </div>
                   </td>
                   <td>
-                    <div className={styles.mainLine}>{row.customer_name}</div>
+                    <div className={styles.mainLine} style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>{row.customer_name}{row.business_line==="rental" && row.exp_status?.allReady ? <span title="Verified EXP readiness" style={{fontSize:11,padding:"2px 6px",borderRadius:5,background:"#dff2e5",color:"#176534",fontWeight:800}}>EXP</span> : null}</div>
                     <div className={styles.subLine}>
                       {phone || row.confirmation_code}
                     </div>
@@ -2236,6 +2217,8 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 </p>
               )}
             </section>
+
+            {selected.business_line === "rental" ? <ExpReadinessDetail readinessId={selected.readiness_id} /> : null}
 
             <section
               className={`${styles.drawerSection} ${styles.peopleCountSection}`}

@@ -1,0 +1,29 @@
+/** Evidence-isolated regression: no network, DB writes or video-completion claims. */
+const fs=require('node:fs'),assert=require('node:assert/strict'),ts=require('typescript');
+function load(path,deps={}){const out={};const code=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;new Function('exports','require',code)(out,id=>{assert(id in deps,'Unexpected dependency '+id);return deps[id]});return out}
+const policy=load('lib/exp/team-status.ts'),video={EXP_VIDEO_VERSION:'3.2',EXP_ASSESSMENT_VERSION:'exp-2026-10-26-v1',expVideoDuration:async()=>701,matchesExpVideoDuration:(a,b)=>a!==null&&b!==null&&Math.abs(a-b)<=1};
+const data={guest_portal_v:[],exp_sessions:[],exp_participants:[],guest_form_tasks:[],guest_form_templates:[],guest_form_submissions:[],scout_mpwr_waivers:[],ohv_certificate_uploads:[]};const v2=new Map(),ids=[];let reads=0,paged=false;
+for(let i=0;i<101;i++){
+ const id='fixture-'+i,session='session-'+i,names=['Avery','Blake','Casey'].map(n=>n+' '+i);ids.push(id);
+ data.guest_portal_v.push({readiness_id:id,confirmation_code:id,business_line:'rental',expected_guest_count:3,total_vehicle_count:2,epic_document_received_count:3,epic_document_expected_count:3,mpwr_document_expected_count:3,ohv_required:true});
+ data.exp_sessions.push({id:session,readiness_id:id,created_at:'2026-10-27T00:00:00Z',completed_at:'2026-10-27T00:12:00Z',outcome:'complete',video_version:'3.2',assessment_version:video.EXP_ASSESSMENT_VERSION,video_ended:true,video_duration_seconds:701,video_watched_seconds:Array.from({length:701},(_,j)=>j)});
+ v2.set(id,{ready:true,agreementsComplete:true,signers:names.map(name=>({name,role:'driver'}))});
+ for(const name of names){data.exp_participants.push({id:session+name,session_id:session,readiness_id:id,display_name:name,initials:'drawn',acknowledgement_at:'2026-10-27T00:12:00Z'});data.scout_mpwr_waivers.push({id:session+name,readiness_id:id,rider_name:name,is_minor:false,is_passenger:false,last_verified_at:'2026-10-27T00:00:00Z'});data.ohv_certificate_uploads.push({id:session+name,readiness_id:id,driver_name:name,storage_path:'synthetic.pdf'})}
+}
+// Force more than a page of waiver observations without altering driver evidence.
+for(let i=0;i<501;i++)data.scout_mpwr_waivers.unshift({id:'extra-'+i,readiness_id:ids[0],rider_name:'Passenger '+i,is_minor:false,is_passenger:true,last_verified_at:'2026-10-27T00:00:00Z'});
+const rest={supabaseSelect:async(resource,params)=>{reads++;let rows=data[resource];assert(rows,'Unexpected resource '+resource);for(const field of ['readiness_id','id','task_id']){const filter=params.get(field);if(filter?.startsWith('in.(')){const values=new Set([...filter.matchAll(/"([^"\\]*)"/g)].map(m=>m[1]));rows=rows.filter(r=>values.has(r[field]))}}const offset=Number(params.get('offset')||0),limit=Number(params.get('limit')||500);if(offset>=500)paged=true;return rows.slice(offset,offset+limit)}};
+const {loadExpReadinessMany}=load('lib/server/exp-readiness.ts',{'@/lib/server/exp-video':video,'@/lib/server/supabase-rest':rest,'@/lib/exp/team-status':policy,'@/lib/server/rental-v2-readiness':{loadRentalV2Readiness:async sources=>new Map(sources.map(s=>[s.readinessId,v2.get(s.readinessId)]))}});
+(async()=>{const all=await loadExpReadinessMany(ids);assert.equal(all.size,101);assert([...all.values()].every(r=>r.drivers.length===3&&r.drivers.every(d=>d.expReady)));assert([...all.values()].every(r=>r.expReady&&r.assessmentQualifiedDriverCount===3));assert(paged);assert(reads<80,'Evidence should load per batch, not per reservation');console.log('PASS 101 parties, 303 drivers, paginated evidence, '+reads+' shared reads');
+ const last=ids.at(-1),original=data.exp_sessions.at(-1);data.exp_sessions.push({...original,id:'new-failure',created_at:'2026-10-27T01:00:00Z',completed_at:null,outcome:'retry_or_technician'});data.exp_participants.push({...data.exp_participants.at(-3),id:'failed-participant',session_id:'new-failure'});let r=(await loadExpReadinessMany([last])).get(last);assert.equal(r.expReady,false);assert.equal(r.assessmentQualifiedDriverCount,2);assert.equal(r.drivers.filter(d=>d.expReady).length,2);console.log('PASS newer failed driver invalidates only that driver; older credit cannot win');
+ data.ohv_certificate_uploads=data.ohv_certificate_uploads.filter(u=>u.readiness_id!==ids[0]||u.driver_name!=='Blake 0');r=(await loadExpReadinessMany([ids[0]])).get(ids[0]);assert.equal(r.documentChecks.ohvCertificates,false);assert.equal(r.drivers.find(d=>d.name==='Blake 0').expReady,false);assert.equal(r.drivers.filter(d=>d.expReady).length,2);assert.equal(r.expReady,false);console.log('PASS one missing driver certificate blocks the entire party');
+ data.scout_mpwr_waivers.find(w=>w.rider_name==='Casey 1').is_passenger=true;r=(await loadExpReadinessMany([ids[1]])).get(ids[1]);assert.equal(r.documentChecks.polarisWaivers,false);assert.equal(r.drivers.find(d=>d.name==='Casey 1').orientationComplete,true);assert.equal(r.drivers.find(d=>d.name==='Casey 1').expReady,false);assert.equal(r.expReady,false);console.log('PASS passenger waiver cannot qualify a signed driver');
+})().catch(e=>{console.error(e);process.exitCode=1});
+
+const {isFloatingGuestForm}=load('lib/guest-form-placement.ts');
+assert.equal(isFloatingGuestForm({businessLine:'rental',templateKey:'damage_acknowledgment'}),true);
+assert.equal(isFloatingGuestForm({businessLine:'rental',templateKey:'pet_acknowledgment'}),true);
+assert.equal(isFloatingGuestForm({businessLine:'rental',templateKey:'rental_v2_driver_terms_targeted'}),false);
+assert.equal(isFloatingGuestForm({businessLine:'rental',templateKey:null}),false);
+assert.equal(isFloatingGuestForm({businessLine:'tour',templateKey:'tour_terms'}),true);
+console.log('PASS rental damage/pet float, other rental documents stay inline, tour placement unchanged');

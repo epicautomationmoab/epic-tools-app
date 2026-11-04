@@ -24,5 +24,11 @@
       "path": "/api/tour-checkin-sweep",
       "schedule": "0 * * * *"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "integration/epic-tools-unified": false,
+      "feature/exp-vimeo-preview-20261026": false
+    }
+  }
 }

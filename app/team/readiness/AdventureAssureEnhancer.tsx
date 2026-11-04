@@ -89,6 +89,8 @@ function resolveReadinessRow(
   tableRow: HTMLTableRowElement,
   rows: ReadinessRow[],
 ): ReadinessRow | null {
+  const exactId=tableRow.dataset.readinessId;
+  if(exactId)return rows.find(row=>row.readiness_id===exactId&&row.business_line==="rental")??null;
   const confirmation = confirmationFromRow(tableRow);
   if (!confirmation) return null;
 
@@ -180,30 +182,23 @@ export default function AdventureAssureEnhancer({ rows }: { rows: ReadinessRow[]
             | null;
           const hasBeltTire = readinessRow?.belt_tire_protection === true;
           const hasOvernight = readinessRow?.overnight_addon === true;
-          const desiredText = hasBeltTire && hasOvernight
-            ? "🛞🌙"
-            : hasBeltTire
-              ? "🛞"
-              : hasOvernight
-                ? "🌙"
-                : "";
-
-          tireCell.style.fontSize = hasBeltTire && hasOvernight ? "15px" : "20px";
-          tireCell.style.letterSpacing = hasBeltTire && hasOvernight ? "-3px" : "normal";
+          const protectionSymbol=hasBeltTire?"🛞":readinessRow?.belt_tire_inquiry?.symbol||"";
+          const desiredText=protectionSymbol+(hasOvernight?"🌙":"");
+          tireCell.style.fontSize=protectionSymbol&&hasOvernight?"15px":"20px";
+          tireCell.style.letterSpacing=protectionSymbol&&hasOvernight?"-3px":"normal";
 
           if (tireCell.textContent !== desiredText) {
             tireCell.textContent = desiredText;
           }
 
           if (desiredText) {
-            const label = hasBeltTire && hasOvernight
-              ? "Tire and Belt Damage Protection · Overnight Add-On"
-              : hasBeltTire
-                ? "Tire and Belt Damage Protection"
-                : "Overnight Add-On";
+            const protectionDetail=hasBeltTire?"Tire and Belt Damage Protection — Purchased":protectionSymbol?readinessRow?.belt_tire_inquiry?.detail||"":"";
+            const label=[protectionDetail,hasOvernight?"Overnight Add-On":""].filter(Boolean).join("\n");
+            tireCell.tabIndex=0;
             tireCell.title = label;
             tireCell.setAttribute("aria-label", label);
           } else {
+            tireCell.removeAttribute("tabindex");
             tireCell.removeAttribute("title");
             tireCell.removeAttribute("aria-label");
           }

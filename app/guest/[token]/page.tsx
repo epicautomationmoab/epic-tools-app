@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import styles from "./GuestPortal.module.css";
+import PetAgreementOption from "./PetAgreementOption";
+import ExpVideoPreview from "./ExpVideoPreview";
+import PortalGuestForms from "./PortalGuestForms";
+import GuestOhvUpload from "./GuestOhvUpload";
+import { getExpWaiverDriverNames } from "@/lib/exp/portal-waiver-drivers";
+
 
 const UTAH_ADULT_OHV_COURSE_URL =
   "https://recreation.utah.gov/off-highway-vehicles/education/ohv-education-course/";
@@ -169,9 +175,9 @@ export default function GuestPortalPage() {
 
     let cancelled = false;
 
-    async function loadPortal() {
+    async function loadPortal(silent=false) {
       try {
-        setLoading(true);
+        if(!silent)setLoading(true);
         setError("");
 
         const response = await fetch(
@@ -195,7 +201,7 @@ export default function GuestPortalPage() {
           setReservation(data.reservation);
         }
       } catch (loadError) {
-        if (!cancelled) {
+        if (!cancelled && !silent) {
           setError(
             loadError instanceof Error
               ? loadError.message
@@ -210,9 +216,11 @@ export default function GuestPortalPage() {
     }
 
     void loadPortal();
+    const refresh=window.setInterval(()=>void loadPortal(true),30000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(refresh);
     };
   }, [token]);
 
@@ -234,7 +242,7 @@ export default function GuestPortalPage() {
       if (epic) {
         if (activity.businessLine.toLowerCase() === "rental") {
           steps.push(
-            requirementComplete(epic.received, epic.expected) &&
+            epic.ready !== false && requirementComplete(epic.received, epic.expected) &&
               requirementComplete(epic.driversReceived ?? 0, epic.driversExpected ?? 0),
           );
         } else {
@@ -334,6 +342,12 @@ export default function GuestPortalPage() {
   const hasRentalActivity = reservation.activities.some(
     (activity) => activity.businessLine.toLowerCase() === "rental",
   );
+  // Built for future guarded EXP rollout. No EXP UI is mounted in real Guest Portal yet.
+  const expRentalDrivers = reservation.activities
+    .filter(activity => activity.businessLine.toLowerCase() === "rental")
+    .flatMap(activity => getExpWaiverDriverNames(activity.readinessId,
+      reservation.epicDocuments, reservation.mpwrWaivers));
+
 
   return (
     <main className={styles.page}>
@@ -508,12 +522,13 @@ export default function GuestPortalPage() {
               <p className={styles.eyebrow}>Your Progress</p>
               <h2>
                 {readiness.allComplete
-                  ? "You are ready for your adventure."
+                  ? (hasRentalActivity?"You're all set for check-out!":"You are ready for your adventure.")
                   : "A few things still need your attention."}
               </h2>
               <p className={styles.sectionIntro}>
-                We will update this page automatically as each requirement is
-                completed.
+                {readiness.allComplete&&hasRentalActivity
+                  ? `${readiness.total===3?'All three':'All'} pre-arrival requirements are complete. Your Adventure Tech will help you with the final steps when you arrive.`
+                  : 'We will update this page automatically as each requirement is completed.'}
               </p>
             </div>
 
@@ -829,14 +844,9 @@ export default function GuestPortalPage() {
                           ) : null}
                         </div>
 
-                        <button
-                          type="button"
-                          className={styles.primaryButton}
-                          disabled
-                          title="Certificate upload is the next feature being connected."
-                        >
-                          Upload Coming Next
-                        </button>
+                        <GuestOhvUpload token={token} readinessId={activity.readinessId}
+                          driverNames={(reservation.epicDocuments.find(doc=>doc.readinessId===activity.readinessId)?.signers??[]).filter(signer=>signer.role==="driver").map(signer=>signer.name)}
+                        />
                       </article>
                     </>
                   ) : null}
@@ -844,34 +854,25 @@ export default function GuestPortalPage() {
               );
             })}
 
-            <article
-              className={`${styles.requirement} ${styles.readyRow}`}
-            >
-              <div className={styles.requirementAccent} />
-              <div className={styles.requirementContent}>
-                <div className={styles.requirementHeading}>
-                  <div>
-                    <span className={styles.requirementKicker}>
-                      Arrival Status
-                    </span>
-                    <h3>Ready for Adventure</h3>
-                  </div>
 
-                  <StatusBadge
-                    complete={readiness.allComplete}
-                    requiredLabel="Pending"
-                  />
-                </div>
-
-                <p className={styles.requirementInstructions}>
-                  {readiness.allComplete
-                    ? "Everything is complete. We will see you soon!"
-                    : "This page will update automatically as your required items are completed."}
-                </p>
-              </div>
-            </article>
           </div>
         </section>
+
+        {hasRentalActivity ? <PortalGuestForms placement="inline"/> : null}
+
+        {process.env.NEXT_PUBLIC_EXP_VIDEO_PREVIEW === "true" && hasRentalActivity ? (
+          <ExpVideoPreview
+            token={reservation.guestPortalToken}
+            activities={reservation.activities}
+            waiverDrivers={expRentalDrivers}
+            reviewerMode={false}
+            confirmationCode={reservation.confirmationCode}
+          />
+        ) : null}
+
+        {process.env.NEXT_PUBLIC_PET_SELF_SERVICE_PREVIEW === "true" && hasRentalActivity ? (
+          <PetAgreementOption token={reservation.guestPortalToken} />
+        ) : null}
 
         <section className={styles.helpCard}>
           <div>

@@ -25,7 +25,7 @@ async function recordMpwrPortalClick(
 ) {
   const headers = {
     apikey: config.key,
-    Authorization: `Bearer ${config.key}`,
+    ...(config.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${config.key}` }),
   };
 
   const queueParams = new URLSearchParams({
@@ -105,7 +105,7 @@ async function recordMpwrObservationEvent(
       method: "POST",
       headers: {
         apikey: config.key,
-        Authorization: `Bearer ${config.key}`,
+        ...(config.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${config.key}` }),
         "Content-Type": "application/json",
         Prefer: "return=minimal",
       },
