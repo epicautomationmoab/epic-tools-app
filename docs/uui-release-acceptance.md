@@ -8,17 +8,17 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Quote create/edit/reopen persisted the same quote and totals in the browser.
 - C360 shared note creation/visibility and Readiness create/edit/reopen/archive passed browser and database checks. Employee attribution and before/after history retained; stale edits rejected.
 - Exact UUI-only write allowlist: 67 checks pass. Real outbound operations remain blocked.
-- Introduction-history reader corrected: validates active employee/non-workstation before server-only timestamp query. No direct mailbox grants. Route transport tests pass, including errors and denial. Deployed browser acceptance must still be recorded.
+- Introduction-history reader corrected: validates active employee/non-workstation before server-only timestamp query. No direct mailbox grants. Route transport tests pass, including errors and denial. Deployed browser verified: the introduction-history error is gone on Preview Lifetime Customer.
 - C360 internal history now combines linked phone/contact/email/reservation and active opportunity threads, deduplicates note IDs, preserves chronological order and mention response destinations, and surfaces read failures instead of claiming no messages. Focused tests passed.
 - EXC isolated policy/result checks: 23 passed previously. Booking isolation, guardians, batched readiness and deployment boundaries: 21 additional checks passed in this pass after repairing stale test mocks. No EXC runtime policy changed.
 
-- Session renewal defect fixed: exact UUI Preview boundary now permits the existing refresh endpoint; renewal runs across all employee workspaces and restarts on navigation. Login attempts renewal from the existing HttpOnly refresh cookie without requesting another password. Failed/invalid refresh leaves normal sign-in available. Permission/path/cookie tests passed; deployed browser check pending.
+- Session renewal defect fixed: exact UUI Preview boundary now permits the existing refresh endpoint; renewal runs across all employee workspaces and restarts on navigation. Login attempts renewal from the existing HttpOnly refresh cookie without requesting another password. Failed/invalid refresh leaves normal sign-in available. Permission/path/cookie tests passed; deployed browser recovery passed: expired access session renewed automatically, returned to Home as Jennifer Test without password entry, and C360 loaded successfully.
 
 ## Remaining release gates (close these; do not add features)
 | Gate | Required evidence | Current limitation |
 | --- | --- | --- |
 | Existing operational workflows | Verify Readiness held-over rentals, deposits, dispatch, reservation lookup, rental/tour inboxes and exceptions; Sales lead/follow-up/opportunity/quote actions; Admin user changes | Loading menus is not acceptance. Most mutations still fail closed under Preview outbound isolation. Classify internal saves versus actual outbound actions and enable only reviewed internal operations in UUI. |
-| C360 history | Introduction timestamp renders; selected conversation uses correct customer/thread history | Introduction reader fixed. Reproduced phone-thread notes missing from the opportunity-only panel; linked-thread reader fixed and tested. Browser session expired before final deployed acceptance. |
+| C360 history | Introduction timestamp renders; selected conversation uses correct customer/thread history | Introduction reader fixed. Reproduced phone-thread notes missing from the opportunity-only panel; linked-thread reader fixed and tested. Deployed browser verified seven prior internal notes (four phone-thread notes plus three reservation-thread notes), with original authors and mention acknowledgment. |
 | Shared tools | One CallRail popup opens Lead/C360 and dismisses all past calls; one Ping works across workspaces | Earlier function/access checks exist; complete cross-workspace browser acceptance remains. |
 | EXC | Guest/kiosk through assessment to Readiness/Arrival/Exceptions with correct dependencies | Flags absent. Video threshold is 98% in copied code versus requested 100%; reconcile before enabling. Vimeo access/duration and full guest flow not verified. Separate EXC release untouched. |
 | Roles and audit | Team/manager/owner route denials; Jennifer/Joe-only audit; requested action coverage, older search and denied actions | Notes history works. Existing audit reader still recent-history subset; failed actions, older pagination and full source coverage are incomplete. Legacy unmigrated notes read-only. |
@@ -31,3 +31,10 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Do not send real guest/staff email, SMS or Slack in Preview tests.
 - Tests and fixtures are evidence, not additional product features. Repair integration defects; reuse existing business logic.
 - Do not report an estimated completion date or full readiness without resolving the gates above.
+
+## Verified candidate
+- Deployed code: 70d68c61d65f0f30c7935b7c230e9f796d354232.
+- Protected Preview deployment: dpl_9QAidurt2zh2MA8PCAKimXk1BS6T, READY.
+- Full build and focused introduction/history/session tests passed; 67 boundary checks passed.
+- Browser verified session recovery and both C360 history repairs at approximately 2:00 PM America/Phoenix, November 4.
+- No database schema or data migrations in this pass. Read-only DB verification confirmed four phone-thread notes versus zero active-opportunity notes, reproducing the original mismatch.
