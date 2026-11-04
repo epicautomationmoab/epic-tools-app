@@ -76,14 +76,6 @@ export type SalesQuoteDetail = {
   }>;
 };
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_PUBLISHABLE_KEY = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
-
-const apiHeaders = {
-  apikey: SUPABASE_PUBLISHABLE_KEY,
-  "Content-Type": "application/json",
-};
-
 export async function getSalesRates(year: 2026 | 2027 = 2026): Promise<SalesRateRow[]> {
   const response = await fetch("/api/sales/quote-catalog?kind=rates", {
     cache: "no-store",
@@ -148,10 +140,7 @@ export async function saveSalesQuote(input: {
 }
 
 export async function getRecentSalesQuotes(limit = 25): Promise<RecentSalesQuote[]> {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_recent_epic_sales_quotes`, {
-    method: "POST",
-    headers: apiHeaders,
-    body: JSON.stringify({ p_limit: limit }),
+  const response = await fetch(`/api/sales/quotes?limit=${encodeURIComponent(limit)}`, {
     cache: "no-store",
   });
 
@@ -164,10 +153,7 @@ export async function getRecentSalesQuotes(limit = 25): Promise<RecentSalesQuote
 }
 
 export async function getSalesQuoteDetail(quoteId: string): Promise<SalesQuoteDetail> {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_epic_sales_quote_detail`, {
-    method: "POST",
-    headers: apiHeaders,
-    body: JSON.stringify({ p_quote_id: quoteId }),
+  const response = await fetch(`/api/sales/quotes?quote=${encodeURIComponent(quoteId)}`, {
     cache: "no-store",
   });
 
