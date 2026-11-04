@@ -6,58 +6,26 @@ import type { ReadinessRow } from "@/lib/supabase";
 
 type Escalation = "maintenance" | "urgent" | "critical";
 
-function formatWallTime(value: string) {
-  const match = value.match(/\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/);
-  if (!match) return value;
-  let hour = Number(match[1]);
-  const minute = match[2];
-  const suffix = hour >= 12 ? "PM" : "AM";
-  hour = hour % 12 || 12;
-  return `${hour}:${minute} ${suffix}`;
-}
-
-function formatDate(value: string) {
-  const match = value.match(/(\d{4})-(\d{2})-(\d{2})/);
-  if (!match) return value;
-  const date = new Date(`${match[2]}/${match[3]}/${match[1]}`);
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
-}
-
-function confirmationFromRow(row: HTMLTableRowElement) {
-  for (const anchor of Array.from(row.querySelectorAll<HTMLAnchorElement>("a[href]"))) {
-    const match = anchor.href.match(/\/trip\/([^/]+)\/bookings/i);
-    if (match?.[1]) return decodeURIComponent(match[1]).toUpperCase();
-  }
-  return null;
-}
-
-function resolveReadinessRow(tableRow: HTMLTableRowElement, rows: ReadinessRow[]) {
-  const confirmation = confirmationFromRow(tableRow);
-  if (!confirmation) return null;
-
-  const candidates = rows.filter(
-    (row) => row.readiness_id && row.confirmation_code?.trim().toUpperCase() === confirmation,
+function resolveDrawerRow(drawer: HTMLElement, rows: ReadinessRow[]) {
+  const label = drawer.getAttribute("aria-label") ?? "";
+  const suffix = " reservation details";
+  if (!label.endsWith(suffix)) return null;
+  const guestName = label.slice(0, -suffix.length).trim();
+  // Resolve against the OPEN drawer, never against the last clicked table row.
+  // Require both the guest and their confirmation to avoid attaching an issue to
+  // another rental when the drawer changes or guests have similar names.
+  const matches = rows.filter((row) =>
+    row.business_line === "rental" &&
+    row.readiness_id &&
+    row.customer_name?.trim() === guestName &&
+    row.confirmation_code &&
+    drawer.textContent?.toUpperCase().includes(row.confirmation_code.trim().toUpperCase()),
   );
-  if (candidates.length === 1) return candidates[0];
-  if (!candidates.length) return null;
-
-  const visitText = tableRow.cells[0]?.textContent ?? "";
-  const guestText = tableRow.cells[1]?.textContent ?? "";
-  const activityText = tableRow.cells[2]?.textContent ?? "";
-  return (
-    candidates.find(
-      (row) =>
-        visitText.includes(formatDate(row.visit_start_time)) &&
-        visitText.includes(formatWallTime(row.visit_start_time)) &&
-        guestText.includes(row.customer_name) &&
-        activityText.includes(row.product_display_name ?? ""),
-    ) ?? null
-  );
+  return matches.length === 1 ? matches[0] : null;
 }
 
 export default function RentalVehicleIssueEnhancer({ rows }: { rows: ReadinessRow[] }) {
   const liveRows = useRef(rows);
-  const selectedReadinessId = useRef<string | null>(null);
   const [reportRow, setReportRow] = useState<ReadinessRow | null>(null);
   const [carNumber, setCarNumber] = useState("");
   const [report, setReport] = useState("");
@@ -74,9 +42,9 @@ export default function RentalVehicleIssueEnhancer({ rows }: { rows: ReadinessRo
       const drawer = document.querySelector<HTMLElement>(
         "[role='dialog'][aria-label$=' reservation details']:not([aria-label$=' historical reservation details'])",
       );
-      if (!drawer || !selectedReadinessId.current) return;
+      if (!drawer) return;
 
-      const row = liveRows.current.find((item) => item.readiness_id === selectedReadinessId.current);
+      const row = resolveDrawerRow(drawer, liveRows.current);
       if (!row || row.business_line !== "rental" || !row.readiness_id) return;
 
       const rentalButton = Array.from(drawer.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
@@ -125,37 +93,31 @@ export default function RentalVehicleIssueEnhancer({ rows }: { rows: ReadinessRo
         warning.style.height = "34px";
         warning.style.display = "inline-grid";
         warning.style.placeItems = "center";
-        warning.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const current = liveRows.current.find((item) => item.readiness_id === selectedReadinessId.current);
-          if (!current || current.business_line !== "rental") return;
-          setCarNumber("");
-          setReport("");
-          setEscalation("maintenance");
-          setMessage("");
-          setReportRow(current);
-        });
         rentalButton.insertAdjacentElement("afterend", warning);
       }
+      // Update the handler on every drawer render: DOM nodes may be reused.
+      warning.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const currentDrawer = warning?.closest("[role='dialog']") as HTMLElement | null;
+        const current = currentDrawer ? resolveDrawerRow(currentDrawer, liveRows.current) : null;
+        if (!current) {
+          setMessage("Could not verify this rental. Close and reopen its Readiness drawer.");
+          return;
+        }
+        setCarNumber("");
+        setReport("");
+        setEscalation("maintenance");
+        setMessage("");
+        setReportRow(current);
+      };
     }
 
-    function trackSelectedRow(event: MouseEvent) {
-      const target = event.target as HTMLElement | null;
-      const tableRow = target?.closest("table tbody tr") as HTMLTableRowElement | null;
-      if (!tableRow) return;
-      const row = resolveReadinessRow(tableRow, liveRows.current);
-      selectedReadinessId.current = row?.readiness_id ?? null;
-      window.setTimeout(enhanceDrawer, 0);
-    }
-
-    document.addEventListener("click", trackSelectedRow, true);
     enhanceDrawer();
     const observer = new MutationObserver(enhanceDrawer);
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
-      document.removeEventListener("click", trackSelectedRow, true);
       observer.disconnect();
     };
   }, []);
