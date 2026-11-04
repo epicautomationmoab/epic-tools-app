@@ -108,3 +108,12 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Verified Vimeo's own Progress Bar DOM reports max=701 and duration label 11:41 for video 1239550688. Configured EXP_VIDEO_DURATION_SECONDS=701 only in UUI Preview/Development. Fractional player checkpoints round to 702; existing one-second representation tolerance retained. Reverify when replacing the video.
 - Found resumed participants could advance without awaiting the final playback checkpoint. Continue now requires a successful final save before showing the assessment; failures remain visible and retryable. Full-viewing and end-event checks remain enforced.
 - Employee browser currently idle-locked; do not bypass its PIN. Staff-side visual acceptance needs an unlocked session.
+
+## EXC successful guest acceptance — November 4, 15:50 Mountain
+- Corrected build 0d17c91311c8b35e4681d80881393fa06a7a1327 deployed READY as dpl_FprKJJbVwon2w3gvrazBA8BDWgy1 in protected UUI Preview.
+- Replayed the final previously-unsaved segment through Vimeo UI; no manufactured viewing credit. Final awaited save persisted all 702 seconds and video_ended=true.
+- Resumed all ten saved answers, submitted successfully. Existing synthetic session 3eebd03d-4e1f-40f0-a202-35d944c848f1 now outcome=complete, completed_at=2026-11-04T22:50:02.840Z, attemptCount=1, participantCount=1, verifiedForCheckout=false.
+- Browser displays Synthetic Document Signer — Orientation Complete and existing optional Belt & Tire information prompt. No purchase, request or outbound message submitted. Missing Polaris/OHV and party paperwork correctly prevent full EXC qualification.
+- Original Unit A returned handoff restored again with original identity/timestamps/attribution; Unit B and reservation dates unchanged. Completed session is retained as synthetic acceptance evidence.
+- Evidence: /workspace/scratch/uui-exc-orientation-complete-20261104.jpg.
+- Remaining acceptance: staff Readiness/Arrival/Exceptions visual propagation with unlocked employee session, full qualifying-party scenario, group/other-driver browser coverage, and cancellation acknowledgement creation/acceptance/history workflow. Saved video coverage resumes, but automatic player seek to the saved position remains a usability gap.
