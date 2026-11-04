@@ -817,7 +817,7 @@ export default function QuoteBuilder() {
               </div>
               {loading && <div className="card"><p className="muted">Loading Epic experiences and ticket types...</p></div>}
               {error && <div className="card"><p className="muted">{error}</p></div>}
-              {!loading && !error && calculatedActivities.map(({ activity, experience, privateFeeRule, privateFee, rentalDays, total }, index) => experience && (
+              {!loading && !error && calculatedActivities.map(({ activity, experience, privateFeeRule, privateFee, rentalDays, total }, index) => experience ? (
                 <div className="card activityCard" key={activity.key}>
                   <div className="activityHeader"><div className="activityNumber">Activity {index + 1}</div>{activities.length > 1 && <button className="removeLink" type="button" onClick={() => removeActivity(activity.key)}>Remove</button>}</div>
                   <div className="field"><label>Experience</label><select value={activity.experienceId} onChange={(e) => changeExperience(activity.key, e.target.value)}><option value="">None</option>{experiences.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}{pricingYear === 2027 && unavailable2027Options.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>{pricingYear === 2027 && pending2027[activity.experienceId] && <div className="availabilityError">{pending2027[activity.experienceId]}</div>}
@@ -975,6 +975,19 @@ export default function QuoteBuilder() {
                     <div className="toggleRow"><div><strong>Prior Evening Pickup</strong><div className="ticketMeta">$50 · subject to sales and rental tax</div></div><input type="checkbox" checked={activity.priorEveningPickup} onChange={(e) => updateActivity(activity.key, { priorEveningPickup: e.target.checked })}/></div>
                     <div className="toggleRow"><div><strong>Next Morning Drop-off</strong><div className="ticketMeta">$50 · subject to sales and rental tax</div></div><input type="checkbox" checked={activity.nextMorningDropoff} onChange={(e) => updateActivity(activity.key, { nextMorningDropoff: e.target.checked })}/></div>
                   </>}
+                </div>
+              ) : (
+                <div className="card activityCard" key={activity.key}>
+                  <div className="activityHeader"><div className="activityNumber">Activity {index + 1}</div>{activities.length > 1 && <button className="removeLink" type="button" onClick={() => removeActivity(activity.key)}>Remove</button>}</div>
+                  <div className="field">
+                    <label htmlFor={`experience-${activity.key}`}>Experience</label>
+                    <select id={`experience-${activity.key}`} value={activity.experienceId} onChange={(e) => changeExperience(activity.key, e.target.value)}>
+                      <option value="">Select an experience</option>
+                      {experiences.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                      {pricingYear === 2027 && unavailable2027Options.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select>
+                  </div>
+                  {pricingYear === 2027 && pending2027[activity.experienceId] && <div className="availabilityError">{pending2027[activity.experienceId]}</div>}
                 </div>
               ))}
               {!loading && !error && <button className="addActivityFull" type="button" onClick={addActivity}>{activities.length ? "+ Add Another Activity" : "+ Add Activity"}</button>}
