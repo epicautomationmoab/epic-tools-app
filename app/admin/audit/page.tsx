@@ -73,7 +73,7 @@ export default async function ManagerAuditPreview({
   const profile=await getAuthenticatedTeamProfile(token);
   if(!profile || !token) redirect("/employee-login");
   if(!process.env.EPIC_AUDIT_OWNER_PROFILE_IDS?.split(",").map(id=>id.trim()).includes(profile.id)) {
-    return <main style={{padding:40}}><h1>Access restricted</h1><p>Managers and administrators only.</p><Link href="/team/readiness">Return to Readiness</Link></main>;
+    return <main style={{padding:40}}><h1>Access restricted</h1><p>The User Audit Trail is available only to Jennifer and Joe.</p><Link href="/team/readiness">Return to Readiness</Link></main>;
   }
   const params=await searchParams;
   const employee=(params.employee||"").slice(0,100).trim().toLowerCase();
