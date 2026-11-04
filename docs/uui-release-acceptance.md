@@ -7,10 +7,12 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Existing Readiness reservation drawer, C360 lifetime lookup/history, management report date selection, Admin profile list and Jennifer audit were browser verified. These checks do not establish every write workflow.
 - Quote create/edit/reopen persisted the same quote and totals in the browser.
 - C360 shared note creation/visibility and Readiness create/edit/reopen/archive passed browser and database checks. Employee attribution and before/after history retained; stale edits rejected.
-- Exact UUI-only write allowlist: 60 checks pass. Real outbound operations remain blocked.
+- Exact UUI-only write allowlist: 67 checks pass. Real outbound operations remain blocked.
 - Introduction-history reader corrected: validates active employee/non-workstation before server-only timestamp query. No direct mailbox grants. Route transport tests pass, including errors and denial. Deployed browser acceptance must still be recorded.
 - C360 internal history now combines linked phone/contact/email/reservation and active opportunity threads, deduplicates note IDs, preserves chronological order and mention response destinations, and surfaces read failures instead of claiming no messages. Focused tests passed.
 - EXC isolated policy/result checks: 23 passed previously. Booking isolation, guardians, batched readiness and deployment boundaries: 21 additional checks passed in this pass after repairing stale test mocks. No EXC runtime policy changed.
+
+- Session renewal defect fixed: exact UUI Preview boundary now permits the existing refresh endpoint; renewal runs across all employee workspaces and restarts on navigation. Login attempts renewal from the existing HttpOnly refresh cookie without requesting another password. Failed/invalid refresh leaves normal sign-in available. Permission/path/cookie tests passed; deployed browser check pending.
 
 ## Remaining release gates (close these; do not add features)
 | Gate | Required evidence | Current limitation |
