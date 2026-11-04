@@ -9,13 +9,14 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - C360 shared note creation/visibility and Readiness create/edit/reopen/archive passed browser and database checks. Employee attribution and before/after history retained; stale edits rejected.
 - Exact UUI-only write allowlist: 60 checks pass. Real outbound operations remain blocked.
 - Introduction-history reader corrected: validates active employee/non-workstation before server-only timestamp query. No direct mailbox grants. Route transport tests pass, including errors and denial. Deployed browser acceptance must still be recorded.
+- C360 internal history now combines linked phone/contact/email/reservation and active opportunity threads, deduplicates note IDs, preserves chronological order and mention response destinations, and surfaces read failures instead of claiming no messages. Focused tests passed.
 - EXC isolated policy/result checks: 23 passed previously. Booking isolation, guardians, batched readiness and deployment boundaries: 21 additional checks passed in this pass after repairing stale test mocks. No EXC runtime policy changed.
 
 ## Remaining release gates (close these; do not add features)
 | Gate | Required evidence | Current limitation |
 | --- | --- | --- |
 | Existing operational workflows | Verify Readiness held-over rentals, deposits, dispatch, reservation lookup, rental/tour inboxes and exceptions; Sales lead/follow-up/opportunity/quote actions; Admin user changes | Loading menus is not acceptance. Most mutations still fail closed under Preview outbound isolation. Classify internal saves versus actual outbound actions and enable only reviewed internal operations in UUI. |
-| C360 history | Introduction timestamp renders; selected conversation uses correct customer/thread history | Introduction reader fixed; thread/history mismatch remains to reproduce. |
+| C360 history | Introduction timestamp renders; selected conversation uses correct customer/thread history | Introduction reader fixed. Reproduced phone-thread notes missing from the opportunity-only panel; linked-thread reader fixed and tested. Browser session expired before final deployed acceptance. |
 | Shared tools | One CallRail popup opens Lead/C360 and dismisses all past calls; one Ping works across workspaces | Earlier function/access checks exist; complete cross-workspace browser acceptance remains. |
 | EXC | Guest/kiosk through assessment to Readiness/Arrival/Exceptions with correct dependencies | Flags absent. Video threshold is 98% in copied code versus requested 100%; reconcile before enabling. Vimeo access/duration and full guest flow not verified. Separate EXC release untouched. |
 | Roles and audit | Team/manager/owner route denials; Jennifer/Joe-only audit; requested action coverage, older search and denied actions | Notes history works. Existing audit reader still recent-history subset; failed actions, older pagination and full source coverage are incomplete. Legacy unmigrated notes read-only. |
