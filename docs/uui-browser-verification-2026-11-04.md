@@ -31,3 +31,7 @@ Next production build passed. Existing StaffBooking CSS warning remains. Changed
 - Audit remains two-source recent-history pilot, not complete audit coverage.
 - Quote-builder Chrome extension remains deferred.
 - Role-denial checks here are database/code tests; only Jennifer browser session was used.
+
+## Quote catalog follow-up in the same session
+Browser found rate reads still used the anonymous database client. Added an authenticated, fixed-resource server endpoint for rates, fees and booking links. Client keeps its existing season filtering and quote calculations. No anonymous database grants; server credential stays server-side. Tests reject anonymous, inactive and workstation profiles and arbitrary resources; verify three catalogs and sanitized upstream errors. Local production build passed.
+Management report date submission was browser-verified at /management/sales?date=2026-11-03 after deployment.

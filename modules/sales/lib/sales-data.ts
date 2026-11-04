@@ -85,16 +85,7 @@ const apiHeaders = {
 };
 
 export async function getSalesRates(year: 2026 | 2027 = 2026): Promise<SalesRateRow[]> {
-  const params = new URLSearchParams({
-    select: "experience_id,experience_name,business_line,ticket_type_id,ticket_type_name,unit_price_cents,quantity_label,sales_help_text,effective_start,effective_end,source",
-    is_active: "eq.true",
-    experience_id: "neq.17328",
-    ticket_type_name: "not.in.(Guest,Adult Rider,Terms and Conditions)",
-    order: "business_line.asc,experience_name.asc,ticket_type_name.asc",
-  });
-
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/sales_quote_rates?${params.toString()}`, {
-    headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+  const response = await fetch("/api/sales/quote-catalog?kind=rates", {
     cache: "no-store",
   });
 
@@ -113,22 +104,15 @@ export async function getSalesRates(year: 2026 | 2027 = 2026): Promise<SalesRate
 }
 
 export async function getSalesBookingLinks(): Promise<SalesBookingLink[]> {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/sales_booking_links?select=experience_id,booking_url&is_active=eq.true`, {
-    headers: { apikey: SUPABASE_PUBLISHABLE_KEY }, cache: "no-store",
+  const response = await fetch("/api/sales/quote-catalog?kind=links", {
+    cache: "no-store",
   });
   if (!response.ok) throw new Error("Unable to load booking links.");
   return response.json() as Promise<SalesBookingLink[]>;
 }
 
 export async function getSalesExperienceFees(): Promise<SalesExperienceFee[]> {
-  const params = new URLSearchParams({
-    select: "experience_id,experience_name,fee_label,fee_cents",
-    is_active: "eq.true",
-    order: "experience_name.asc",
-  });
-
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/sales_quote_experience_fees?${params.toString()}`, {
-    headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+  const response = await fetch("/api/sales/quote-catalog?kind=fees", {
     cache: "no-store",
   });
 
