@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { allowsUuiInternalWrite } from "./lib/uui-internal-writes";
 
 async function sha256Hex(value: string) {
   const bytes = new TextEncoder().encode(value);
@@ -42,7 +43,8 @@ export async function middleware(request: NextRequest) {
     // Only the isolated rental agreement form submission may write in EXP staging.
     // All other operational mutations and forms with outbound side effects remain denied.
     const allowedRentalFormSubmission = /^\/api\/guest-forms\/[^/]+$/.test(pathname) && request.method === "POST";
-    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite && !allowedRentalV2 && !allowedKioskLookup && !allowedStagingAuth && !allowedRentalFormSubmission && !allowedStagingOhvUpload) {
+    const allowedUuiInternalWrite = allowsUuiInternalWrite(pathname, request.method, process.env);
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite && !allowedRentalV2 && !allowedKioskLookup && !allowedStagingAuth && !allowedRentalFormSubmission && !allowedStagingOhvUpload && !allowedUuiInternalWrite) {
       return NextResponse.json(
         { error: "Operational API mutations are disabled in isolated EXP staging." },
         { status: 403, headers: { "Cache-Control": "no-store" } },
