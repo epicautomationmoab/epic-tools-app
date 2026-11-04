@@ -68,3 +68,12 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Availability defect repaired: shared browser/server window opens 8 AM prior day and closes exactly 30 minutes before pickup. Tests cover DST and invalid/past timestamps; full build passed.
 - Full guest video playback and completed assessment remain unverified; existing synthetic reservation dates are already past pickup. Do not equate mocked qualification tests with a completed browser guest journey.
 - Browser found guest portal denied by PostgREST (missing legacy JWT Authorization header). Reused guarded serverSupabaseHeaders for portal and balance reads; no anonymous grant. Database errors sanitized, balance lookup now fails rather than falsely showing zero. Focused auth regression and full build pass.
+
+## EXC browser checkpoint — November 4, 15:08 Mountain
+- Deployed code cd7a5b9784c19d44fb8a58d3cd67b06cd676d2e1; deployment dpl_FzfSV7JAarCfAhSk2mL6UgMWCJyS READY, protected UUI Preview.
+- Portal auth repair confirmed in browser: itinerary, driver agreements, verified Polaris and OHV requirements display.
+- Temporarily moved only PREVIEW-HISTORY-312 synthetic readiness/store-visit dates from Nov 4 to Nov 5 with transaction-local fixture trigger suppression (no operational automation). Restored both tables to original Nov 4 dates afterward.
+- Guest portal EXC entry, welcome, driver selection and drawn test initial passed. Synthetic session 3eebd03d-4e1f-40f0-a202-35d944c848f1 persisted with one participant and outcome in_progress, zero watched seconds, no qualification.
+- Vimeo 1239550688 displays: "Because of its privacy settings, this video cannot be played here." The stable UUI domain needs to be allowed for this video: epic-uui-development-automation-4515s-projects.vercel.app. Do not make video public or bypass tracking.
+- Knowledge check correctly remains disabled. Full playback, resume and assessment-to-Arrival/Exceptions still require browser verification after video access is corrected.
+- Evidence: /workspace/scratch/uui-exc-vimeo-domain-block-20261104.jpg.
