@@ -37,3 +37,12 @@ Browser found rate reads still used the anonymous database client. Added an auth
 Management report date submission was browser-verified at /management/sales?date=2026-11-03 after deployment.
 
 The authenticated catalogs were verified in the deployed browser: the previous permission error is gone, and 2027 season selection succeeds against seeded rates. This exposed a separate existing empty-quote rendering bug: an activity card was rendered only when an experience was already selected, hiding the selector on new quotes. Added the missing unselected activity card, preserving existing pricing and availability logic. Browser selection and calculation are the remaining verification for this patch.
+
+## Final browser verification
+Deployment dpl_5ymiePJZ5FLMv4BctbBAsAMXQCAd is READY at code commit a316ce2a19a641fd301f47389a7eab5fe5a07ce5 (protected UUI Preview).
+- New quote renders an Experience selector with both seeded 2026 activities.
+- Selecting Preview Synthetic Rental and incrementing quantity to one shows $200.00 subtotal, $17.70 taxes, $8.71 booking fee, $226.41 total.
+- Add Another Activity renders a second empty selectable activity.
+- Readiness no longer lists Manage Users; Admin remains accessible through Home.
+- Audit page retains shared workspace and Home navigation.
+No quote was saved or sent, no external availability call was made, and no production or separate EXC environment was changed. Saved-quote retrieval still uses the legacy anonymous reader and requires follow-up; this pass proves catalog/selection/calculation, not saving or reopening quotes.
