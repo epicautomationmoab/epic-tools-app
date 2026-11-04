@@ -27,9 +27,9 @@ async function loadAuditEvents(): Promise<{ events: EventRow[]; errors: string[]
       map: (r: Record<string, unknown>): EventRow => ({
         id: String(r.id), at: String(r.created_at), actor: String(r.actor_name || "Unknown"),
         actor_id: r.actor_profile_id ? String(r.actor_profile_id) : null,
-        domain: "Notes", action: String(r.action), object: String(r.note_id),
+        domain: "Notes", action: (r.after_value as Record<string,unknown> | null)?.archived_at ? "Note archived" : String(r.action), object: String(r.note_id),
         detail: [r.before_value ? `Before: ${String((r.before_value as Record<string,unknown>).note_text)}; Readiness: ${String((r.before_value as Record<string,unknown>).visible_in_readiness)}` : "Created",
-          r.after_value ? `After: ${String((r.after_value as Record<string,unknown>).note_text)}; Readiness: ${String((r.after_value as Record<string,unknown>).visible_in_readiness)}` : "Removed"].join(" → "),
+          r.after_value ? `After: ${String((r.after_value as Record<string,unknown>).note_text)}; Readiness: ${String((r.after_value as Record<string,unknown>).visible_in_readiness)}${(r.after_value as Record<string,unknown>).archived_at ? "; Archived: " + String((r.after_value as Record<string,unknown>).archived_at) : ""}` : "Removed"].join(" → "),
       }),
     },
     {
