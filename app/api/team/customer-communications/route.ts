@@ -126,6 +126,7 @@ export async function POST(request: NextRequest) {
     subject?: string | null;
     message_text?: string | null;
     tracking_number?: string | null;
+    attachments?: Array<{ filename: string; content: string; content_type?: string }>;
   } | null;
 
   const channel = payload?.channel;
@@ -248,6 +249,22 @@ export async function POST(request: NextRequest) {
     const nameHtml = escapeHtml(senderFirstName);
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="IE=edge"></head><body style="margin:0;background-color:#eeeae3;font-family:Arial,Helvetica,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background-color:#eeeae3;"><tr><td align="center" style="padding-top:24px;padding-right:12px;padding-bottom:32px;padding-left:12px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;"><tr><td align="center" bgcolor="#171717" style="background-color:#171717;padding-top:22px;padding-right:24px;padding-bottom:22px;padding-left:24px;"><img src="https://myepicreservation.com/epic-logo.png" width="205" height="70" border="0" alt="Epic 4X4 Adventures" style="display:block;width:205px;height:auto;"></td></tr><tr><td bgcolor="#c6492d" style="background-color:#c6492d;height:5px;font-size:5px;line-height:5px;">&nbsp;</td></tr><tr><td style="padding-top:34px;padding-right:38px;padding-bottom:30px;padding-left:38px;"><p style="margin-top:0;margin-bottom:0;color:#303030;font-size:16px;line-height:26px;white-space:pre-wrap;">${bodyHtml}</p></td></tr><tr><td style="padding-top:0;padding-right:38px;padding-bottom:34px;padding-left:38px;"><p style="margin-top:0;margin-bottom:3px;color:#171717;font-size:16px;line-height:23px;font-weight:bold;">${nameHtml}</p><p style="margin-top:0;margin-bottom:0;color:#666666;font-size:14px;line-height:21px;">Epic 4X4 Adventures</p></td></tr><tr><td align="center" bgcolor="#171717" style="background-color:#171717;padding-top:22px;padding-right:20px;padding-bottom:24px;padding-left:20px;"><p style="margin-top:0;margin-bottom:5px;color:#ffffff;font-size:15px;line-height:22px;font-weight:bold;">Epic 4X4 Adventures</p><p style="margin-top:0;margin-bottom:6px;color:#cacaca;font-size:13px;line-height:20px;">Moab, Utah · (435) 220-2700</p><p style="margin-top:0;margin-bottom:0;color:#cacaca;font-size:13px;line-height:20px;"><a href="https://epic4x4adventures.com" style="color:#ffffff;text-decoration:underline;">epic4x4adventures.com</a></p></td></tr></table></td></tr></table></body></html>`;
     const textBody = `${closingBody}\n${senderFirstName}\n\nEpic 4X4 Adventures\n\nEpic 4X4 Adventures\nMoab, Utah · (435) 220-2700\nepic4x4adventures.com https://epic4x4adventures.com`;
+    // Keep encoded JSON safely below Vercel's request body limit.
+    const attachments = payload?.attachments || [];
+    const allowedTypes = new Set(["application/pdf","image/jpeg","image/png","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]);
+    if (!Array.isArray(attachments) || attachments.length > 8) return NextResponse.json({error:"Maximum 8 attachments per email."},{status:400});
+    let combinedBytes = 0;
+    const sendAttachments: Array<{filename:string;content:Buffer;contentType:string}> = [];
+    for (const item of attachments) {
+      if (!item || typeof item.filename !== "string" || typeof item.content !== "string" || typeof item.content_type !== "string" || !allowedTypes.has(item.content_type)) return NextResponse.json({error:"Unsupported attachment type."},{status:400});
+      const filename = item.filename.replace(/[\\/\\\\\\x00-\\x1f]/g,"").slice(0,160);
+      if (!filename || !/^[A-Za-z0-9 _().-]+$/.test(filename)) return NextResponse.json({error:"Invalid attachment filename."},{status:400});
+      if (!/^[A-Za-z0-9+/]*={0,2}$/.test(item.content) || item.content.length % 4 !== 0) return NextResponse.json({error:"Invalid attachment data."},{status:400});
+      const bytes = Buffer.from(item.content,"base64");
+      combinedBytes += bytes.length;
+      if (!bytes.length || combinedBytes > 2_500_000) return NextResponse.json({error:"Attachments must total no more than 2.5 MB."},{status:413});
+      sendAttachments.push({filename,content:bytes,contentType:item.content_type});
+    }
     const resend = new Resend(requiredEnv("RESEND_API_KEY"));
     const { data, error } = await resend.emails.send({
       from: `${senderFirstName} at Epic 4X4 Adventures <${requiredEnv("GUEST_EMAIL_FROM").match(/<([^>]+)>/)?.[1] || requiredEnv("GUEST_EMAIL_FROM")}>`,
@@ -256,6 +273,7 @@ export async function POST(request: NextRequest) {
       subject,
       html,
       text: textBody,
+      ...(sendAttachments.length ? { attachments: sendAttachments } : {}),
     }, { idempotencyKey: `c360-correspondence-${communicationId}` });
     if (error) throw new Error(error.message);
     if (!data?.id) throw new Error("Resend did not return a message ID.");
