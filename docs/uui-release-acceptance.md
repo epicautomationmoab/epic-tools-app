@@ -93,3 +93,12 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Temporary fixture change was limited to removing/restoring handoff 19ba941c-c99a-416d-8e7b-847cf01333a8 with transaction-local trigger suppression. Original ID, timestamps, attribution and status restored and verified; reservation dates unchanged. No operational notifications sent.
 - Closed-card copy no longer invites the guest to finish an unavailable orientation. Typecheck and availability regression pass.
 - Full uninterrupted video completion and knowledge-check-to-Arrival/Exceptions browser journey remain unverified. This checkpoint proves video playback/persistence and checkout availability, not full EXC qualification or release readiness.
+
+## Cancellation policy acknowledgement — required combined-release acceptance
+- Owner explicitly reconfirmed this existing C360 workflow must be preserved. Imported C360 reservation panel, automatic popup, policy selection, guest acknowledgement page, acceptance history and Readiness panel are present.
+- Found imported Sales proxy pointing at nonexistent /api/sales/team/cancellation-agreements; replaced it with a direct call to the existing EpicTools handler. Candidate lookup also shares the existing local handler without HTTP forwarding.
+- Isolated UUI reads no longer use the legacy Preview-to-production forwarding path. Preview GET does not silently restore expired records. Employee auth remains required and Sales workstation access is denied.
+- Preview create/reset/delivery remain explicitly blocked in the handler and middleware; no guest email/SMS is sent. Existing policy language and production behavior unchanged.
+- Isolated acknowledgement request and acceptance tables exist but are empty. Presence of imported code is not full workflow acceptance.
+- Required before combined release: test synthetic copy-link creation, correct policy selection, guest acceptance evidence/version/time, accepted/replaced/expired behavior, and the same status/history visible in C360 and Readiness. Delivery integration must remain disabled during synthetic testing. Legal acceptance requires owner-controlled test submission or an explicitly approved nonbinding fixture flow.
+- Focused regression verifies local reservation-scoped lookup, employee/workstation boundaries, blocked Preview delivery/reset and zero live forwarding. Typecheck passed.

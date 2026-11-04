@@ -148,7 +148,7 @@ async function forwardPreviewAgreement(request: NextRequest, method: "GET"|"POST
 }
 
 export async function GET(request: NextRequest) {
-  if(process.env.VERCEL_ENV==="preview") return forwardPreviewAgreement(request,"GET");
+  if(process.env.VERCEL_ENV==="preview" && process.env.EPIC_STAGING_NO_OUTBOUND!=="true" && process.env.VERCEL_PROJECT_ID!=="prj_lZGiQ85J6jQRgSRostBvUJGVKv6r") return forwardPreviewAgreement(request,"GET");
   if (!await getRequestIdentity(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
   if (!readinessId) return NextResponse.json({ error: "readinessId is required." }, { status: 400 });
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
       loadReadiness(readinessId),
     ]);
 
-    if (agreement?.status === "expired" && new Date(agreement.expires_at).getTime() > Date.now()) {
+    if (process.env.EPIC_STAGING_NO_OUTBOUND!=="true" && agreement?.status === "expired" && new Date(agreement.expires_at).getTime() > Date.now()) {
       const restoredStatus = agreement.opened_at ? "opened" : agreement.sent_at ? "sent" : "created";
       await supabasePatch(
         "cancellation_agreement_requests",
@@ -197,6 +197,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  if(process.env.EPIC_STAGING_NO_OUTBOUND==="true" || process.env.VERCEL_PROJECT_ID==="prj_lZGiQ85J6jQRgSRostBvUJGVKv6r") return NextResponse.json({error:"Cancellation acknowledgement changes and delivery are disabled in isolated Preview."},{status:403});
   if(process.env.VERCEL_ENV==="preview") return forwardPreviewAgreement(request,"DELETE");
   if (!await getRequestIdentity(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const readinessId = request.nextUrl.searchParams.get("readinessId")?.trim();
@@ -224,6 +225,7 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if(process.env.EPIC_STAGING_NO_OUTBOUND==="true" || process.env.VERCEL_PROJECT_ID==="prj_lZGiQ85J6jQRgSRostBvUJGVKv6r") return NextResponse.json({error:"Cancellation acknowledgement changes and delivery are disabled in isolated Preview."},{status:403});
   if(process.env.VERCEL_ENV==="preview") return forwardPreviewAgreement(request,"POST");
   const identity = await getRequestIdentity(request);
   if (!identity) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
