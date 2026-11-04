@@ -20,7 +20,7 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 | Existing operational workflows | Verify Readiness held-over rentals, deposits, dispatch, reservation lookup, rental/tour inboxes and exceptions; Sales lead/follow-up/opportunity/quote actions; Admin user changes | Loading menus is not acceptance. Most mutations still fail closed under Preview outbound isolation. Classify internal saves versus actual outbound actions and enable only reviewed internal operations in UUI. |
 | C360 history | Introduction timestamp renders; selected conversation uses correct customer/thread history | Introduction reader fixed. Reproduced phone-thread notes missing from the opportunity-only panel; linked-thread reader fixed and tested. Deployed browser verified seven prior internal notes (four phone-thread notes plus three reservation-thread notes), with original authors and mention acknowledgment. |
 | Shared tools | One CallRail popup opens Lead/C360 and dismisses all past calls; one Ping works across workspaces | Earlier function/access checks exist; complete cross-workspace browser acceptance remains. |
-| EXC | Guest/kiosk through assessment to Readiness/Arrival/Exceptions with correct dependencies | Flags absent. Video threshold is 98% in copied code versus requested 100%; reconcile before enabling. Vimeo access/duration and full guest flow not verified. Separate EXC release untouched. |
+| EXC | Guest/kiosk through assessment to Readiness/Arrival/Exceptions with correct dependencies | Combined UUI release includes EXC. Existing EXC implementation enabled only in UUI Preview/Development; full video coverage required. Vimeo access/duration and full guest flow verification pending. Original EXC staging and branch retained unchanged. |
 | Roles and audit | Team/manager/owner route denials; Jennifer/Joe-only audit; requested action coverage, older search and denied actions | Notes history works. Existing audit reader still recent-history subset; failed actions, older pagination and full source coverage are incomplete. Legacy unmigrated notes read-only. |
 | Operational dependencies | Extension availability; MPWR document access; preserved Slack/Joe maintenance routing with no real test sends | Chrome extension unavailable for testing; MPWR drawer retrieval unresolved. Maintenance handlers previously compared unchanged; no delivery claim. |
 | Release | One tested candidate, environment mapping, rollback and explicit owner approval | Not ready for production. Bookings and Ambassador placeholders remain planned; no new booking engine work belongs in this release. |
@@ -56,3 +56,11 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Sales, Home, Admin and Management activity now updates the same clock as Readiness. Truly expired idle clocks remain locked; listeners clean up across navigation.
 - Activity/session tests, 83 write-boundary checks and full build passed.
 - Previous document-reader deployment 8e4d3a1: browser confirmed unit A shows three MPWR waivers (Driver, Minor, Passenger) without the anonymous retrieval error.
+
+## EXC combined release integration
+- Owner clarified EXC belongs in the combined UUI launch, not a separate release.
+- Existing EXC tables and start_exp_driver_session service permissions verified in UUI database; no schema rebuild.
+- Preview/Development flags EXP_ASSESSMENT_SERVER_ENABLED and NEXT_PUBLIC_EXP_VIDEO_PREVIEW enabled on epic-uui-development only; production unchanged.
+- Server and player full viewing threshold corrected from 98% to 100%. No relaxed threshold in UUI. End-of-video requirement retained; progress label cannot claim completion early by rounding.
+- Tests now reject 98% coverage, one missing second and missing end event; existing driver, guardian, OHV, booking separation and result presentation tests pass.
+- Original separate EXC staging shortcut is not used by UUI; original EXC deployment/branch/database not changed.
