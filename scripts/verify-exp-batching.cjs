@@ -1,7 +1,9 @@
 /** Evidence-isolated regression: no network, DB writes or video-completion claims. */
 const fs=require('node:fs'),assert=require('node:assert/strict'),ts=require('typescript');
 function load(path,deps={}){const out={};const code=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;new Function('exports','require',code)(out,id=>{assert(id in deps,'Unexpected dependency '+id);return deps[id]});return out}
-const policy=load('lib/exp/team-status.ts'),video={EXP_VIDEO_VERSION:'3.2',EXP_ASSESSMENT_VERSION:'exp-2026-10-26-v1',expVideoDuration:async()=>701,matchesExpVideoDuration:(a,b)=>a!==null&&b!==null&&Math.abs(a-b)<=1};
+process.env.NEXT_PUBLIC_SUPABASE_URL='https://jgpihdpcdlqugmqanzfj.supabase.co';
+process.env.EPIC_STAGING_NO_OUTBOUND='true';
+const policy=load('lib/exp/team-status.ts'),video={...load('lib/server/exp-video.ts'),EXP_VIDEO_VERSION:'3.2',EXP_ASSESSMENT_VERSION:'exp-2026-10-26-v1',expVideoDuration:async()=>701,matchesExpVideoDuration:(a,b)=>a!==null&&b!==null&&Math.abs(a-b)<=1};
 const data={guest_portal_v:[],exp_sessions:[],exp_participants:[],guest_form_tasks:[],guest_form_templates:[],guest_form_submissions:[],scout_mpwr_waivers:[],ohv_certificate_uploads:[]};const v2=new Map(),ids=[];let reads=0,paged=false;
 for(let i=0;i<101;i++){
  const id='fixture-'+i,session='session-'+i,names=['Avery','Blake','Casey'].map(n=>n+' '+i);ids.push(id);
