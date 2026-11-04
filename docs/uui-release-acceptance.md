@@ -77,3 +77,10 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Vimeo 1239550688 displays: "Because of its privacy settings, this video cannot be played here." The stable UUI domain needs to be allowed for this video: epic-uui-development-automation-4515s-projects.vercel.app. Do not make video public or bypass tracking.
 - Knowledge check correctly remains disabled. Full playback, resume and assessment-to-Arrival/Exceptions still require browser verification after video access is corrected.
 - Evidence: /workspace/scratch/uui-exc-vimeo-domain-block-20261104.jpg.
+
+## Revised EXC availability — owner direction November 4
+- Supersedes the 30-minute cutoff: opens at 8 AM Moab time prior day, stays open until actual rental_out (Checked Out); rental_returned also closed. Scheduled time passing does not close EXC.
+- Existing handoff records drive the decision. No new parallel status or database schema.
+- Guest portal receives per-item handoff status; new/resumed orientation and participant/progress/inquiry saves check current checkout status server-side. Completed/history reads remain available.
+- Multi-item selection favors items not checked out. Guest page refresh closes an open orientation when that item's checkout arrives.
+- Tests verify late and multi-day starts, opening/DST, and API rejection after checkout without creating a new session.

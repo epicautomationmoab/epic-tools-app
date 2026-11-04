@@ -19,6 +19,7 @@ type VehicleBreakdownItem = {
 };
 
 type Activity = {
+  handoffStatus?: string | null;
   readinessId: string;
   businessLine: string;
   productDisplayName: string;

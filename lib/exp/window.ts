@@ -10,12 +10,12 @@ function moabParts(timestamp: number) {
   return { year: part("year"), month: part("month"), day: part("day"), hour: part("hour") };
 }
 export function withinExpWindow(start: number, now: number) {
-  if (!Number.isFinite(start) || start - now <= 30 * 60 * 1000) return false;
+  if (!Number.isFinite(start) || !Number.isFinite(now)) return false;
   const visit = moabParts(start);
   const today = moabParts(now);
   const dayDifference = Math.round((Date.UTC(visit.year, visit.month - 1, visit.day) -
     Date.UTC(today.year, today.month - 1, today.day)) / 86_400_000);
-  return dayDifference === 0 || (dayDifference === 1 && today.hour >= 8);
+  return dayDifference <= 0 || (dayDifference === 1 && today.hour >= 8);
 }
 
 
@@ -39,3 +39,7 @@ export function denverWallTimeToIso(value: string) {
   return `${year}-${month}-${day}T${hour}:${minute}:${seconds}${fraction}${offsetMatch[1]}`;
 }
 
+
+export function expCheckoutClosed(status: string | null | undefined) {
+  return status === "rental_out" || status === "rental_returned";
+}

@@ -1,3 +1,4 @@
+import {expItemCheckedOut} from '@/lib/server/exp-checkout';
 import {withinExpWindow,denverWallTimeToIso} from '@/lib/exp/window';
 import {loadExpSessionOptions,expNameKey} from "@/lib/server/exp-session-options";
 import {loadExpReadiness} from "@/lib/server/exp-readiness";
@@ -78,8 +79,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const activity = activities.find(a=>a.readiness_id===body.readinessId);
     if (!activity || activity.business_line?.toLowerCase() !== "rental") return fail("Rental reservation not found.", 404);
 
-    if (!withinExpWindow(Date.parse(denverWallTimeToIso(activity.visit_start_time)), Date.now())) {
-      return fail("Online orientation opens at 8 AM the day before pickup and closes 30 minutes before pickup. Please see an Adventure Technician outside that window.", 409);
+    if (!withinExpWindow(Date.parse(denverWallTimeToIso(activity.visit_start_time)), Date.now()) || await expItemCheckedOut(activity.readiness_id)) {
+      return fail("Online orientation opens at 8 AM the day before pickup and remains available until the vehicle is checked out. Please see an Adventure Technician.", 409);
     }
 
     if (body.action === "start") {
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
           if(!saved)return fail("Saved orientation not found for this booking.",404);
           const [row]=await supabaseSelect<typeof chosenSession>("exp_sessions",new URLSearchParams({select:"id,readiness_id,result_summary",id:`eq.${saved.sessionId}`,outcome:"in.(in_progress,critical_retry)",limit:"1"}));
           if(!row)return fail("This orientation has already finished. Please refresh your portal.",409);
+          if(await expItemCheckedOut(row.readiness_id))return fail("This vehicle has already been checked out. Saved orientation is read-only.",409);
           chosenSession=row;selectedNames=saved.names;
         }else{
           const names=body.selectedDriverNames;
@@ -117,6 +119,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         order: "created_at.desc", limit: "1",
       }));
       if (existing.length) {
+        if(await expItemCheckedOut(existing[0].readiness_id))return fail("This vehicle has already been checked out. Saved orientation is read-only.",409);
         return NextResponse.json({ sessionId: existing[0].id, readinessId:existing[0].readiness_id, questions: publicQuestions(existing[0].id + "-attempt-" + (Number(existing[0].result_summary?.attemptCount || 0) + 1)),
           resumed: true, completionRecorded: false }, { headers: { "Cache-Control": "no-store" } });
       }

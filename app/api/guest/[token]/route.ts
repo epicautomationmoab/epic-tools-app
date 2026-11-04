@@ -1,4 +1,4 @@
-import {getServerSupabaseConfig,serverSupabaseHeaders} from '@/lib/server/supabase-rest';
+import {getServerSupabaseConfig,serverSupabaseHeaders,supabaseSelect} from '@/lib/server/supabase-rest';
 import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
@@ -112,6 +112,8 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     const rows = (await response.json()) as GuestPortalRow[];
     if (!rows.length) return NextResponse.json({ error: "Guest portal not found." }, { status: 404 });
 
+    const handoffs=await supabaseSelect<{readiness_id:string;handoff_status:string|null}>('epic_operational_handoffs',new URLSearchParams({select:'readiness_id,handoff_status',readiness_id:`in.(${rows.map(r=>r.readiness_id).join(',')})`}));
+    const handoffById=new Map(handoffs.map(h=>[h.readiness_id,h.handoff_status]));
     const hasMpwrWaiver = rows.some((row) => Boolean(row.mpwr_waiver_url));
     const rentalV2Readiness = await loadRentalV2Readiness(
       rows
@@ -151,6 +153,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
         mpwrWaiverUrl: hasMpwrWaiver ? `/api/guest/${encodeURIComponent(token)}/mpwr-waiver` : null,
         activities: rows.map((row) => ({
           readinessId: row.readiness_id,
+          handoffStatus: handoffById.get(row.readiness_id) ?? null,
           businessLine: row.business_line,
           productDisplayName: row.product_display_name,
           visitStartTime: denverWallTimeToIso(row.visit_start_time),

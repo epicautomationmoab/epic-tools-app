@@ -1,3 +1,4 @@
+import {expItemCheckedOut} from '@/lib/server/exp-checkout';
 import {NextRequest,NextResponse} from 'next/server';
 import {loadBeltTireGuestContext} from '@/lib/server/exp-belt-tire-inquiry';
 import {beltTireNameKey} from '@/lib/exp/belt-tire-inquiry';
@@ -13,6 +14,7 @@ export async function POST(request:NextRequest,context:{params:Promise<{token:st
  try{const {token}=await context.params;const b=await request.json() as {readinessId?:string;sessionId?:string;driverName?:string;response?:string;scope?:string};
   if(!b.readinessId||!b.sessionId||(b.scope!=='group'&&typeof b.driverName!=='string')||!['information_requested','declined'].includes(b.response||''))return reply({error:'Choose a valid response for one participating driver.'},400);
   const c=await loadBeltTireGuestContext(token,b.readinessId,b.sessionId);if(!c)return reply({error:'Orientation not found.'},404);
+  if(await expItemCheckedOut(b.readinessId))return reply({error:"This vehicle has already been checked out. Orientation records are read-only."},409);
   const group=b.scope==='group';
   if(group&&!c.isGroup)return reply({error:'This is an individual orientation.'},409);
   const driver=group?null:c.drivers.find(d=>beltTireNameKey(d.name)===beltTireNameKey(b.driverName!));

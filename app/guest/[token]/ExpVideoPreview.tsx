@@ -8,10 +8,10 @@ import ExpTrackedVideo, {type ExpPlaybackCheckpoint} from "./ExpTrackedVideo";
 import ExpSessionChoice,{type ExpSessionChoices} from "./ExpSessionChoice";
 import ExpParticipants, { type ExpParticipantDraft } from "./ExpParticipants";
 
-import {withinExpWindow} from '@/lib/exp/window';
+import {withinExpWindow,expCheckoutClosed} from '@/lib/exp/window';
 
 type DriverStatus={name:string;expReady:boolean;orientationComplete:boolean;outstanding:string[]};
-type Rental = { readinessId: string; businessLine: string; visitStartTime: string };
+type Rental = { handoffStatus?: string|null; readinessId: string; businessLine: string; visitStartTime: string };
 
 export default function ExpVideoPreview({
   token,
@@ -49,7 +49,7 @@ export default function ExpVideoPreview({
   const selectionGeneration=useRef(0);
   const [startingSession,setStartingSession] = useState(false);
   const [sessionReadinessId,setSessionReadinessId]=useState<string|null>(null);
-  const primaryReadinessId = activities.find(a => a.businessLine.toLowerCase() === "rental")?.readinessId ?? "";
+  const primaryReadinessId = activities.find(a => a.businessLine.toLowerCase() === "rental" && !expCheckoutClosed(a.handoffStatus))?.readinessId ?? activities.find(a=>a.businessLine.toLowerCase()==="rental")?.readinessId ?? "";
   const readinessId=sessionReadinessId||primaryReadinessId;
   const [watchedAcknowledged, setWatchedAcknowledged] = useState(false);
   const [videoCoverageMet, setVideoCoverageMet] = useState(false);
@@ -68,9 +68,14 @@ export default function ExpVideoPreview({
     return activities.some((activity) => {
       if (activity.businessLine.toLowerCase() !== "rental") return false;
       const start = new Date(activity.visitStartTime).getTime();
-      return Number.isFinite(start) && start >= now && (reviewerMode || withinExpWindow(start, now));
+      return Number.isFinite(start) && (reviewerMode || withinExpWindow(start, now));
     });
   }, [activities, now, reviewerMode]);
+
+  const checkoutClosed=activities.filter(a=>a.businessLine.toLowerCase()==="rental").every(a=>expCheckoutClosed(a.handoffStatus));
+  useEffect(()=>{
+    if(open && activities.some(a=>a.readinessId===readinessId && expCheckoutClosed(a.handoffStatus))) closeOrientation();
+  },[activities,open,readinessId]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -116,7 +121,7 @@ export default function ExpVideoPreview({
   }, [eligible, token]);
 
   useEffect(() => {
-    if (reviewerMode || !eligible || !token || !formsLoaded || !paperworkReady || outstandingRequiredForms || verifiedExpStatus!==false || (driverStatuses.length>0 && driverStatuses.every(d=>d.orientationComplete))) return;
+    if (checkoutClosed || reviewerMode || !eligible || !token || !formsLoaded || !paperworkReady || outstandingRequiredForms || verifiedExpStatus!==false || (driverStatuses.length>0 && driverStatuses.every(d=>d.orientationComplete))) return;
     const key = `epic-exp-prompted-v1:${token}`;
     try {
       if (window.localStorage.getItem(key)) return;
@@ -127,7 +132,7 @@ export default function ExpVideoPreview({
     setStarted(true);
     setShowWelcome(true);
     setOpen(true);
-  }, [eligible, token, formsLoaded, outstandingRequiredForms, reviewerMode,verifiedExpStatus,driverStatuses,paperworkReady]);
+  }, [eligible, token, formsLoaded, outstandingRequiredForms, reviewerMode,verifiedExpStatus,driverStatuses,paperworkReady,checkoutClosed]);
 
   useEffect(() => {
     if (!open) return;
@@ -227,10 +232,11 @@ export default function ExpVideoPreview({
           <span className={styles.eyebrow}>OPTIONAL · SAVE TIME AT ARRIVAL</span>
           <h2>Epic Xpress Checkout</h2>
           {verifiedExpStatus===null?<p role="status">{statusError?'Orientation status is unavailable. Please refresh this page.':'Checking saved orientation progress…'}</p>:<ExcCompletion drivers={driverStatuses} qualified={verifiedExpStatus===true}/>}
+          {checkoutClosed?<p>The vehicle has been checked out. Your saved orientation history remains available.</p>:null}
           {reviewerMode?<p><strong>Employee preview only.</strong> This demonstration does not change guest readiness.</p>:null}
           {verifiedExpStatus===false&&!driverStatuses.some(driver=>driver.orientationComplete)?<p>Finish a short safety orientation before arrival and get on the trail sooner. <strong>About 13 minutes.</strong></p>:null}
         </div>
-        {verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]);setParticipantsRecorded(false); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setInquiryAvailable(false);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setShowWelcome(true);setOpen(true); }}>
+        {!checkoutClosed && verifiedExpStatus!==true && !(driverStatuses.length>0&&driverStatuses.every(driver=>driver.orientationComplete)) ? <button className={styles.action} type="button" disabled={verifiedExpStatus===null} onClick={() => { setStarted(true); setShowAssessment(false); setSelectDrivers(false); setDriverNames([]);setParticipantsRecorded(false); setWatchedAcknowledged(false); setVideoCoverageMet(false); setSessionId(null);setSessionChoices(null);setInquiryAvailable(false);setSelectedSessionDrivers([]);setServerError("");setSessionReadinessId(null);setSavedPlayback(undefined);setServerQuestions([]);lastPlayback.current=null;setShowWelcome(true);setOpen(true); }}>
           {assessmentStarted?"Continue Orientation":"Get Started"}
         </button>:null}
       </section>

@@ -1,3 +1,4 @@
+import {expItemCheckedOut} from '@/lib/server/exp-checkout';
 import {expVideoDuration,matchesExpVideoDuration,expQaVideoThreshold} from "@/lib/server/exp-video";
 import { NextRequest, NextResponse } from "next/server";
 import { EXP_QUESTION_BANK_DRAFT } from "@/lib/exp/question-bank-draft";
@@ -63,6 +64,7 @@ export async function PATCH(request:NextRequest,context:{params:Promise<{token:s
     for(let attempt=0;attempt<3;attempt++){
     const session=await authorized(token,body.readinessId,body.sessionId);
     if(!session)return reply({error:"Session not found."},404);
+    if(await expItemCheckedOut(session.readiness_id))return reply({error:"This vehicle has already been checked out. Orientation records are read-only."},409);
     if(!["in_progress","critical_retry"].includes(session.outcome))return reply({error:"Completed sessions cannot be edited."},409);
     if(session.outcome==="critical_retry" && (body.videoWatchedSeconds!==undefined||body.videoDurationSeconds!==undefined||body.videoEnded!==undefined))return reply({error:"Retry only the pending safety questions."},409);
     const patch:Record<string,unknown>={last_activity_at:new Date(Math.max(Date.now(),new Date(session.last_activity_at).getTime()+1)).toISOString()};

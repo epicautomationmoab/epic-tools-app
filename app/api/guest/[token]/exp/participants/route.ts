@@ -1,3 +1,4 @@
+import {expItemCheckedOut} from '@/lib/server/exp-checkout';
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseSelect, getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
 import {loadExpReadiness} from "@/lib/server/exp-readiness";
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }));
     const reservation=activities.find(a=>a.readiness_id===body.readinessId);
     if (!reservation || reservation.business_line?.toLowerCase() !== "rental") return bad("Rental reservation not found.", 404);
+    if(await expItemCheckedOut(reservation.readiness_id)) return bad("This vehicle has already been checked out. Orientation records are read-only.",409);
     const booking=activities.filter(a=>a.business_line.toLowerCase()==="rental"&&a.confirmation_code===reservation.confirmation_code);
     // Only known, completed Epic rental driver-agreement signers are eligible.
     // A signed agreement is not proof that Polaris or OHV requirements are met.
