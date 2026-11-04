@@ -117,3 +117,11 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Original Unit A returned handoff restored again with original identity/timestamps/attribution; Unit B and reservation dates unchanged. Completed session is retained as synthetic acceptance evidence.
 - Evidence: /workspace/scratch/uui-exc-orientation-complete-20261104.jpg.
 - Remaining acceptance: staff Readiness/Arrival/Exceptions visual propagation with unlocked employee session, full qualifying-party scenario, group/other-driver browser coverage, and cancellation acknowledgement creation/acceptance/history workflow. Saved video coverage resumes, but automatic player seek to the saved position remains a usability gap.
+
+## Renewed employee-session verification — November 4, 16:03 Mountain
+- Jennifer signed in again. Verified Home -> existing Readiness without a second login or PIN prompt.
+- Actual Readiness drawer for PREVIEW-HISTORY-312 unit A shows Synthetic Document Signer — Orientation complete; other requirements pending. Missing Polaris waiver and OHV certificate remain explicit, and 0/1 verified prevents false full qualification.
+- Cancellation acknowledgement dialog reads successfully in Readiness, shows the existing three policy choices and Jennifer Test attribution. No copy link, SMS, email, or acceptance submitted.
+- Arrival Board loads without error but has no waiting arrivals in the restored returned test data. Do not count this as qualification-badge acceptance.
+- Exceptions page has no EXC section. Read-only comparison with feature/exp-vimeo-preview-20261026 found the same absence in its Exceptions page, so this is an outstanding integration requirement rather than a recovered section ready to copy. Original feature branch untouched.
+- Staff evidence: /workspace/scratch/uui-exc-readiness-verified-20261104.jpg. No fixture or production changes in this pass.
