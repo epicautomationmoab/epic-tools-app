@@ -22,6 +22,17 @@ async function loadAuditEvents(): Promise<{ events: EventRow[]; errors: string[]
   const headers = { apikey: secret, Authorization: `Bearer ${secret}` };
   const tasks = [
     {
+      name: "Reservation notes", table: "epic_unified_note_audit",
+      fields: "id,created_at,note_id,actor_profile_id,actor_name,action,before_value,after_value", sort: "created_at",
+      map: (r: Record<string, unknown>): EventRow => ({
+        id: String(r.id), at: String(r.created_at), actor: String(r.actor_name || "Unknown"),
+        actor_id: r.actor_profile_id ? String(r.actor_profile_id) : null,
+        domain: "Notes", action: String(r.action), object: String(r.note_id),
+        detail: [r.before_value ? `Before: ${String((r.before_value as Record<string,unknown>).note_text)}; Readiness: ${String((r.before_value as Record<string,unknown>).visible_in_readiness)}` : "Created",
+          r.after_value ? `After: ${String((r.after_value as Record<string,unknown>).note_text)}; Readiness: ${String((r.after_value as Record<string,unknown>).visible_in_readiness)}` : "Removed"].join(" → "),
+      }),
+    },
+    {
       name: "Sales opportunities",
       table: "sales_opportunity_status_history",
       fields: "id,changed_at,changed_by_profile_id,changed_by_name,opportunity_id,from_status,to_status,reason",
@@ -89,11 +100,11 @@ export default async function ManagerAuditPreview({
     <div style={{background:"#fff6e6",border:"1px solid #ead6ad",borderRadius:10,padding:14,margin:"15px 0"}}>Preview branch only. No writes or changes to employee access. Sensitive customer contact changes and session metadata are intentionally excluded.</div>
     <form method="get" style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"end",padding:"18px 0"}}>
       <label>Employee or profile ID<br/><input name="employee" defaultValue={params.employee||""} placeholder="Search actor" style={{padding:10,border:"1px solid #b9cede",borderRadius:8,minWidth:230}}/></label>
-      <label>Area<br/><select name="area" defaultValue={area} style={{padding:10,border:"1px solid #b9cede",borderRadius:8}}><option value="">All areas</option><option value="Sales">Sales</option><option value="Fleet">Fleet</option></select></label>
+      <label>Area<br/><select name="area" defaultValue={area} style={{padding:10,border:"1px solid #b9cede",borderRadius:8}}><option value="">All areas</option><option value="Sales">Sales</option><option value="Fleet">Fleet</option><option value="Notes">Notes</option></select></label>
       <button type="submit" style={{background:"#173b56",color:"#fff",border:0,borderRadius:8,padding:"11px 16px"}}>Filter activity</button>
     </form>
     {errors.length>0&&<p role="status" style={{background:"#fff1df",padding:12}}>Some sources were unavailable: {errors.join("; ")}. Results may be incomplete.</p>}
-    <p style={{color:"#627b92"}}>{visible.length} matching events (up to 120 recent events from two available sources). {uncovered}</p>
+    <p style={{color:"#627b92"}}>{visible.length} matching events (up to 120 recent events from available sources). {uncovered}</p>
     <div style={{overflowX:"auto",background:"white",border:"1px solid #dce6ee",borderRadius:12}}>
       <table style={{borderCollapse:"collapse",width:"100%",minWidth:950,tableLayout:"fixed",fontSize:13,textAlign:"left"}}>
         <thead><tr style={{background:"#eff4f8"}}>{["When (Moab)","Area","Action","Employee","Record","Change"].map(x=><th key={x} style={{padding:13,borderBottom:"1px solid #dce6ee",width:["18%","9%","18%","16%","18%","21%"][["When (Moab)","Area","Action","Employee","Record","Change"].indexOf(x)]}}>{x}</th>)}</tr></thead>

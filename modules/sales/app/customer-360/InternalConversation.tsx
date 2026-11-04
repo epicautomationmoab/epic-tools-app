@@ -10,13 +10,24 @@ export default function InternalConversation({customerName,opportunityId,contact
  const threadKey=opportunityId?"opp:"+opportunityId:digits.length===10?"phone:+1"+digits:contactId?"contact:"+contactId:email?.trim()?"email:"+email.trim().toLowerCase():reservationId?"reservation:"+reservationId:"";
  const [notes,setNotes]=useState<Note[]>([]);
  const [sharedNotes,setSharedNotes]=useState<Array<{note_id:string;confirmation_code:string;note_text:string;note_scope:string;source:string;visible_in_readiness:boolean;author_name:string|null;created_at:string}>>([]);
+ const [sharedError,setSharedError]=useState("");
  const [reservationMode,setReservationMode]=useState(false);
  const [chosenConfirmation,setChosenConfirmation]=useState("");
  const [reservationQuery,setReservationQuery]=useState("");
  const [showInReadiness,setShowInReadiness]=useState(false);
  const confirmations=reservationConfirmations.filter(Boolean).join(",");
- async function refreshShared(){if(!confirmations)return;const response=await fetch("/api/sales/unified-notes?confirmations="+encodeURIComponent(confirmations),{cache:"no-store"});if(response.ok){const p=await response.json();setSharedNotes(p.notes||[]);}}
- useEffect(()=>{if(!confirmations)return;void refreshShared();const t=window.setInterval(()=>void refreshShared(),15000);return()=>window.clearInterval(t);},[confirmations]);
+ async function refreshShared(){
+  if(!confirmations){setSharedNotes([]);setSharedError("");return;}
+  try { const response=await fetch("/api/sales/unified-notes?confirmations="+encodeURIComponent(confirmations),{cache:"no-store"});
+   if(!response.ok)throw Error("Reservation notes could not be loaded. Please retry.");
+   const p=await response.json();setSharedNotes(p.notes||[]);setSharedError("");
+  }catch{setSharedError("Reservation notes could not be loaded. Please retry.");}
+ }
+ useEffect(()=>{let live=true;setSharedNotes([]);setSharedError("");async function load(){
+  if(!confirmations)return;
+  try{const r=await fetch("/api/sales/unified-notes?confirmations="+encodeURIComponent(confirmations),{cache:"no-store"});if(!r.ok)throw Error();const p=await r.json();if(live){setSharedNotes(p.notes||[]);setSharedError("");}}
+  catch{if(live)setSharedError("Reservation notes could not be loaded. Please retry.");}
+ }void load();const t=window.setInterval(()=>void load(),15000);return()=>{live=false;window.clearInterval(t);};},[confirmations]);
  const [members,setMembers]=useState<Member[]>([]);
  const [draft,setDraft]=useState("");
  const entryType="customer_note" as const;
@@ -39,6 +50,7 @@ export default function InternalConversation({customerName,opportunityId,contact
   <div><strong>Notes</strong><div style={{fontSize:11,color:"#627080"}}>Private to Epic employees · shared with Inbox</div></div>
   <QuickFollowUp onLog={quickFollowUp} onCallback={()=>{if(!opportunityId){setError("No linked sales opportunity. Open an active opportunity before scheduling a callback.");return;}setScheduleCallback(true);}}/>
   {scheduleCallback&&opportunityId?<div><ScheduleFollowUp opportunityId={opportunityId} initialOpen initialTitle="Call customer back — callback requested"/><button type="button" onClick={()=>setScheduleCallback(false)}>Dismiss callback scheduler</button></div>:null}
+  {sharedError?<div role="alert">{sharedError} <button type="button" onClick={()=>void refreshShared()}>Retry notes</button></div>:null}
   {sharedNotes.length?<div style={{display:"grid",gap:7}}>{sharedNotes.map(n=><div key={n.note_id} style={{background:"#f5f7fa",borderRadius:9,padding:10,fontSize:12}}><strong>{n.source==="tripworks"?"TW Reservation Note":n.source==="readiness"?"Readiness Note":"Epic Reservation Note"}</strong><div style={{fontSize:11,color:"#607080"}}>{n.author_name||"Staff"} · {new Date(n.created_at).toLocaleString()} · {n.confirmation_code}</div><div style={{whiteSpace:"pre-wrap",marginTop:5}}>{n.note_text}</div><label style={{fontSize:11,display:"flex",gap:6,marginTop:7}}><input type="checkbox" checked={n.visible_in_readiness} disabled={n.source==="readiness"} title={n.source==="readiness"?"Notes written in Readiness always remain visible there":undefined} onChange={async e=>{const r=await fetch("/api/sales/unified-notes",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({note_id:n.note_id,visible_in_readiness:e.target.checked})});if(r.ok)await refreshShared();else setError("Unable to update Readiness visibility.")}}/>Show in Readiness</label></div>)}</div>:null}
   <div style={{display:"grid",gap:8,maxHeight:270,overflowY:"auto"}}>{notes.length?notes.map(n=><div key={n.id} style={{padding:"9px 10px",borderRadius:9,background:"#f5f7fa",fontSize:12}}>
    <div style={{fontSize:10,color:"#ad4223",fontWeight:800,marginBottom:5}}>{n.entry_type==="customer_note"?"INTERNAL NOTE":n.entry_type==="reservation_note"?"INTERNAL NOTE":"TEAM MESSAGE"}</div><div style={{display:"flex",justifyContent:"space-between",gap:7}}><strong>{n.author_name||"Epic teammate"}</strong><small>{new Date(n.created_at).toLocaleString()}</small></div>
