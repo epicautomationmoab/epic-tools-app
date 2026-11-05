@@ -8,7 +8,7 @@ vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.Mo
 const check = context.exports.allowsUuiInternalWrite;
 const env = { VERCEL_PROJECT_ID: 'prj_lZGiQ85J6jQRgSRostBvUJGVKv6r', VERCEL_ENV: 'preview', NEXT_PUBLIC_SUPABASE_URL: 'https://jgpihdpcdlqugmqanzfj.supabase.co' };
 let count=0;
-for (const route of ['/api/team/cancellation-agreements','/api/sales/cancellation-acknowledgement','/api/sales/leads','/api/sales/followups','/api/auth/refresh-session','/api/team/epic-ping','/api/team/live-calls','/api/sales/live-calls','/api/team/readiness/note-flags','/api/sales/quotes','/api/sales/unified-notes']) {
+for (const route of ['/api/sales/lead-sheets','/api/team/cancellation-agreements','/api/sales/cancellation-acknowledgement','/api/sales/leads','/api/sales/followups','/api/auth/refresh-session','/api/team/epic-ping','/api/team/live-calls','/api/sales/live-calls','/api/team/readiness/note-flags','/api/sales/quotes','/api/sales/unified-notes']) {
 assert.equal(check(route, 'POST', env), true); count++;
 for (const change of [{ VERCEL_ENV: 'production' }, { VERCEL_ENV: undefined }, { VERCEL_PROJECT_ID: 'other' }, { NEXT_PUBLIC_SUPABASE_URL: 'https://kbuxcvqzicnydqllyong.supabase.co' }, { NEXT_PUBLIC_SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL + '.attacker.example' }]) {
   assert.equal(check(route, 'POST', { ...env, ...change }), false); count++;
