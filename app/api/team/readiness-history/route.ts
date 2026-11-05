@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { mergeReadinessDocuments } from "@/lib/readiness-document-links";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 import { supabaseSelect } from "@/lib/server/supabase-rest";
 import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
@@ -43,6 +44,7 @@ type HistoryRow = {
 };
 
 type EpicDocument = {
+  document_source: string;
   store_visit_id: string;
   waiver_id: string;
   signer_name: string;
@@ -143,7 +145,7 @@ export async function GET(request: NextRequest) {
         ? supabaseSelect<EpicDocument>(
             "epic_store_visit_document_evidence_v",
             new URLSearchParams({
-              select: "store_visit_id,waiver_id,signer_name,signer_email,signer_phone,waiver_is_adult,signer_category,waiver_type_name,signed_pdf_url,received_at",
+              select: "store_visit_id,waiver_id,signer_name,signer_email,signer_phone,waiver_is_adult,signer_category,waiver_type_name,signed_pdf_url,received_at,document_source",
               store_visit_id: `in.(${quoteList(storeVisitIds)})`,
               order: "received_at.asc",
               limit: "1000",
@@ -221,22 +223,10 @@ export async function GET(request: NextRequest) {
         requires_mpwr: (row.mpwr_document_expected_count ?? 0) > 0 || Boolean(row.mpwr_confirmation_number),
         epic_document_count_label: `${row.epic_document_received_count ?? 0}/${row.epic_document_expected_count ?? row.expected_guest_count ?? 0}`,
         epic_document_count_color: "gray",
-        epic_document_signers: [
-          ...(row.source_store_visit_id
-            ? (epicByStoreVisit.get(row.source_store_visit_id) ?? []).map((document) => ({
-                name: document.signer_name,
-                document_url: document.signed_pdf_url,
-                is_minor_or_child: document.waiver_is_adult === null ? document.signer_category === "minor" : !document.waiver_is_adult,
-                is_waiver_adult: document.waiver_is_adult,
-              }))
-            : []),
-          ...(ownedEpicByConfirmation.get(row.confirmation_code) ?? []).map((document) => ({
-            name: document.signer_full_name,
-            document_url: `/api/team/waivers/${document.id}/pdf`,
-            is_minor_or_child: false,
-            is_waiver_adult: true,
-          })),
-        ],
+        epic_document_signers: mergeReadinessDocuments(
+          row.source_store_visit_id ? epicByStoreVisit.get(row.source_store_visit_id) ?? [] : [],
+          ownedEpicByConfirmation.get(row.confirmation_code) ?? [],
+        ),
         mpwr_waivers: row.mpwr_confirmation_number
           ? (mpwrByConfirmation.get(row.mpwr_confirmation_number) ?? []).map((waiver) => ({
               name: waiver.rider_name,
@@ -256,3 +246,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
