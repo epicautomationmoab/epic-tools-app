@@ -92,7 +92,7 @@ function tokenHash(token: string) {
 
 async function loadReadiness(readinessId: string) {
   const rows = await supabaseSelect<ReadinessRecord>(
-    "guest_readiness_with_handoff_v",
+    "guest_readiness_operational",
     new URLSearchParams({
       select: "readiness_id,confirmation_code,customer_name,customer_phone,customer_email,product_display_name,visit_start_time,amount_due_cents",
       readiness_id: `eq.${readinessId}`,
