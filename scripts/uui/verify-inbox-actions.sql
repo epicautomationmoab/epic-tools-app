@@ -1,0 +1,22 @@
+begin;
+select set_config('request.jwt.claim.sub','64eb0331-d16a-4ab8-81a1-7aaefe578944',true);
+set local role authenticated;
+do $$ declare r jsonb; k text:='res:00000000-0000-4000-8000-000000000311'; blocked boolean; begin
+ r:=public.epic_sales_add_inbox_thread_note(k,'Synthetic transaction-only service note');
+ if r->'note'->>'author_name'<>'Jennifer Test' then raise exception 'Wrong note attribution'; end if;
+ r:=public.epic_route_inbox_thread(k,'sales','Synthetic service-to-sales handoff');
+ if r->>'to_queue'<>'sales' or r->>'routed_by_name'<>'Jennifer Test' then raise exception 'Sales handoff failed'; end if;
+ r:=public.epic_route_inbox_thread(k,'service','Synthetic return to service');
+ if r->>'to_queue'<>'tour_service' then raise exception 'Service handoff failed: %',r; end if;
+ r:=public.epic_sales_clean_inbox_thread(k);
+ if r->>'handled_by_name'<>'Jennifer Test' then raise exception 'Close actor missing'; end if;
+ perform set_config('request.jwt.claim.sub','f24dc053-b9fe-4c8c-864b-4705f2fd940b',true);
+ blocked:=false; begin perform public.epic_route_inbox_thread(k,'sales',null); exception when others then blocked:=true; end;
+ if not blocked then raise exception 'Workstation allowed routing'; end if;
+ blocked:=false; begin perform public.epic_sales_add_inbox_thread_note(k,'Must reject'); exception when others then blocked:=true; end;
+ if not blocked then raise exception 'Workstation allowed note'; end if;
+ blocked:=false; begin perform public.epic_sales_clean_inbox_thread(k); exception when others then blocked:=true; end;
+ if not blocked then raise exception 'Workstation allowed close'; end if;
+end $$;
+rollback;
+select 'Seven internal inbox assertions passed; all changes rolled back' verification;

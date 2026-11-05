@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isIsolatedUui } from "@/lib/uui-internal-writes";
 import { getAuthenticatedTeamProfile } from "../../../lib/team-auth";
 
 const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
@@ -129,6 +130,7 @@ export async function POST(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "Employee login required." }, { status: 401 });
   const body = await request.json().catch(() => null) as { action?: string; thread_key?: string; note_text?: string; destination?: string; entry_type?: string; expected_contact_id?: string | null; expected_phone?: string | null; expected_email?: string | null; expected_customer_name?: string | null } | null;
   if (!body?.thread_key) return NextResponse.json({ error: "Thread is required." }, { status: 400 });
+  if (isIsolatedUui(process.env) && (!/^(opp|res|contact|phone|email):/.test(body.thread_key) || !["note", "route", "close", "clean"].includes(body.action || ""))) return NextResponse.json({error:"This inbox action is not enabled in isolated Preview."},{status:403});
   try {
     if(body.thread_key.startsWith("meta:facebook:")&&(body.action==="link"||body.action==="unlink")){
       const result=await rpc(session.accessToken,"c360_meta_link",{p_sender_id:body.thread_key.slice("meta:facebook:".length),p_contact_id:body.action==="link"?(body as typeof body & {contact_id?:string}).contact_id||null:null,p_unlink:body.action==="unlink"});
