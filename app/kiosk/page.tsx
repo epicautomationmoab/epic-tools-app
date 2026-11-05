@@ -190,17 +190,17 @@ export default function KioskPage() {
                 id="lastFour"
                 name="lastFour"
                 type="text"
-                inputMode="numeric"
-                pattern="[0-9]{4}"
-                maxLength={4}
+                inputMode="tel"
+                pattern="[*]?[0-9]{4}"
+                maxLength={5}
                 autoComplete="off"
                 autoFocus
                 value={lastFour}
                 onChange={(event) =>
                   setLastFour(
                     event.target.value
-                      .replace(/\D/g, "")
-                      .slice(0, 4),
+                      .replace(/[^0-9*]/g, "")
+                      .slice(0, 5),
                   )
                 }
                 placeholder="0000"
@@ -233,7 +233,7 @@ export default function KioskPage() {
                 className={styles.button}
                 type="submit"
                 disabled={
-                  loading || lastFour.length !== 4
+                  loading || !/^\*?\d{4}$/.test(lastFour)
                 }
               >
                 {loading

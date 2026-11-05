@@ -242,6 +242,16 @@ export default function ExpVideoPreview({
       body:JSON.stringify({readinessId,sessionId,videoWatchedSeconds:cp.watchedSeconds,videoDurationSeconds:cp.durationSeconds,videoEnded:cp.ended})
     }); }catch{ /* Preserve client progress until the final required save. */ }
   }
+  const kioskOpened = useRef(false);
+  useEffect(() => {
+    if (kioskOpened.current || window.location.hash !== '#exc' || !eligible || checkoutClosed || verifiedExpStatus !== false) return;
+    if (driverStatuses.length && driverStatuses.every(driver => driver.orientationComplete)) return;
+    kioskOpened.current = true;
+    setStarted(true);
+    setShowWelcome(true);
+    setOpen(true);
+  }, [eligible, checkoutClosed, verifiedExpStatus, driverStatuses]);
+
   if (!eligible) return null;
 
   return (
