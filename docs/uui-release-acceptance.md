@@ -1,6 +1,6 @@
 # UUI release acceptance — fixed scope
 
-Updated November 4, 2026. This checklist replaces open-ended feature milestones. Existing EpicTools Readiness and imported Sales/C360 are the application; login/Home provide the gateway. No Readiness rebuild. Production release still requires Jennifer's approval.
+Updated November 5, 2026. This checklist replaces open-ended feature milestones. Existing EpicTools Readiness and imported Sales/C360 are the application; login/Home provide the gateway. No Readiness rebuild. Production release still requires Jennifer's approval.
 
 ## Completed evidence
 - Signed-in Home routes to existing Readiness, Sales/C360, Admin and Management. Shared Epic Ping and audit use the gateway shell.
@@ -21,8 +21,8 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 | C360 history | Introduction timestamp renders; selected conversation uses correct customer/thread history | Introduction reader fixed. Reproduced phone-thread notes missing from the opportunity-only panel; linked-thread reader fixed and tested. Deployed browser verified seven prior internal notes (four phone-thread notes plus three reservation-thread notes), with original authors and mention acknowledgment. |
 | Shared tools | One CallRail popup opens Lead/C360 and dismisses all past calls; one Ping works across workspaces | Earlier function/access checks exist; complete cross-workspace browser acceptance remains. |
 | EXC | Guest/kiosk through assessment to Readiness/Arrival/Exceptions with correct dependencies | Combined UUI release includes EXC. Existing EXC implementation enabled only in UUI Preview/Development; full video coverage required. Vimeo access/duration and full guest flow verification pending. Original EXC staging and branch retained unchanged. |
-| Roles and audit | Team/manager/owner route denials; Jennifer/Joe-only audit; requested action coverage, older search and denied actions | Notes history works. Existing audit reader still recent-history subset; failed actions, older pagination and full source coverage are incomplete. Legacy unmigrated notes read-only. |
-| Operational dependencies | Extension availability; MPWR document access; preserved Slack/Joe maintenance routing with no real test sends | Chrome extension unavailable for testing; MPWR drawer retrieval unresolved. Maintenance handlers previously compared unchanged; no delivery claim. |
+| Roles and audit | Team/manager/owner route denials; Jennifer/Joe-only audit; requested action coverage, older search and denied actions | Notes history works. Source-level pagination and employee filtering across older records are implemented and tested; follow-up events are included. Failed-action recording and full source coverage remain incomplete. Legacy unmigrated notes read-only. |
+| Operational dependencies | Extension availability; MPWR document access; preserved Slack/Joe maintenance routing with no real test sends | Chrome extension unavailable for testing; MPWR drawer retrieval passed browser verification on November 4. Maintenance handlers previously compared unchanged; no delivery claim. |
 | Release | One tested candidate, environment mapping, rollback and explicit owner approval | Not ready for production. Bookings and Ambassador placeholders remain planned; no new booking engine work belongs in this release. |
 
 ## Rules
@@ -125,3 +125,11 @@ Updated November 4, 2026. This checklist replaces open-ended feature milestones.
 - Arrival Board loads without error but has no waiting arrivals in the restored returned test data. Do not count this as qualification-badge acceptance.
 - Exceptions page has no EXC section. Read-only comparison with feature/exp-vimeo-preview-20261026 found the same absence in its Exceptions page, so this is an outstanding integration requirement rather than a recovered section ready to copy. Original feature branch untouched.
 - Staff evidence: /workspace/scratch/uui-exc-readiness-verified-20261104.jpg. No fixture or production changes in this pass.
+
+## November 5 integration closure
+- Audit reader now queries employee/area filters before pagination, merges up to 50 events per page, and preserves per-source offsets plus an upper timestamp bound. Sources with errors remain visible and block advancing the incomplete page. Notes retain before/after text; Sales follow-up events are now included with current profile names and original actor IDs.
+- Seven isolated audit history checks passed across 532 synthetic events, including older search, concurrent new events, malformed cursors, filter changes and partial-source failure. This does not establish comprehensive audit coverage; denied actions and other unconnected categories remain open.
+- Cancellation Copy Link is now allowed only with the exact UUI project, Preview/Development environment, isolated database URL and outbound suppression enabled. Active employee identity is required; workstation/legacy preview alone cannot create links. Links remain on the current Preview origin. SMS/email/reset remain blocked. Accepted acknowledgements cannot be hidden by creating a new copy link unless the existing guest-name replacement condition applies.
+- Cancellation route tests and 97 internal-write boundary checks passed. No schema changes; development request table has no custom outbound triggers. Live copy-link/guest-view checks pending deployment.
+- On-site kiosk acknowledgement code is deployed at 1e5923823ca9a1160b8ed571d7293cc99f157e4c. Detailed evidence and the outstanding open-rental browser test are in uui-onsite-assessment-2026-11-05.md.
+- EXC Exceptions now includes late pickup items from the operational source; earlier November 5 browser verification confirmed active synthetic issue appears and disappears on returned status. Original fixture restored. Employee inactivity lock is now eight hours, as requested; normal session refresh retained.

@@ -1,3 +1,4 @@
+import {isIsolatedUui} from "@/lib/uui-internal-writes";
 import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -225,10 +226,11 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if(process.env.EPIC_STAGING_NO_OUTBOUND==="true" || process.env.VERCEL_PROJECT_ID==="prj_lZGiQ85J6jQRgSRostBvUJGVKv6r") return NextResponse.json({error:"Cancellation acknowledgement changes and delivery are disabled in isolated Preview."},{status:403});
-  if(process.env.VERCEL_ENV==="preview") return forwardPreviewAgreement(request,"POST");
+  const isolatedCopy = isIsolatedUui(process.env) && process.env.EPIC_STAGING_NO_OUTBOUND === "true";
+  if(!isolatedCopy && (process.env.EPIC_STAGING_NO_OUTBOUND==="true" || process.env.VERCEL_PROJECT_ID==="prj_lZGiQ85J6jQRgSRostBvUJGVKv6r")) return NextResponse.json({error:"Cancellation acknowledgement changes and delivery are disabled in isolated Preview."},{status:403});
+  if(process.env.VERCEL_ENV==="preview" && !isolatedCopy) return forwardPreviewAgreement(request,"POST");
   const identity = await getRequestIdentity(request);
-  if (!identity) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!identity || (isolatedCopy && (!identity.profile || identity.profile.role === "workstation"))) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   let body: {
     readinessId?: string;
@@ -246,6 +248,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A JSON request body is required." }, { status: 400 });
   }
 
+  if (isolatedCopy && body.deliveryMode !== "copy") return NextResponse.json({error:"Preview permits Copy Link only. Email and text delivery are disabled."},{status:403});
   const readinessId = body.readinessId?.trim();
   const sentBy = identity.profile?.display_name || body.sentBy?.trim();
   const deliveryMode = ["sms", "email", "both", "copy"].includes(body.deliveryMode ?? "")
@@ -272,7 +275,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "A replacement acknowledgement is only allowed when the accepted agreement belongs to a different guest name." }, { status: 409 });
     }
 
-    if (deliveryMode !== "copy" && blocksDuplicateSend(existingAgreement) && !replacingAcceptedForNameChange) {
+    if ((deliveryMode !== "copy" || existingAgreement?.status === "accepted") && blocksDuplicateSend(existingAgreement) && !replacingAcceptedForNameChange) {
       return NextResponse.json({
         ok: true,
         duplicatePrevented: true,
@@ -330,7 +333,7 @@ export async function POST(request: NextRequest) {
     });
     requestId = created.id;
 
-    const baseUrl = (process.env.AGREEMENT_BASE_URL?.trim() || "https://epic-tools-app.vercel.app").replace(/\/+$/, "");
+    const baseUrl = isolatedCopy ? new URL(request.url).origin : (process.env.AGREEMENT_BASE_URL?.trim() || "https://epic-tools-app.vercel.app").replace(/\/+$/, "");
     const agreementUrl = `${baseUrl}/a/${token}`;
     const detailedMessage = `Epic 4X4: Sign cancellation terms for ${readiness.confirmation_code}: ${agreementUrl}`;
     const message = detailedMessage.length <= 140 ? detailedMessage : `Epic 4X4: Sign terms: ${agreementUrl}`;

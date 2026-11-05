@@ -4,82 +4,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
 
-type EventRow = {
-  id: string;
-  at: string;
-  actor: string;
-  actor_id: string | null;
-  domain: string;
-  action: string;
-  object: string;
-  detail: string;
-};
-
-async function loadAuditEvents(): Promise<{ events: EventRow[]; errors: string[] }> {
-  const origin = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/[/]$/, "");
-  const secret = process.env.SUPABASE_SECRET_KEY;
-  if (!origin || !secret) return {events: [], errors: ["Operational database configuration unavailable."]};
-  const headers = { apikey: secret, Authorization: `Bearer ${secret}` };
-  const tasks = [
-    {
-      name: "Reservation notes", table: "epic_unified_note_audit",
-      fields: "id,created_at,note_id,actor_profile_id,actor_name,action,before_value,after_value", sort: "created_at",
-      map: (r: Record<string, unknown>): EventRow => ({
-        id: String(r.id), at: String(r.created_at), actor: String(r.actor_name || "Unknown"),
-        actor_id: r.actor_profile_id ? String(r.actor_profile_id) : null,
-        domain: "Notes", action: (r.after_value as Record<string,unknown> | null)?.archived_at ? "Note archived" : String(r.action), object: String(r.note_id),
-        detail: [r.before_value ? `Before: ${String((r.before_value as Record<string,unknown>).note_text)}; Readiness: ${String((r.before_value as Record<string,unknown>).visible_in_readiness)}` : "Created",
-          r.after_value ? `After: ${String((r.after_value as Record<string,unknown>).note_text)}; Readiness: ${String((r.after_value as Record<string,unknown>).visible_in_readiness)}${(r.after_value as Record<string,unknown>).archived_at ? "; Archived: " + String((r.after_value as Record<string,unknown>).archived_at) : ""}` : "Removed"].join(" → "),
-      }),
-    },
-    {
-      name: "Sales opportunities",
-      table: "sales_opportunity_status_history",
-      fields: "id,changed_at,changed_by_profile_id,changed_by_name,opportunity_id,from_status,to_status,reason",
-      sort: "changed_at",
-      map: (r: Record<string, unknown>): EventRow => ({
-        id: String(r.id), at: String(r.changed_at), actor: String(r.changed_by_name || "Unknown"),
-        actor_id: r.changed_by_profile_id ? String(r.changed_by_profile_id) : null,
-        domain: "Sales", action: "Opportunity status", object: String(r.opportunity_id),
-        detail: `${String(r.from_status || "—")} → ${String(r.to_status || "—")}`,
-      }),
-    },
-    {
-      name: "Fleet availability",
-      table: "fleet_inventory_events",
-      fields: "id,created_at,changed_by_profile_id,changed_by_name,vehicle_number,previous_state,new_state",
-      sort: "created_at",
-      map: (r: Record<string, unknown>): EventRow => ({
-        id: String(r.id), at: String(r.created_at), actor: String(r.changed_by_name || "Unknown"),
-        actor_id: r.changed_by_profile_id ? String(r.changed_by_profile_id) : null,
-        domain: "Fleet", action: "Vehicle state", object: `Vehicle ${String(r.vehicle_number ?? "unknown")}`,
-        detail: `${String(r.previous_state || "—")} → ${String(r.new_state || "—")}`,
-      }),
-    },
-
-  ];
-  const results = await Promise.all(tasks.map(async t => {
-    try {
-      const params = new URLSearchParams({select:t.fields, order:`${t.sort}.desc`, limit:"80"});
-      const response = await fetch(`${origin}/rest/v1/${t.table}?${params}`, {headers, cache:"no-store"});
-      if (!response.ok) return { name: t.name, error: `HTTP ${response.status}`, events: [] as EventRow[] };
-      const rows = await response.json();
-      if (!Array.isArray(rows)) return {name:t.name,error:"Invalid response",events:[] as EventRow[]};
-      return {name:t.name,error:null,events:rows.map(t.map)};
-    } catch {
-      return {name:t.name,error:"Source not reachable",events:[] as EventRow[]};
-    }
-  }));
-  return {
-    events:results.flatMap(x=>x.events).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,120),
-    errors:results.filter(x=>x.error).map(x=>`${x.name}: ${x.error}`),
-  };
-}
+import { loadAuditEvents } from "@/lib/server/audit-events";
 
 export default async function ManagerAuditPreview({
   searchParams,
 }:{
-  searchParams:Promise<{employee?:string;area?:string}>;
+  searchParams:Promise<{employee?:string;area?:string;cursor?:string}>;
 }) {
   const token=(await cookies()).get("epic_access_token")?.value;
   const profile=await getAuthenticatedTeamProfile(token);
@@ -90,13 +20,14 @@ export default async function ManagerAuditPreview({
   const params=await searchParams;
   const employee=(params.employee||"").slice(0,100).trim().toLowerCase();
   const area=(params.area||"").slice(0,40);
-  const {events,errors}=await loadAuditEvents();
-  const uncovered = "Sales follow-up history is not yet available to this preview (database SELECT permission is restricted).";
-  const visible=events.filter(e=>(!employee||e.actor.toLowerCase().includes(employee)||e.actor_id?.toLowerCase().includes(employee)) && (!area||e.domain===area));
+  const {events,errors,nextCursor}=await loadAuditEvents({employee,area,cursor:params.cursor});
+  const uncovered = "Includes reservation notes, sales status and follow-up events, and fleet changes. Follow-up names use the current employee profile; unrecorded identities remain Unknown. Other action categories and denied-action coverage remain incomplete.";
+  const visible=events;
+  const nextParams=new URLSearchParams({employee,area,...(nextCursor?{cursor:nextCursor}:{})});
   return <EpicToolsHome profile={profile} title="User Audit Trail"><section style={{maxWidth:1250,color:"#17304b"}}>
     <p style={{fontSize:12,color:"#657c92"}}>EPIC COMMAND CENTER / MANAGEMENT / AUDIT PREVIEW</p>
     <h2>Team Activity</h2>
-    <p style={{color:"#56718b"}}>Read-only pilot using verified operational history records. Recent events only. Incomplete coverage is expected; this is not yet a comprehensive audit log.</p>
+    <p style={{color:"#56718b"}}>Read-only pilot using verified operational history records. Search the available history by employee and area, then use Older events to continue. Sources listed below are not yet a comprehensive audit log.</p>
     <div style={{background:"#fff6e6",border:"1px solid #ead6ad",borderRadius:10,padding:14,margin:"15px 0"}}>Preview branch only. No writes or changes to employee access. Sensitive customer contact changes and session metadata are intentionally excluded.</div>
     <form method="get" style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"end",padding:"18px 0"}}>
       <label>Employee or profile ID<br/><input name="employee" defaultValue={params.employee||""} placeholder="Search actor" style={{padding:10,border:"1px solid #b9cede",borderRadius:8,minWidth:230}}/></label>
@@ -104,7 +35,7 @@ export default async function ManagerAuditPreview({
       <button type="submit" style={{background:"#173b56",color:"#fff",border:0,borderRadius:8,padding:"11px 16px"}}>Filter activity</button>
     </form>
     {errors.length>0&&<p role="status" style={{background:"#fff1df",padding:12}}>Some sources were unavailable: {errors.join("; ")}. Results may be incomplete.</p>}
-    <p style={{color:"#627b92"}}>{visible.length} matching events (up to 120 recent events from available sources). {uncovered}</p>
+    <p style={{color:"#627b92"}}>{visible.length} matching events on this page. {uncovered}</p>
     <div style={{overflowX:"auto",background:"white",border:"1px solid #dce6ee",borderRadius:12}}>
       <table style={{borderCollapse:"collapse",width:"100%",minWidth:950,tableLayout:"fixed",fontSize:13,textAlign:"left"}}>
         <thead><tr style={{background:"#eff4f8"}}>{["When (Moab)","Area","Action","Employee","Record","Change"].map(x=><th key={x} style={{padding:13,borderBottom:"1px solid #dce6ee",width:["18%","9%","18%","16%","18%","21%"][["When (Moab)","Area","Action","Employee","Record","Change"].indexOf(x)]}}>{x}</th>)}</tr></thead>
@@ -115,6 +46,9 @@ export default async function ManagerAuditPreview({
       </table>
       {!visible.length&&<p style={{padding:20}}>No recorded events match these filters.</p>}
     </div>
-    <p style={{fontSize:12,color:"#6c8193",marginTop:20}}>Next: source-level pagination, linked records, actor identity resolution, before/after detail, unified session history, full coverage review, and owner-only access verification.</p>
+    <nav aria-label="Audit history pages" style={{display:"flex",gap:20,marginTop:20}}>
+      {params.cursor?<Link href={`/admin/audit?${new URLSearchParams({employee,area})}`}>Newest matching events</Link>:null}
+      {nextCursor?<Link href={`/admin/audit?${nextParams}`}>Older events →</Link>:null}
+    </nav>
   </section></EpicToolsHome>;
 }
