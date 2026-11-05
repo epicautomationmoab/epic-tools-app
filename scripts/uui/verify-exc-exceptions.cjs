@@ -11,7 +11,7 @@ assert.equal(reasons({...latest,expReady:true}).length,0);
 assert.match(reasons({...retry,sessions:[{id:'old',created_at:'2026-11-01',outcome:'in_progress',pause_reason:'technician'}]})[0],/assistance/);
 let requested=[];
 const reader=load('lib/server/exp-exceptions.ts',{
- './supabase-rest':{supabaseSelect:async()=>[{readiness_id:'out',handoff_status:'rental_out'},{readiness_id:'returned',handoff_status:'rental_returned'},{readiness_id:'open',handoff_status:null}]},
+ './supabase-rest':{supabaseSelect:async(table)=>table==='epic_operational_handoffs'?[{readiness_id:'out',handoff_status:'rental_out'},{readiness_id:'returned',handoff_status:'rental_returned'}]:[{readiness_id:'out',handoff_status:'rental_out'},{readiness_id:'returned',handoff_status:'rental_returned'},{readiness_id:'open',handoff_status:null}]},
  './exp-readiness':{loadExpReadinessMany:async(ids)=>{requested=ids;return new Map([['open',latest]])}},
  '@/lib/exp/exception-reasons':{expExceptionReasons:reasons},
  '@/lib/exp/window':{expCheckoutClosed:s=>['rental_out','rental_returned'].includes(s)}
