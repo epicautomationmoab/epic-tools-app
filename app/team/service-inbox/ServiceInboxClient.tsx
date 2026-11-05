@@ -29,7 +29,7 @@ export default function ServiceInboxClient({queue,title}:{queue:"rental_service"
    ];
    const call=t.reservation_confirmation?fetch(`/api/team/readiness/callrail?confirmation=${encodeURIComponent(t.reservation_confirmation)}`,{cache:"no-store"}):null;
    const [meta,emailRes,callRes]=await Promise.all([requests[0],requests[1],call||Promise.resolve(null)]);
-   const m=await meta.json(); if(meta.ok){setNotes(m.notes||[]);setTransfers(m.transfers||[]);setReadiness(m.readiness||null);if(m.readiness?.readiness_id){const h=await fetch(`/api/team/readiness-history/${encodeURIComponent(m.readiness.readiness_id)}`,{cache:"no-store"});const hp=await h.json().catch(()=>({}));setCancellationAgreements(h.ok?(hp.cancellation_requests||[]):[]);}else{setCancellationAgreements([]);}}
+   const m=await meta.json(); if(!meta.ok)throw new Error(m.error||"Unable to load conversation history."); if(meta.ok){setNotes(m.notes||[]);setTransfers(m.transfers||[]);setReadiness(m.readiness||null);if(m.readiness?.readiness_id){const h=await fetch(`/api/team/readiness-history/${encodeURIComponent(m.readiness.readiness_id)}`,{cache:"no-store"});const hp=await h.json().catch(()=>({}));setCancellationAgreements(h.ok?(hp.cancellation_requests||[]):[]);}else{setCancellationAgreements([]);}}
    const e=await emailRes.json(); setEmails(emailRes.ok?(e.emails||[]):[]);
    if(callRes){const callPayload=await callRes.json();setSms(callRes.ok?(callPayload.messages||[]):[]);setCalls(callRes.ok?(callPayload.calls||[]):[]);}else{setSms([]);setCalls([]);}
  }
