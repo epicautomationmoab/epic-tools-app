@@ -49,6 +49,7 @@ export default function KioskPage() {
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
+    const assessment = ((event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value === "assessment";
 
     setLoading(true);
     setError("");
@@ -61,7 +62,7 @@ export default function KioskPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          lastFour,
+          lastFour: assessment ? `*${lastFour}` : lastFour,
           website,
         }),
       });
@@ -190,17 +191,17 @@ export default function KioskPage() {
                 id="lastFour"
                 name="lastFour"
                 type="text"
-                inputMode="tel"
-                pattern="[*]?[0-9]{4}"
-                maxLength={5}
+                inputMode="numeric"
+                pattern="[0-9]{4}"
+                maxLength={4}
                 autoComplete="off"
                 autoFocus
                 value={lastFour}
                 onChange={(event) =>
                   setLastFour(
                     event.target.value
-                      .replace(/[^0-9*]/g, "")
-                      .slice(0, 5),
+                      .replace(/\D/g, "")
+                      .slice(0, 4),
                   )
                 }
                 placeholder="0000"
@@ -233,12 +234,15 @@ export default function KioskPage() {
                 className={styles.button}
                 type="submit"
                 disabled={
-                  loading || !/^\*?\d{4}$/.test(lastFour)
+                  loading || !/^\d{4}$/.test(lastFour)
                 }
               >
                 {loading
                   ? "Finding your reservation…"
-                  : "Open My Reservation"}
+                  : "Open My Guest Portal"}
+              </button>
+              <button className={styles.button} type="submit" name="destination" value="assessment" disabled={loading || !/^\d{4}$/.test(lastFour)} style={{marginTop:12}}>
+                Knowledge Assessment
               </button>
             </form>
           </>
