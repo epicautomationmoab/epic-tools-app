@@ -237,12 +237,14 @@ export default function KioskPage() {
                   loading || !/^\d{4}$/.test(lastFour)
                 }
               >
-                {loading
+                <span style={{ display: "block" }}>{loading
                   ? "Finding your reservation…"
-                  : "Open My Guest Portal"}
+                  : "Open My Guest Portal"}</span>
+                <span style={{ display: "block", marginTop: 6, fontSize: 16, fontWeight: 500, textTransform: "none" }}>Complete Forms</span>
               </button>
               <button className={styles.button} type="submit" name="destination" value="assessment" disabled={loading || !/^\d{4}$/.test(lastFour)} style={{marginTop:12}}>
-                Knowledge Assessment
+                <span style={{ display: "block" }}>Knowledge Assessment</span>
+                <span style={{ display: "block", marginTop: 6, fontSize: 16, fontWeight: 500, textTransform: "none" }}>Select After Watching Safety/Orientation Video</span>
               </button>
             </form>
           </>
