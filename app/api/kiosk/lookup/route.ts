@@ -142,7 +142,7 @@ export async function POST(request: Request) {
       .map((row) => ({
         portalPath: `${process.env.EPIC_STAGING_NO_OUTBOUND === "true" ? new URL(request.url).origin : PUBLIC_PORTAL_ORIGIN}/guest/${encodeURIComponent(
           row.guest_portal_token,
-        )}${orientation ? "#exc" : ""}`,
+        )}${orientation ? "#assessment" : ""}`,
         confirmationCode:
           row.confirmation_code?.trim() || "Reservation",
         visitStartTime: row.visit_start_time ?? null,

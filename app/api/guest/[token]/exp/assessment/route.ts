@@ -1,3 +1,4 @@
+import {hasOnsiteAcknowledgement} from "@/lib/exp/onsite-orientation";
 import {expItemCheckedOut} from '@/lib/server/exp-checkout';
 import {withinExpWindow,denverWallTimeToIso} from '@/lib/exp/window';
 import {loadExpSessionOptions,expNameKey} from "@/lib/server/exp-session-options";
@@ -137,8 +138,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     }));
     const session = sessions[0];
     if (!session || session.assessment_version !== VERSION) return fail("Assessment session not found.", 404);
+    // A submitted assessment must belong to a recorded group of participating drivers.
+    // This prevents orphaned assessment completions and preserves the all-driver model.
+    const participants = await supabaseSelect<{ id: string; display_name:string; acknowledgement_at: string | null; reconciliation_status: string }>("exp_participants", new URLSearchParams({
+      select: "id,display_name,acknowledgement_at,reconciliation_status", session_id: `eq.${session.id}`, limit: "21",
+    }));
+    if (!participants.length || participants.some(p => !p.acknowledgement_at)) {
+      return fail("Confirm all participating drivers and their video acknowledgments before submitting.", 409);
+    }
     // Video checkpoints originate with the Vimeo player and are recorded for resume.
     // They are not independently authenticated evidence and never grant checkout.
+    if (!hasOnsiteAcknowledgement(session.result_summary, participants.map(p=>p.display_name))) {
     const expectedDuration=await expVideoDuration();
     if(!expectedDuration)return fail("Safety video verification is unavailable. Please complete orientation with an Adventure Technician.",503);
     const recordedDuration = session.video_duration_seconds ?? 0;
@@ -149,13 +159,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         !Number.isFinite(wallElapsedSeconds) || wallElapsedSeconds < recordedDuration*expQaVideoThreshold()) {
       return fail("Finish the entire safety orientation video before submitting the assessment.",409);
     }
-    // A submitted assessment must belong to a recorded group of participating drivers.
-    // This prevents orphaned assessment completions and preserves the all-driver model.
-    const participants = await supabaseSelect<{ id: string; display_name:string; acknowledgement_at: string | null; reconciliation_status: string }>("exp_participants", new URLSearchParams({
-      select: "id,display_name,acknowledgement_at,reconciliation_status", session_id: `eq.${session.id}`, limit: "21",
-    }));
-    if (!participants.length || participants.some(p => !p.acknowledgement_at)) {
-      return fail("Confirm all participating drivers and their video acknowledgments before submitting.", 409);
     }
     if (body.action === "submit") {
       if (session.outcome !== "in_progress") return fail("Assessment was already submitted.", 409);

@@ -1,8 +1,9 @@
+import {hasOnsiteAcknowledgement} from "@/lib/exp/onsite-orientation";
 import {expVideoDuration,matchesExpVideoDuration,EXP_VIDEO_VERSION,EXP_ASSESSMENT_VERSION,expQaVideoThreshold} from "@/lib/server/exp-video";
 import {supabaseSelect} from "@/lib/server/supabase-rest";
 import {expTeamStatus} from "@/lib/exp/team-status";
 import {loadRentalV2Readiness,type RentalV2ReadinessSummary} from "@/lib/server/rental-v2-readiness";
-type Session={id:string;created_at:string;readiness_id:string;mode:string;outcome:string;pause_reason?:string|null;completed_at:string|null;video_version:string;assessment_version:string;video_ended:boolean;video_duration_seconds:number|null;video_watched_seconds:number[]|null};
+type Session={result_summary?:Record<string,unknown>;id:string;created_at:string;readiness_id:string;mode:string;outcome:string;pause_reason?:string|null;completed_at:string|null;video_version:string;assessment_version:string;video_ended:boolean;video_duration_seconds:number|null;video_watched_seconds:number[]|null};
 type Participant={id:string;readiness_id:string;session_id:string;display_name:string;initials:string;reconciliation_status:string;waiver_signer_reference:string|null;acknowledgement_at:string|null};
 type Portal={guest_portal_token?:string|null;readiness_id:string;confirmation_code:string;business_line:string;expected_guest_count:number|null;total_vehicle_count:number|null;epic_document_received_count:number|null;epic_document_expected_count:number|null;mpwr_document_received_count:number|null;mpwr_document_expected_count:number|null;mpwr_waivers:Array<{name:string;is_minor?:boolean;is_passenger?:boolean}>|null;ohv_required:boolean|null;ohv_certificate_uploaded:boolean|null};
 type Task={id:string;readiness_id:string;template_id:string;task_status:string;required:boolean};
@@ -34,11 +35,11 @@ export function determineExpReadiness({portal,sessions,participants,tasks,templa
   const ambiguousDriverNames=new Set(driverNames.filter((n,i)=>driverNames.indexOf(n)!==i));
   const driverRosterReady=signedDrivers.size>=vehicleCount&&ambiguousDriverNames.size===0;
   const completedSessions=new Set(sessions.filter(s=>
-    s.outcome==="complete"&&s.video_version===EXP_VIDEO_VERSION&&s.assessment_version===EXP_ASSESSMENT_VERSION&&!!s.completed_at&&(s.video_ended||expQaVideoThreshold()<0.98)&&
+    s.outcome==="complete"&&s.video_version===EXP_VIDEO_VERSION&&s.assessment_version===EXP_ASSESSMENT_VERSION&&!!s.completed_at&&(hasOnsiteAcknowledgement(s.result_summary, participants.filter(p=>p.session_id===s.id).map(p=>p.display_name)) || ((s.video_ended||expQaVideoThreshold()<0.98)&&
     matchesExpVideoDuration(s.video_duration_seconds,expectedVideoDuration)&&
     (s.video_duration_seconds??0)>=60&&
     new Set(s.video_watched_seconds??[]).size>=Math.ceil((s.video_duration_seconds??0)*expQaVideoThreshold())&&
-    (new Date(s.completed_at??"").getTime()-new Date(s.created_at).getTime())/1000 >= (s.video_duration_seconds??0)*expQaVideoThreshold()
+    (new Date(s.completed_at??"").getTime()-new Date(s.created_at).getTime())/1000 >= (s.video_duration_seconds??0)*expQaVideoThreshold()))
   ).map(s=>s.id));
   // A newer participation supersedes older credit for that driver. A failed
   // recheck or required rewatch must never inherit an old successful attempt.
@@ -72,11 +73,12 @@ export function determineExpReadiness({portal,sessions,participants,tasks,templa
   const assessmentStatus=expTeamStatus(qualifiedNames.size,signedDrivers.size);
   const drivers=[...signedDrivers.entries()].map(([key,name])=>{
     const checks={driverIdentity:!ambiguousDriverNames.has(key),polarisWaiver:mpwrDrivers.has(key),ohvCertificate:portal.ohv_required===false||ohvNames.has(key),videoAndAssessment:orientationNames.has(key)};
-    return {name,expReady:Object.values(checks).every(Boolean),orientationComplete:checks.videoAndAssessment,outstanding:Object.entries(checks).filter(([,met])=>!met).map(([check])=>check)};
+    const latest=currentSessions.get(latestByDriver.get(key)??"");
+    return {name,orientationSource:hasOnsiteAcknowledgement(latest?.result_summary)?"guest_onsite":"portal_video",expReady:Object.values(checks).every(Boolean),orientationComplete:checks.videoAndAssessment,outstanding:Object.entries(checks).filter(([,met])=>!met).map(([check])=>check)};
   });
   const qualifiedIds=new Set(qualified.map(p=>p.id));
   return {
-    sessions:sessions.map(({video_watched_seconds,...s})=>({...s,videoSecondsObserved:video_watched_seconds?.length??0})),
+    sessions:sessions.map(({video_watched_seconds,result_summary,...s})=>({...s,orientationSource:hasOnsiteAcknowledgement(result_summary)?"guest_onsite":"portal_video",videoSecondsObserved:video_watched_seconds?.length??0})),
     participants:participants.map(p=>({
       id:p.id,session_id:p.session_id,display_name:p.display_name,
       reconciliation_status:qualifiedIds.has(p.id)?"verified":"unmatched",
@@ -157,7 +159,7 @@ export async function loadExpReadinessMany(readinessIds:string[]){
   if(!rentals.length)continue;
   const filter=inList(rentals.map(p=>p.readiness_id));
   const [sessions,tasks,verifiedWaivers,ohvUploads]=await Promise.all([
-   selectAll<Session>('exp_sessions',new URLSearchParams({select:'id,created_at,readiness_id,mode,outcome,pause_reason,completed_at,video_version,assessment_version,video_ended,video_duration_seconds,video_watched_seconds',readiness_id:filter,order:'id.asc'})),
+   selectAll<Session>('exp_sessions',new URLSearchParams({select:'id,created_at,readiness_id,mode,outcome,pause_reason,completed_at,result_summary,video_version,assessment_version,video_ended,video_duration_seconds,video_watched_seconds',readiness_id:filter,order:'id.asc'})),
    selectAll<Task>('guest_form_tasks',new URLSearchParams({select:'id,readiness_id,template_id,task_status,required',readiness_id:filter,task_status:'neq.cancelled',order:'id.asc'})),
    selectAll<VerifiedWaiver>('scout_mpwr_waivers',new URLSearchParams({select:'readiness_id,rider_name,is_minor,is_passenger,last_verified_at',readiness_id:filter,last_verified_at:'not.is.null',order:'id.asc'})),
    selectAll<OhvUpload>('ohv_certificate_uploads',new URLSearchParams({select:'readiness_id,driver_name,storage_path',readiness_id:filter,order:'id.asc'}))

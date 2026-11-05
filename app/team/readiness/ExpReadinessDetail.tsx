@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
-type Driver={name:string;expReady:boolean;orientationComplete:boolean;outstanding:string[]};
+type Driver={orientationSource?:string;name:string;expReady:boolean;orientationComplete:boolean;outstanding:string[]};
 type Status={sessions:{id:string}[];drivers:Driver[];expReady:boolean;outstanding:string[]};
 const labels:Record<string,string>={driverIdentity:"Driver identity",polarisWaiver:"Polaris waiver",ohvCertificate:"OHV certificate",videoAndAssessment:"Orientation and knowledge check"};
 export default function ExpReadinessDetail({readinessId}:{readinessId:string|null|undefined}){
@@ -19,7 +19,7 @@ export default function ExpReadinessDetail({readinessId}:{readinessId:string|nul
    <><p><strong>{data.expReady?"EXC complete":"EXC needs attention"}</strong> · {data.drivers.filter(d=>d.expReady).length} of {data.drivers.length} drivers verified</p>
    {data.drivers.length===0?<p>No signed drivers identified yet.</p>:data.drivers.map(d=>
     <div key={d.name.trim().toLowerCase()} style={{padding:"8px 0",borderTop:"1px solid #dde5ea"}}>
-     <strong>{d.name}</strong> — {d.expReady?"Ready":d.orientationComplete?"Orientation complete; other requirements pending":"Orientation pending"}
+     <strong>{d.name}</strong>{d.orientationSource==="guest_onsite"?<span> · Video watched on-site (guest acknowledged)</span>:null} — {d.expReady?"Ready":d.orientationComplete?"Orientation complete; other requirements pending":"Orientation pending"}
      {d.outstanding.length>0?<div style={{fontSize:"0.9em"}}>Needs: {d.outstanding.map(k=>labels[k]??k).join(", ")}</div>:null}
     </div>
    )}

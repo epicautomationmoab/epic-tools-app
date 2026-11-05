@@ -1,11 +1,13 @@
 import {expItemCheckedOut} from '@/lib/server/exp-checkout';
+import { ONSITE_ACK_VERSION, ONSITE_ACK_TEXT, hasOnsiteAcknowledgement } from "@/lib/exp/onsite-orientation";
+import { withinExpWindow, denverWallTimeToIso } from "@/lib/exp/window";
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseSelect, getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
+import { supabaseSelect, supabasePatchRows, getServerSupabaseConfig, serverSupabaseHeaders } from "@/lib/server/supabase-rest";
 import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 
-type PortalActivity = { readiness_id: string; business_line: string; confirmation_code: string; expected_guest_count: number|null; total_vehicle_count: number|null };
-type Session = { id: string; readiness_id: string; outcome: string; mode: string; result_summary:Record<string,unknown> };
+type PortalActivity = { readiness_id: string; business_line: string; visit_start_time: string; confirmation_code: string; expected_guest_count: number|null; total_vehicle_count: number|null };
+type Session = { id: string; readiness_id: string; outcome: string; mode: string; last_activity_at: string; result_summary:Record<string,unknown> };
 type ParticipantInput = { fullName: string; initials: string };
 
 function bad(message: string, status = 400) {
@@ -33,9 +35,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const body = await request.json() as {
       readinessId?: string; sessionId?: string;
       participants?: ParticipantInput[];
-      allDriversWatched?: boolean; preVideoParticipation?: boolean;
+      allDriversWatched?: boolean; preVideoParticipation?: boolean; onsiteVideoAcknowledged?: boolean;
     };
     if (!token || !body.readinessId || !body.sessionId) return bad("Reservation and session are required.");
+    if (body.onsiteVideoAcknowledged === true && body.allDriversWatched !== true) return bad("Each driver must acknowledge watching the full on-site video.");
     if (body.allDriversWatched !== true && body.preVideoParticipation !== true) return bad("Each participating driver must acknowledge the orientation.");
     if (!Array.isArray(body.participants) || body.participants.length < 1 || body.participants.length > 20) {
       return bad("Enter between 1 and 20 participating drivers.");
@@ -50,11 +53,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return bad("Each participating driver must be listed once.");
     }
     const activities = await supabaseSelect<PortalActivity>("guest_portal_v", new URLSearchParams({
-      select: "readiness_id,business_line,confirmation_code,expected_guest_count,total_vehicle_count",
+      select: "readiness_id,business_line,visit_start_time,confirmation_code,expected_guest_count,total_vehicle_count",
       guest_portal_token: `eq.${token}`,
     }));
     const reservation=activities.find(a=>a.readiness_id===body.readinessId);
     if (!reservation || reservation.business_line?.toLowerCase() !== "rental") return bad("Rental reservation not found.", 404);
+    if (!withinExpWindow(Date.parse(denverWallTimeToIso(reservation.visit_start_time)), Date.now())) return bad("Orientation is not available yet.",409);
     if(await expItemCheckedOut(reservation.readiness_id)) return bad("This vehicle has already been checked out. Orientation records are read-only.",409);
     const booking=activities.filter(a=>a.business_line.toLowerCase()==="rental"&&a.confirmation_code===reservation.confirmation_code);
     // Only known, completed Epic rental driver-agreement signers are eligible.
@@ -82,10 +86,22 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return bad("Every driver must first sign the required rental agreement under their own name.", 409);
     }
     const [session] = await supabaseSelect<Session>("exp_sessions", new URLSearchParams({
-      select: "id,readiness_id,outcome,mode,result_summary", id: `eq.${body.sessionId}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
+      select: "id,readiness_id,outcome,mode,last_activity_at,result_summary", id: `eq.${body.sessionId}`, readiness_id: `eq.${body.readinessId}`, limit: "1",
     }));
     if (!session) return bad("Assessment session not found.", 404);
     if (session.outcome !== "in_progress") return bad("Participants must be confirmed before submitting the assessment.", 409);
+    async function saveOnsiteAcknowledgement() {
+      if (body.onsiteVideoAcknowledged !== true || !session) return;
+      if (hasOnsiteAcknowledgement(session.result_summary, normalized.map(p => p.display_name))) return;
+      const updated = await supabasePatchRows<{id:string}>("exp_sessions", new URLSearchParams({id:`eq.${session.id}`,outcome:"eq.in_progress",last_activity_at:`eq.${session.last_activity_at}`,select:"id"}), {
+        result_summary: {...session.result_summary, onsiteVideoAcknowledgement: {
+          version: ONSITE_ACK_VERSION, statement: ONSITE_ACK_TEXT, acknowledgedAt: new Date().toISOString(),
+          source: "guest_onsite", drivers: normalized.map(p => ({name:p.display_name,initials:p.initials}))
+        }},
+        last_activity_at: new Date(Math.max(Date.now(), Date.parse(session.last_activity_at)+1)).toISOString()
+      });
+      if (updated.length !== 1) throw new Error("Orientation changed. Reopen it before acknowledging the video.");
+    }
     const existing = await supabaseSelect<{ id: string; display_name: string }>("exp_participants", new URLSearchParams({
       select: "id,display_name", session_id: `eq.${session.id}`, limit: "21",
     }));
@@ -93,6 +109,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       const known = new Set(existing.map(p => cleanName(p.display_name).toLowerCase()));
       const exactSameRoster = known.size === normalized.length && normalized.every(p => known.has(p.display_name.toLowerCase()));
       if (!exactSameRoster) return bad("An orientation session already exists for a different set of participating drivers.", 409);
+      await saveOnsiteAcknowledgement();
       return NextResponse.json({ok:true,recorded:existing.length,resumed:true,verifiedDrivers:0,completionRecorded:false},{headers:{"Cache-Control":"no-store"}});
     }
     const planned=session.result_summary?.selectedDriverNames;
@@ -121,6 +138,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!response.ok) throw new Error(`Unable to record participants (${response.status})`);
     const rows = await response.json() as Array<{ id: string }>;
     if (rows.length !== normalized.length) throw new Error("Unexpected number of saved participants.");
+    await saveOnsiteAcknowledgement();
     return NextResponse.json({ ok: true, recorded: normalized.length, verifiedDrivers: 0, completionRecorded: false },
       { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

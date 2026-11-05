@@ -1,3 +1,4 @@
+import {hasOnsiteAcknowledgement} from "@/lib/exp/onsite-orientation";
 import {expItemCheckedOut} from '@/lib/server/exp-checkout';
 import {expVideoDuration,matchesExpVideoDuration,expQaVideoThreshold} from "@/lib/server/exp-video";
 import { NextRequest, NextResponse } from "next/server";
@@ -49,7 +50,7 @@ export async function GET(request:NextRequest,context:{params:Promise<{token:str
     if(!session)return reply({error:"Session not found."},404);
     const participants=await supabaseSelect<{display_name:string}>("exp_participants",new URLSearchParams({select:"display_name",session_id:`eq.${session.id}`}));
     const duration=await expVideoDuration();
-    return reply({...summary(session),participants,videoVerificationAvailable:duration!==null,
+    return reply({...summary(session),participants,onsiteVideoAcknowledged:hasOnsiteAcknowledgement(session.result_summary, participants.map(p=>p.display_name)),videoVerificationAvailable:duration!==null,
       videoCoverageMet:duration!==null&&matchesExpVideoDuration(session.video_duration_seconds,duration)&&(session.video_ended||expQaVideoThreshold()<0.98)&&new Set(session.video_watched_seconds??[]).size>=Math.ceil(duration*expQaVideoThreshold())});
   }catch{return reply({error:"Unable to retrieve orientation progress."},500);}
 }
