@@ -10,7 +10,7 @@ function normalizeName(value: string | null | undefined) {
 
 function epicDocumentsSection() {
   return Array.from(document.querySelectorAll<HTMLElement>("section")).find((section) =>
-    section.querySelector("h3")?.textContent?.trim().startsWith("Epic Documents"),
+    /^(Epic Documents|Epic Agreements)\b/.test(section.querySelector("h3")?.textContent?.trim() || ""),
   ) ?? null;
 }
 
@@ -58,3 +58,4 @@ export default function SignedWaiverDrawerEnhancer({ rows }: { rows: ReadinessRo
 
   return null;
 }
+
