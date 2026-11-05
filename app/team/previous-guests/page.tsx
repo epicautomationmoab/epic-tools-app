@@ -14,7 +14,7 @@ export default function PreviousGuestsPage() {
       <main className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.titleBlock}>
-            <h1>Guest Lookup</h1>
+            <h1>Reservation Lookup</h1>
             <HeaderClock />
           </div>
           <div className={styles.headerActions}>

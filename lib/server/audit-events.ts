@@ -83,11 +83,11 @@ export async function loadAuditEvents(filters: AuditFilters = {}): Promise<{ eve
       const params = new URLSearchParams({select:t.fields, order:`${t.sort}.desc,id.desc`, limit:String(PAGE_SIZE+1),offset:String(offsets[t.table]||0)})
       params.set(t.sort,`lte.${asOf}`);
       if (employee) {
-        const pattern = literal("%"+employee.replace(/[\\%_*]/g, "\\$&")+"%");
+        const pattern = "%"+employee.replace(/[\\%_*]/g, "\\$&")+"%";
         if (t.table === "sales_followup_events") {
           if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(employee)) params.set(t.actorIdField,`eq.${employee}`);
           else { params.set("select",t.fields.replace("_fkey(display_name)","_fkey!inner(display_name)")); params.set(t.actorField,`ilike.${pattern}`); }
-        } else if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(employee)) params.set("or",`(${t.actorField}.ilike.${pattern},${t.actorIdField}.eq.${employee})`);
+        } else if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(employee)) params.set("or",`(${t.actorField}.ilike.${literal(pattern)},${t.actorIdField}.eq.${employee})`);
         else params.set(t.actorField,`ilike.${pattern}`);
       };
       const response = await fetch(`${origin}/rest/v1/${t.table}?${params}`, {headers, cache:"no-store"});

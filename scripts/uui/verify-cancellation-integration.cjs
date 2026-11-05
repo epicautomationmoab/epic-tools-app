@@ -13,7 +13,7 @@ load('app/api/team/cancellation-agreements/route.ts',shared,{
  '@/lib/server/podium':{podiumConnected:async()=>false},
  '@/lib/server/workstation-auth':{verifyWorkstationCookie:()=>false},
  '@/lib/server/supabase-rest':{
-  supabaseSelect:async(table,params)=>{reads.push({table,params});return table==='guest_readiness_with_handoff_v'?[{readiness_id:'synthetic-id',confirmation_code:'PREVIEW-TEST',visit_start_time:'2026-11-04T16:00:00Z'}]:[]},
+  supabaseSelect:async(table,params)=>{reads.push({table,params});return table==='guest_readiness_operational'?[{readiness_id:'synthetic-id',confirmation_code:'PREVIEW-TEST',visit_start_time:'2026-11-04T16:00:00Z'}]:[]},
   supabasePatch:async()=>{writes++},supabaseInsert:async(table,value)=>{writes++;assert.equal(value.delivery_mode,'copy');assert.equal(value.sent_by,'Synthetic Employee');return {id:'created-test-id'}}
  }
 });
