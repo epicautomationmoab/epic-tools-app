@@ -1,3 +1,4 @@
+import { attachReturnHealth } from "@/lib/server/tour-return-health";
 import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
 import LogoutButton from "../readiness/LogoutButton";
@@ -22,7 +23,7 @@ export default async function TourDispatchPage() {
   const today = mountainDateString();
 
   const params = new URLSearchParams({
-    select: "store_visit_id,readiness_id,confirmation_code,customer_name,product_display_name,visit_start_time,visit_date,source_experience_ids,total_vehicle_count,vehicle_slot,vehicle_label,checkout_mileage,checkout_engine_hours,checkout_status,checkin_status",
+    select: "dispatch_id,checkin_requested_at,last_error,store_visit_id,readiness_id,confirmation_code,customer_name,product_display_name,visit_start_time,visit_date,source_experience_ids,total_vehicle_count,vehicle_slot,vehicle_label,checkout_mileage,checkout_engine_hours,checkout_status,checkin_status",
     visit_date: `eq.${today}`,
     order: "visit_start_time.asc,customer_name.asc,vehicle_slot.asc",
     limit: "200",
@@ -43,6 +44,7 @@ export default async function TourDispatchPage() {
       supabaseSelect<TourDispatchRow>("tour_vehicle_dispatch_roster_v", params),
       supabaseSelect<TourManifestGuide>("tour_manifest_guides", guideParams),
     ]);
+    rows = await attachReturnHealth(rows);
   } catch (err) {
     error = err instanceof Error ? err.message : "Unable to load today's tours.";
   }

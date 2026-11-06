@@ -8,6 +8,10 @@ import { GuideVehicleIssueReporter } from "./GuideVehicleIssueReporter";
 import styles from "./TourDispatch.module.css";
 
 export type TourDispatchRow = {
+  dispatch_id: string | null;
+  checkin_requested_at: string | null;
+  last_error: string | null;
+  return_health?: { needsAttention: boolean; message: string; attempts: number };
   store_visit_id: string;
   readiness_id: string | null;
   confirmation_code: string;
@@ -375,6 +379,7 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
   function groupStatusText(group: ManifestGroup) {
     let returned = 0;
     let checkingIn = 0;
+    let needsAttention = 0;
     let out = 0;
     let checkingOut = 0;
     for (const row of group.rows) {
@@ -382,11 +387,13 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
       const status = statuses[key] ?? row.checkout_status;
       const checkinStatus = checkinStatuses[key] ?? row.checkin_status;
       if (returnComplete(checkinStatus)) returned++;
+      else if (row.return_health?.needsAttention) needsAttention++;
       else if (returnInProgress(checkinStatus)) checkingIn++;
       else if (status === "out") out++;
       else if (["checkout_queued", "checking_out"].includes(status)) checkingOut++;
     }
     const parts = [`${returned} of ${group.rows.length} returned`];
+    if (needsAttention) parts.push(`${needsAttention} need attention`);
     if (checkingIn) parts.push(`${checkingIn} checking in`);
     if (out) parts.push(`${out} out`);
     if (checkingOut) parts.push(`${checkingOut} checking out`);
@@ -450,7 +457,8 @@ export default function TourDispatchTable({ rows, guides }: { rows: TourDispatch
               {status === "checkout_queued" ? <button type="button" onClick={() => queueCheckout(row)} disabled={busy}>{busy ? "Retrying…" : "Retry Checkout"}</button> : null}
               {status === "checking_out" ? <span className={styles.axelPill}>Checkout In Progress…</span> : null}
               {status === "out" && !returnInProgress(checkinStatus) && !returnComplete(checkinStatus) ? <button type="button" className={styles.checkinButton} onClick={() => releaseCheckin(row)} disabled={busy}>{busy ? "Recording…" : "Check In Vehicle"}</button> : null}
-              {returnInProgress(checkinStatus) ? <><span className={styles.axelPill}>Check-In In Progress…</span><button type="button" onClick={() => retryCheckin(row)} disabled={busy}>{busy ? "Retrying…" : "Try Again"}</button></> : null}
+              {returnInProgress(checkinStatus) ? <><span className={row.return_health?.needsAttention ? styles.error : styles.axelPill}>{row.return_health?.needsAttention ? "Check-In Needs Attention" : "Check-In In Progress…"}</span><button type="button" onClick={() => retryCheckin(row)} disabled={busy}>{busy ? "Retrying…" : "Try Again"}</button></> : null}
+              {row.return_health?.needsAttention && !returnComplete(checkinStatus) ? <span className={styles.error} role="status">{row.return_health.message}</span> : null}
               {returnComplete(checkinStatus) ? <span className={styles.statusPill}>Vehicle Returned</span> : null}
               {(status === "out" || returnInProgress(checkinStatus) || returnComplete(checkinStatus)) ? <VehicleIssueReporter row={row} guideName={assignedGuide} /> : null}
               {message ? <span className={message.includes("Unable") || message.includes("Enter ") ? styles.error : styles.saved}>{message}</span> : null}
