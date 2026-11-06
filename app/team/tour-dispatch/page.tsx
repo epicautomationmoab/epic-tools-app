@@ -6,6 +6,7 @@ import TourDispatchTable, { type TourDispatchRow, type TourManifestGuide } from 
 import { PrintAllVehicleTagsButton } from "./NativePrintButton";
 import shellStyles from "../readiness/ReadinessShell.module.css";
 import styles from "./TourDispatch.module.css";
+import TourReturnExceptionActions from "../email-delivery/TourReturnExceptionActions";
 
 function mountainDateString() {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -36,12 +37,21 @@ export default async function TourDispatchPage() {
   });
 
   let rows: TourDispatchRow[] = [];
+  let outstandingReturns: TourDispatchRow[] = [];
   let guides: TourManifestGuide[] = [];
   let error = "";
   try {
-    [rows, guides] = await Promise.all([
+    [rows, guides, outstandingReturns] = await Promise.all([
       supabaseSelect<TourDispatchRow>("tour_vehicle_dispatch_roster_v", params),
       supabaseSelect<TourManifestGuide>("tour_manifest_guides", guideParams),
+      supabaseSelect<TourDispatchRow>("tour_vehicle_dispatch_roster_v", new URLSearchParams({
+        select: params.get("select")!,
+        visit_date: `lt.${today}`,
+        checkout_status: "eq.out",
+        checkin_status: "eq.checkin_queued",
+        order: "visit_date.asc,customer_name.asc,vehicle_slot.asc",
+        limit: "200",
+      })),
     ]);
   } catch (err) {
     error = err instanceof Error ? err.message : "Unable to load today's tours.";
@@ -65,6 +75,18 @@ export default async function TourDispatchPage() {
           </div>
         </header>
         <section className={styles.content}>
+          {!error && outstandingReturns.length > 0 ? (
+            <section aria-label="Unfinished returns from previous days" style={{ background: "#fff", border: "1px solid #e8c491", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+              <h2 style={{ margin: "0 0 8px" }}>Unfinished returns from previous days</h2>
+              <p>These vehicles were submitted for return, but check-in has not been confirmed. Try Again sends the existing job to Axel In.</p>
+              {outstandingReturns.map((row) => (
+                <div key={`${row.store_visit_id}:${row.vehicle_slot}`} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 0", borderTop: "1px solid #e7e9ec" }}>
+                  <div><strong>{row.customer_name} · Vehicle {row.vehicle_label || row.vehicle_slot}</strong><div>{row.visit_date} · {row.confirmation_code}</div></div>
+                  <TourReturnExceptionActions storeVisitId={row.store_visit_id} vehicleSlot={row.vehicle_slot} checkinStatus={row.checkin_status} />
+                </div>
+              ))}
+            </section>
+          ) : null}
           <div className={styles.introRow}>
             <div className={styles.intro}>Today’s MPWR tour manifest. Tours are grouped by experience and departure time, with guests alphabetized inside each manifest.</div>
             {!error && rows.length ? <div className={styles.printAllWrap}><PrintAllVehicleTagsButton className={styles.printAllButton} cards={printCards} /></div> : null}
