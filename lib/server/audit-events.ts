@@ -28,7 +28,7 @@ export async function loadAuditEvents(filters: AuditFilters = {}): Promise<{ eve
   const origin = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/[/]$/, "");
   const secret = process.env.SUPABASE_SECRET_KEY;
   if (!origin || !secret) return {events: [], errors: ["Operational database configuration unavailable."]};
-  const headers = { apikey: secret, Authorization: `Bearer ${secret}` };
+  const headers = { apikey: secret, ...(secret.startsWith("sb_secret_") ? {} : {Authorization: `Bearer ${secret}`}) };
   const tasks = [
     {
       domain:"Notes", actorField:"actor_name", actorIdField:"actor_profile_id", name: "Reservation notes", table: "epic_unified_note_audit",
@@ -76,6 +76,27 @@ export async function loadAuditEvents(filters: AuditFilters = {}): Promise<{ eve
       }),
     },
 
+    {
+      domain:"Readiness", actorField:"recorded_by", actorIdField:"", name:"Reservation events",
+      table:"epic_reservation_events", sort:"recorded_at",
+      fields:"id,readiness_id,event_type,event_notes,recorded_by,recorded_at",
+      map:(r:Record<string,unknown>):EventRow=>({
+        id:String(r.id),at:String(r.recorded_at),actor:String(r.recorded_by||"Unknown"),actor_id:null,
+        domain:"Readiness",action:String(r.event_type),object:String(r.readiness_id),detail:String(r.event_notes||"")
+      })
+    },
+    {
+      domain:"Documents", actorField:"signer_name", actorIdField:"", name:"Cancellation acceptances",
+      table:"cancellation_agreement_acceptances", sort:"accepted_at",
+      // Read the immutable snapshot, never mutable current-request state. Do not
+      // expose signatures, IP addresses, device metadata or customer contacts.
+      fields:"id,request_id,readiness_id,confirmation_code,policy_version,policy_title,signer_name,accepted_at",
+      map:(r:Record<string,unknown>):EventRow=>({
+        id:String(r.id),at:String(r.accepted_at),actor:r.signer_name?`Guest: ${String(r.signer_name)}`:"Unknown",actor_id:null,
+        domain:"Documents",action:"Cancellation policy accepted",object:String(r.request_id),
+        detail:`${String(r.confirmation_code)} · ${String(r.policy_title)} · Version ${String(r.policy_version)}`
+      })
+    },
   ];
   const selectedTasks = tasks.filter(t=>!area||t.domain===area);
   const results = await Promise.all(selectedTasks.map(async t => {
@@ -87,7 +108,7 @@ export async function loadAuditEvents(filters: AuditFilters = {}): Promise<{ eve
         if (t.table === "sales_followup_events") {
           if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(employee)) params.set(t.actorIdField,`eq.${employee}`);
           else { params.set("select",t.fields.replace("_fkey(display_name)","_fkey!inner(display_name)")); params.set(t.actorField,`ilike.${pattern}`); }
-        } else if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(employee)) params.set("or",`(${t.actorField}.ilike.${literal(pattern)},${t.actorIdField}.eq.${employee})`);
+        } else if (t.actorIdField && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(employee)) params.set("or",`(${t.actorField}.ilike.${literal(pattern)},${t.actorIdField}.eq.${employee})`);
         else params.set(t.actorField,`ilike.${pattern}`);
       };
       const response = await fetch(`${origin}/rest/v1/${t.table}?${params}`, {headers, cache:"no-store"});
