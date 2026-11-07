@@ -25,7 +25,7 @@ export default function EmployeeLoginPage() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to sign in.");
-      window.location.href = "/team/readiness";
+      window.location.href = "/uui-home";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
     } finally {

@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       {
         headers: {
           apikey: config.key,
-          Authorization: `Bearer ${config.key}`,
+          ...(config.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${config.key}` }),
         },
         cache: "no-store",
       },

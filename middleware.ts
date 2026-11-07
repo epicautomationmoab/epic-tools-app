@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { allowsUuiInternalWrite } from "./lib/uui-internal-writes";
 
 async function sha256Hex(value: string) {
   const bytes = new TextEncoder().encode(value);
@@ -7,6 +8,15 @@ async function sha256Hex(value: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  if(process.env.VERCEL_GIT_COMMIT_REF === "integration/epic-tools-unified" && (
+    process.env.VERCEL_PROJECT_ID !== "prj_lZGiQ85J6jQRgSRostBvUJGVKv6r" ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "") !== "https://jgpihdpcdlqugmqanzfj.supabase.co" ||
+    process.env.VERCEL_ENV === "production"
+  )) return new NextResponse("Unified integration requires the isolated development project.",{status:503});
+
+  if(process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_PROJECT_ID==='prj_UWMks41frvwzomqw3h8R0VzkRcOl'&&process.env.VERCEL_GIT_COMMIT_REF==='feature/exp-vimeo-preview-20261026'){
+    return new NextResponse('EXC testing is available only in isolated staging.',{status:503,headers:{'Cache-Control':'no-store'}});
+  }
   const previewToken = process.env.EPIC_PREVIEW_TOKEN;
   const suppliedPreviewToken = request.cookies.get("epic_preview_access")?.value;
   const hasPreviewAccess = Boolean(previewToken && suppliedPreviewToken === previewToken);
@@ -17,9 +27,37 @@ export async function middleware(request: NextRequest) {
     workstationPassword && workstationCookie && workstationCookie === await sha256Hex(workstationPassword),
   );
   const pathname = request.nextUrl.pathname;
+  // Preserve old bookmarks but expose only the unified employee sign-in in UUI.
+  if (pathname === "/employee-login" && process.env.VERCEL_PROJECT_ID === "prj_lZGiQ85J6jQRgSRostBvUJGVKv6r") {
+    return NextResponse.redirect(new URL("/uui-login", request.url));
+  }
+
+  // EXP staging is deliberately read-only for every operational API.
+  // The only allowed API writes are the dedicated, staged EXP endpoints.
+  // This boundary does not replace DB-level/credential-level outbound isolation.
+  if (process.env.EPIC_STAGING_NO_OUTBOUND === "true" && pathname.startsWith("/api/")) {
+    const expGuestPath = /^\/api\/guest\/[^/]+\/exp\/(assessment|progress|participants|belt-tire-inquiry)$/.test(pathname);
+    const allowedExpWrite = expGuestPath && ["POST", "PATCH"].includes(request.method);
+    const allowedStagingOhvUpload = /^\/api\/guest\/[^/]+\/ohv$/.test(pathname) && request.method === "POST";
+    // Employee authentication is isolated to staging Supabase Auth and does not
+    // trigger operational guest communications or booking agents.
+    const allowedRentalV2 = pathname === "/api/waiver/submit-rental-v2" && request.method === "POST";
+    const allowedKioskLookup = pathname === "/api/kiosk/lookup" && request.method === "POST";
+    const allowedStagingAuth = ["/api/auth/login", "/api/auth/logout", "/api/team/action-pin"].includes(pathname) && request.method === "POST";
+    // Only the isolated rental agreement form submission may write in EXP staging.
+    // All other operational mutations and forms with outbound side effects remain denied.
+    const allowedRentalFormSubmission = /^\/api\/guest-forms\/[^/]+$/.test(pathname) && request.method === "POST";
+    const allowedUuiInternalWrite = allowsUuiInternalWrite(pathname, request.method, process.env);
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !allowedExpWrite && !allowedRentalV2 && !allowedKioskLookup && !allowedStagingAuth && !allowedRentalFormSubmission && !allowedStagingOhvUpload && !allowedUuiInternalWrite) {
+      return NextResponse.json(
+        { error: "Operational API mutations are disabled in isolated EXP staging." },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  }
 
   if (pathname.startsWith("/team") && !hasPreviewAccess && !hasEmployeeSession && !hasWorkstationAccess) {
-    const loginUrl = new URL("/employee-login", request.url);
+    const loginUrl = new URL("/uui-login", request.url);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -33,7 +71,7 @@ export async function middleware(request: NextRequest) {
 
   if (hostname === "team.myepicreservation.com" && pathname === "/") {
     const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = "/team/readiness";
+    dashboardUrl.pathname = "/uui-home";
     return NextResponse.redirect(dashboardUrl);
   }
 
@@ -44,7 +82,12 @@ export const config = {
   matcher: [
     "/",
     "/team/:path*",
+    "/employee-login",
     "/kiosk/:path*",
     "/visit/:path*",
+    "/api/:path*",
+    "/guest/:path*",
+    "/waiver/:path*",
+    "/staging/:path*",
   ],
 };

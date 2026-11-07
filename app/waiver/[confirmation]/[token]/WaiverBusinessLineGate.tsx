@@ -16,6 +16,8 @@ type Session = {
   rental_terms_html: string | null;
   total_vehicle_count: number;
   rental_v2_enabled?: boolean;
+  staging_sample_default?:string;
+  staging_sample_signers?:Array<{firstName:string;lastName:string;email:string;phone:string;dob:string}>;
 };
 
 export default function WaiverBusinessLineGate({ children }: { children: ReactNode }) {

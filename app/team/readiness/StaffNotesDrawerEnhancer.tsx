@@ -12,6 +12,8 @@ type Note = {
 };
 
 function confirmationFromDrawer(drawer: HTMLElement) {
+  const code=drawer.dataset.confirmationCode?.trim().toUpperCase();
+  if(code && /^[A-Z0-9-]{3,25}$/.test(code)) return code;
   const values = Array.from(drawer.querySelectorAll("strong"))
     .map((node) => node.textContent?.trim() || "")
     .filter(Boolean);
@@ -94,21 +96,21 @@ export default function StaffNotesDrawerEnhancer() {
             const card = document.createElement("div");
             card.style.cssText = "margin-top:8px;padding:12px 13px;border:1px solid #e4d99d;border-radius:10px;background:#fff";
             if (editingId === note.note_id) {
-              const area = document.createElement("textarea"); area.value = draft; area.rows = 3;
+              const area = document.createElement("textarea"); area.value = draft; area.rows = 3; area.setAttribute("aria-label","Edit reservation note"); area.maxLength=4000;
               area.style.cssText = "width:100%;resize:vertical;border:1px solid #d8dee5;border-radius:8px;padding:10px;font:inherit;box-sizing:border-box";
               area.oninput = () => { draft = area.value; };
               card.appendChild(area);
               const row = document.createElement("div"); row.style.cssText = "display:flex;gap:8px;margin-top:8px";
               const save = document.createElement("button"); save.textContent = "Save"; save.type="button"; save.style.cssText="border:0;background:#202733;color:#fff;border-radius:7px;padding:7px 11px;font-weight:800;cursor:pointer";
-              save.onclick = async () => { if (!draft.trim()) return; save.textContent="Saving..."; try { await request("PATCH", { note_id:note.note_id, note_text:draft.trim() }); note.note_text=draft.trim(); editingId=""; render(); } catch(e){ window.alert(e instanceof Error?e.message:"Unable to save note."); render(); } };
+              save.onclick = async () => { if (!draft.trim()) return; save.textContent="Saving..."; save.disabled=true; try { const data=await request("PATCH", { note_id:note.note_id, note_text:draft.trim(), expected_updated_at:note.updated_at }); Object.assign(note,data.note); editingId=""; render(); } catch(e){ window.alert(e instanceof Error?e.message:"Unable to save note."); render(); } };
               const cancel = document.createElement("button"); cancel.textContent="Cancel"; cancel.type="button"; cancel.style.cssText="border:1px solid #d8dee5;background:#fff;border-radius:7px;padding:7px 11px;font-weight:800;cursor:pointer"; cancel.onclick=()=>{editingId="";render();};
-              const del = document.createElement("button"); del.textContent="Delete"; del.type="button"; del.style.cssText="margin-left:auto;border:0;background:transparent;color:#b42318;font-weight:800;cursor:pointer"; del.onclick=async()=>{ if(!window.confirm("Delete this note?")) return; try{await request("DELETE",{note_id:note.note_id});items=items.filter((item)=>item.note_id!==note.note_id);editingId="";render();}catch(e){window.alert(e instanceof Error?e.message:"Unable to delete note.");}};
+              const del = document.createElement("button"); del.textContent="Delete"; del.type="button"; del.style.cssText="margin-left:auto;border:0;background:transparent;color:#b42318;font-weight:800;cursor:pointer"; del.onclick=async()=>{ if(!window.confirm("Delete this note?")) return; try{await request("DELETE",{note_id:note.note_id,expected_updated_at:note.updated_at});items=items.filter((item)=>item.note_id!==note.note_id);editingId="";render();}catch(e){window.alert(e instanceof Error?e.message:"Unable to delete note.");}};
               row.append(save,cancel,del); card.appendChild(row);
             } else {
               const top = document.createElement("div"); top.style.cssText="display:flex;align-items:flex-start;justify-content:space-between;gap:10px";
               const text = document.createElement("div"); text.textContent=note.note_text; text.style.cssText="white-space:pre-wrap;color:#25303b;font-size:13px;line-height:1.45";
               const edit = document.createElement("button"); edit.type="button"; edit.textContent="✎"; edit.setAttribute("aria-label","Edit note"); edit.style.cssText="border:0;background:transparent;color:#6f7885;font-size:16px;cursor:pointer;padding:0"; edit.onclick=()=>{editingId=note.note_id;draft=note.note_text;render();};
-              top.appendChild(text); if(note.source!=="tripworks") top.appendChild(edit); card.appendChild(top);
+              top.appendChild(text); if(note.source!=="tripworks" && note.note_id!=="legacy") top.appendChild(edit); card.appendChild(top);
               const meta = document.createElement("div"); meta.style.cssText="margin-top:7px;color:#8a94a1;font-size:10px"; meta.textContent = note.note_id === "legacy" ? "Existing readiness note" : [fmt(note.created_at), note.created_by ? `by ${note.created_by}` : ""].filter(Boolean).join(" · "); card.appendChild(meta);
             }
             shell.appendChild(card);
@@ -116,9 +118,9 @@ export default function StaffNotesDrawerEnhancer() {
 
           if (composerOpen) {
             const composer = document.createElement("div"); composer.style.cssText="margin-top:10px;padding:12px;border:1px solid #e4d99d;border-radius:10px;background:#fff";
-            const area = document.createElement("textarea"); area.rows=3; area.placeholder="Add a note for this guest..."; area.style.cssText="width:100%;resize:vertical;border:1px solid #d8dee5;border-radius:8px;padding:10px;font:inherit;box-sizing:border-box"; area.oninput=()=>{draft=area.value;}; composer.appendChild(area);
+            const area = document.createElement("textarea"); area.rows=3; area.value=draft; area.maxLength=4000; area.setAttribute("aria-label","New reservation note"); area.placeholder="Add a note for this guest..."; area.style.cssText="width:100%;resize:vertical;border:1px solid #d8dee5;border-radius:8px;padding:10px;font:inherit;box-sizing:border-box"; area.oninput=()=>{draft=area.value;}; composer.appendChild(area);
             const actions=document.createElement("div"); actions.style.cssText="display:flex;gap:8px;margin-top:8px";
-            const save=document.createElement("button"); save.type="button"; save.textContent="Save Note"; save.style.cssText="border:0;background:#d5521d;color:#fff;border-radius:7px;padding:8px 12px;font-weight:800;cursor:pointer"; save.onclick=async()=>{if(!draft.trim())return;save.textContent="Saving...";try{const data=await request("POST",{note_text:draft.trim()});items=[data.note as Note,...items];composerOpen=false;draft="";render();}catch(e){window.alert(e instanceof Error?e.message:"Unable to save note.");render();}};
+            const save=document.createElement("button"); save.type="button"; save.textContent="Save Note"; save.style.cssText="border:0;background:#d5521d;color:#fff;border-radius:7px;padding:8px 12px;font-weight:800;cursor:pointer"; save.onclick=async()=>{if(!draft.trim())return;save.textContent="Saving..."; save.disabled=true;try{const data=await request("POST",{note_text:draft.trim()});items=[data.note as Note,...items];composerOpen=false;draft="";render();}catch(e){window.alert(e instanceof Error?e.message:"Unable to save note.");render();}};
             const cancel=document.createElement("button"); cancel.type="button";cancel.textContent="Cancel";cancel.style.cssText="border:1px solid #d8dee5;background:#fff;border-radius:7px;padding:8px 12px;font-weight:800;cursor:pointer";cancel.onclick=()=>{composerOpen=false;draft="";render();};actions.append(save,cancel);composer.appendChild(actions);shell.appendChild(composer);
           }
         }

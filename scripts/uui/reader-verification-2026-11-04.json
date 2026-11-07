@@ -1,0 +1,258 @@
+{
+  "passed": 42,
+  "total": 42,
+  "checks": [
+    {
+      "role": "anonymous",
+      "function": "get_epic_routed_inbox_v2",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_epic_sales_blocked_domains",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_epic_phone_report",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_epic_inbox_collaborators",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_epic_inbox_mentions",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_c360_podium_inbox",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_c360_telnyx_inbox",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_c360_social_inbox",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_c360_meta_inbox",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_c360_instagram_inbox",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "epic_catchup_attributed",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "epic_ping_inbox",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "get_epic_known_customer_matches",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "anonymous",
+      "function": "c360_employee_search_phone_links",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_epic_routed_inbox_v2",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_epic_sales_blocked_domains",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_epic_phone_report",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_epic_inbox_collaborators",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_epic_inbox_mentions",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_c360_podium_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_c360_telnyx_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_c360_social_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_c360_meta_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_c360_instagram_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "epic_catchup_attributed",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "epic_ping_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "get_epic_known_customer_matches",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "employee",
+      "function": "c360_employee_search_phone_links",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_epic_routed_inbox_v2",
+      "status": 400,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_epic_sales_blocked_domains",
+      "status": 400,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_epic_phone_report",
+      "status": 400,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_epic_inbox_collaborators",
+      "status": 400,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_epic_inbox_mentions",
+      "status": 400,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_c360_podium_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_c360_telnyx_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_c360_social_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_c360_meta_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_c360_instagram_inbox",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "epic_catchup_attributed",
+      "status": 403,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "epic_ping_inbox",
+      "status": 400,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "get_epic_known_customer_matches",
+      "status": 400,
+      "passed": true
+    },
+    {
+      "role": "workstation",
+      "function": "c360_employee_search_phone_links",
+      "status": 400,
+      "passed": true
+    }
+  ]
+}

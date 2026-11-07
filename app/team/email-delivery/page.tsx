@@ -1,3 +1,4 @@
+import {loadExpExceptions} from "@/lib/server/exp-exceptions";
 import Link from "next/link";
 import TeamSidebar from "../TeamSidebar";
 import HeaderClock from "../readiness/HeaderClock";
@@ -263,6 +264,9 @@ export default async function ExceptionsPage() {
   let resolutions: ResolutionRow[] = [];
   let deferredBookings: DeferredBooking[] = [];
   let error = "";
+  let expExceptions:Awaited<ReturnType<typeof loadExpExceptions>>=[];
+  let expError="";
+  try { expExceptions=await loadExpExceptions(); } catch { expError="Unable to load EXC exceptions. Refresh to retry; EXC status is not confirmed."; }
 
   try {
     [rhettExceptions, emailIncidents, paymentExceptions, depositExceptions, resolutions, deferredBookings] = await Promise.all([
@@ -305,7 +309,7 @@ export default async function ExceptionsPage() {
     error = err instanceof Error ? err.message : "Unable to load exceptions.";
   }
 
-  const total = rhettExceptions.length + emailIncidents.length + paymentExceptions.length + depositExceptions.length;
+  const total = rhettExceptions.length + emailIncidents.length + paymentExceptions.length + depositExceptions.length + expExceptions.length;
 
   return (
     <div className={styles.page}>
@@ -328,18 +332,30 @@ export default async function ExceptionsPage() {
 
         <section className={styles.content}>
           {error ? <div className={styles.error}>{error}</div> : null}
+          {expError ? <div className={styles.error} role="alert">{expError}</div> : null}
 
-          {!error ? (
+          {!error && !expError ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, padding: "15px 18px", marginBottom: 18, border: "1px solid #dfe4e9", borderRadius: 14, background: total ? "#fff" : "#f4fbf6" }}>
               <div>
                 <div style={{ fontWeight: 900, color: total ? "#202733" : "#187a45" }}>{total ? "Active Exceptions" : "All clear"}</div>
                 <div style={{ marginTop: 3, color: "#6f7885", fontSize: 13 }}>
-                  {total ? "These items still need attention." : "No active booking, payment, deposit-release, or email-delivery exceptions."}
+                  {total ? "These items still need attention." : "No active booking, payment, deposit-release, email-delivery, or EXC exceptions."}
                 </div>
               </div>
               <CountBadge count={total} />
             </div>
           ) : null}
+
+          {process.env.EXP_ASSESSMENT_SERVER_ENABLED==="true" ? <section style={sectionStyle} aria-label="Epic Xpress Checkout exceptions">
+            <SectionHeader title="Epic Xpress Checkout" description="Started orientations needing a retry, team assistance, or remaining verification before vehicle checkout." count={expExceptions.length}/>
+            {expError ? <Empty>EXC status unavailable.</Empty> : expExceptions.length===0 ? <Empty>No active EXC exceptions.</Empty> : expExceptions.map(row=>(
+              <article key={row.readiness_id} style={rowStyle}>
+                <div><strong>{row.customer_name}</strong><div>{row.confirmation_code}</div><div>{row.product_display_name}</div></div>
+                <div>{row.reasons.map(reason=><p key={reason} style={{margin:'4px 0'}}>{reason}</p>)}</div>
+                <Link href={`/team/previous-guests?q=${encodeURIComponent(row.confirmation_code)}`}>Review reservation</Link>
+              </article>
+            ))}
+          </section> : null}
 
           <section style={sectionStyle}>
             <SectionHeader

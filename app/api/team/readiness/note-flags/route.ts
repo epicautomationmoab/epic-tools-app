@@ -6,7 +6,7 @@ export async function POST(request:NextRequest){
  try{
   const b=await request.json();
   const ids=Array.isArray(b.readiness_ids)?b.readiness_ids.filter((v:unknown)=>typeof v==="string"&&/^[a-f0-9-]{36}$/i.test(v)):[];
-  const codes=Array.isArray(b.confirmations)?b.confirmations.filter((v:unknown)=>typeof v==="string"&&/^[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(v)):[];
+  const codes=Array.isArray(b.confirmations)?b.confirmations.filter((v:unknown)=>typeof v==="string"&&/^[A-Z0-9-]{3,25}$/i.test(v)):[];
   if(!ids.length&&!codes.length)return NextResponse.json({ok:true,readiness_ids:[],confirmations:[]});
   const raw=process.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),key=process.env.SUPABASE_SECRET_KEY?.trim();
   if(!raw||!key)throw Error("Supabase server configuration missing.");

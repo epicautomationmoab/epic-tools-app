@@ -1,10 +1,14 @@
 "use client";
 
+import { saveOperationalHandoff } from "@/lib/operational-handoff";
+import ExpReadinessDetail from "./ExpReadinessDetail";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReadinessRow, VehicleBreakdownItem } from "@/lib/supabase";
 import styles from "./ReadinessShell.module.css";
 import CancellationAgreementPanel from "./CancellationAgreementPanel";
 import { guestFacingBalanceCents } from "@/lib/guest-confirmation-accounting";
+
 
 type TimeFilter = "all" | "today" | "tomorrow";
 type Filter = "all" | "rental" | "tour";
@@ -291,46 +295,12 @@ async function persistHandoff(
   readinessId: string,
   handoffStatus: "checked_in" | "rental_out" | "rental_returned",
 ) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase configuration is missing.");
-  }
-
-  const response = await fetch(
-    `${url}/rest/v1/rpc/set_epic_operational_handoff`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        p_readiness_id: readinessId,
-        p_handoff_status: handoffStatus,
-        p_recorded_by: "EpicTools",
-      }),
-    },
-  );
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to update reservation status.");
-  }
-
+  await saveOperationalHandoff(readinessId, handoffStatus);
   return handoffStatus;
 }
 
 async function clearHandoff(readinessId: string) {
-  return callReadinessRpc<boolean>(
-    "clear_epic_operational_handoff",
-    {
-      p_readiness_id: readinessId,
-      p_recorded_by: "EpicTools",
-    },
-  );
+  await saveOperationalHandoff(readinessId, null);
 }
 
 function getSupabaseBrowserConfig() {
@@ -344,57 +314,35 @@ function getSupabaseBrowserConfig() {
   return { url, key };
 }
 
-async function callReadinessRpc<T>(
-  functionName: string,
-  body: Record<string, unknown>,
-): Promise<T> {
-  const { url, key } = getSupabaseBrowserConfig();
-  const response = await fetch(`${url}/rest/v1/rpc/${functionName}`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `Unable to run ${functionName}.`);
-  }
-
+async function callReadinessRpc<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
+ const { url, key } = getSupabaseBrowserConfig();
+ return fetch(`${url}/rest/v1/rpc/${functionName}`,{
+  method:"POST",
+  headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json"},
+  body:JSON.stringify(body)
+ }).then(async response=>{
+  if(!response.ok)throw new Error(await response.text()||`Unable to run ${functionName}.`);
   return response.json() as Promise<T>;
+ });
 }
 
-function getPeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus | null>(
-    "get_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+function callPeopleOverride<T>(action:"get"|"set"|"clear",readinessId:string,extra:Record<string,unknown>={}):Promise<T>{
+ return fetch("/api/team/readiness/people-override",{
+  method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({action,readinessId,...extra})
+ }).then(async response=>{
+  if(!response.ok){const detail=await response.json().catch(()=>({error:"Unable to update people count."}));throw new Error(detail.error||"Unable to update people count.");}
+  return response.json() as Promise<T>;
+ });
 }
-
-function savePeopleOverride(
-  readinessId: string,
-  peopleCount: number,
-  reason: string,
-) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "set_readiness_people_override",
-    {
-      p_readiness_id: readinessId,
-      p_people_count: peopleCount,
-      p_reason: reason,
-      p_updated_by: "EpicTools",
-    },
-  );
+function getPeopleOverride(readinessId:string){
+ return callPeopleOverride<PeopleOverrideStatus|null>("get",readinessId);
 }
-
-function removePeopleOverride(readinessId: string) {
-  return callReadinessRpc<PeopleOverrideStatus>(
-    "clear_readiness_people_override",
-    { p_readiness_id: readinessId },
-  );
+function savePeopleOverride(readinessId:string,peopleCount:number,reason:string){
+ return callPeopleOverride<PeopleOverrideStatus>("set",readinessId,{peopleCount,reason});
+}
+function removePeopleOverride(readinessId:string){
+ return callPeopleOverride<PeopleOverrideStatus>("clear",readinessId);
 }
 
 // Merge lightweight snapshots without losing already fetched drawer-only data.
@@ -554,28 +502,18 @@ export default function ReadinessTable({ rows }: { rows: ReadinessRow[] }) {
 
   useEffect(() => {
     if (!selected?.readiness_id) return;
-    // Always resolve the selected reservation token, even when documents are present.
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) return;
-
+    const documentReadinessId=selected.readiness_id;
     let cancelled = false;
     setDocumentDetailStatus("loading");
-    const params = new URLSearchParams({
-      select: "readiness_id,epic_document_signers,mpwr_waivers",
-      readiness_id: `eq.${selected.readiness_id}`,
-      limit: "1",
-    });
+
 
     const loadDocumentDetail = async () => {
       // A transient view timeout must not be presented as proof that no waivers exist.
       for (let attempt = 0; attempt < 3 && !cancelled; attempt += 1) {
         try {
           const response = await fetch(
-            `${url}/rest/v1/guest_readiness_with_handoff_v?${params.toString()}`,
+            `/api/team/readiness/document-detail?readiness_id=${encodeURIComponent(documentReadinessId)}`,
             {
-              headers: { apikey: key, Authorization: `Bearer ${key}` },
               cache: "no-store",
             },
           );
@@ -1214,6 +1152,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
               return (
                 <tr
                   key={row.readiness_id}
+                  data-readiness-id={row.readiness_id}
                   className={
                     row.handoff_status === "rental_out"
                       ? styles.rentalOutRow
@@ -1239,7 +1178,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
                     </div>
                   </td>
                   <td>
-                    <div className={styles.mainLine}>{row.customer_name}</div>
+                    <div className={styles.mainLine} style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>{row.customer_name}{row.business_line==="rental" && row.exp_status?.allReady ? <span title="Verified EXP readiness" style={{fontSize:11,padding:"2px 6px",borderRadius:5,background:"#dff2e5",color:"#176534",fontWeight:800}}>EXP</span> : null}</div>
                     <div className={styles.subLine}>
                       {phone || row.confirmation_code}
                     </div>
@@ -1375,6 +1314,7 @@ await callReadinessRpc("manual_override_mpwr_information", {
             role="dialog"
             aria-modal="true"
             aria-label={`${selected.customer_name} reservation details`}
+            data-confirmation-code={selected.confirmation_code || ""}
             onMouseDown={(event) => event.stopPropagation()}
           >
             <header className={styles.drawerHeader}>
@@ -2236,6 +2176,8 @@ await callReadinessRpc("manual_override_mpwr_information", {
                 </p>
               )}
             </section>
+
+            {selected.business_line === "rental" ? <ExpReadinessDetail readinessId={selected.readiness_id} /> : null}
 
             <section
               className={`${styles.drawerSection} ${styles.peopleCountSection}`}

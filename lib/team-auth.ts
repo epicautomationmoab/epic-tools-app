@@ -48,7 +48,7 @@ async function adminRest<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       apikey: key,
-      Authorization: `Bearer ${key}`,
+      ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
       "Content-Type": "application/json",
       ...(init?.headers || {}),
     },
@@ -109,7 +109,7 @@ export async function listSupabaseAuthUsers() {
   const response = await fetch(`${url}/auth/v1/admin/users?page=1&per_page=100`, {
     headers: {
       apikey: key,
-      Authorization: `Bearer ${key}`,
+      ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
       "Content-Type": "application/json",
     },
     cache: "no-store",
@@ -178,7 +178,7 @@ export async function inviteTeamProfile(email: string, redirectTo: string) {
     method: "POST",
     headers: {
       apikey: key,
-      Authorization: `Bearer ${key}`,
+      ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

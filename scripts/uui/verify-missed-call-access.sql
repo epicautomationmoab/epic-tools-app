@@ -1,0 +1,12 @@
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','64eb0331-d16a-4ab8-81a1-7aaefe578944',true);
+DO $$ BEGIN IF jsonb_typeof(public.get_epic_sales_missed_calls()) <> 'array' THEN RAISE EXCEPTION 'Owner response invalid'; END IF; END $$;
+SELECT set_config('request.jwt.claim.sub','0d0fa277-0c03-43db-b5dc-c81a78452a6c',true);
+DO $$ BEGIN IF jsonb_typeof(public.get_epic_sales_missed_calls()) <> 'array' THEN RAISE EXCEPTION 'Team response invalid'; END IF; END $$;
+SELECT set_config('request.jwt.claim.sub','f24dc053-b9fe-4c8c-864b-4705f2fd940b',true);
+DO $$ BEGIN BEGIN PERFORM public.get_epic_sales_missed_calls(); RAISE EXCEPTION 'Workstation unexpectedly allowed'; EXCEPTION WHEN OTHERS THEN IF SQLERRM <> 'Active employee profile required' THEN RAISE; END IF; END; END $$;
+RESET ROLE;
+DO $$ BEGIN IF has_function_privilege('anon','public.get_epic_sales_missed_calls()','EXECUTE') THEN RAISE EXCEPTION 'Anon unexpectedly allowed'; END IF; END $$;
+ROLLBACK;
+SELECT 'owner/team return arrays; workstation and anonymous denied; test writes rolled back' AS verification;

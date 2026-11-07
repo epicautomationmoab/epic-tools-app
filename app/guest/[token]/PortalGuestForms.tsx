@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import {isFloatingGuestForm} from "@/lib/guest-form-placement";
 import styles from "./PortalGuestForms.module.css";
 
 type GuestFormTask = {
   taskId: string;
+  businessLine: string|null;
   status: string;
   required: boolean;
   completedAt: string | null;
@@ -20,7 +22,7 @@ type GuestFormTask = {
 
 type FormsPayload = { tasks?: GuestFormTask[] };
 
-export default function PortalGuestForms() {
+export default function PortalGuestForms({placement="floating"}:{placement?:"floating"|"inline"}) {
   const token = useParams<{ token: string }>()?.token;
   const [tasks, setTasks] = useState<GuestFormTask[]>([]);
 
@@ -50,21 +52,22 @@ export default function PortalGuestForms() {
     };
   }, [token]);
 
-  if (!tasks.length) return null;
+  const visibleTasks=tasks.filter(task=>placement==="floating"?isFloatingGuestForm(task):task.businessLine?.toLowerCase()==="rental"&&!isFloatingGuestForm(task));
+  if (!visibleTasks.length) return null;
 
-  const outstanding = tasks.filter((task) => task.status !== "completed");
-  const completed = tasks.filter((task) => task.status === "completed");
+  const outstanding = visibleTasks.filter((task) => task.status !== "completed");
+  const completed = visibleTasks.filter((task) => task.status === "completed");
 
   return (
-    <aside className={styles.panel} aria-label="Additional reservation forms">
+    <aside className={`${styles.panel} ${placement==="inline"?styles.inlinePanel:""}`} aria-label={placement==="inline"?"Rental documents":"Additional reservation forms"}>
       <div className={styles.heading}>
-        <span className={styles.kicker}>Added to your reservation</span>
+        <span className={styles.kicker}>{placement==="inline"?"Rental documents":"Added to your reservation"}</span>
         <strong>
           {outstanding.length
             ? outstanding.length === 1
               ? "One additional item needs your attention"
               : `${outstanding.length} additional items need your attention`
-            : "Additional reservation forms complete"}
+            : placement==="inline"?"Rental documents complete":"Additional reservation forms complete"}
         </strong>
       </div>
 

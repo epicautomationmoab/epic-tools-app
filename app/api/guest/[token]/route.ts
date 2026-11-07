@@ -1,3 +1,5 @@
+import {getServerSupabaseConfig,serverSupabaseHeaders,supabaseSelect} from '@/lib/server/supabase-rest';
+import {loadExpReadiness} from "@/lib/server/exp-readiness";
 import { loadRentalV2Readiness } from "@/lib/server/rental-v2-readiness";
 import { NextResponse } from "next/server";
 
@@ -47,13 +49,7 @@ type FinancialRow = {
   guest_portal_payment_hidden: boolean | null;
 };
 
-function getSupabaseConfig() {
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SECRET_KEY?.trim();
-  if (!rawUrl || !key) throw new Error("Supabase environment variables are missing.");
-  const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
-  return { url: normalizedUrl.replace(/\/+$/, ""), key };
-}
+const getSupabaseConfig = getServerSupabaseConfig;
 
 function denverWallTimeToIso(value: string) {
   const match = value.match(
@@ -82,10 +78,10 @@ async function loadPaymentState(config: ReturnType<typeof getSupabaseConfig>, co
     limit: "1",
   });
   const response = await fetch(`${config.url}/rest/v1/operational_reservations?${financialParams.toString()}`, {
-    headers: { apikey: config.key },
+    headers: serverSupabaseHeaders(),
     cache: "no-store",
   });
-  if (!response.ok) return { balanceDueCents: 0, hidden: false };
+  if (!response.ok) throw new Error("Unable to verify reservation balance.");
   const rows = (await response.json()) as FinancialRow[];
   const baseDueCents = Math.max(rows[0]?.amount_due_cents ?? 0, 0);
   return {
@@ -106,17 +102,18 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       order: "visit_start_time.asc",
     });
     const response = await fetch(`${config.url}/rest/v1/guest_portal_v?${params.toString()}`, {
-      headers: { apikey: config.key },
+      headers: serverSupabaseHeaders(),
       cache: "no-store",
     });
     if (!response.ok) {
-      const body = await response.text();
-      return NextResponse.json({ error: "Unable to load guest portal.", detail: body.slice(0, 300) }, { status: response.status });
+      return NextResponse.json({ error: "Unable to load guest portal." }, { status: 502 });
     }
 
     const rows = (await response.json()) as GuestPortalRow[];
     if (!rows.length) return NextResponse.json({ error: "Guest portal not found." }, { status: 404 });
 
+    const handoffs=await supabaseSelect<{readiness_id:string;handoff_status:string|null}>('epic_operational_handoffs',new URLSearchParams({select:'readiness_id,handoff_status',readiness_id:`in.(${rows.map(r=>r.readiness_id).join(',')})`}));
+    const handoffById=new Map(handoffs.map(h=>[h.readiness_id,h.handoff_status]));
     const hasMpwrWaiver = rows.some((row) => Boolean(row.mpwr_waiver_url));
     const rentalV2Readiness = await loadRentalV2Readiness(
       rows
@@ -128,6 +125,15 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
           vehicleCount: row.total_vehicle_count,
         })),
     );
+    if(process.env.EXP_ASSESSMENT_SERVER_ENABLED === "true") {
+      await Promise.all(rows.filter(row=>row.business_line.toLowerCase()==="rental").map(async row=>{
+        const exp=await loadExpReadiness(row.readiness_id);
+        if(!exp)return;
+        row.ohv_certificate_uploaded=exp.itemDocumentChecks.ohvCertificates;
+        row.mpwr_waivers=exp.verifiedPolarisWaivers;
+        row.mpwr_document_received_count=new Set(exp.verifiedPolarisWaivers.map(w=>w.name.trim().toLowerCase())).size;
+      }));
+    }
     const confirmationCode = rows[0].confirmation_code;
     const paymentState = await loadPaymentState(config, confirmationCode);
     const paymentVisible = paymentState.balanceDueCents > 0 && !paymentState.hidden;
@@ -147,6 +153,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
         mpwrWaiverUrl: hasMpwrWaiver ? `/api/guest/${encodeURIComponent(token)}/mpwr-waiver` : null,
         activities: rows.map((row) => ({
           readinessId: row.readiness_id,
+          handoffStatus: handoffById.get(row.readiness_id) ?? null,
           businessLine: row.business_line,
           productDisplayName: row.product_display_name,
           visitStartTime: denverWallTimeToIso(row.visit_start_time),

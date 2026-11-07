@@ -1,5 +1,5 @@
-import PingBadge from "./PingBadge";
-import IncomingCallPopup from "./IncomingCallPopup";
+import SharedEmployeeFooter from "../shared/SharedEmployeeFooter";
+
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
@@ -17,8 +17,7 @@ type Props = {
     | "Rental Inbox"
     | "Tour Inbox"
     | "Exceptions"
-    | "Referral Partners"
-    | "Manage Users";
+    | "Referral Partners";
 };
 
 const baseNavItems = [
@@ -26,8 +25,7 @@ const baseNavItems = [
   { label: "Held-Over Rentals", href: "/team/active-rentals", external: false },
   { label: "Deposits On-Hold", href: "/team/deposits-on-hold", external: false },
   { label: "Tour Dispatch", href: "/team/tour-dispatch", external: false },
-  { label: "Guest Lookup", href: "/team/previous-guests", external: false },
-  { label: "Epic Ping", href: "/team/epic-ping", external: false },
+  { label: "Reservation Lookup", href: "/team/previous-guests", external: false },
   { label: "Rental Inbox", href: "/team/service-inbox/rentals", external: false },
   { label: "Tour Inbox", href: "/team/service-inbox/tours", external: false },
   { label: "Exceptions", href: "/team/email-delivery", external: false },
@@ -71,7 +69,6 @@ export default async function TeamSidebar({ active }: Props) {
     ? [
         ...baseNavItems,
         { label: "Referral Partners", href: "/team/referral-partners", external: false } as const,
-        { label: "Manage Users", href: "/team/auth-setup", external: false } as const,
       ]
     : baseNavItems;
 
@@ -82,12 +79,13 @@ export default async function TeamSidebar({ active }: Props) {
       </div>
 
       <nav className={styles.nav} aria-label="EpicTools navigation">
+        <Link href="/uui-home">← Home</Link>
         {navItems.map((item) => {
-          const className = item.label === active ? styles.active : undefined;
+          const className = item.label === (active === "Guest Lookup" ? "Reservation Lookup" : active) ? styles.active : undefined;
           const content = (
             <>
               <span aria-hidden="true">◇</span>
-              <span style={{ flex: 1 }}>{item.label}</span>{item.label==="Epic Ping"?<PingBadge endpoint="/api/team/epic-ping" href="/team/epic-ping"/>:null}
+              <span style={{ flex: 1 }}>{item.label}</span>
               {item.label === "Held-Over Rentals" && activeRentalCount > 0 ? (
                 <span
                   aria-label={`${activeRentalCount} held-over rental${activeRentalCount === 1 ? "" : "s"}`}
@@ -123,7 +121,7 @@ export default async function TeamSidebar({ active }: Props) {
       </nav>
 
       <div className={styles.sidebarPhoto} />
-      <IncomingCallPopup />
+      <SharedEmployeeFooter displayName={profile?.display_name || "Employee"}/>
     </aside>
   );
 }

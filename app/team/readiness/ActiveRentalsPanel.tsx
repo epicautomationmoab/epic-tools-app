@@ -1,5 +1,7 @@
 "use client";
 
+import { saveOperationalHandoff } from "@/lib/operational-handoff";
+
 import { useState } from "react";
 import type { ReadinessRow } from "@/lib/supabase";
 import C360Bridge from "./C360Bridge";
@@ -37,24 +39,7 @@ function vehicleLabel(row: ReadinessRow) {
 }
 
 async function markRentalReturned(readinessId: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase configuration is missing.");
-
-  const response = await fetch(`${url}/rest/v1/rpc/set_epic_operational_handoff`, {
-    method: "POST",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      p_readiness_id: readinessId,
-      p_handoff_status: "rental_returned",
-      p_recorded_by: "EpicTools",
-    }),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to mark rental returned.");
-  }
+  await saveOperationalHandoff(readinessId, "rental_returned");
 }
 
 export default function ActiveRentalsPanel({ rows }: { rows: ReadinessRow[] }) {

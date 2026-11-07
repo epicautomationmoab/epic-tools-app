@@ -1,3 +1,4 @@
+import SharedCallHost from "./shared/SharedCallHost";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import EmployeeSessionRefresher from "./EmployeeSessionRefresher";
@@ -27,7 +28,7 @@ export default function RootLayout({
         <EmployeeSessionRefresher />
         <GuestPaymentBanner />
         {children}
-      </body>
+      <SharedCallHost/></body>
     </html>
   );
 }

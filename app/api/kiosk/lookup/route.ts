@@ -59,7 +59,7 @@ async function fetchPortalRows() {
     {
       headers: {
         apikey: config.key,
-        Authorization: `Bearer ${config.key}`,
+        ...(config.key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${config.key}` }),
       },
       cache: "no-store",
     },
@@ -87,9 +87,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const lastFour = (body.lastFour ?? "").replace(/\D/g, "");
+    const code = (body.lastFour ?? "").trim();
+    const orientation = code.startsWith("*");
+    const lastFour = orientation ? code.slice(1) : code;
 
-    if (lastFour.length !== 4) {
+    if (!/^\d{4}$/.test(lastFour)) {
       return NextResponse.json(
         {
           error:
@@ -138,9 +140,9 @@ export async function POST(request: Request) {
         } => Boolean(row.guest_portal_token),
       )
       .map((row) => ({
-        portalPath: `${PUBLIC_PORTAL_ORIGIN}/guest/${encodeURIComponent(
+        portalPath: `${process.env.EPIC_STAGING_NO_OUTBOUND === "true" ? new URL(request.url).origin : PUBLIC_PORTAL_ORIGIN}/guest/${encodeURIComponent(
           row.guest_portal_token,
-        )}`,
+        )}${orientation ? "#assessment" : ""}`,
         confirmationCode:
           row.confirmation_code?.trim() || "Reservation",
         visitStartTime: row.visit_start_time ?? null,

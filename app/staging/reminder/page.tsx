@@ -1,0 +1,8 @@
+import Link from "next/link";
+import {rentalReminderDraftHtml} from "@/lib/exp/rental-reminder-draft";
+import styles from "../staging.module.css";
+export default function ReminderPreview(){
+ const values:Record<string,string>={DIRECTIONS_URL:"https://www.google.com/maps/search/?api=1&query=11860+S+Highway+191+Moab+UT+84532",ARRIVAL_INSTRUCTIONS:"Please arrive 15 minutes before your scheduled departure time.",CONFIRMATION_CODE:"EXP-E2E-20261027",GUEST_NAME:"Avery",INTENDED_RECIPIENT:"Synthetic staging guest",LOCATION_SUMMARY:"11860 S. Highway 191, Moab, UT 84532",PORTAL_URL:"https://epic-tools-exp-staging.vercel.app/guest/ee100000-0000-4000-8000-000000000002",READINESS_HEADLINE:"Review your rental preparation",READINESS_MESSAGE:"Open your Guest Portal to see the current requirements for every driver.",RESERVATION_SUMMARY:"EXP Staging RZR · October 28, 2026 · 10:00 AM · 3 guests"};
+ const html=rentalReminderDraftHtml.replace(/\{\{\{([A-Z_]+)\}\}\}/g,(_,key:string)=>values[key]||"");
+ return <main className={styles.page}><div className={styles.content}><Link className={styles.link} href="/staging">← Back to test area</Link><p className={styles.notice}>Unpublished rental reminder draft. The existing arrival details are preserved. No message is sent from this page. Subject: Your Epic Rental Is Tomorrow — Review Your Arrival Details. <a href="https://resend.com/templates/5213803b-05d2-4827-9462-324644e73ecf">Open the draft in Resend</a>.</p><iframe title="Rental reminder email preview" sandbox="" srcDoc={html} style={{width:"100%",height:1600,border:0,marginTop:24,borderRadius:16}}/></div></main>;
+}

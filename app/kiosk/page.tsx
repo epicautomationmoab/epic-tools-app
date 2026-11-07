@@ -49,6 +49,7 @@ export default function KioskPage() {
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
+    const assessment = ((event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value === "assessment";
 
     setLoading(true);
     setError("");
@@ -61,7 +62,7 @@ export default function KioskPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          lastFour,
+          lastFour: assessment ? `*${lastFour}` : lastFour,
           website,
         }),
       });
@@ -233,12 +234,17 @@ export default function KioskPage() {
                 className={styles.button}
                 type="submit"
                 disabled={
-                  loading || lastFour.length !== 4
+                  loading || !/^\d{4}$/.test(lastFour)
                 }
               >
-                {loading
+                <span style={{ display: "block" }}>{loading
                   ? "Finding your reservation…"
-                  : "Open My Reservation"}
+                  : "Open My Guest Portal"}</span>
+                <span style={{ display: "block", marginTop: 6, fontSize: 16, fontWeight: 500, textTransform: "none" }}>Complete Forms</span>
+              </button>
+              <button className={styles.button} type="submit" name="destination" value="assessment" disabled={loading || !/^\d{4}$/.test(lastFour)} style={{marginTop:12}}>
+                <span style={{ display: "block" }}>Knowledge Assessment</span>
+                <span style={{ display: "block", marginTop: 6, fontSize: 16, fontWeight: 500, textTransform: "none" }}>Select After Watching Safety/Orientation Video</span>
               </button>
             </form>
           </>

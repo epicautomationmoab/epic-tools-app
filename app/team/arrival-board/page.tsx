@@ -3,22 +3,24 @@ import ArrivalBoardRefresh from "./ArrivalBoardRefresh";
 import ArrivalBoardDisplay from "./ArrivalBoardDisplay";
 import styles from "./ArrivalBoard.module.css";
 
-function formatToday() {
+function formatToday(date?: string) {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
     timeZone: "America/Denver",
-  }).format(new Date());
+  }).format(date?new Date(date+"T12:00:00Z"):new Date());
 }
 
-export default async function ArrivalBoardPage() {
+export default async function ArrivalBoardPage({searchParams}:{searchParams:Promise<{date?:string}>}) {
+  const query=await searchParams;
+  const date=process.env.EPIC_STAGING_NO_OUTBOUND==="true" && /^\d{4}-\d{2}-\d{2}$/.test(query.date??"") && Number.isFinite(new Date(query.date+"T12:00:00Z").getTime()) && new Date(query.date+"T12:00:00Z").toISOString().slice(0,10)===query.date ? query.date : undefined;
   let rows: ArrivalBoardRow[] = [];
   let error = "";
 
   try {
-    rows = await getArrivalBoardRows();
+    rows = await getArrivalBoardRows({date});
   } catch (err) {
     error = err instanceof Error ? err.message : "Unable to load arrival board rows.";
   }
@@ -37,8 +39,8 @@ export default async function ArrivalBoardPage() {
         </div>
 
         <div className={styles.dateBlock}>
-          <span>Today&apos;s Arrivals</span>
-          <strong>{formatToday()}</strong>
+          <span>{date?"Staging sample arrivals":"Today’s Arrivals"}</span>
+          <strong>{formatToday(date)}</strong>
         </div>
       </header>
 

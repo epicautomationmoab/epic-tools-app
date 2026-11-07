@@ -9,7 +9,7 @@ function config() {
 }
 async function employee(request: NextRequest) {
   const profile = await getAuthenticatedTeamProfile(request.cookies.get("epic_access_token")?.value);
-  return profile && profile.role !== "workstation" ? profile : null;
+  return profile?.active && profile.role !== "workstation" ? profile : null;
 }
 async function rest<T>(path: string, init?: RequestInit): Promise<T> {
   const { url, key } = path.startsWith("epic_unified_notes") && process.env.EPIC_NOTES_PREVIEW_URL && process.env.EPIC_NOTES_PREVIEW_KEY ? {url:process.env.EPIC_NOTES_PREVIEW_URL,key:process.env.EPIC_NOTES_PREVIEW_KEY} : config();
@@ -46,10 +46,6 @@ async function resolveVisit(request: NextRequest, body?: any) {
     await lookupVisit("guest_readiness_history_search_v", "confirmation_code", confirmation)
   );
 }
-async function saveLegacy(readinessId:string, noteText:string) {
-  await rest("rpc/save_guest_readiness_note", { method:"POST", body:JSON.stringify({ p_readiness_id:readinessId, p_notes:noteText }) });
-}
-
 export async function GET(request: NextRequest) {
   if (!await employee(request)) return NextResponse.json({ error:"Employee login required." }, { status:401 });
   try {
@@ -76,33 +72,32 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  const profile = await employee(request); if (!profile) return NextResponse.json({ error:"Employee login required." }, { status:401 });
+async function mutate(request: NextRequest, action: "add"|"edit"|"archive") {
+  if (!await employee(request)) return NextResponse.json({error:"Employee login required."},{status:401});
+  const body=await request.json().catch(()=>null);
+  if(!body) return NextResponse.json({error:"Valid note request required."},{status:400});
+  const text=String(body.note_text||"").trim();
+  if(action!=="archive" && (!text || text.length>4000)) return NextResponse.json({error:"Note must contain 1 to 4000 characters."},{status:400});
+  const confirmation=String(body.confirmation||"").trim().toUpperCase();
+  const id=String(body.note_id||"");
+  if(action==="add" ? !/^[A-Z0-9-]{3,25}$/.test(confirmation) : !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return NextResponse.json({error:"Valid reservation or note required. Legacy notes are read-only."},{status:400});
+  const expected=body.expected_updated_at;
+  if(action!=="add" && (typeof expected!=="string" || !Number.isFinite(Date.parse(expected)))) return NextResponse.json({error:"Reload this reservation before editing the note."},{status:409});
+  const origin=process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/,"");
+  const key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if(!origin || !key) return NextResponse.json({error:"Note storage unavailable."},{status:503});
   try {
-    const body = await request.json(); const visit = await resolveVisit(request, body); const noteText = String(body?.note_text || "").trim();
-    if (!visit || !noteText) return NextResponse.json({ error:"Reservation and note text are required." }, { status:400 });
-    const rows = await rest<Array<Record<string,unknown>>>("epic_unified_notes", { method:"POST", headers:{ Prefer:"return=representation" }, body:JSON.stringify({ readiness_id:visit.readiness_id, note_text:noteText, note_scope:"reservation", source:"readiness", visible_in_readiness:true, confirmation_code:String(body?.confirmation || "").trim().toUpperCase() || null, author_name:profile.display_name }) });
-    return NextResponse.json({ ok:true, note:rows[0] || null });
-  } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to save note." }, { status:500 }); }
+    const response=await fetch(`${origin}/rest/v1/rpc/${action==="add"?"epic_readiness_note_add":"epic_readiness_note_change"}`,{method:"POST",headers:{apikey:key,Authorization:`Bearer ${request.cookies.get("epic_access_token")?.value}`,"Content-Type":"application/json"},body:JSON.stringify(action==="add"?{p_confirmation:confirmation,p_note_text:text}:{p_note_id:id,p_expected_updated_at:expected,p_note_text:text,p_archive:action==="archive"}),cache:"no-store"});
+    const data=await response.json();
+    if(!response.ok){
+      const status=data.code==="40001"?409:data.code==="P0002"?404:data.code==="42501"?403:data.code==="22023"?400:502;
+      const error=status===409?"This note changed since you opened it. Close and reopen the reservation before saving again.":status===404?"Note or reservation unavailable, archived, or read-only.":"Unable to save this note.";
+      return NextResponse.json({error},{status});
+    }
+    const note=data[0];
+    return NextResponse.json({ok:true,note:note?{...note,created_by:note.author_name,note_category:note.note_scope}:null},{headers:{"Cache-Control":"no-store"}});
+  } catch {return NextResponse.json({error:"Note storage is temporarily unavailable."},{status:502});}
 }
-
-export async function PATCH(request: NextRequest) {
-  if (!await employee(request)) return NextResponse.json({ error:"Employee login required." }, { status:401 });
-  try {
-    const body = await request.json(); const noteId = String(body?.note_id || "").trim(); const noteText = String(body?.note_text || "").trim();
-    if (!noteId || !noteText) return NextResponse.json({ error:"note_id and note_text are required." }, { status:400 });
-    if (noteId === "legacy") { const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, noteText); return NextResponse.json({ ok:true }); }
-    const rows = await rest<Array<Record<string,unknown>>>(`epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}&source=neq.tripworks`, { method:"PATCH", headers:{ Prefer:"return=representation" }, body:JSON.stringify({ note_text:noteText, updated_at:new Date().toISOString() }) });
-    return NextResponse.json({ ok:true, note:rows[0] || null });
-  } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to update note." }, { status:500 }); }
-}
-
-export async function DELETE(request: NextRequest) {
-  if (!await employee(request)) return NextResponse.json({ error:"Employee login required." }, { status:401 });
-  try {
-    const body = await request.json(); const noteId = String(body?.note_id || "").trim(); if (!noteId) return NextResponse.json({ error:"note_id is required." }, { status:400 });
-    if (noteId === "legacy") { const visit = await resolveVisit(request, body); if (!visit) throw new Error("Reservation could not be identified."); await saveLegacy(visit.readiness_id, ""); return NextResponse.json({ ok:true }); }
-    await rest<void>(`epic_unified_notes?note_id=eq.${encodeURIComponent(noteId)}&source=neq.tripworks`, { method:"PATCH", headers:{ Prefer:"return=minimal" }, body:JSON.stringify({ archived_at:new Date().toISOString(), updated_at:new Date().toISOString() }) });
-    return NextResponse.json({ ok:true });
-  } catch (error) { return NextResponse.json({ error:error instanceof Error ? error.message : "Unable to remove note." }, { status:500 }); }
-}
+export async function POST(request: NextRequest){return mutate(request,"add");}
+export async function PATCH(request: NextRequest){return mutate(request,"edit");}
+export async function DELETE(request: NextRequest){return mutate(request,"archive");}
