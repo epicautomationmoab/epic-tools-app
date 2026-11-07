@@ -300,13 +300,7 @@ async function persistHandoff(
 }
 
 async function clearHandoff(readinessId: string) {
-  return callReadinessRpc<boolean>(
-    "clear_epic_operational_handoff",
-    {
-      p_readiness_id: readinessId,
-      p_recorded_by: "EpicTools",
-    },
-  );
+  await saveOperationalHandoff(readinessId, null);
 }
 
 function getSupabaseBrowserConfig() {

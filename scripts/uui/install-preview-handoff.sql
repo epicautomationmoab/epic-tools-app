@@ -8,7 +8,7 @@ begin
   if p_readiness_id is null or p_readiness_id not in (
     '00000000-0000-4000-8000-000000000312'::uuid,
     '00000000-0000-4000-8000-000000000313'::uuid
-  ) or p_handoff_status is null or p_handoff_status not in ('rental_out','rental_returned') then
+  ) or p_handoff_status is null or p_handoff_status not in ('rental_out','rental_returned','clear') then
     raise exception 'Preview handoff requires a designated synthetic rental.';
   end if;
   perform pg_advisory_xact_lock(hashtextextended(p_readiness_id::text,0));
@@ -25,6 +25,11 @@ begin
     or exists (select 1 from public.cassie_mpwr_jobs where readiness_id=p_readiness_id and status='claimed')
     or exists (select 1 from public.post_visit_email_jobs where readiness_id=p_readiness_id and status in ('processing','sent')) then
     raise exception 'Preview fixture has unexpected operational work.';
+  end if;
+  if p_handoff_status = 'clear' then
+    -- Clear has no DELETE triggers. The absent-Scout guard above prevents requeue.
+    perform public.clear_epic_operational_handoff(p_readiness_id,p_recorded_by);
+    return null;
   end if;
   result := public.set_epic_operational_handoff(p_readiness_id,p_handoff_status,p_recorded_by);
   -- Jobs are never visible outside this transaction in a runnable state.

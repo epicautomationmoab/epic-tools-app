@@ -29,6 +29,12 @@ const request = body => new NextRequest('https://preview.invalid/api/team/readin
     assert.equal(calls[0].args.p_handoff_status, handoff_status);
   }
   calls = [];
+  const cleared = await context.exports.POST(request({ ...valid, handoff_status: null }));
+  assert.equal(cleared.status,200);assert.equal((await cleared.json()).handoff_status,null);
+  assert.equal(calls[0].name,'clear_epic_operational_handoff');
+  assert.equal(calls[0].args.p_recorded_by,'Jennifer Test');
+  assert.ok(!('p_handoff_status' in calls[0].args));
+  calls = [];
   for (const body of ['{broken', {}, { ...valid, readiness_id: 'not-a-uuid' }, { ...valid, handoff_status: 'tour_returned' }]) {
     assert.equal((await context.exports.POST(request(body))).status, 400);
   }
@@ -40,6 +46,9 @@ const request = body => new NextRequest('https://preview.invalid/api/team/readin
   assert.equal((await context.exports.POST(request(valid))).status, 200);
   assert.equal(calls[0].name, 'uui_preview_set_handoff');
   calls = [];
+  assert.equal((await context.exports.POST(request({ ...valid, handoff_status:null }))).status,200);
+  assert.equal(calls[0].name,'uui_preview_set_handoff');assert.equal(calls[0].args.p_handoff_status,'clear');
+  calls=[];
   delete env.EPIC_STAGING_NO_OUTBOUND;
   profile = null; workstation = true;
   assert.equal((await context.exports.POST(request(valid))).status, 200);

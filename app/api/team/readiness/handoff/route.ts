@@ -22,15 +22,18 @@ export async function POST(request: NextRequest) {
   const readinessId = body?.readiness_id;
   const status = body?.handoff_status;
   if (typeof readinessId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(readinessId)
-    || !["checked_in", "rental_out", "rental_returned"].includes(status)) {
+    || (status !== null && !["checked_in", "rental_out", "rental_returned"].includes(status))) {
     return NextResponse.json({ error: "Invalid reservation status request." }, { status: 400 });
   }
   try {
     // Keep balance checks, business-line rules and downstream effects in the
     // existing transaction. Never trust caller-supplied employee attribution.
-    await supabaseRpc(preview ? "uui_preview_set_handoff" : "set_epic_operational_handoff", {
+    const clearing = status === null;
+    const functionName = preview ? "uui_preview_set_handoff"
+      : clearing ? "clear_epic_operational_handoff" : "set_epic_operational_handoff";
+    await supabaseRpc(functionName, {
       p_readiness_id: readinessId,
-      p_handoff_status: status,
+      ...(!clearing || preview ? { p_handoff_status: clearing ? "clear" : status } : {}),
       p_recorded_by: profile?.display_name || "Epic Workstation",
     });
     return NextResponse.json({ ok: true, handoff_status: status });

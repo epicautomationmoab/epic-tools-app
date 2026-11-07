@@ -1,7 +1,7 @@
 /** Both existing Readiness surfaces use the same authenticated server operation. */
 export async function saveOperationalHandoff(
   readinessId: string,
-  handoffStatus: "checked_in" | "rental_out" | "rental_returned",
+  handoffStatus: "checked_in" | "rental_out" | "rental_returned" | null,
 ) {
   const response = await fetch("/api/team/readiness/handoff", {
     method: "POST",
