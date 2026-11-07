@@ -1,10 +1,13 @@
 import { createHash } from "node:crypto";
+import { isIsolatedUui } from "@/lib/uui-internal-writes";
 import { NextResponse } from "next/server";
 import { supabasePatch, supabaseRpc, supabaseSelect } from "@/lib/server/supabase-rest";
 
 type AgreementRow = {
   id: string;
   confirmation_code: string;
+  readiness_id: string;
+  customer_email: string;
   customer_name: string;
   visit_summary: string;
   amount_due_cents: number | null;
@@ -28,7 +31,7 @@ async function loadAgreement(token: string) {
   const rows = await supabaseSelect<AgreementRow>(
     "cancellation_agreement_requests",
     new URLSearchParams({
-      select: "id,confirmation_code,customer_name,visit_summary,amount_due_cents,tripsafe_status,policy_version,policy_title,policy_summary,policy_paragraphs,acceptance_statement,expires_at,opened_at,status,accepted_at",
+      select: "id,readiness_id,customer_email,confirmation_code,customer_name,visit_summary,amount_due_cents,tripsafe_status,policy_version,policy_title,policy_summary,policy_paragraphs,acceptance_statement,expires_at,opened_at,status,accepted_at",
       token_hash: `eq.${hashToken(token)}`,
       limit: "1",
     }),
@@ -97,7 +100,8 @@ export async function GET(
       agreement = await loadAgreement(token) ?? agreement;
     }
 
-    return NextResponse.json({ agreement });
+    const { readiness_id: _readinessId, customer_email: _customerEmail, ...publicAgreement } = agreement;
+    return NextResponse.json({ agreement: publicAgreement });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load agreement." }, { status: 500 });
   }
@@ -127,6 +131,16 @@ export async function POST(
 
     const agreement = await loadAgreement(token);
     if (!agreement) return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
+    // Preview acceptance is restricted to the named synthetic reservations.
+    // The original token-validated transaction remains responsible for acceptance.
+    if (process.env.EPIC_STAGING_NO_OUTBOUND === "true" && (
+      !isIsolatedUui(process.env)
+      || !["00000000-0000-4000-8000-000000000312", "00000000-0000-4000-8000-000000000313"].includes(agreement.readiness_id)
+      || agreement.confirmation_code !== "PREVIEW-HISTORY-312"
+      || !agreement.customer_email?.toLowerCase().endsWith("@example.invalid")
+    )) {
+      return NextResponse.json({ error: "Only designated synthetic acknowledgements can be accepted in Preview." }, { status: 403 });
+    }
     if (hasExpired(agreement)) {
       await expireAgreement(agreement);
       return NextResponse.json({ error: "This agreement link has expired. Please ask Epic 4X4 Adventures to send a new one." }, { status: 410 });
