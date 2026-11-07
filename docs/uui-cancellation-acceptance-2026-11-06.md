@@ -18,7 +18,7 @@ Existing application workflow tested on Preview code b5fd7785ddf031baa4e7021d15d
 
 - Exact request/acceptance policy paragraph, statement and version equality confirmed for both acceptances.
 - Duplicate submission through the original acceptance RPC in a rollback transaction returned the original acceptance ID; total remained two.
-- Existing immutable acceptance UPDATE/DELETE trigger present; anon/authenticated have no direct table grants. No grants or function definitions changed.
+- Existing immutable acceptance UPDATE/DELETE trigger present; an actual attempted acceptance rewrite was rejected in a rollback test. Anon/authenticated have no direct table grants. No grants or function definitions changed.
 - Unit A request remains Created, unchanged. Shared confirmation does not merge the two units' acknowledgement status.
 - Guest cancellation regression and integration boundary tests passed; real email/text delivery remains blocked in Preview.
 
@@ -26,6 +26,6 @@ Existing application workflow tested on Preview code b5fd7785ddf031baa4e7021d15d
 
 The owner audit reader previously included only notes, sales status/follow-ups and fleet events. Added existing reservation events and immutable cancellation acceptances as Readiness and Documents sources. Guest signatures are labeled Guest, not employee actions; absent actors remain Unknown. Signature images, IP/device metadata and customer contact fields are excluded. Jennifer/Joe-only authorization is unchanged. Modern secret API keys use the API-key header without an invalid bearer header.
 
-Seven history/pagination tests and four source-mapping/header checks passed, plus TypeScript. Preview deployment/browser check pending at this checkpoint. Comprehensive denied/failed-action capture and other missing categories remain open; this change does not claim complete audit coverage.
+Seven history/pagination tests and four source-mapping/header checks passed, plus TypeScript. Preview deployment dpl_fe7yoE8X9RtzVi4NjmqZC9GrYKCj is READY at code c4913ed2567af2ecb1993dd3420f20e8a9830237. Jennifer Test opened the deployed owner audit: both acceptance records and distinct versions appeared, and signer filtering returned only the matching original acceptance. Readiness source returned zero without error, matching the database count of zero; no fake operational events were inserted. Comprehensive denied/failed-action capture and other missing categories remain open; this change does not claim complete audit coverage.
 
-Screenshots are retained separately, not committed to GitHub: uui-cancellation-accepted-readiness.png and uui-cancellation-accepted-c360.png.
+Screenshots are retained separately, not committed to GitHub: uui-cancellation-accepted-readiness.png and uui-cancellation-accepted-c360.png and uui-audit-cancellation-history.png.
