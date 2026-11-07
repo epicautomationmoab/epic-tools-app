@@ -153,6 +153,7 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
   const [deposit, setDeposit] = useState<DamageDeposit | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const refreshDeposit = useCallback(async (readinessId: string) => {
     const row = rowByReadinessId.get(readinessId);
@@ -160,13 +161,10 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
       setDeposit(null);
       return;
     }
-    await rpc("ensure_rental_damage_deposit", {
-      p_readiness_id: readinessId,
-      p_updated_by: "EpicTools",
-    });
-    const result = await rpc<DamageDeposit | null>("get_rental_damage_deposit", {
-      p_readiness_id: readinessId,
-    });
+    const response = await fetch(`/api/deposits/detail?readiness_id=${encodeURIComponent(readinessId)}`, { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result?.error || "Unable to load deposit status.");
+    setLoadError(result ? "" : "Deposit status is unavailable for this reservation.");
     setDeposit(result);
   }, [rowByReadinessId]);
 
@@ -179,17 +177,12 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
         return;
       }
 
-      const bookingFact = findFactTarget(dialog, "Booking Confirmation");
-      const bookingText = bookingFact?.querySelector("strong")?.textContent?.trim().toUpperCase();
-      if (!bookingText) return;
-
-      const row = rows.find((candidate) => candidate.confirmation_code?.trim().toUpperCase() === bookingText);
-      if (!row?.readiness_id) return;
-
-      setTargets({
-        readinessId: row.readiness_id,
-        depositTarget: findFactTarget(dialog, "Security Deposit"),
-      });
+      const readinessId = dialog.dataset.readinessId;
+      const row = rows.find((candidate) => candidate.readiness_id === readinessId);
+      if (!row?.readiness_id) { setTargets(null); return; }
+      const depositTarget = findFactTarget(dialog, "Security Deposit");
+      setTargets((current) => current && current.readinessId === row.readiness_id && current.depositTarget === depositTarget
+        ? current : { readinessId: row.readiness_id!, depositTarget });
     }
 
     inspectDrawer();
@@ -200,10 +193,12 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
 
   useEffect(() => {
     if (!targets?.readinessId) return;
-    refreshDeposit(targets.readinessId).catch(() => setDeposit(null));
+    setDeposit(null);
+    setLoadError("");
+    refreshDeposit(targets.readinessId).catch(() => { setDeposit(null); setLoadError("Unable to load deposit status. Please retry."); });
 
     const timer = window.setInterval(() => {
-      refreshDeposit(targets.readinessId).catch(() => {});
+      refreshDeposit(targets.readinessId).catch(() => setLoadError("Unable to refresh deposit status. Please retry."));
     }, 3000);
 
     return () => window.clearInterval(timer);
@@ -259,7 +254,9 @@ export default function MpwrFinancePanel({ rows }: { rows: ReadinessRow[] }) {
         </div>
       ) : null}
 
-      {targets?.depositTarget && selectedRow?.business_line === "rental" && deposit
+      {targets?.depositTarget && selectedRow?.business_line === "rental" && loadError
+        ? createPortal(<small role="alert" style={{ display: "block", color: "#b42318", marginTop: 5 }}>{loadError}</small>, targets.depositTarget) : null}
+      {targets?.depositTarget && selectedRow?.business_line === "rental" && deposit?.readiness_id === targets.readinessId
         ? createPortal(
             <div style={{ marginTop: 8 }}>
               {deposit.deposit_amount_cents > 0 && deposit.status !== "released" ? (
