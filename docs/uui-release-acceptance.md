@@ -171,3 +171,9 @@ Updated November 5, 2026. This checklist replaces open-ended feature milestones.
 - Reservation Lookup recovered both units sharing PREVIEW-HISTORY-312. Unit A retained the created 48-hour declined-TripSafe acknowledgement and Jennifer Test attribution. Existing created-request UI exposes Reset only; no resend/reset or guest acceptance was performed. The previously copied token is not recoverable from the saved hash.
 - EXC drawer still shows the completed orientation and correctly requires missing Polaris/OHV verification. This is not full qualifying-party acceptance.
 - Deployment dpl_5pBbuqi7UoUQhijqDfsmF8VvfPro was READY before these tests. Remaining: handoff outbound isolation, deposit browser mutation, complete EXC/onsite/group qualification, cancellation guest acceptance, audit coverage and extension/release validation.
+
+## November 6 handoff containment
+- Development-only uui_preview_set_handoff wraps the existing transaction for exactly the two named synthetic rental IDs. Confirms example.invalid identity, released deposit, absent Scout work and no claimed settlement/processing email. Settlement jobs become needs_review and email jobs cancelled before commit; unexpected operational state aborts the transaction. No worker or production function is modified.
+- Installed only on jgpihdpcdlqugmqanzfj; installer lives under scripts/uui, not production migrations. SECURITY INVOKER, service_role-only execution; anonymous/authenticated execution denied.
+- Transactional rollback verified rental_out -> rental_returned, zero runnable settlement/email jobs and unchanged released deposit. Service-role invocation also passed. Route selects this function only with outbound suppression and exact UUI project/environment/database match; other staging remains denied. Non-preview uses original function.
+- Handoff route tests, 153 existing boundary checks and TypeScript passed. Browser persistence verification follows deployment.

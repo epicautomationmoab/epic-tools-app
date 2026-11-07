@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedTeamProfile } from "@/lib/team-auth";
+import { isIsolatedUui } from "@/lib/uui-internal-writes";
 import { supabaseRpc } from "@/lib/server/supabase-rest";
 import { verifyWorkstationCookie, WORKSTATION_COOKIE } from "@/lib/server/workstation-auth";
 
@@ -11,7 +12,8 @@ export async function POST(request: NextRequest) {
   }
   // The existing RPC can queue settlement, post-visit email and deposit work.
   // Do not bypass the Preview outbound boundary by calling this handler directly.
-  if (process.env.EPIC_STAGING_NO_OUTBOUND === "true") {
+  const preview = process.env.EPIC_STAGING_NO_OUTBOUND === "true";
+  if (preview && !isIsolatedUui(process.env)) {
     return NextResponse.json({ error: "Operational handoffs are disabled in Preview while their automation is isolated." }, { status: 403 });
   }
   let body;
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
   try {
     // Keep balance checks, business-line rules and downstream effects in the
     // existing transaction. Never trust caller-supplied employee attribution.
-    await supabaseRpc("set_epic_operational_handoff", {
+    await supabaseRpc(preview ? "uui_preview_set_handoff" : "set_epic_operational_handoff", {
       p_readiness_id: readinessId,
       p_handoff_status: status,
       p_recorded_by: profile?.display_name || "Epic Workstation",

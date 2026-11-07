@@ -5,8 +5,10 @@ const ts = require('typescript');
 const { NextRequest, NextResponse } = require('next/server');
 let profile = null, workstation = false, calls = [], failure = false;
 const env = {};
+let isolated = false;
 const context = { exports: {}, process: { env }, console: { error() {} }, require(name) {
   if (name === 'next/server') return { NextRequest, NextResponse };
+  if (name.endsWith('/uui-internal-writes')) return { isIsolatedUui: () => isolated };
   if (name.endsWith('/team-auth')) return { getAuthenticatedTeamProfile: async () => profile };
   if (name.endsWith('/workstation-auth')) return { WORKSTATION_COOKIE: 'station', verifyWorkstationCookie: () => workstation };
   if (name.endsWith('/supabase-rest')) return { supabaseRpc: async (name, args) => { calls.push({ name, args }); if (failure) throw Error('private database details'); } };
@@ -34,6 +36,10 @@ const request = body => new NextRequest('https://preview.invalid/api/team/readin
   env.EPIC_STAGING_NO_OUTBOUND = 'true';
   assert.equal((await context.exports.POST(request(valid))).status, 403);
   assert.equal(calls.length, 0);
+  isolated = true;
+  assert.equal((await context.exports.POST(request(valid))).status, 200);
+  assert.equal(calls[0].name, 'uui_preview_set_handoff');
+  calls = [];
   delete env.EPIC_STAGING_NO_OUTBOUND;
   profile = null; workstation = true;
   assert.equal((await context.exports.POST(request(valid))).status, 200);
