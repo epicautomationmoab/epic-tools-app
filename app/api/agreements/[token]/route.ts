@@ -75,7 +75,7 @@ export async function GET(
   try {
     const { token } = await context.params;
     if (!token || token.length < 32) return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
-    const agreement = await loadAgreement(token);
+    let agreement = await loadAgreement(token);
     if (!agreement) return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
 
     if (hasExpired(agreement)) {
@@ -89,10 +89,12 @@ export async function GET(
       const now = new Date().toISOString();
       await supabasePatch(
         "cancellation_agreement_requests",
-        new URLSearchParams({ id: `eq.${agreement.id}` }),
+        new URLSearchParams({ id: `eq.${agreement.id}`, status: "in.(created,sent)" }),
         { status: "opened", opened_at: now, updated_at: now },
       );
-      agreement.status = "opened";
+      // A signature may have been accepted while this GET was in flight.
+      // Never overwrite or report that accepted request as merely opened.
+      agreement = await loadAgreement(token) ?? agreement;
     }
 
     return NextResponse.json({ agreement });
@@ -115,9 +117,9 @@ export async function POST(
   try {
     const { token } = await context.params;
     if (!token || token.length < 32) return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
-    if (body.agreed !== true) return NextResponse.json({ error: "You must agree to the terms before signing." }, { status: 400 });
-    const signerName = body.signerName?.trim() ?? "";
-    const signatureDataUrl = body.signatureDataUrl ?? "";
+    if (!body || typeof body !== "object" || body.agreed !== true) return NextResponse.json({ error: "You must agree to the terms before signing." }, { status: 400 });
+    const signerName = typeof body.signerName === "string" ? body.signerName.trim() : "";
+    const signatureDataUrl = typeof body.signatureDataUrl === "string" ? body.signatureDataUrl : "";
     if (signerName.length < 2) return NextResponse.json({ error: "Enter your full name." }, { status: 400 });
     if (!signatureDataUrl.startsWith("data:image/png;base64,")) {
       return NextResponse.json({ error: "Please sign in the signature box." }, { status: 400 });

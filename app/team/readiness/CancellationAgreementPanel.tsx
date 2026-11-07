@@ -86,6 +86,7 @@ export default function CancellationAgreementPanel({
   const [copying, setCopying] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [createdLink, setCreatedLink] = useState<{ readinessId: string; url: string } | null>(null);
   const [podiumConfigured, setPodiumConfigured] = useState(false);
   const [emailConfigured, setEmailConfigured] = useState(false);
   const [error, setError] = useState("");
@@ -197,8 +198,14 @@ export default function CancellationAgreementPanel({
       if (!response.ok) throw new Error(data.error || "Unable to send agreement.");
       if (mode !== "copy" && !("duplicatePrevented" in data)) sentHereRef.current = true;
       if (mode === "copy" && data.agreementUrl) {
-        await navigator.clipboard.writeText(data.agreementUrl);
-        setCopied(true);
+        setCreatedLink({ readinessId: row.readiness_id, url: data.agreementUrl });
+        try {
+          await navigator.clipboard.writeText(data.agreementUrl);
+          setCopied(true);
+        } catch {
+          // Link creation succeeded. Keep it usable when clipboard access is denied.
+          setCopied(false);
+        }
       }
       setReplacingAccepted(false);
       await loadStatus(true);
@@ -221,6 +228,7 @@ export default function CancellationAgreementPanel({
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error || "Unable to reset agreement.");
+      setCreatedLink(null);
       await loadStatus(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to reset agreement.");
@@ -475,6 +483,15 @@ export default function CancellationAgreementPanel({
               ) : null}
 
               {error ? <p className={styles.error}>{error}</p> : null}
+              {createdLink && createdLink.readinessId === row.readiness_id ? (
+                <div>
+                  <label>Secure acknowledgement link
+                    <input readOnly value={createdLink.url} onFocus={(event) => event.target.select()} style={{ width: "100%" }} />
+                  </label>
+                  <a href={createdLink.url} target="_blank" rel="noreferrer">Open acknowledgement</a>
+                  {!copied ? <p>Select and copy the link above. The agreement was created successfully.</p> : null}
+                </div>
+              ) : null}
               {copied ? <p className={styles.copied}>Secure agreement link copied. Paste it into any text or email.</p> : null}
             </section>
           </div>
