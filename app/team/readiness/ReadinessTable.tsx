@@ -1,4 +1,6 @@
 "use client";
+
+import { saveOperationalHandoff } from "@/lib/operational-handoff";
 import ExpReadinessDetail from "./ExpReadinessDetail";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -293,35 +295,7 @@ async function persistHandoff(
   readinessId: string,
   handoffStatus: "checked_in" | "rental_out" | "rental_returned",
 ) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase configuration is missing.");
-  }
-
-  const response = await fetch(
-    `${url}/rest/v1/rpc/set_epic_operational_handoff`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        p_readiness_id: readinessId,
-        p_handoff_status: handoffStatus,
-        p_recorded_by: "EpicTools",
-      }),
-    },
-  );
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Unable to update reservation status.");
-  }
-
+  await saveOperationalHandoff(readinessId, handoffStatus);
   return handoffStatus;
 }
 
