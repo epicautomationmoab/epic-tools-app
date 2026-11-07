@@ -1,6 +1,6 @@
 # UUI release acceptance — fixed scope
 
-Updated November 5, 2026. This checklist replaces open-ended feature milestones. Existing EpicTools Readiness and imported Sales/C360 are the application; login/Home provide the gateway. No Readiness rebuild. Production release still requires Jennifer's approval.
+Updated November 7, 2026. This checklist replaces open-ended feature milestones. Existing EpicTools Readiness and imported Sales/C360 are the application; login/Home provide the gateway. No Readiness rebuild. Production release still requires Jennifer's approval.
 
 ## Completed evidence
 - Signed-in Home routes to existing Readiness, Sales/C360, Admin and Management. Shared Epic Ping and audit use the gateway shell.
@@ -17,10 +17,11 @@ Updated November 5, 2026. This checklist replaces open-ended feature milestones.
 ## Remaining release gates (close these; do not add features)
 | Gate | Required evidence | Current limitation |
 | --- | --- | --- |
-| Existing operational workflows | Verify Readiness held-over rentals, deposits, dispatch, reservation lookup, rental/tour inboxes and exceptions; Sales lead/follow-up/opportunity/quote actions; Admin user changes | Loading menus is not acceptance. Most mutations still fail closed under Preview outbound isolation. Classify internal saves versus actual outbound actions and enable only reviewed internal operations in UUI. |
+| Existing operational workflows | Verify Readiness held-over rentals, deposits, dispatch, reservation lookup, rental/tour inboxes and exceptions; Sales lead/follow-up/opportunity/quote actions; Admin user changes | Loading menus is not acceptance. Browser saves now pass for notes, inbox handoffs/close, guide assignment, synthetic rental return, lead sheets, follow-ups, quotes and Admin creation/archive. Remaining: deposit mutation, legacy clear-handoff path and Scout-present return compatibility. |
 | C360 history | Introduction timestamp renders; selected conversation uses correct customer/thread history | Introduction reader fixed. Reproduced phone-thread notes missing from the opportunity-only panel; linked-thread reader fixed and tested. Deployed browser verified seven prior internal notes (four phone-thread notes plus three reservation-thread notes), with original authors and mention acknowledgment. |
-| Shared tools | One CallRail popup opens Lead/C360 and dismisses all past calls; one Ping works across workspaces | Earlier function/access checks exist; complete cross-workspace browser acceptance remains. |
-| EXC | Guest/kiosk through assessment to Readiness/Arrival/Exceptions with correct dependencies | Combined UUI release includes EXC. Existing EXC implementation enabled only in UUI Preview/Development; full video coverage required. Vimeo access/duration and full guest flow verification pending. Original EXC staging and branch retained unchanged. |
+| Shared tools | One CallRail popup opens Lead/C360 and dismisses all past calls; one Ping works across workspaces | CallRail browser checks passed unknown -> Lead, known -> C360 and cross-workspace dismiss-all. Ping navigation/recipient loading passed; no live send/acknowledgement test. |
+| EXC | Guest/kiosk through assessment to Readiness/Arrival/Exceptions with correct dependencies | Combined UUI release includes EXC. Existing EXC implementation enabled only in UUI Preview/Development; full video coverage required. Actual full video and assessment completion passed; open-rental onsite/group qualification through Arrival Board remains unverified. Original EXC staging and branch retained unchanged. |
+| Cancellation acknowledgement | Correct booking/policy, immutable acceptance and retained history | Copy Link -> guest policy -> opened status passed, including shared-confirmation separation. Preview acceptance restricted to named synthetic records; actual legal signature/replacement not performed. |
 | Roles and audit | Team/manager/owner route denials; Jennifer/Joe-only audit; requested action coverage, older search and denied actions | Notes history works. Source-level pagination and employee filtering across older records are implemented and tested; follow-up events are included. Failed-action recording and full source coverage remain incomplete. Legacy unmigrated notes read-only. |
 | Operational dependencies | Extension availability; MPWR document access; preserved Slack/Joe maintenance routing with no real test sends | Chrome extension unavailable for testing; MPWR drawer retrieval passed browser verification on November 4. Maintenance handlers previously compared unchanged; no delivery claim. |
 | Release | One tested candidate, environment mapping, rollback and explicit owner approval | Not ready for production. Bookings and Ambassador placeholders remain planned; no new booking engine work belongs in this release. |
@@ -33,11 +34,11 @@ Updated November 5, 2026. This checklist replaces open-ended feature milestones.
 - Do not report an estimated completion date or full readiness without resolving the gates above.
 
 ## Verified candidate
-- Deployed code: 70d68c61d65f0f30c7935b7c230e9f796d354232.
-- Protected Preview deployment: dpl_9QAidurt2zh2MA8PCAKimXk1BS6T, READY.
-- Full build and focused introduction/history/session tests passed; 67 boundary checks passed.
-- Browser verified session recovery and both C360 history repairs at approximately 2:00 PM America/Phoenix, November 4.
-- No database schema or data migrations in this pass. Read-only DB verification confirmed four phone-thread notes versus zero active-opportunity notes, reproducing the original mismatch.
+- Deployed code: d7253d1e2f6dbfcc12db0e831d8e9be1bb2777dd.
+- Protected Preview deployment: dpl_AvDQXuVcLs48GPVNVikFHumVFN7o, READY November 7 UTC.
+- TypeScript, cancellation integration/guest mocks and 167 counted middleware boundary checks passed. Earlier tests/evidence remain recorded below; no claim that every workflow was retested after this patch.
+- Guest policy browser inspection and database verification completed on preceding 9c0d95f; final patch adds only the bounded synthetic acceptance path and does not submit a signature.
+- No production deployment, outbound message, payment or legal acceptance was performed.
 
 ## November 4 Sales actions and Readiness documents
 - Restored existing guarded lead/follow-up function grants in UUI only. Anonymous execution remains denied; no direct table grants. Reviewed affected triggers: no outbound sends for these actions.
